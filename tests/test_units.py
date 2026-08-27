@@ -240,11 +240,159 @@ def test_end_to_end():
           set(sensitivity_metrics(s, V)) and not quant_metrics(s, {}, V))
 
 
+class FakeTok:
+    """Reversible 4-chars-per-token stand-in, so the corpus tests need no model.
+
+    4 is the density prompts.CHARS_PER_TOKEN=5.0 budgets slack against, so a
+    window sized in characters really does yield the requested tokens here.
+    """
+
+    def __init__(self, cpt=4):
+        self.cpt, self.vocab, self.index = cpt, [], {}
+
+    def _id(self, s):
+        if s not in self.index:
+            self.index[s] = len(self.vocab)
+            self.vocab.append(s)
+        return self.index[s]
+
+    def __call__(self, text, add_special_tokens=False, **kw):
+        c = self.cpt
+        ids = [self._id(text[i:i + c]) for i in range(0, len(text), c)]
+        return type("Enc", (), {"input_ids": ids})()
+
+    def decode(self, ids):
+        return "".join(self.vocab[i] for i in ids)
+
+
+def _make_corpus(tmp, n_books=6, n_chars=40_000):
+    """Distinct books, so 'different prompts saw different text' is falsifiable."""
+    import random as _r
+    words = [f"w{i:04d}" for i in range(4000)]
+    for b in range(n_books):
+        rng = _r.Random(b)
+        body, n = [], 0
+        while n < n_chars:
+            line = " ".join(rng.choice(words) for _ in range(12))
+            body.append(f"book{b} {line}")
+            n += len(line) + 12
+        open(os.path.join(tmp, f"pg19_{b:05d}_test.txt"), "w").write("\n".join(body))
+    return tmp
+
+
+def test_corpus_prompts():
+    print("\n[corpus haystack: real text, paired families, distinct windows]")
+    import tempfile
+    from sievelib import prompts
+    tok = FakeTok()
+    ctx = 2048
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_corpus(tmp)
+        txt, m = prompts.build(tok, "cont", ctx, corpus_dir=tmp, prompt_idx=0,
+                               require_real=True)
+        check("real corpus -> synthetic False", m["synthetic"] is False
+              and m["source"] == "corpus", f"(doc={m['doc']})")
+        check("haystack really holds ctx*0.92 tokens",
+              len(tok(txt).input_ids) >= int(ctx * prompts.CTX_FILL),
+              f"({len(tok(txt).input_ids)} tok)")
+
+        # [REGRESSION] The old seed was 1000*p + len(family); len("niah") ==
+        # len("cont") == 4 paired those two by accident and gave qa different
+        # text. report.py's gate is a PAIRED per-head test and depends on this.
+        ms = {f: prompts.build(tok, f, ctx, corpus_dir=tmp, prompt_idx=1,
+                               require_real=True)[1]
+              for f in ("niah", "qa", "cont")}
+        check("[REGRESSION] all families share one haystack per prompt_idx",
+              len({(m["doc"], m["offset"]) for m in ms.values()}) == 1,
+              f"({[(m['doc'], m['offset']) for m in ms.values()]})")
+        check("only niah carries a needle",
+              ms["niah"]["needle_tok"] > 0 and ms["cont"]["needle_tok"] == -1
+              and ms["qa"]["needle_tok"] == -1)
+
+        wins = [prompts.build(tok, "cont", ctx, corpus_dir=tmp, prompt_idx=p,
+                              require_real=True) for p in range(6)]
+        keys = {(m["doc"], m["offset"]) for _, m in wins}
+        check("distinct prompt_idx -> distinct windows", len(keys) == 6,
+              f"({len(keys)}/6 unique)")
+        heads = [t[:400] for t, _ in wins]
+        check("windows are textually different", len(set(heads)) == 6)
+
+        d0 = prompts.build(tok, "niah", ctx, corpus_dir=tmp, prompt_idx=3,
+                           require_real=True)[1]
+        d1 = prompts.build(tok, "niah", ctx, corpus_dir=tmp, prompt_idx=3,
+                           require_real=True)[1]
+        check("deterministic across calls",
+              (d0["doc"], d0["offset"], d0["needle_tok"])
+              == (d1["doc"], d1["offset"], d1["needle_tok"]))
+
+    # [REGRESSION] A corpus that is present but too small used to fall back to
+    # filler silently -- exactly the run this whole change exists to prevent.
+    with tempfile.TemporaryDirectory() as tmp:
+        raised = False
+        try:
+            prompts.build(tok, "cont", ctx, corpus_dir=tmp, prompt_idx=0,
+                          require_real=True)
+        except RuntimeError:
+            raised = True
+        check("[REGRESSION] require_real raises instead of silently using filler",
+              raised)
+        _, m = prompts.build(tok, "cont", ctx, corpus_dir=tmp, prompt_idx=0,
+                             require_real=False)
+        check("without require_real it still falls back", m["synthetic"] is True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        open(os.path.join(tmp, "tiny.txt"), "w").write("short\n" * 50)
+        raised = False
+        try:
+            prompts.build(tok, "cont", ctx, corpus_dir=tmp, prompt_idx=0,
+                          require_real=True)
+        except RuntimeError:
+            raised = True
+        check("[REGRESSION] present-but-undersized corpus is an error", raised)
+
+
+def test_family_gate():
+    print("\n[report gate: niah > cont on real text, or no verdict]")
+    import pandas as pd
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
+    import report as R
+
+    def frame(synthetic, delta):
+        rows = []
+        for layer in range(4):
+            for head in range(8):
+                base = 1.2 + 0.01 * (layer * 8 + head)
+                for fam, add in (("niah", delta), ("qa", delta / 2), ("cont", 0.0)):
+                    rows.append(dict(model="m", ctx=32768, family=fam, layer=layer,
+                                     head=head, ladder_bits=base + add,
+                                     synthetic=synthetic))
+        return pd.DataFrame(rows)
+
+    g = R.family_gate(frame(False, 0.30))[("m", 32768)]
+    check("real text + niah wider than cont -> PASS", g["passed"],
+          f"(delta {g['paired_delta']:+.2f}b, {100*g['paired_frac']:.0f}% of heads)")
+    check("passing gate leaves the verdict alone",
+          R.verdict(0.50, 2.0, g)[0] == "GO")
+
+    g = R.family_gate(frame(False, 0.0))[("m", 32768)]
+    check("families indistinguishable -> gate fails", not g["passed"])
+    check("failed gate -> UNKNOWN, not GO", R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
+
+    # The point of the bug report: a big band fraction on filler is an internally
+    # correct number about the wrong input, so it must not read as a result.
+    g = R.family_gate(frame(True, 0.30))[("m", 32768)]
+    check("[REGRESSION] synthetic haystack fails even when niah > cont",
+          not g["passed"], f"({g['reason']})")
+    check("[REGRESSION] synthetic -> UNKNOWN despite 50% in band",
+          R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
-              test_end_to_end):
+              test_end_to_end, test_corpus_prompts, test_family_gate):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

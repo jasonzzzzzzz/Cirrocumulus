@@ -9,6 +9,10 @@ export HF_HOME="${HF_HOME:-$PWD/.hf_cache}"
 export HF_HUB_CACHE="$HF_HOME/hub"
 export HUGGINGFACE_HUB_CACHE="$HF_HUB_CACHE"   # legacy name, same precedence trap
 export TOKENIZERS_PARALLELISM=false
+# The debug tier is exempt from the corpus gate so this script still runs on a
+# fresh checkout, but if a corpus IS staged we exercise the real path here rather
+# than discovering a corpus bug on an H100.
+export H0_CORPUS="${H0_CORPUS:-$PWD/.h0_corpus/pg19}"
 
 echo "=== 0. environment ==============================================="
 python -c "import torch,transformers;print('torch',torch.__version__,
@@ -23,8 +27,14 @@ assert parse(transformers.__version__) >= parse("4.48"), \
 print("transformers version OK")
 PY
 
-echo; echo "=== 1. stage weights (login node has internet) ==================="
+echo; echo "=== 1. stage weights + haystack (login node has internet) ========"
 python h0_measurement/prefetch.py -m "$MODEL"
+if [[ -d "$H0_CORPUS" ]]; then
+  python h0_measurement/prefetch_corpus.py --verify --out "$H0_CORPUS"
+else
+  echo "no corpus at $H0_CORPUS -- debug tier will use synthetic filler."
+  echo "before any main/large run:  python h0_measurement/prefetch_corpus.py"
+fi
 
 echo; echo "=== 2. unit tests (no GPU needed) ================================"
 python tests/test_units.py

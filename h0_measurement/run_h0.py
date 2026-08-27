@@ -100,6 +100,9 @@ def main():
     ap.add_argument("--out-dir", default="results")
     ap.add_argument("--validate-only", action="store_true")
     ap.add_argument("--skip-external-check", action="store_true")
+    ap.add_argument("--allow-synthetic", action="store_true",
+                    help="run a main/large tier model on synthetic filler anyway. "
+                         "Results are stamped UNKNOWN by report.py.")
     args = ap.parse_args()
 
     c = load_cfg(args.config, args.model, args.override)
@@ -122,6 +125,29 @@ def main():
             f"Fix inside the venv:  pip install fastparquet")
     if not os.access(args.out_dir, os.W_OK):
         raise SystemExit(f"--out-dir {args.out_dir!r} is not writable")
+
+    # ------------------------------------------------------------- input gate
+    # A campaign on synthetic filler measures how a model degenerates on 8
+    # sentences tiled ~970x, not how it behaves on a long document, and every
+    # metric in alloc.sensitivity_metrics is computed from that degenerate
+    # distribution. Checked HERE, before P.install(), before the tokenizer, and
+    # long before a 4xH100 allocation is held -- the old code merely printed a
+    # warning mid-run. debug tier and --validate-only stay exempt so
+    # quick_test.sh needs no corpus.
+    tier = str(c.get("tier", "main"))
+    allow_syn = args.allow_synthetic or os.environ.get("H0_ALLOW_SYNTHETIC") == "1"
+    corpus_dir = prompts.resolve_corpus_dir(c.get("corpus"))
+    require_real = (tier in ("main", "large") and not args.validate_only
+                    and not allow_syn)
+    if require_real and corpus_dir is None:
+        raise SystemExit(
+            f"FATAL: tier {tier!r} requires a real haystack, but H0_CORPUS is "
+            f"unset or not a directory (H0_CORPUS={os.environ.get('H0_CORPUS')!r}).\n"
+            f"  stage it:  python h0_measurement/prefetch_corpus.py "
+            f"--check-ctx {c['ctx']} --n-prompts {c['n_prompts']}\n"
+            f"  then:      export H0_CORPUS=<that dir>\n"
+            f"  override (results will be stamped UNKNOWN):  --allow-synthetic")
+
     dtype = getattr(torch, c.get("dtype", "bfloat16"))
     bit_list = sorted(c.get("bit_list", [1, 2, 3, 4, 5, 6, 8]))
     budgets = tuple(c.get("budgets", [1, 2, 3, 4]))
@@ -146,6 +172,30 @@ def main():
             f"HF_HOME={os.environ.get('HF_HOME')}.\n"
             f"Re-stage on a node with internet:  "
             f"python h0_measurement/prefetch.py -m {c['tag']}")
+
+    # ------------------------------------------------- haystack preflight (CPU)
+    # Being set is not the same as being big enough. The corpus is sized in
+    # characters but consumed in tokens, so the only proof that it supplies a
+    # full-ctx haystack is to build one and tokenise it. Costs one pass over
+    # ~600 KB; catches the failure that used to degrade silently to filler.
+    try:
+        pf = prompts.preflight(tok, int(c["ctx"]), corpus_dir,
+                               require_real=require_real,
+                               n_prompts=int(c["n_prompts"]))
+    except RuntimeError as e:
+        raise SystemExit(f"FATAL: haystack preflight failed.\n  {e}")
+    if pf["synthetic"]:
+        print(f"\nWARNING: SYNTHETIC HAYSTACK -- {c['ctx']} tokens of 8 sentences "
+              f"tiled ~{int(c['ctx']*0.92/124)}x. Not a long-context measurement; "
+              f"report.py will stamp the verdict UNKNOWN.", flush=True)
+    else:
+        print(f"\nhaystack: {pf['n_books']} books ({pf['corpus_chars']:,} chars, "
+              f"corpus_sha={pf['corpus_sha']}), {pf['n_books_full_window']} of them "
+              f"cover a {c['ctx']}-token window on their own", flush=True)
+        if pf["n_books_full_window"] < int(c["n_prompts"]):
+            print(f"     note: fewer full-window books ({pf['n_books_full_window']}) "
+                  f"than prompts ({c['n_prompts']}); some prompts will be spliced "
+                  f"from several books (recorded as corpus_spliced).", flush=True)
 
     # ---------------------------------------------------------- validation L1/L3
     vwith = c.get("validate_with", c["id"])
@@ -193,10 +243,20 @@ def main():
     fams = c.get("families", ["niah", "qa", "cont"])
     for p in range(int(c["n_prompts"])):
         for fam in fams:
-            text, synth = prompts.build(tok, fam, int(c["ctx"]), seed=1000 * p + len(fam))
+            # prompt_idx keys the haystack, so niah/qa/cont at the same p read
+            # byte-identical text and the niah-vs-cont gate in report.py is a
+            # PAIRED comparison per (layer, head). The old seed was
+            # `1000*p + len(fam)`, which paired niah with cont only because
+            # len("niah") == len("cont"); qa silently got different text.
+            text, meta = prompts.build(tok, fam, int(c["ctx"]), seed=1000 * p,
+                                       corpus_dir=corpus_dir, prompt_idx=p,
+                                       require_real=require_real)
+            synth = meta["synthetic"]
             ids = tok(text, return_tensors="pt").input_ids[:, : int(c["ctx"])].to(dev)
-            print(f"[{p}/{fam}] prefill {ids.shape[1]} tok"
-                  f"{' (synthetic haystack)' if synth else ''} ...", flush=True)
+            src = ("synthetic haystack" if synth else
+                   f"{meta['doc']}@{meta['offset']}"
+                   f"{' spliced' if meta['spliced'] else ''}")
+            print(f"[{p}/{fam}] prefill {ids.shape[1]} tok  [{src}] ...", flush=True)
             past = chunked_prefill(model, ids, int(c.get("chunk", 4096)))
             cur = ids[:, -1:]
             prev_a.clear()      # selection history does not carry across prompts
@@ -260,7 +320,13 @@ def main():
                             rec.update(prompt=p, family=fam, step=step, layer=li,
                                        head=h, model=c["tag"], ctx=int(c["ctx"]),
                                        synthetic=synth, quantized=do_quant,
-                                       norm_correct=norm_correct)
+                                       norm_correct=norm_correct,
+                                       corpus_source=meta["source"],
+                                       corpus_doc=meta["doc"] or "",
+                                       corpus_offset=meta["offset"] or 0,
+                                       corpus_spliced=meta["spliced"],
+                                       corpus_sha=meta["corpus_sha"],
+                                       needle_tok=meta["needle_tok"])
                             rows.append(rec)
                     del K, V, s_all, shat_all
                     torch.cuda.empty_cache()

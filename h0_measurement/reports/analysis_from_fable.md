@@ -53,3 +53,5 @@ Since φ = n95/L, doubling the context with fixed absolute attention support hal
 4. Report a sink-excluded φ (drop the top-k or position-0 mass from n95) alongside the current one — for Qwen3 that single change will likely reshape the φ histogram dramatically.
 
 The uncomfortable trend might survive all of this — "bigger model → more heads → more redundant/diffuse heads" is a coherent hypothesis. But right now the table is measuring (filler degeneracy × ctx window × oracle corner), and each of those three biases happens to push the large models down.
+
+

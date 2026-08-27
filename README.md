@@ -43,8 +43,9 @@ Rate allocation for KV caches. Two studies share one core library.
 │   │                             metrics, band membership. The heart of both studies.
 │   ├── probe.py                  attention capture + KV-cache access   (H0 only)
 │   ├── validate.py               3 independent probe validation levels (H0 only)
-│   ├── prompts.py                niah / qa / cont prompt families. Falls back to
-│   │                             synthetic filler unless H0_CORPUS points at real text.
+│   ├── prompts.py                niah / qa / cont prompt families over a window of
+│   │                             real text (H0_CORPUS). Families share a haystack per
+│   │                             prompt index, so niah-vs-cont is a paired test.
 │   └── .lloyd_cache.pt           precomputed quantizer levels (~50 s to rebuild)
 │
 ├── h1_simulation/                COMPLETE — synthetic study
@@ -127,7 +128,8 @@ Run h0 in -- check the folder h0_measurement
 | `SIEVE_VENV` | `submit_h0*.slurm` | venv to activate. Default `$PROJECT_ROOT/.venv`. |
 | `SIEVE_NO_REPORT=1` | `submit_h0*.slurm` | skip chaining the report job. |
 | `SIEVE_ROLE` / `SIEVE_RUN_ID` | internal | set by the self-resubmission for the report stage — do not set by hand. |
-| `H0_CORPUS` | `sievelib/prompts.py` | directory of real text for the haystack. **Unset ⇒ synthetic filler** (8 sentences tiled up to ~970× at ctx 131072 — see `h0_measurement/README.md` § synthetic-haystack confound). Set this before a real long-context campaign. |
+| `H0_CORPUS` | `sievelib/prompts.py` | directory of real text for the haystack, staged by `h0_measurement/prefetch_corpus.py`. **Unset ⇒ tier main/large refuses to run** (the alternative is 8 sentences tiled ~970× at ctx 131072 — see `h0_measurement/README.md` § synthetic-haystack confound). |
+| `H0_ALLOW_SYNTHETIC=1` | `h0_measurement/run_h0.py` | run main/large on filler anyway; `report.py` stamps the verdict UNKNOWN. |
 
 ---
 

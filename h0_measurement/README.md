@@ -21,6 +21,9 @@ STOP, above 35% is GO.
 │   ├── models.yaml               model registry (tiers: debug / main / large) — add a model here, nothing else
 │   ├── prefetch.py               stage weights on the LOGIN node — model + its
 │   │                             validate_with proxy (compute nodes have no internet)
+│   ├── prefetch_corpus.py        stage the HAYSTACK on the LOGIN node — PG-19 books
+│   │                             from Project Gutenberg + MANIFEST.json (--verify is
+│   │                             offline, so compute nodes can check it)
 │   ├── run_h0.py                 the measurement
 │   │                               --model TAG --out-dir DIR [--override k=v ...] [--validate-only]
 │   ├── report.py                 multi-page PDF + go/no-go verdict + per-head CSV
@@ -63,6 +66,11 @@ export HF_HOME=$PWD/.hf_cache
 # 2. LOGIN node: stage weights for the models you are about to submit
 #    (compute nodes have NO internet). Omit -m to stage every model in the registry.
 python h0_measurement/prefetch.py -m qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b
+
+# 2a. LOGIN node: stage the HAYSTACK. Without this, tier main/large REFUSES to run
+#     (see § synthetic-haystack confound). ~25 MB, one minute, once per machine.
+python h0_measurement/prefetch_corpus.py --check-ctx 131072 --n-prompts 6
+export H0_CORPUS=$PWD/.h0_corpus/pg19          # the slurm scripts default to this
 
 # 2b. OPTIONAL — CPU cluster: run prefetch + quick_test.sh for each model you plan
 #     to submit, catching a broken tokenizer / gated proxy per model in minutes on
@@ -119,13 +127,24 @@ python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
 | `SIEVE_MODELS` | colon-separated model list (survives `sbatch --export`). |
 | `SIEVE_VENV` | venv to activate. Default `$PROJECT_ROOT/.venv`. |
 | `SIEVE_NO_REPORT=1` | do not chain the report job. |
-| `H0_CORPUS` | directory of real haystack text. Unset ⇒ synthetic filler (see § synthetic-haystack confound). |
+| `H0_CORPUS` | directory of real haystack text. Staged by `prefetch_corpus.py`; the slurm scripts default it to `$PROJECT_ROOT/.h0_corpus/pg19`. Unset ⇒ **tier main/large refuses to start** (see § synthetic-haystack confound). |
+| `H0_ALLOW_SYNTHETIC=1` | run main/large on filler anyway. Same as `run_h0.py --allow-synthetic`. `report.py` still stamps the verdict UNKNOWN. |
 
 ---
 
 ## Version notes
 
 Kept deliberately short since there is no VCS here.
+
+- **Real haystack (bug 1).** `H0_CORPUS` went from an optional knob to a gate.
+  New `prefetch_corpus.py` (PG-19 via Project Gutenberg, no new pip dependency);
+  `prompts.build` returns a provenance dict instead of a `synthetic` bool, seeks a
+  window inside one book instead of concatenating whole files, and shares that
+  window across families at each prompt index so the niah-vs-cont check is paired
+  per head; `run_h0.py` refuses main/large on filler; `report.py` gains
+  `family_gate` and the UNKNOWN verdict. `report.py` also now groups by
+  `(model, ctx)`, which was flagged below as a latent mislabelling and becomes
+  live the moment the ctx sweep runs.
 
 - **proposal v6 / pitch v3** (`docs/*-v5.1-h0v0.html`) rewrite both documents around
   the completed H0: allocation beats both corners on ~38% of all heads (53% median
@@ -216,10 +235,19 @@ repetition counts:
 At `ctx: 131072` the model attends over 124 tokens tiled ~972x — induction heads
 lock onto the repeats, so `tau` and `eff_frac` are computed on a degenerate
 distribution, and the artifact scales with ctx, perfectly confounded with the real
-L-dependence above. The code records `synthetic` per row and prints a warning, but
-nothing blocks a full run on synthetic data. **Set `H0_CORPUS` before choosing ctx
-values for a real campaign** — comparisons made before that point aren't
-informative about long-context behavior.
+L-dependence above. **FIXED** — see `bugs/1_from_synthetic_to_real_corpus/fix.md`.
+The warning is now a gate at three points:
+
+- `prefetch_corpus.py` stages PG-19 books and reports whether the corpus supports
+  `n_prompts` distinct full-ctx windows.
+- `run_h0.py` refuses to start a `tier: main`/`large` model without a corpus, and
+  proves by tokenising at the real ctx that it yields a full haystack — before the
+  tokenizer's first GPU byte, not at hour 3. `--allow-synthetic` overrides.
+- `report.py` stamps the verdict **UNKNOWN** unless the haystack was real *and*
+  niah's ladder beats cont's on a paired per-head test.
+
+All six runs in `results/job847127` and `results/job847130` were measured on filler
+and now read UNKNOWN; their band fractions describe the prompt, not the model.
 
 **Recommendation.**
 - Match the `main` tier to the largest ctx all four main-tier models support
@@ -229,10 +257,9 @@ informative about long-context behavior.
 - Turn L into a deliberate axis on one model (e.g. llama31-8b at {8k, 32k, 128k})
   instead of an incidental difference across models — this also gives an on-hardware
   test of the v5 tau non-monotonicity claim.
-- `report.py`'s `page_compare` currently groups by `model` only
-  (`ph.groupby("model")`) and labels the panel with `g['ctx'].iloc[0]` — a per-model
-  ctx sweep needs `groupby(["model", "ctx"])` there or two ctx values for one model
-  will silently pool into a single mislabeled page.
+- ~~`report.py`'s `page_compare` groups by `model` only~~ — **fixed**: every panel,
+  page and terminal line now groups by `(model, ctx)` and labels the ctx, so a
+  per-model ctx sweep can no longer pool into one mislabeled page.
 
 
 # Methodology: Validating with a smaller model

@@ -20,13 +20,65 @@ BAND_MIN = 2.0               # a head is "in band" if the interior beats the bes
 F_STOP, F_GO = 0.15, 0.35    # FRACTION of heads in band -- the real rule
 C_PAPER = {1: 0.36, 2: 0.117, 3: 0.03, 4: 0.009, 5: 0.00225, 6: 0.00056, 8: 3.5e-5}
 
+# Input-validity gate (sievelib/prompts.py docstring, made enforceable).
+# niah must produce a WIDER sensitivity ladder than cont, or the haystack never
+# induced retrieval behaviour and the run says nothing about long-context
+# attention. Because the two families share a haystack at each prompt index, the
+# test is paired per (layer, head), which is what lets the thresholds be strict.
+GATE_DELTA_BITS = 0.10       # median paired  ladder(niah) - ladder(cont)
+GATE_PAIRED_FRAC = 0.60      # fraction of heads with niah > cont
+
 
 def per_head(df):
     keys = ["model", "ctx", "layer", "head"]
     return df.groupby(keys).median(numeric_only=True).reset_index()
 
 
-def verdict(frac_band, portfolio):
+def family_gate(raw):
+    """(model, ctx) -> validity record. Computed on `raw`, not on per_head():
+    per_head() groups `family` away, and a median over raw rows would pool
+    layers, heads and decode steps into one number that no longer pairs.
+    """
+    out = {}
+    for (mdl, ctx), g in raw.groupby(["model", "ctx"]):
+        r = {"synthetic_frac": float(g["synthetic"].mean())
+             if "synthetic" in g else float("nan"),
+             "paired_delta": float("nan"), "paired_frac": float("nan"),
+             "n_paired": 0, "ladder": {}}
+        fam = (g.groupby(["family", "layer", "head"])["ladder_bits"]
+                .median().reset_index())
+        r["ladder"] = {k: float(v) for k, v in
+                       fam.groupby("family")["ladder_bits"].median().items()}
+        piv = fam.pivot_table(index=["layer", "head"], columns="family",
+                              values="ladder_bits")
+        if {"niah", "cont"} <= set(piv.columns):
+            d = (piv["niah"] - piv["cont"]).dropna()
+            if len(d):
+                r.update(paired_delta=float(d.median()),
+                         paired_frac=float((d > 0).mean()), n_paired=int(len(d)))
+
+        reasons = []
+        if not np.isfinite(r["synthetic_frac"]):
+            reasons.append("no `synthetic` column -- results predate the corpus gate")
+        elif r["synthetic_frac"] > 0:
+            reasons.append(f"synthetic haystack on {100*r['synthetic_frac']:.0f}% "
+                           f"of rows")
+        if not r["n_paired"]:
+            reasons.append("no paired niah/cont heads to compare")
+        else:
+            if r["paired_delta"] < GATE_DELTA_BITS:
+                reasons.append(f"paired ladder delta {r['paired_delta']:+.3f} b "
+                               f"< {GATE_DELTA_BITS} b")
+            if r["paired_frac"] < GATE_PAIRED_FRAC:
+                reasons.append(f"only {100*r['paired_frac']:.1f}% of heads have "
+                               f"niah > cont (need {100*GATE_PAIRED_FRAC:.0f}%)")
+        r["passed"] = not reasons
+        r["reason"] = "; ".join(reasons) if reasons else "real text, niah > cont"
+        out[(mdl, int(ctx))] = r
+    return out
+
+
+def verdict(frac_band, portfolio, gate=None):
     """H0 asks: WHAT FRACTION OF HEADS SIT IN THE PRODUCTIVE BAND?
 
     The median is the wrong statistic. 40% of heads at 10x and 60% at 1.0x gives a
@@ -37,7 +89,16 @@ def verdict(frac_band, portfolio):
     Ladder width is NOT a criterion: gain over uniform grows with tau while gain
     over eviction falls, so gain over the BEST corner is non-monotonic in tau. A
     wide ladder can coexist with zero headroom over sparse attention.
+
+    The input-validity gate runs FIRST. A band fraction measured on filler is an
+    internally correct number about the wrong input, so it gets no verdict at
+    all rather than a STOP/GO that reads as a fact about the model.
     """
+    if gate is not None and not gate["passed"]:
+        return ("UNKNOWN", f"input-validity gate failed ({gate['reason']}). The "
+                f"band fraction below is a measurement of this prompt, not of "
+                f"the model's long-context behaviour. See "
+                f"h0_measurement/bugs/1_from_synthetic_to_real_corpus/.")
     if frac_band is None or not np.isfinite(frac_band):
         return ("UNKNOWN", "no quantized samples; check bit_list vs budgets")
     if frac_band < F_STOP:
@@ -54,17 +115,30 @@ def verdict(frac_band, portfolio):
             f"Proceed to the nested-coding test.")
 
 
-def page_summary(pdf, df, ph):
+def page_summary(pdf, df, ph, gates):
     fig = plt.figure(figsize=(11, 8.5))
     fig.suptitle("H0 — decision summary", fontsize=15, y=.97)
     txt = []
-    for mdl, g in ph.groupby("model"):
+    for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+        gate = gates.get((mdl, int(ctx)))
         lad = g["ladder_bits"].dropna()
         gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
         frac = float((gb3 >= BAND_MIN).mean()) if len(gb3) else None
         port = float(np.exp(np.log(np.maximum(gb3, 1.0)).mean())) if len(gb3) else None
-        v, msg = verdict(frac, port)
-        txt.append(f"{mdl}  (ctx {int(g['ctx'].iloc[0]):,},  {len(g):,} heads)")
+        v, msg = verdict(frac, port, gate)
+        txt.append(f"{mdl}  (ctx {int(ctx):,},  {len(g):,} heads)")
+        if gate:
+            lb = gate["ladder"]
+            txt.append(f"    INPUT VALIDITY {'PASS' if gate['passed'] else 'FAIL'}"
+                       f"   haystack "
+                       f"{'real' if gate['synthetic_frac'] == 0 else 'SYNTHETIC'}")
+            txt.append(f"      ladder niah {lb.get('niah', float('nan')):.3f} b   "
+                       f"cont {lb.get('cont', float('nan')):.3f} b   "
+                       f"paired delta {gate['paired_delta']:+.3f} b "
+                       f"(need >= {GATE_DELTA_BITS})")
+            txt.append(f"      heads with niah > cont  "
+                       f"{100*gate['paired_frac']:.1f}%  "
+                       f"(need >= {100*GATE_PAIRED_FRAC:.0f}%, n={gate['n_paired']:,})")
         if frac is not None:
             txt.append(f"    HEADS IN BAND  {100*frac:5.1f}%  (gain over best "
                        f"corner >= {BAND_MIN}x at 3 b/token)")
@@ -114,9 +188,11 @@ def page_summary(pdf, df, ph):
     pdf.savefig(fig); plt.close(fig)
 
 
-def page_model(pdf, mdl, g, raw):
+def page_model(pdf, mdl, ctx, g, raw, gate=None):
     fig, ax = plt.subplots(2, 3, figsize=(11, 8.5))
-    fig.suptitle(f"{mdl} — ctx {int(g['ctx'].iloc[0]):,}", fontsize=14)
+    stamp = "" if gate is None or gate["passed"] else "   [INPUT GATE FAILED]"
+    fig.suptitle(f"{mdl} — ctx {int(ctx):,}{stamp}", fontsize=14,
+                 color="#12414f" if not stamp else "#9b2c3a")
 
     if "gain_best3" in g:
         gb3 = g["gain_best3"].dropna()
@@ -176,11 +252,20 @@ def page_model(pdf, mdl, g, raw):
         ax[1, 1].set_xlabel("ladder from a alone"); ax[1, 1].set_ylabel("ladder from a·‖v−o‖")
         ax[1, 1].set_title("Does the value term matter?", fontsize=10)
 
-    fam = raw[raw.model == mdl].groupby("family")["ladder_bits"].median()
-    ax[1, 2].bar(fam.index, fam.values, color="#4ea8b8", edgecolor="#12414f")
+    # The validity gate, drawn. Per-(family, layer, head) medians so the bars are
+    # the same quantity family_gate() thresholds on, not a pool over raw rows.
+    sub = raw[(raw.model == mdl) & (raw.ctx == ctx)]
+    fam = (sub.groupby(["family", "layer", "head"])["ladder_bits"].median()
+              .reset_index().groupby("family")["ladder_bits"].median())
+    cols = ["#c2334d" if gate is not None and not gate["passed"] else "#4ea8b8"] * len(fam)
+    ax[1, 2].bar(fam.index, fam.values, color=cols, edgecolor="#12414f")
     ax[1, 2].axhline(GO, color="#e0a838", ls="--")
     ax[1, 2].set_ylabel("median ladder width (bits)")
-    ax[1, 2].set_title("By prompt family", fontsize=10)
+    sub_t = "By prompt family"
+    if gate is not None:
+        sub_t += (f"  —  niah−cont {gate['paired_delta']:+.3f} b, "
+                  f"{'PASS' if gate['passed'] else 'FAIL'}")
+    ax[1, 2].set_title(sub_t, fontsize=10)
 
     for a in ax.ravel():
         a.grid(alpha=.22); a.set_axisbelow(True)
@@ -188,19 +273,29 @@ def page_model(pdf, mdl, g, raw):
     pdf.savefig(fig); plt.close(fig)
 
 
-def page_compare(pdf, ph):
-    if ph["model"].nunique() < 2:
+def page_compare(pdf, ph, gates=None):
+    # Grouped by (model, ctx), not model: eff_frac = n95/L puts ctx directly into
+    # the in-band window, so two ctx values for one model are different
+    # experiments. Pooling them under one label was silently possible before.
+    grp = list(ph.groupby(["model", "ctx"]))
+    if len(grp) < 2:
         return
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.6))
     fig.suptitle("Cross-model comparison", fontsize=14)
-    data = [g["ladder_bits"].dropna().values for _, g in ph.groupby("model")]
-    labs = [m for m, _ in ph.groupby("model")]
+    data = [g["ladder_bits"].dropna().values for _, g in grp]
+
+    def _lab(mdl, ctx):
+        bad = gates is not None and not gates.get((mdl, int(ctx)),
+                                                  {"passed": True})["passed"]
+        return f"{mdl}\n{int(ctx)//1024}k" + ("\n[gate FAIL]" if bad else "")
+
+    labs = [_lab(m, c) for (m, c), _ in grp]
     ax[0].boxplot(data, showfliers=False)
     ax[0].set_xticklabels(labs)
     ax[0].axhline(GO, color="#e0a838", ls="--"); ax[0].axhline(KILL, color="#c2334d", ls="--")
     ax[0].set_ylabel("ladder width (bits)"); ax[0].tick_params(axis="x", rotation=20)
     if "gain_best3" in ph:
-        ax[1].boxplot([g["gain_best3"].dropna().values for _, g in ph.groupby("model")],
+        ax[1].boxplot([g["gain_best3"].dropna().values for _, g in grp],
                       showfliers=False)
         ax[1].set_xticklabels(labs)
         ax[1].axhline(BAND_MIN, color="#e0a838", ls="--")
@@ -221,20 +316,25 @@ def main():
         raise SystemExit("no input files matched")
     raw = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
     ph = per_head(raw)
+    gates = family_gate(raw)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with PdfPages(args.out) as pdf:
-        page_summary(pdf, raw, ph)
-        for mdl, g in ph.groupby("model"):
-            page_model(pdf, mdl, g, raw)
-        page_compare(pdf, ph)
+        page_summary(pdf, raw, ph, gates)
+        for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+            page_model(pdf, mdl, int(ctx), g, raw, gates.get((mdl, int(ctx))))
+        page_compare(pdf, ph, gates)
     ph.to_csv(args.out.replace(".pdf", "_per_head.csv"), index=False)
     print(f"wrote {args.out}")
-    for mdl, g in ph.groupby("model"):
+    for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+        gate = gates.get((mdl, int(ctx)))
         gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
         frac = float((gb3 >= BAND_MIN).mean()) if len(gb3) else None
         port = float(np.exp(np.log(np.maximum(gb3, 1.0)).mean())) if len(gb3) else None
-        v, _ = verdict(frac, port)
-        print(f"  {mdl:24s} band {100*frac:5.1f}%  routed {port:.2f}x  -> {v}")
+        v, _ = verdict(frac, port, gate)
+        band = f"{100*frac:5.1f}%" if frac is not None else "   n/a"
+        rout = f"{port:.2f}x" if port is not None else " n/a"
+        print(f"  {mdl:24s} {int(ctx)//1024:>4}k  band {band}  routed {rout}  -> {v}"
+              + ("" if gate is None or gate["passed"] else f"   [{gate['reason']}]"))
 
 
 if __name__ == "__main__":

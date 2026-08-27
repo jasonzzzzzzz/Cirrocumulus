@@ -17,6 +17,8 @@
 # structure as submit_h0.slurm (measure array + chained report); the ONLY thing
 # that differs is resources, because these two models do not fit one H100.
 #
+#   python h0_measurement/prefetch_corpus.py         # ONCE -- the PG-19 haystack,
+#                                                    # LOGIN node (no internet here)
 #   sbatch h0_measurement/submit_h0_large_models.slurm
 #   sbatch --array=0-0 h0_measurement/submit_h0_large_models.slurm llama33-70b
 #
@@ -127,6 +129,19 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 #   python h0_measurement/prefetch.py -m <tags>
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 
+# The haystack: PG-19 books, staged on the login node like the weights and for
+# the same reason (no internet here). This is the INPUT the campaign is about --
+# unset means synthetic filler, i.e. 8 sentences tiled ~970x at ctx 131072, which
+# measures how a model degenerates on repetition rather than how it attends over
+# a long document. Both models here are tier large, so run_h0.py refuses without
+# it. This tier is also where filler hurt most: llama3.3-70B smeared (63% of
+# heads near-uniform) while qwen3-30B collapsed onto sinks, in opposite
+# directions, which is exactly the "bigger models benefit less" trend the old
+# campaign reported.
+#   python h0_measurement/prefetch_corpus.py --check-ctx 131072 --n-prompts 4
+export H0_CORPUS="${H0_CORPUS:-$PROJECT_ROOT/.h0_corpus/pg19}"
+export H0_ALLOW_SYNTHETIC="${H0_ALLOW_SYNTHETIC:-0}"   # =1 to run on filler anyway
+
 source "$VENV/bin/activate"
 
 # Absolute, to match the header's --output/--error. The chained report job below
@@ -156,6 +171,11 @@ if [[ "$SIEVE_ROLE" == "report" ]]; then
   echo
   echo "report: $PDF"
   echo "per-head csv: ${PDF%.pdf}_per_head.csv"
+  echo
+  echo "A verdict of UNKNOWN means the input-validity gate failed: the haystack"
+  echo "was synthetic, or niah's sensitivity ladder did not beat cont's, so no"
+  echo "retrieval behaviour was induced and the band fraction describes the"
+  echo "prompt rather than the model."
   exit 0
 fi
 
@@ -174,6 +194,27 @@ if sys.argv[1] not in known:
     sys.exit(f"ERROR: unknown model tag '{sys.argv[1]}'\n"
              f"available: {' '.join(sorted(known))}")
 PY
+
+# Corpus precondition, FATAL. Both models here are tier large, which run_h0.py
+# refuses to run on filler, so a missing corpus is a certain failure -- and the
+# thing it would waste is a 4xH100 allocation. Stop before that is requested, and
+# before a report job is chained to an array that cannot succeed. --verify is
+# offline (sha256 against MANIFEST.json) and also catches a truncated or
+# half-copied corpus, which run_h0.py's preflight would happily accept.
+if [[ "$H0_ALLOW_SYNTHETIC" == "1" ]]; then
+  echo "WARNING: H0_ALLOW_SYNTHETIC=1 -- measuring on synthetic filler."
+  echo "         report.py will stamp every verdict UNKNOWN."
+elif ! python h0_measurement/prefetch_corpus.py --verify --out "$H0_CORPUS"; then
+  {
+    echo "ERROR: no usable PG-19 haystack at H0_CORPUS=$H0_CORPUS"
+    echo "  stage it on the LOGIN node (this node has no internet):"
+    echo "    python h0_measurement/prefetch_corpus.py --check-ctx 131072 --n-prompts 4"
+    echo "  or resubmit with H0_ALLOW_SYNTHETIC=1 to measure filler anyway"
+    echo "  (results are then stamped UNKNOWN -- see"
+    echo "   h0_measurement/bugs/1_from_synthetic_to_real_corpus/)."
+  } >&2
+  exit 1
+fi
 
 # Task 0 chains the report BEFORE the long run, so it is queued even if task 0 is
 # the first to finish. Resource overrides on the command line beat the #SBATCH

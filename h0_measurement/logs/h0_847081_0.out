@@ -1,0 +1,42 @@
+
+scontrol show job 847085
+JobId=847085 ArrayJobId=847081 ArrayTaskId=0 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825112 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:15
+   RunTime=00:05:25 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:43:20 EligibleTime=2026-08-27T02:43:20
+   AccrueTime=2026-08-27T02:43:20
+   StartTime=2026-08-27T02:43:21 EndTime=2026-08-27T02:48:46 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T02:43:21 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0023
+   BatchHost=trig0023
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847081_0.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847081_0.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 847085
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+847081_0       sieve-h0 def-enrig+   00:05:25                        00:47.061  03:18.110      0:0 
+847081_0.ba+      batch def-enrig+   00:05:26          0     51028K  00:00.217  00:00.328     0:15 
+847081_0.ex+     extern def-enrig+   00:05:28                         00:00:00   00:00:00      0:0 
+847081_0.0       python def-enrig+   00:05:15          0  21875100K  00:46.843  03:17.782     0:15 
+

@@ -1,0 +1,130 @@
+host=trig0014 role=measure model=qwen3-30b-a3b-2507 task=0 run_id=job847130
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+HF_HOME = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache
+hub cache = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub
+
+=== qwen3-30b-a3b-2507  (Qwen/Qwen3-30B-A3B-Instruct-2507) ===
+  ok  61.1 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--Qwen--Qwen3-30B-A3B-Instruct-2507/snapshots/0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe
+
+=== qwen3-30b-a3b-2507:validate_with  (Qwen/Qwen3-0.6B) ===
+  ok  1.5 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca
+  gpus=4  vram=340 GB  kv@131072=13 GB
+{
+ "ctx": 131072,
+ "n_prompts": 4,
+ "n_decode": 8,
+ "families": [
+  "niah",
+  "qa",
+  "cont"
+ ],
+ "dtype": "bfloat16",
+ "chunk": 4096,
+ "device_map": "auto",
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "budgets": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "quant_every": 4,
+ "norm_correct": true,
+ "rot_seed": 0,
+ "maxb": 8,
+ "tag": "qwen3-30b-a3b-2507",
+ "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+ "tier": "large",
+ "validate_with": "Qwen/Qwen3-0.6B"
+}
+     WARNING: proxy config differs from Qwen/Qwen3-30B-A3B-Instruct-2507:
+       n_rep           target=8                  proxy=2
+       model_type      target=qwen3_moe          proxy=qwen3
+     -> n_rep (the GQA expansion) differs, so L1/L3 did NOT exercise the target's attention shape. tests/test_units.py covers those ratios directly.
+
+[L1] drop-in fidelity on Qwen/Qwen3-0.6B (float32) ...
+     max |Δ LM logit| = 2.301e-05  -> PASS
+[L3] external reference vs HF eager on Qwen/Qwen3-0.6B ...
+     max |Δ attn weight| = 2.921e-06  -> PASS
+
+loaded Qwen/Qwen3-30B-A3B-Instruct-2507: 48L 32H kv=4 d=128
+[0/niah] prefill 120615 tok (synthetic haystack) ...
+[L2] capture fidelity = 3.108e-03 -> PASS
+    12,288 rows  257s
+[0/qa] prefill 120600 tok (synthetic haystack) ...
+    24,576 rows  431s
+[0/cont] prefill 120586 tok (synthetic haystack) ...
+    36,864 rows  606s
+[1/niah] prefill 120616 tok (synthetic haystack) ...
+    49,152 rows  771s
+[1/qa] prefill 120600 tok (synthetic haystack) ...
+    61,440 rows  933s
+[1/cont] prefill 120586 tok (synthetic haystack) ...
+    73,728 rows  1097s
+[2/niah] prefill 120615 tok (synthetic haystack) ...
+    86,016 rows  1260s
+[2/qa] prefill 120600 tok (synthetic haystack) ...
+    98,304 rows  1422s
+[2/cont] prefill 120586 tok (synthetic haystack) ...
+    110,592 rows  1586s
+[3/niah] prefill 120616 tok (synthetic haystack) ...
+    122,880 rows  1749s
+[3/qa] prefill 120600 tok (synthetic haystack) ...
+    135,168 rows  1912s
+[3/cont] prefill 120586 tok (synthetic haystack) ...
+    147,456 rows  2075s
+
+wrote results/job847130/h0_qwen3-30b-a3b-2507_131072.parquet  (147,456 rows, 2076s)
+
+scontrol show job 850906
+JobId=850906 ArrayJobId=847130 ArrayTaskId=0 JobName=sieve-h0-large
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=821183 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:40:34 TimeLimit=04:00:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:37 EligibleTime=2026-08-27T02:49:37
+   AccrueTime=2026-08-27T02:49:37
+   StartTime=2026-08-27T06:55:49 EndTime=2026-08-27T07:36:23 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T06:55:49 Scheduler=Backfill
+   Partition=compute_full_node AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0014
+   BatchHost=trig0014
+   NumNodes=1 NumCPUs=96 NumTasks=1 CPUs/Task=32 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=32,mem=770000M,node=1,billing=4,gres/gpu=4
+   AllocTRES=cpu=96,mem=770000M,node=1,billing=4,gres/gpu=4
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=32 MinMemoryNode=770000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0_large_models.slurm
+   SubmitLine=SBATCH --partition=compute_full_node --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0large_847130_0.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0large_847130_0.out
+   TresPerNode=gres/gpu:4
+   TresPerTask=cpu=32
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 850906
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+847130_0     sieve-h0-+ def-enrig+   00:40:35                         00:00:00   00:00:00      0:0 
+847130_0.ba+      batch def-enrig+   00:40:35                         00:00:00   00:00:00      0:0 
+847130_0.ex+     extern def-enrig+   00:40:35                         00:00:00   00:00:00      0:0 
+847130_0.0       python def-enrig+   00:39:56                         00:00:00   00:00:00      0:0 
+

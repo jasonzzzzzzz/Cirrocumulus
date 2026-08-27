@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEVE — Rate Allocation for KV Caches (ICLR 2027, v5)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root{
+    --bg:#fff; --panel:#f6f7fb; --panel-2:#eef1f8; --ink:#12141c; --ink-2:#4c5366;
+    --rule:#dfe3ed; --accent:#3b3fa8; --accent-soft:#e8e9f7;
+    --warn:#a8611f; --warn-soft:#fdf3e7; --kill:#9b2c3a; --kill-soft:#fdeff1;
+    --ok:#1f6b52; --ok-soft:#edf6f2;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.65;margin:0;padding:2.5rem 1rem 5rem}
+  .container{max-width:900px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.6rem}
+  h1{font-size:1.95rem;font-weight:700;line-height:1.25;margin:0 0 .5rem;letter-spacing:-.02em}
+  .subtitle{color:var(--ink-2);font-size:1.02rem;margin:0 0 1.5rem;padding-bottom:1.25rem;border-bottom:2px solid var(--rule)}
+  h2{font-size:1.28rem;font-weight:700;letter-spacing:-.01em;margin:2.4rem 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule)}
+  h3{font-size:1.03rem;font-weight:650;margin:1.5rem 0 .4rem}
+  h3 .tag{font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--accent);background:var(--accent-soft);padding:.12rem .45rem;border-radius:3px;margin-right:.5rem;vertical-align:.1em}
+  p{margin:0 0 1rem}
+  ul,ol{margin:0 0 1rem;padding-left:1.35rem}
+  li{margin-bottom:.45rem}
+  strong{color:#000;font-weight:650}
+  code{font-family:var(--mono);font-size:.87em;background:var(--panel-2);padding:.1rem .3rem;border-radius:3px}
+  .thesis{background:var(--panel);border-left:4px solid var(--accent);padding:1.15rem 1.35rem;border-radius:0 6px 6px 0;margin-bottom:1.5rem}
+  .thesis .lead{font-size:1.06rem;margin-bottom:.75rem}
+  .callout,.kill,.win{border-left:4px solid;padding:.9rem 1.2rem;border-radius:0 6px 6px 0;margin:1.25rem 0;font-size:.95rem}
+  .callout{border-color:var(--warn);background:var(--warn-soft)}
+  .kill{border-color:var(--kill);background:var(--kill-soft)}
+  .win{border-color:var(--ok);background:var(--ok-soft)}
+  .label{display:block;font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+  .callout .label{color:var(--warn)} .kill .label{color:var(--kill)} .win .label{color:var(--ok)}
+  pre{background:#14161f;color:#e8eaf2;padding:1.1rem;border-radius:6px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;line-height:1.5;margin:0 0 1.5rem}
+  table{width:100%;border-collapse:collapse;margin:1.4rem 0;font-size:.92rem}
+  th,td{border:1px solid var(--rule);padding:.6rem .8rem;text-align:left;vertical-align:top}
+  th{background:var(--panel-2);font-weight:650}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  tr.band{background:#eaf5f0}
+  .done{color:var(--ok);font-weight:650} .down{color:var(--kill);font-weight:650}
+  figure{margin:1.5rem 0}
+  figure img{width:100%;border:1px solid var(--rule);border-radius:6px;display:block}
+  figcaption{font-size:.86rem;color:var(--ink-2);margin-top:.5rem;line-height:1.5}
+  .footnote{font-size:.87rem;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:1rem;margin-top:2.5rem}
+  @media (max-width:600px){body{padding:1.5rem .9rem 3rem}h1{font-size:1.5rem}table{font-size:.83rem}th,td{padding:.45rem .5rem}pre{font-size:.66rem}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="eyebrow">ICLR 2027 · Submission proposal · v5 · post-audit correction</div>
+  <h1>SIEVE: Rate Allocation for KV Caches</h1>
+  <p class="subtitle">Token eviction and cache quantization are the same optimization problem, solved at two opposite corners. The interior dominates both — but only over a bounded regime, and finding that boundary is now the project.</p>
+
+  <div class="thesis">
+    <p class="lead"><strong>Thesis.</strong> Every KV compression method minimizes a <em>reconstruction</em> distortion. Attention does not consume keys; it consumes an output \(o=\sum_i a_iv_i\). Posed against <em>output</em> distortion, KV compression is a rate-allocation problem whose solution is reverse water-filling: the optimal budget for token \(i\) is <strong>linear in the log of its attention weight</strong>, with the zero-rate case recovering eviction exactly.</p>
+    <p style="margin-bottom:0"><strong>Status, and a correction.</strong> A second audit pass invalidated v4's central empirical claim. v4 asserted the allocation gain <em>grows</em> with the per-head logit spread \(\tau\). Measured against the <em>best of both corners</em> rather than against uniform bits alone, the gain is <strong>non-monotonic</strong>: it peaks near \(\tau\approx1.25\) at ~13× and collapses to <strong>1.0×</strong> by \(\tau\ge2\), because at high \(\tau\) the optimum itself becomes nearly two-tier and converges to eviction. The project is still viable, but its claim is now narrower and its central risk has moved.</p>
+  </div>
+
+  <h2>1. The allocation theorem</h2>
+
+  <p>With \(\hat s_i = s_i+\delta_i\), \(\operatorname{Var}(\delta_i)=\sigma_b^2\), and \(\partial o/\partial s_i=a_i(v_i-o)\), the first-order output error is \(\sum_i a_i^2w_i^2\sigma_{b_i}^2\) with \(w_i=\|v_i-o\|\). Minimizing under \(\sum_ib_i\le B\) gives, above the water level,</p>
+
+  $$\boxed{\;b_i^\star=\log_2\!\big(a_iw_i\big)+c\;}$$
+
+  <p>and \(b_i^\star=0\) otherwise. The eviction cost constant is derived, not chosen: dropping a set \(E\) and renormalizing costs exactly \(\sum_{i\in E}a_i^2\|o_R-v_i\|^2\), so <strong>\(c_0=1\)</strong> in absolute units, placing eviction on the same axis as every quantized tier.</p>
+
+  <div class="callout">
+    <span class="label">The units matter, and getting them wrong inverts the answer</span>
+    Evicting token \(i\) costs \(a_i^2w_i^2\cdot 1\); quantizing it at \(b\) bits costs \(a_i^2w_i^2\cdot\operatorname{Var}(\delta_i)\) — an <em>absolute</em> quantity in nats². Since \(\sigma_b^2=\tau^2c_b\), the comparison depends on \(\tau\): at \(\tau=2.5\) a 1-bit key costs 2.6 against eviction's 1.0, so it is <strong>worse than dropping the token entirely</strong>. v4's simulation divided by \(\tau^2\) while leaving eviction at 1.0, which systematically refused to evict and is the proximate cause of the error corrected in §2.
+  </div>
+
+  <h2>2. Results, and what the audit changed</h2>
+
+  <figure>
+    <img src="fig1_curves.png" alt="Output error versus bit budget for three schemes across three attention regimes">
+    <figcaption><strong>Fig 1 — the interior dominates, but not everywhere.</strong> Matched total bits, absolute cost units, error measured by exact recomputation rather than through the linearized cost. At moderate and diffuse sharpness the interior beats both corners by 2.5–3.5×. In the sharp panel the water-filling and oracle-eviction curves <em>lie exactly on top of each other</em>: at \(\tau=2.5\) the optimum has already become the eviction corner.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="fig4_tau.png" alt="Gain versus logit spread, showing non-monotonic behaviour, and eviction fraction rising with tau">
+    <figcaption><strong>Fig 4 — the correction.</strong> Gain over uniform bits (orange) grows with \(\tau\), which is what v4 reported. Gain over oracle eviction (purple) <em>falls</em>. The gain over the better of the two (green) is what a reviewer will demand, and it is non-monotonic: it peaks near \(\tau\approx1.25\) and is gone by \(\tau\approx2\). Right: the mechanism — as \(\tau\) rises the absolute logit noise grows until only high-bit tiers are worth anything, the optimum collapses toward two tiers, and it becomes eviction.</figcaption>
+  </figure>
+
+  <table>
+    <thead><tr><th>\(\tau\)</th><th class="num">vs uniform</th><th class="num">vs oracle eviction</th><th class="num">vs BEST corner</th><th class="num">optimum evicts</th><th>reading</th></tr></thead>
+    <tbody>
+      <tr><td class="num">0.50</td><td class="num">1.3×</td><td class="num">12.3×</td><td class="num">1.3×</td><td class="num">0%</td><td class="down">uniform already near-optimal</td></tr>
+      <tr><td class="num">0.75</td><td class="num">2.2×</td><td class="num">9.4×</td><td class="num">2.2×</td><td class="num">1%</td><td>marginal</td></tr>
+      <tr class="band"><td class="num">1.00</td><td class="num">8.3×</td><td class="num">16.0×</td><td class="num"><strong>8.3×</strong></td><td class="num">10%</td><td class="done">the band that matters</td></tr>
+      <tr class="band"><td class="num">1.25</td><td class="num">17.8×</td><td class="num">13.2×</td><td class="num"><strong>13.2×</strong></td><td class="num">22%</td><td class="done">peak</td></tr>
+      <tr class="band"><td class="num">1.50</td><td class="num">32.7×</td><td class="num">7.3×</td><td class="num"><strong>7.3×</strong></td><td class="num">31%</td><td class="done">still strong</td></tr>
+      <tr><td class="num">2.00</td><td class="num">107.6×</td><td class="num">1.2×</td><td class="num">1.2×</td><td class="num">42%</td><td class="down">eviction has caught up</td></tr>
+      <tr><td class="num">3.00</td><td class="num">100.0×</td><td class="num">1.0×</td><td class="num">1.0×</td><td class="num">53%</td><td class="down">SIEVE ≡ sparse attention</td></tr>
+    </tbody>
+  </table>
+
+  <p>Two implications, and the second is the more dangerous.</p>
+  <ul>
+    <li><strong>The decisive regime is intermediate \(\tau\), not high \(\tau\).</strong> v4 had this backwards and set its go/no-go threshold at \(\tau&gt;1.5\), which includes a large region where the method is worthless.</li>
+    <li><strong>v4's own analytic argument now points the wrong way.</strong> It reasoned that top-1 weights of 0.1–0.3 in retrieval heads imply \(\tau\approx2.5\text{–}3\) and concluded those heads sit in the decisive band. On the corrected curve, \(\tau\approx2.5\text{–}3\) is exactly where SIEVE is <em>redundant with sparse attention</em>. If retrieval heads dominate, the project has no headroom against an oracle evictor.</li>
+  </ul>
+
+  <div class="win">
+    <span class="label">What partly rescues the position</span>
+    The eviction corner used here is an <strong>oracle</strong>: it selects on true sensitivity \(a_i\|v_i-o\|\), which requires knowing the attention weights it is trying to avoid computing. Real H2O and SnapKV select on past attention statistics and cannot see the future query. The corrected result therefore says the interior does not beat a <em>clairvoyant</em> evictor at high \(\tau\); it says nothing yet about practical evictors, which is a measurable and much weaker bar. <strong>Adding a realistic-evictor baseline is now the highest-value addition to the experiment plan</strong>, because it determines whether the high-\(\tau\) regime is lost or merely contested.
+  </div>
+
+  <figure>
+    <img src="fig3_envelope.png" alt="Convex envelope of the cost curve at two values of tau, with and without QJL">
+    <figcaption><strong>Fig 3 — the mechanism.</strong> Lower convex envelope of the absolute cost curve \(\tau^2c_b\) against the fixed eviction cost of 1. A red cross marks a tier that is never optimal at any budget. Two readings: QJL costs roughly two rungs at every \(\tau\) (left vs right), and raising \(\tau\) strips rungs from the bottom for both variants — which is precisely why the optimum degenerates to two tiers, i.e. to eviction, at high \(\tau\).</figcaption>
+  </figure>
+
+  <h3>2.1 Results that survived the audit unchanged</h3>
+  <ul>
+    <li><strong>One cascade iteration suffices.</strong> Estimating weights from a noisy 2-bit first pass retains 81–101% of the oracle allocation's log-gain. The circularity in \(b_i^\star\) is not an obstacle.</li>
+    <li><strong>Eviction is the zero-rate case</strong>, with \(c_0=1\) derived. Fig 1's crossing corners confirm that each corner loses badly in the other's regime — the unification stands even where the interior's margin does not.</li>
+    <li><strong>QJL deletes tiers from the ladder — and the deletion is \(\tau\)-dependent, which explains §2.</strong> Taking the lower convex envelope of the <em>absolute</em> cost curve: at \(\tau{=}1\) QJL's 1-bit tier already costs more than eviction and its 2-bit tier falls off the envelope, while the QJL-free variant keeps all nine tiers. As \(\tau\) rises, tiers drop off from the bottom for <em>both</em> variants — at \(\tau{=}2.5\) the usable set is \(\{0,3,\dots,8\}\) without QJL and only \(\{0,5,\dots,8\}\) with it. <strong>That progressive loss of low tiers is the mechanism behind the collapse toward eviction in Fig 4:</strong> as the ladder loses rungs it becomes two-tier, and a two-tier allocation is eviction. QJL costs about two extra rungs at every \(\tau\), which is an independent explanation for the deployed backend omitting it.</li>
+    <li><strong>Norm correction is a bias-for-variance trade in the wrong direction.</strong> Measured on real quantized keys, it moves the shrinkage \(\alpha\) from 0.64 to 0.80 at 1 bit while <em>raising</em> residual variance by 57%. Since selection depends on the score vector only through its ordering, this is the trade M3 says an index should refuse. It is now an ablation rather than a default.</li>
+  </ul>
+
+  <div class="callout">
+    <span class="label">Methodological corrections carried into the code</span>
+    (i) Error is measured by <em>exact recomputation</em> — real quantized keys, real softmax — never through the first-order cost. The linearized prediction is recorded as <code>lin_ratio</code> and runs ~1.2–1.6 on synthetic heads, i.e. the expansion overstates the gain by 20–60% and must not be the metric. (ii) Noise constants are <em>measured</em> per head, not imported: \(\sigma_b=\tau\sqrt{c_b}\) assumes iid \(q,k\) coordinates, which real keys violate. (iii) The cost uses \(\operatorname{Var}(\delta)\), not \(\mathbb{E}[\delta^2]\), because a constant logit shift has exactly zero effect on the output — the second moment overstated the 1-bit cost by 37%.
+  </div>
+
+  <h2>3. Why the nested code is free</h2>
+
+  <p>Per-token allocation is only useful if a token can be refined mid-step without penalty. Equitz and Cover's successive refinement result establishes that Gaussian sources under squared error are <strong>successively refinable</strong>: a nested code meets the rate-distortion bound at every layer simultaneously. TurboQuant's random rotation induces a Beta coordinate law converging to \(\mathcal N(0,1/d)\), placing rotated keys in exactly that regime. <em>The rotation that makes the quantizer near-optimal is the rotation that makes it layerable at no cost.</em></p>
+
+  <p>The practical gap is that the residual after Lloyd-Max quantization of a Gaussian is not itself Gaussian, so refinement needs <strong>per-cell conditional codebooks</strong> — one small Lloyd-Max table per coarse cell, solved offline and data-oblivious. This is the paper's concrete algorithmic contribution and remains untested on real keys.</p>
+
+  <h2>4. Architecture — the per-head adaptive ladder</h2>
+
+  <p>The optimum is a staircase whose width is \(\tau/\ln2\) bits, and \(\tau\) varies across heads, so the ladder is calibrated per head from measured \(\tau\). The corrected \(\tau\) story sharpens this from a refinement into <strong>the core of the method</strong>: heads outside the productive band should not run allocation at all.</p>
+
+<pre><code>STORAGE — one nested code per key, written once. 8b K + FP8 V ≡ k8v4 budget, 2.0x vs BF16.
+Layer-major: all L0 bits contiguous across tokens, then L1, then L2 ...
+
+  k_i --WHT--> L0 (2b) -> L1 (+1b) -> L2 (+1b) -> L3 (+2b) -> L4 (+2b)
+  reachable precisions {0, 2, 3, 4, 6, 8}; per-head calibration moves these
+
+DECODE — one fused pass per level, each a contiguous strided read plus a gather.
+
+  pass 0    all L tokens    read L0 (2b)  -->  a-hat  --> allocate b* = log2(a_i w_i) + c
+  pass 1-4  shrinking sets  read +1/+1/+2/+2  --> refine tokens whose b* exceeds the level
+  tail      b* = 0          page centroids     --> low-rank correction
+
+ROUTING (new in v5) — per head, from the offline calibration:
+  tau < 0.9   -> uniform bits, allocation disabled   (interior has no headroom)
+  0.9-1.6     -> full SIEVE ladder                   (the productive band)
+  tau > 1.6   -> two-tier evict + 8-bit              (the optimum is already there)</code></pre>
+
+  <p>That routing table is not a hedge bolted on after a bad result. It is what the corrected theory predicts: the interior is a <em>regime</em>, and a method that claims the whole space when it owns a third of it will be caught. Owning the band explicitly, with a measured boundary, is a stronger paper than an overclaim.</p>
+
+  <h2>5. Cost model</h2>
+
+  <table>
+    <thead><tr><th>Stage</th><th class="num">Tokens</th><th class="num">Bytes/tok/dim</th><th class="num">Total</th></tr></thead>
+    <tbody>
+      <tr><td>Pass 0 scan (2 b, all)</td><td class="num">\(L\)</td><td class="num">0.250</td><td class="num">0.250 \(Ld\)</td></tr>
+      <tr><td>Passes 1–4 (refinement)</td><td class="num">\(\le0.45L\)</td><td class="num">—</td><td class="num">0.115 \(Ld\)</td></tr>
+      <tr><td>FP8 V for retained</td><td class="num">\(0.05L\)</td><td class="num">1.000</td><td class="num">0.050 \(Ld\)</td></tr>
+      <tr><td>Page centroids</td><td class="num">\(L/128\)</td><td class="num">1.000</td><td class="num">0.008 \(Ld\)</td></tr>
+      <tr><td><strong>SIEVE</strong></td><td class="num">—</td><td class="num">—</td><td class="num"><strong>0.423 \(Ld\)</strong></td></tr>
+      <tr><td>Dense k8v4</td><td class="num">\(L\)</td><td class="num">2.000</td><td class="num">2.000 \(Ld\)</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>4.7× fewer bytes at identical memory</strong>, with an 8× ceiling set by the mandatory pass-0 scan. The scoring path never dequantizes to BF16 — logits accumulate against packed codes in the rotated basis — so deployed TurboQuant's 10–68% dequantization penalty never touches the critical path.</p>
+
+  <h2>6. Experiments</h2>
+
+  <div class="kill">
+    <span class="label">H0 · per-head τ and measured gain · ~1 day · NEXT</span>
+    Forward-pass hooks on Llama-3.3-70B, Qwen3-30B-A3B and MiniMax-M2.7 at 32k–256k. For every head: \(\tau\), the sensitivity ladder width, and the <em>measured</em> gain over the best corner — real quantized keys, exact recomputation. <strong>The question is no longer "is \(\tau\) large" but "what fraction of heads sit in the productive band".</strong> Kill if the median gain over the best corner is below 1.5×.
+  </div>
+
+  <div class="kill">
+    <span class="label">H0b · realistic evictor baseline · ~2 days · NEW, and now critical</span>
+    Replace the oracle evictor with H2O/SnapKV-style selection on past attention statistics. <strong>This determines whether the high-\(\tau\) regime is lost or merely contested</strong> — the single largest swing factor in the project's value. If the interior beats a practical evictor at \(\tau=2.5\), the productive band widens dramatically and much of v4's ambition is restored.
+  </div>
+
+  <div class="win">
+    <span class="label">H1 · allocation beats both corners · COMPLETE, with the caveat above ✓</span>
+    Dominates both corners at \(\tau\approx1\text{–}1.5\) (7–13×); ties the oracle eviction corner at \(\tau\ge2\). One-pass cascade retains 81–101% of oracle gain. QJL removes the 1- and 2-bit tiers from the envelope. Holds under correlated values (\(\rho\) to 0.9).
+  </div>
+
+  <div class="kill">
+    <span class="label">H2 · order-preservation · free with H0</span>
+    Spearman \(\rho\) between quantized and true logits over the top 1%. Falls out of the same captured tensors at no extra cost. Kill M3 if \(\rho&lt;0.9\).
+  </div>
+
+  <div class="kill">
+    <span class="label">H3 · nesting is free on real keys · ~1 week</span>
+    Nested 2+1+1+2+2 code against a monolithic 8-bit code. Kill if the gap exceeds ~10%.
+  </div>
+
+  <div class="kill">
+    <span class="label">H4 · GQA union · ~1 week &nbsp;·&nbsp; H5 · beats dense FP8 at 128k · ~4 weeks</span>
+    Restrict scope if the \(G{=}8\) union exceeds 3× the single-head footprint. Kill the systems claim if TPOT does not beat dense FP8 at equal accuracy.
+  </div>
+
+  <h2>7. Score &amp; viability</h2>
+
+  <table>
+    <thead><tr><th style="width:19%">Criterion</th><th class="num" style="width:8%">v4</th><th class="num" style="width:8%">v5</th><th>Reasoning</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Novelty</strong></td><td class="num">7.5</td><td class="num"><strong>7.0</strong></td>
+        <td>The reframing is intact and the dead-zone result is still a genuine sub-finding. Marked down because "the interior dominates both corners" — the sentence the paper is built on — now holds only over a bounded regime, which makes the contribution a characterisation of <em>when</em> allocation pays rather than a claim that it always does.</td></tr>
+      <tr><td><strong>Theoretical rigor</strong></td><td class="num">7.5</td><td class="num"><strong>7.5</strong></td>
+        <td>Unchanged and better supported. \(c_0=1\) derived; ladder width \(\tau/\ln2\) predicted and confirmed; and the theory now <em>explains</em> its own boundary — the collapse toward eviction at high \(\tau\) follows from absolute cost units, it is not an empirical surprise. First-order linearization and dropped cross-terms remain untested and are now quantified (<code>lin_ratio</code> 1.2–1.6).</td></tr>
+      <tr><td><strong>Empirical relevance</strong></td><td class="num">8.0</td><td class="num"><strong>6.0</strong></td>
+        <td>The largest move, downward. The headline gain shrank from "10–33×, growing with \(\tau\)" to "7–13× over a band, zero outside it", and the regime where retrieval heads most likely sit is the one where the method is redundant. H0 is still cheap and decisive, but it can now return "no headroom" for a much larger share of the parameter space.</td></tr>
+      <tr><td><strong>Positioning</strong></td><td class="num">8.0</td><td class="num"><strong>7.5</strong></td>
+        <td>Subsuming eviction as a limiting case is still valuable, and v5 states the validity range rather than implying universality. But the same result that makes the subsumption clean also caps the margin: you cannot both claim sparse attention as a corollary and claim to beat it everywhere.</td></tr>
+      <tr><td><strong>Acceptance probability</strong></td><td class="num">60–68%</td><td class="num"><strong>45–55%</strong></td>
+        <td>Conditional on H0 finding a substantial head population in the productive band, ~60%. Conditional on H0b showing the interior beats a <em>practical</em> evictor at high \(\tau\), ~65% and much of v4's scope returns. If most heads sit above \(\tau=2\) and practical evictors are already close to optimal, this becomes a workshop paper on when allocation does and does not pay — still worth writing, not at this venue.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>8. The three ways this dies</h2>
+  <ol>
+    <li><strong>Real heads sit above the band.</strong> The corrected curve is gone by \(\tau\approx2\), and the sharpness of retrieval heads suggests that is where they live. H0 settles it in a day; H0b determines whether it is fatal or survivable.</li>
+    <li><strong>Successive refinability fails at finite \(d\) with scalar quantizers.</strong> Equitz–Cover is asymptotic and assumes optimal vector quantization; TurboQuant uses per-coordinate Lloyd-Max at \(d{=}128\), and the ladder stacks four refinement boundaries. If nesting costs 20%, per-token allocation stops being free.</li>
+    <li><strong>A reviewer reads it as classical theory in a transformer costume.</strong> The defense is that the reframing predicts, and its predictions have survived contact: the ladder width, the QJL dead zone, the norm-correction trade, and — after correction — its own regime boundary. A framework that predicted where it would stop working is harder to dismiss than one that claimed everything.</li>
+  </ol>
+
+  <p class="footnote">
+    v5 supersedes v4. Corrected in this revision: the \(\tau\) story (§2, Fig 1 and Fig 4 regenerated with absolute cost units, no cost clamp, and gains measured against the best corner), the addition of H0b, the per-head routing table in §4, and the scoring. Carried forward: the allocation theorem, successive refinability, the QJL dead-zone finding, and the cascade result. Figures come from <code>h0/scripts/regen_figs.py</code>; all simulation uses the real TurboQuant<sub>mse</sub> quantizer (rotation, converged Lloyd-Max, optional norm correction) with error measured by exact recomputation. No result has yet been validated against a real KV cache. Deployment claims — the omission of QJL, the meaning of norm correction, accuracy and throughput against FP8 and BF16 — come from the vLLM project's May 2026 evaluation and the merged attention-backend implementation.
+  </p>
+
+</div>
+</body>
+</html>

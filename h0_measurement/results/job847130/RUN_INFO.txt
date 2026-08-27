@@ -1,0 +1,3 @@
+Thu 27 Aug 2026 06:56:10 AM EDT
+models: qwen3-30b-a3b-2507 llama33-70b
+array job: 847130

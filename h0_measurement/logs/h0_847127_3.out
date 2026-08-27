@@ -1,0 +1,247 @@
+host=trig0025 role=measure model=qwen15-moe-a2.7b task=3 run_id=job847127
+NVIDIA H100 80GB HBM3, 81559 MiB
+HF_HOME = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache
+hub cache = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub
+
+=== qwen15-moe-a2.7b  (Qwen/Qwen1.5-MoE-A2.7B-Chat) ===
+  ok  28.6 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--Qwen--Qwen1.5-MoE-A2.7B-Chat/snapshots/ec052fda178e241c7c443468d2fa1db6618996be
+
+=== qwen15-moe-a2.7b:validate_with  (Qwen/Qwen1.5-0.5B-Chat) ===
+  ok  1.3 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--Qwen--Qwen1.5-0.5B-Chat/snapshots/4d14e384a4b037942bb3f3016665157c8bcb70ea
+{
+ "ctx": 32768,
+ "n_prompts": 6,
+ "n_decode": 8,
+ "families": [
+  "niah",
+  "qa",
+  "cont"
+ ],
+ "dtype": "bfloat16",
+ "chunk": 4096,
+ "device_map": "auto",
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "budgets": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "quant_every": 4,
+ "norm_correct": true,
+ "rot_seed": 0,
+ "maxb": 8,
+ "tag": "qwen15-moe-a2.7b",
+ "id": "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+ "tier": "main",
+ "validate_with": "Qwen/Qwen1.5-0.5B-Chat"
+}
+     WARNING: proxy config differs from Qwen/Qwen1.5-MoE-A2.7B-Chat:
+       head_dim        target=128                proxy=64
+       sliding_window  target=0                  proxy=None
+       model_type      target=qwen2_moe          proxy=qwen2
+     -> head_dim (the logit einsum) differs, so L1/L3 did NOT exercise the target's attention shape. tests/test_units.py covers those ratios directly.
+
+[L1] drop-in fidelity on Qwen/Qwen1.5-0.5B-Chat (float32) ...
+     max |Δ LM logit| = 0.000e+00  -> PASS
+[L3] external reference vs HF eager on Qwen/Qwen1.5-0.5B-Chat ...
+     max |Δ attn weight| = 4.381e-06  -> PASS
+
+loaded Qwen/Qwen1.5-MoE-A2.7B-Chat: 24L 16H kv=16 d=128
+[0/niah] prefill 30176 tok (synthetic haystack) ...
+[L2] capture fidelity = 2.548e-03 -> PASS
+    3,072 rows  43s
+[0/qa] prefill 30160 tok (synthetic haystack) ...
+    6,144 rows  76s
+[0/cont] prefill 30146 tok (synthetic haystack) ...
+    9,216 rows  108s
+[1/niah] prefill 30176 tok (synthetic haystack) ...
+    12,288 rows  137s
+[1/qa] prefill 30160 tok (synthetic haystack) ...
+    15,360 rows  167s
+[1/cont] prefill 30146 tok (synthetic haystack) ...
+    18,432 rows  196s
+[2/niah] prefill 30176 tok (synthetic haystack) ...
+    21,504 rows  225s
+[2/qa] prefill 30160 tok (synthetic haystack) ...
+    24,576 rows  254s
+[2/cont] prefill 30146 tok (synthetic haystack) ...
+    27,648 rows  284s
+[3/niah] prefill 30176 tok (synthetic haystack) ...
+    30,720 rows  313s
+[3/qa] prefill 30160 tok (synthetic haystack) ...
+    33,792 rows  342s
+[3/cont] prefill 30146 tok (synthetic haystack) ...
+    36,864 rows  372s
+[4/niah] prefill 30176 tok (synthetic haystack) ...
+    39,936 rows  401s
+[4/qa] prefill 30160 tok (synthetic haystack) ...
+    43,008 rows  430s
+[4/cont] prefill 30146 tok (synthetic haystack) ...
+    46,080 rows  459s
+[5/niah] prefill 30176 tok (synthetic haystack) ...
+    49,152 rows  489s
+[5/qa] prefill 30160 tok (synthetic haystack) ...
+    52,224 rows  518s
+[5/cont] prefill 30146 tok (synthetic haystack) ...
+    55,296 rows  547s
+
+wrote results/job847127/h0_qwen15-moe-a2.7b_32768.parquet  (55,296 rows, 548s)
+
+scontrol show job 847127
+JobId=847127 ArrayJobId=847127 ArrayTaskId=3 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825126 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:11:37 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:12 EligibleTime=2026-08-27T02:49:12
+   AccrueTime=2026-08-27T02:49:12
+   StartTime=2026-08-27T03:01:59 EndTime=2026-08-27T03:13:36 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T03:01:59 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0025
+   BatchHost=trig0025
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_3.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_3.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+JobId=847204 ArrayJobId=847127 ArrayTaskId=2 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825120 Nice=0 Account=def-enright QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:13:38 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:12 EligibleTime=2026-08-27T02:49:12
+   AccrueTime=2026-08-27T02:49:12
+   StartTime=2026-08-27T02:59:58 EndTime=2026-08-27T04:29:58 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T02:59:58 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0031
+   BatchHost=trig0031
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_2.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_2.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+JobId=847183 ArrayJobId=847127 ArrayTaskId=1 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825120 Nice=0 Account=def-enright QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:16:39 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:12 EligibleTime=2026-08-27T02:49:12
+   AccrueTime=2026-08-27T02:49:12
+   StartTime=2026-08-27T02:56:57 EndTime=2026-08-27T04:26:57 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T02:56:57 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0033
+   BatchHost=trig0033
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_1.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_1.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+JobId=847160 ArrayJobId=847127 ArrayTaskId=0 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825113 Nice=0 Account=def-enright QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:19:40 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:12 EligibleTime=2026-08-27T02:49:12
+   AccrueTime=2026-08-27T02:49:12
+   StartTime=2026-08-27T02:53:56 EndTime=2026-08-27T04:23:56 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T02:53:56 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0023
+   BatchHost=trig0023
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_0.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_0.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 847127
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+847127_0       sieve-h0 def-enrig+   00:19:40                         00:00:00   00:00:00      0:0 
+847127_0.ba+      batch def-enrig+   00:19:40                         00:00:00   00:00:00      0:0 
+847127_0.ex+     extern def-enrig+   00:19:40                         00:00:00   00:00:00      0:0 
+847127_0.0       python def-enrig+   00:19:30                         00:00:00   00:00:00      0:0 
+847127_1       sieve-h0 def-enrig+   00:16:39                         00:00:00   00:00:00      0:0 
+847127_1.ba+      batch def-enrig+   00:16:39                         00:00:00   00:00:00      0:0 
+847127_1.ex+     extern def-enrig+   00:16:39                         00:00:00   00:00:00      0:0 
+847127_1.0       python def-enrig+   00:16:31                         00:00:00   00:00:00      0:0 
+847127_2       sieve-h0 def-enrig+   00:13:38                         00:00:00   00:00:00      0:0 
+847127_2.ba+      batch def-enrig+   00:13:38                         00:00:00   00:00:00      0:0 
+847127_2.ex+     extern def-enrig+   00:13:38                         00:00:00   00:00:00      0:0 
+847127_2.0       python def-enrig+   00:13:31                         00:00:00   00:00:00      0:0 
+847127_3       sieve-h0 def-enrig+   00:11:37                         00:00:00   00:00:00      0:0 
+847127_3.ba+      batch def-enrig+   00:11:37                         00:00:00   00:00:00      0:0 
+847127_3.ex+     extern def-enrig+   00:11:37                         00:00:00   00:00:00      0:0 
+847127_3.0       python def-enrig+   00:11:30                         00:00:00   00:00:00      0:0 
+

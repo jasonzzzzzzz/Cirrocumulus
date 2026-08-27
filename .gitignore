@@ -1,0 +1,7 @@
+*.parquet
+__pycache__/
+.hf_cache/
+.locks/
+.venv/
+.hf_token
+

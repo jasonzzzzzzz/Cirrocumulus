@@ -1,0 +1,29 @@
+== %% of heads in band, per budget; anyB = in band at ANY budget ===
+                       ctx  phi_med    B1    B2    B3    B4  anyB
+model                                                            
+llama31-8b          131072      0.4  39.8  61.8  60.4  56.3  71.6
+llama33-70b         131072      0.7  29.1  33.0  28.4  23.6  43.4
+mistral-7b           32768      0.4  58.7  82.9  84.7  80.7  89.0
+qwen15-moe-a2.7b     32768      0.4  46.4  65.9  62.0  60.4  81.5
+qwen3-30b-a3b-2507  131072      0.0   0.6  11.9  14.8  11.3  18.0
+qwen3-8b             40960      0.3   8.5  43.8  45.9  40.5  54.7
+
+=== decomposition at B=3: out-of-band because uniform-is-fine vs eviction-is-fine ===
+llama31-8b             oob= 39.6%  of which evict-fine (gain_e<2):  31.8%  uniform-fine (gain_u<2):  68.2%
+llama33-70b            oob= 71.6%  of which evict-fine (gain_e<2):  10.1%  uniform-fine (gain_u<2):  90.1%
+mistral-7b             oob= 15.3%  of which evict-fine (gain_e<2):  17.8%  uniform-fine (gain_u<2):  81.5%
+qwen15-moe-a2.7b       oob= 38.0%  of which evict-fine (gain_e<2):  35.6%  uniform-fine (gain_u<2):  64.4%
+qwen3-30b-a3b-2507     oob= 85.2%  of which evict-fine (gain_e<2):  99.0%  uniform-fine (gain_u<2):   0.9%
+qwen3-8b               oob= 54.1%  of which evict-fine (gain_e<2):  63.1%  uniform-fine (gain_u<2):  36.3%
+
+
+
+=== dead low tiers: %% heads where eviction beats 1-bit / 2-bit; top1>0.1 heads ===
+                    evict_beats_b1  evict_beats_b2  sharp_top1  phi_lt5pct  phi_gt55pct
+model                                                                                  
+llama31-8b                    84.6             8.2        21.1        14.3         15.4
+llama33-70b                   28.5             5.3         5.7         3.1         63.0
+mistral-7b                    74.2             1.4         4.2        11.1         23.7
+qwen15-moe-a2.7b              80.2             2.9        11.7         5.2         15.9
+qwen3-30b-a3b-2507           100.0            77.4        77.7        60.6          0.2
+qwen3-8b                      96.7            38.8        27.8        22.4         10.2

@@ -1,0 +1,12 @@
+SBATCH ERROR: 
+ Job submission for the partition compute cannot be done from this node or from
+ a compute job; use a login node instead.
+SBATCH: 1 error was found.
+SBATCH: Job not submitted because of this error.
+SBATCH: For more info see https://docs.alliancecan.ca/wiki/Trillium_Quickstart
+WARNING: could not chain the report job; run report.py by hand
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:00<00:34,  9.09it/s]Loading weights:  64%|██████▍   | 199/311 [00:00<00:00, 1111.17it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 1146.64it/s]
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:00<00:38,  8.06it/s]Loading weights:  46%|████▋     | 144/311 [00:00<00:00, 768.79it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 1010.66it/s]
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:00<00:50,  6.13it/s]Loading weights:  69%|██████▉   | 214/311 [00:00<00:00, 993.05it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 990.48it/s]
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:00<00:47,  6.56it/s]Loading weights:  44%|████▍     | 138/311 [00:00<00:00, 662.54it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 905.63it/s]
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   1%|          | 2/399 [00:00<00:41,  9.59it/s]Loading weights:   9%|▉         | 37/399 [00:00<00:02, 143.48it/s]Loading weights:  18%|█▊        | 70/399 [00:00<00:01, 206.13it/s]Loading weights:  26%|██▋       | 105/399 [00:00<00:01, 248.68it/s]Loading weights:  36%|███▌      | 142/399 [00:00<00:00, 286.41it/s]Loading weights:  45%|████▌     | 180/399 [00:00<00:00, 308.31it/s]Loading weights:  54%|█████▎    | 214/399 [00:00<00:00, 310.58it/s]Loading weights:  62%|██████▏   | 248/399 [00:00<00:00, 315.84it/s]Loading weights:  71%|███████▏  | 285/399 [00:01<00:00, 325.74it/s]Loading weights:  80%|███████▉  | 319/399 [00:01<00:00, 322.57it/s]Loading weights:  88%|████████▊ | 352/399 [00:01<00:00, 322.95it/s]Loading weights:  96%|█████████▋| 385/399 [00:01<00:00, 323.43it/s]Loading weights: 100%|██████████| 399/399 [00:01<00:00, 284.69it/s]

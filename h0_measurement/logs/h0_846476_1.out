@@ -1,0 +1,132 @@
+host=trig0042 role=measure model=llama31-8b task=1 run_id=job846476
+NVIDIA H100 80GB HBM3, 81559 MiB
+HF_HOME = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache
+hub cache = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub
+
+=== llama31-8b  (meta-llama/Llama-3.1-8B-Instruct) ===
+  ok  16.1 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
+
+=== llama31-8b:validate_with  (meta-llama/Llama-3.2-1B-Instruct) ===
+  ok  2.5 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--meta-llama--Llama-3.2-1B-Instruct/snapshots/9213176726f574b556790deb65791e0c5aa438b6
+{
+ "ctx": 131072,
+ "n_prompts": 6,
+ "n_decode": 8,
+ "families": [
+  "niah",
+  "qa",
+  "cont"
+ ],
+ "dtype": "bfloat16",
+ "chunk": 4096,
+ "device_map": "auto",
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "budgets": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "quant_every": 4,
+ "norm_correct": true,
+ "rot_seed": 0,
+ "maxb": 8,
+ "tag": "llama31-8b",
+ "id": "meta-llama/Llama-3.1-8B-Instruct",
+ "tier": "main",
+ "validate_with": "meta-llama/Llama-3.2-1B-Instruct"
+}
+
+[L1] drop-in fidelity on meta-llama/Llama-3.2-1B-Instruct (float32) ...
+     max |Δ LM logit| = 8.821e-06  -> PASS
+[L3] external reference vs HF eager on meta-llama/Llama-3.2-1B-Instruct ...
+     max |Δ attn weight| = 1.878e-06  -> PASS
+
+loaded meta-llama/Llama-3.1-8B-Instruct: 32L 32H kv=8 d=128
+[0/niah] prefill 120612 tok (synthetic haystack) ...
+[L2] capture fidelity = 2.816e-03 -> PASS
+    8,192 rows  158s
+[0/qa] prefill 120601 tok (synthetic haystack) ...
+    16,384 rows  267s
+[0/cont] prefill 120587 tok (synthetic haystack) ...
+    24,576 rows  377s
+[1/niah] prefill 120613 tok (synthetic haystack) ...
+    32,768 rows  483s
+[1/qa] prefill 120601 tok (synthetic haystack) ...
+    40,960 rows  590s
+[1/cont] prefill 120587 tok (synthetic haystack) ...
+    49,152 rows  697s
+[2/niah] prefill 120612 tok (synthetic haystack) ...
+    57,344 rows  803s
+[2/qa] prefill 120601 tok (synthetic haystack) ...
+    65,536 rows  911s
+[2/cont] prefill 120587 tok (synthetic haystack) ...
+    73,728 rows  1017s
+[3/niah] prefill 120613 tok (synthetic haystack) ...
+    81,920 rows  1123s
+[3/qa] prefill 120601 tok (synthetic haystack) ...
+    90,112 rows  1230s
+[3/cont] prefill 120587 tok (synthetic haystack) ...
+    98,304 rows  1337s
+[4/niah] prefill 120613 tok (synthetic haystack) ...
+    106,496 rows  1443s
+[4/qa] prefill 120600 tok (synthetic haystack) ...
+    114,688 rows  1550s
+[4/cont] prefill 120587 tok (synthetic haystack) ...
+    122,880 rows  1656s
+[5/niah] prefill 120613 tok (synthetic haystack) ...
+    131,072 rows  1763s
+[5/qa] prefill 120601 tok (synthetic haystack) ...
+    139,264 rows  1869s
+[5/cont] prefill 120587 tok (synthetic haystack) ...
+    147,456 rows  1976s
+
+scontrol show job 846638
+JobId=846638 ArrayJobId=846476 ArrayTaskId=1 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=833933 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=NonZeroExitCode Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=1:0
+   RunTime=00:34:52 TimeLimit=06:00:00 TimeMin=N/A
+   SubmitTime=2026-08-27T01:09:50 EligibleTime=2026-08-27T01:09:51
+   AccrueTime=2026-08-27T01:09:51
+   StartTime=2026-08-27T01:47:53 EndTime=2026-08-27T02:22:45 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T01:47:53 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0042
+   BatchHost=trig0042
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_846476_1.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_846476_1.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 846638
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+846476_1       sieve-h0 def-enrig+   00:34:52                         00:00:00   00:00:00      0:0 
+846476_1.ba+      batch def-enrig+   00:34:52                         00:00:00   00:00:00      0:0 
+846476_1.ex+     extern def-enrig+   00:34:52                         00:00:00   00:00:00      0:0 
+846476_1.0       python def-enrig+   00:34:40                         00:00:00   00:00:00      0:0 
+

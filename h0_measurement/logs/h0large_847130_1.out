@@ -1,0 +1,134 @@
+host=trig0014 role=measure model=llama33-70b task=1 run_id=job847130
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+NVIDIA H100 80GB HBM3, 81559 MiB
+HF_HOME = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache
+hub cache = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub
+
+=== llama33-70b  (meta-llama/Llama-3.3-70B-Instruct) ===
+  ok  141.1 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--meta-llama--Llama-3.3-70B-Instruct/snapshots/6f6073b423013f6a7d4d9f39144961bfbfbc386b
+
+=== llama33-70b:validate_with  (meta-llama/Llama-3.2-1B-Instruct) ===
+  ok  2.5 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--meta-llama--Llama-3.2-1B-Instruct/snapshots/9213176726f574b556790deb65791e0c5aa438b6
+  gpus=4  vram=340 GB  kv@131072=43 GB
+{
+ "ctx": 131072,
+ "n_prompts": 4,
+ "n_decode": 8,
+ "families": [
+  "niah",
+  "qa",
+  "cont"
+ ],
+ "dtype": "bfloat16",
+ "chunk": 4096,
+ "device_map": "auto",
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "budgets": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "quant_every": 4,
+ "norm_correct": true,
+ "rot_seed": 0,
+ "maxb": 8,
+ "tag": "llama33-70b",
+ "id": "meta-llama/Llama-3.3-70B-Instruct",
+ "tier": "large",
+ "validate_with": "meta-llama/Llama-3.2-1B-Instruct"
+}
+     WARNING: proxy config differs from meta-llama/Llama-3.3-70B-Instruct:
+       n_rep           target=8                  proxy=4
+       head_dim        target=128                proxy=64
+     -> n_rep (the GQA expansion) and head_dim (the logit einsum) differ, so L1/L3 did NOT exercise the target's attention shape. tests/test_units.py covers those ratios directly.
+
+[L1] drop-in fidelity on meta-llama/Llama-3.2-1B-Instruct (float32) ...
+     max |Δ LM logit| = 8.821e-06  -> PASS
+[L3] external reference vs HF eager on meta-llama/Llama-3.2-1B-Instruct ...
+     max |Δ attn weight| = 1.878e-06  -> PASS
+
+loaded meta-llama/Llama-3.3-70B-Instruct: 80L 64H kv=8 d=128
+[0/niah] prefill 120612 tok (synthetic haystack) ...
+[L2] capture fidelity = 2.819e-03 -> PASS
+    40,960 rows  722s
+[0/qa] prefill 120601 tok (synthetic haystack) ...
+    81,920 rows  1295s
+[0/cont] prefill 120587 tok (synthetic haystack) ...
+    122,880 rows  1868s
+[1/niah] prefill 120613 tok (synthetic haystack) ...
+    163,840 rows  2432s
+[1/qa] prefill 120601 tok (synthetic haystack) ...
+    204,800 rows  2994s
+[1/cont] prefill 120587 tok (synthetic haystack) ...
+    245,760 rows  3555s
+[2/niah] prefill 120612 tok (synthetic haystack) ...
+    286,720 rows  4118s
+[2/qa] prefill 120601 tok (synthetic haystack) ...
+    327,680 rows  4679s
+[2/cont] prefill 120587 tok (synthetic haystack) ...
+    368,640 rows  5242s
+[3/niah] prefill 120613 tok (synthetic haystack) ...
+    409,600 rows  5803s
+[3/qa] prefill 120601 tok (synthetic haystack) ...
+    450,560 rows  6365s
+[3/cont] prefill 120587 tok (synthetic haystack) ...
+    491,520 rows  6925s
+
+wrote results/job847130/h0_llama33-70b_131072.parquet  (491,520 rows, 6937s)
+
+scontrol show job 847130
+JobId=847130 ArrayJobId=847130 ArrayTaskId=1 JobName=sieve-h0-large
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=816070 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=02:06:42 TimeLimit=04:00:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:37 EligibleTime=2026-08-27T02:49:37
+   AccrueTime=2026-08-27T02:49:37
+   StartTime=2026-08-27T07:36:31 EndTime=2026-08-27T09:43:13 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T07:36:31 Scheduler=Backfill
+   Partition=compute_full_node AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0014
+   BatchHost=trig0014
+   NumNodes=1 NumCPUs=96 NumTasks=1 CPUs/Task=32 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=32,mem=770000M,node=1,billing=4,gres/gpu=4
+   AllocTRES=cpu=96,mem=770000M,node=1,billing=4,gres/gpu=4
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=32 MinMemoryNode=770000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0_large_models.slurm
+   SubmitLine=SBATCH --partition=compute_full_node --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0_large_models.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0large_847130_1.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0large_847130_1.out
+   TresPerNode=gres/gpu:4
+   TresPerTask=cpu=32
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 847130
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+847130_0     sieve-h0-+ def-enrig+   00:40:34                        06:33.895  32:17.596      0:0 
+847130_0.ba+      batch def-enrig+   00:40:34          0    694652K  00:04.498  00:02.954      0:0 
+847130_0.ex+     extern def-enrig+   00:40:34                         00:00:00   00:00:00      0:0 
+847130_0.0       python def-enrig+   00:39:55          0  70323780K  06:29.396  32:14.641      0:0 
+847130_1     sieve-h0-+ def-enrig+   02:06:43                         00:00:00   00:00:00      0:0 
+847130_1.ba+      batch def-enrig+   02:06:43                         00:00:00   00:00:00      0:0 
+847130_1.ex+     extern def-enrig+   02:06:43                         00:00:00   00:00:00      0:0 
+847130_1.0       python def-enrig+   02:06:11                         00:00:00   00:00:00      0:0 
+

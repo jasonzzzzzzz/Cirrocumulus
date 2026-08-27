@@ -1,0 +1,130 @@
+host=trig0031 role=measure model=mistral-7b task=2 run_id=job847127
+NVIDIA H100 80GB HBM3, 81559 MiB
+HF_HOME = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache
+hub cache = /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub
+
+=== mistral-7b  (mistralai/Mistral-7B-Instruct-v0.3) ===
+  ok  29.0 GB -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/.hf_cache/hub/models--mistralai--Mistral-7B-Instruct-v0.3/snapshots/c170c708c41dac9275d15a8fff4eca08d52bab71
+{
+ "ctx": 32768,
+ "n_prompts": 6,
+ "n_decode": 8,
+ "families": [
+  "niah",
+  "qa",
+  "cont"
+ ],
+ "dtype": "bfloat16",
+ "chunk": 4096,
+ "device_map": "auto",
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "budgets": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "quant_every": 4,
+ "norm_correct": true,
+ "rot_seed": 0,
+ "maxb": 8,
+ "tag": "mistral-7b",
+ "id": "mistralai/Mistral-7B-Instruct-v0.3",
+ "tier": "main"
+}
+
+[L1] drop-in fidelity on mistralai/Mistral-7B-Instruct-v0.3 (float32) ...
+     max |Δ LM logit| = 1.502e-05  -> PASS
+[L3] external reference vs HF eager on mistralai/Mistral-7B-Instruct-v0.3 ...
+     max |Δ attn weight| = 3.994e-06  -> PASS
+
+loaded mistralai/Mistral-7B-Instruct-v0.3: 32L 32H kv=8 d=128
+[0/niah] prefill 30181 tok (synthetic haystack) ...
+[L2] capture fidelity = 2.243e-03 -> PASS
+    8,192 rows  87s
+[0/qa] prefill 30162 tok (synthetic haystack) ...
+    16,384 rows  162s
+[0/cont] prefill 30147 tok (synthetic haystack) ...
+    24,576 rows  237s
+[1/niah] prefill 30181 tok (synthetic haystack) ...
+    32,768 rows  309s
+[1/qa] prefill 30162 tok (synthetic haystack) ...
+    40,960 rows  381s
+[1/cont] prefill 30147 tok (synthetic haystack) ...
+    49,152 rows  453s
+[2/niah] prefill 30181 tok (synthetic haystack) ...
+    57,344 rows  525s
+[2/qa] prefill 30162 tok (synthetic haystack) ...
+    65,536 rows  597s
+[2/cont] prefill 30147 tok (synthetic haystack) ...
+    73,728 rows  669s
+[3/niah] prefill 30181 tok (synthetic haystack) ...
+    81,920 rows  742s
+[3/qa] prefill 30162 tok (synthetic haystack) ...
+    90,112 rows  814s
+[3/cont] prefill 30147 tok (synthetic haystack) ...
+    98,304 rows  886s
+[4/niah] prefill 30181 tok (synthetic haystack) ...
+    106,496 rows  958s
+[4/qa] prefill 30162 tok (synthetic haystack) ...
+    114,688 rows  1030s
+[4/cont] prefill 30147 tok (synthetic haystack) ...
+    122,880 rows  1102s
+[5/niah] prefill 30181 tok (synthetic haystack) ...
+    131,072 rows  1174s
+[5/qa] prefill 30162 tok (synthetic haystack) ...
+    139,264 rows  1246s
+[5/cont] prefill 30147 tok (synthetic haystack) ...
+    147,456 rows  1319s
+
+wrote results/job847127/h0_mistral-7b_32768.parquet  (147,456 rows, 1324s)
+
+scontrol show job 847204
+JobId=847204 ArrayJobId=847127 ArrayTaskId=2 JobName=sieve-h0
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=825120 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:22:42 TimeLimit=01:30:00 TimeMin=N/A
+   SubmitTime=2026-08-27T02:49:12 EligibleTime=2026-08-27T02:49:12
+   AccrueTime=2026-08-27T02:49:12
+   StartTime=2026-08-27T02:59:58 EndTime=2026-08-27T03:22:40 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-08-27T02:59:58 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=trig-login01:3475743
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=trig0031
+   BatchHost=trig0031
+   NumNodes=1 NumCPUs=16 NumTasks=1 CPUs/Task=16 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   AllocTRES=cpu=16,mem=187.50G,node=1,billing=1,gres/gpu=1
+   Socks/Node=* NtasksPerN:B:S:C=1:0:*:* CoreSpec=*
+   MinCPUsNode=16 MinMemoryNode=187.50G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/submit_h0.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/submit_h0.slurm
+   StdErr=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_2.err
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/logs/h0_847127_2.out
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=16
+   MailUser=jzzzzzzz23@foxmail.com MailType=BEGIN,END,FAIL
+
+sacct -j 847204
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+847127_2       sieve-h0 def-enrig+   00:22:42                         00:00:00   00:00:00      0:0 
+847127_2.ba+      batch def-enrig+   00:22:42                         00:00:00   00:00:00      0:0 
+847127_2.ex+     extern def-enrig+   00:22:42                         00:00:00   00:00:00      0:0 
+847127_2.0       python def-enrig+   00:22:35                         00:00:00   00:00:00      0:0 
+

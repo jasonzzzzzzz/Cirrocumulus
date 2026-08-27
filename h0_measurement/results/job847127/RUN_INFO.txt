@@ -1,0 +1,3 @@
+Thu 27 Aug 2026 02:54:06 AM EDT
+models: qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b
+array job: 847127

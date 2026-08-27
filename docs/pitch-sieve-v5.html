@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEVE — the pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;0,6..72,600;1,6..72,300&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root{
+    --abyss:#0a1f2b; --deep:#12414f; --water:#1d6f80; --shallow:#4ea8b8;
+    --line:#e0a838; --coral:#c2334d; --moss:#1f6b52;
+    --paper:#fbfaf7; --paper-2:#f1efe9; --ink:#12212a; --ink-2:#4a5b64; --rule:#ddd8cd;
+    --disp:"Newsreader",Georgia,serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;padding:0 1.15rem}
+
+  .hero{background:var(--abyss);color:#eaf3f5;padding:3.4rem 0 0}
+  .kicker{font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--line);margin:0 0 1.1rem}
+  .hero h1{font-family:var(--disp);font-weight:500;font-size:clamp(2.1rem,5.4vw,3.15rem);line-height:1.06;letter-spacing:-.015em;margin:0 0 1rem}
+  .hero h1 em{font-style:italic;font-weight:300;color:var(--line)}
+  .hero .deck{font-family:var(--disp);font-weight:300;font-size:clamp(1.02rem,2.2vw,1.24rem);line-height:1.5;color:#bcd4da;max-width:38em;margin:0 0 2.1rem}
+  .heroart{margin:0;padding:0 0 1.6rem}
+  .heroart svg{width:100%;height:auto;display:block}
+  .heroart figcaption{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;color:#7fa3ac;margin-top:.7rem;line-height:1.6}
+
+  section{padding:2.9rem 0 0}
+  .waterline{height:2px;background:linear-gradient(90deg,var(--line) 0%,var(--line) 22%,var(--rule) 22%);margin:0}
+  h2{font-family:var(--disp);font-weight:600;font-size:1.62rem;letter-spacing:-.01em;line-height:1.2;margin:0 0 .3rem}
+  .h2note{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--water);margin:0 0 1.1rem}
+  p{margin:0 0 1.05rem}
+  ul,ol{margin:0 0 1.05rem;padding-left:1.3rem}
+  li{margin-bottom:.5rem}
+  strong{font-weight:650}
+  code{font-family:var(--mono);font-size:.85em;background:var(--paper-2);padding:.08rem .32rem;border-radius:3px}
+
+  .abstract{font-family:var(--disp);font-size:1.13rem;font-weight:300;line-height:1.62;border-left:3px solid var(--line);padding:.15rem 0 .15rem 1.3rem;margin:0 0 1.2rem}
+  .pull{font-family:var(--disp);font-style:italic;font-weight:300;font-size:1.3rem;line-height:1.4;color:var(--deep);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1.15rem 0;margin:1.9rem 0}
+
+  .correction{background:var(--paper-2);border-radius:7px;padding:1.1rem 1.3rem;margin:1.6rem 0;font-size:.94rem}
+  .correction .tagline{font-family:var(--mono);font-size:.67rem;letter-spacing:.15em;text-transform:uppercase;color:var(--coral);display:block;margin-bottom:.45rem}
+  .correction.good .tagline{color:var(--moss)}
+
+  figure.plot{margin:1.6rem 0}
+  figure.plot img{width:100%;border:1px solid var(--rule);border-radius:6px;display:block}
+  figure.plot figcaption{font-size:.86rem;color:var(--ink-2);margin-top:.55rem;line-height:1.5}
+
+  table{width:100%;border-collapse:collapse;margin:1.3rem 0;font-size:.9rem}
+  th,td{border-bottom:1px solid var(--rule);padding:.6rem .55rem;text-align:left;vertical-align:top}
+  th{font-family:var(--mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--water);font-weight:500;border-bottom:1.5px solid var(--water)}
+  td.n{font-family:var(--mono);white-space:nowrap}
+  tr.pick{background:#eef6f7}
+  tr.pick td:first-child{box-shadow:inset 3px 0 0 var(--line)}
+  tr.band{background:#eaf5f0}
+  tr.band td:first-child{box-shadow:inset 3px 0 0 var(--moss)}
+
+  .claims{list-style:none;padding:0;counter-reset:c}
+  .claims li{counter-increment:c;position:relative;padding-left:2.6rem;margin-bottom:1.05rem}
+  .claims li::before{content:"C" counter(c);position:absolute;left:0;top:.12rem;font-family:var(--mono);font-size:.72rem;color:var(--line);background:var(--abyss);padding:.16rem .4rem;border-radius:3px;letter-spacing:.04em}
+  .st{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;margin-left:.4rem;padding:.1rem .38rem;border-radius:3px;white-space:nowrap}
+  .st.ok{background:#dff0e6;color:#1f6b52}
+  .st.open{background:var(--paper-2);color:var(--ink-2)}
+  .st.rev{background:#fdeff1;color:#9b2c3a}
+
+  .ben{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:1.3rem 0}
+  .ben div{background:var(--paper-2);border-radius:7px;padding:1rem 1.1rem}
+  .ben .fig{font-family:var(--disp);font-size:1.85rem;font-weight:600;color:var(--deep);line-height:1;margin-bottom:.35rem}
+  .ben .cap{font-size:.86rem;color:var(--ink-2);line-height:1.45}
+
+  footer{background:var(--abyss);color:#9fbfc7;margin-top:3.2rem;padding:2rem 0;font-size:.86rem}
+  footer .wrap{line-height:1.6}
+
+  @media(max-width:620px){
+    .hero{padding-top:2.3rem}
+    .pull{font-size:1.1rem}
+    .abstract{font-size:1.02rem}
+    table{font-size:.82rem}
+    th,td{padding:.5rem .35rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="kicker">ICLR 2027 · project pitch · v2</p>
+    <h1>Every KV cache is solving<br>the <em>wrong</em> optimization problem.</h1>
+    <p class="deck">Compression methods minimize how well a key is reconstructed. Attention never reads a key — it reads an output. Change the objective and the answer is classical: reverse water-filling, with eviction and quantization as the two corners nobody thought to connect.</p>
+
+    <figure class="heroart">
+      <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Reverse water-filling diagram: token sensitivity bars crossing a water level; the portion above the line is the bit allocation, fully submerged tokens are evicted.">
+        <defs>
+          <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4ea8b8"/><stop offset="100%" stop-color="#12414f"/>
+          </linearGradient>
+        </defs>
+        <g id="bars"></g>
+        <line x1="8" y1="176" x2="872" y2="176" stroke="#e0a838" stroke-width="2"/>
+        <text x="872" y="169" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="#e0a838">water level &#955; &#8212; set by the bit budget</text>
+        <text x="8" y="24" font-family="IBM Plex Mono, monospace" font-size="10" fill="#7fa3ac">bits allocated to key i</text>
+        <text x="8" y="243" font-family="IBM Plex Mono, monospace" font-size="10" fill="#7fa3ac">tokens, sorted by sensitivity &#8594;</text>
+        <text x="694" y="205" font-family="IBM Plex Mono, monospace" font-size="10" fill="#c2334d">submerged = evicted</text>
+      </svg>
+      <figcaption>The vessel floor is each token's sensitivity. Pour in a fixed bit budget. What rises above the line is that token's precision; what stays under it is dropped. Eviction is not a different technique — it is the same equation, below the waterline.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Abstract</h2>
+  <p class="h2note">what the paper says</p>
+  <p class="abstract">Serving long-context LLMs is bounded by the KV cache, and every method that shrinks it — quantization or token eviction — is tuned to minimize key reconstruction error. We show this is the wrong distortion measure. Posing KV compression against <em>attention-output</em> error yields a rate-allocation problem whose solution is reverse water-filling: the optimal bit budget for a token is linear in the log of its attention weight, and eviction emerges as the zero-rate case of the same equation. Eviction methods and quantization methods are therefore corner solutions to one program. We characterize exactly when the interior beats both — a band of per-head logit spread around \(\tau\approx1\text{–}1.5\), where it wins by 7–13× in output error at matched bits — and show that outside that band the optimum provably degenerates to one corner or the other. We realize the interior with a nested code that is free to layer, and show a single refinement pass recovers 81–101% of the oracle allocation.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>The problem</h2>
+  <p class="h2note">why the field is stuck</p>
+
+  <p>At 128k+ context the KV cache dominates memory and decode bandwidth. Two families attack it, and both are in trouble:</p>
+
+  <table>
+    <thead><tr><th style="width:24%">Family</th><th style="width:20%">Allocates</th><th>How it fails</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Eviction</strong><br><span style="color:#4a5b64">H2O, SnapKV</span></td><td class="n">{0, 16} bits</td><td>Drops tokens a future query will need. Missing one critical key produces sharp error spikes in long-output reasoning.</td></tr>
+      <tr><td><strong>Quantization</strong><br><span style="color:#4a5b64">KIVI, QJL, TurboQuant</span></td><td class="n">{b, b} bits</td><td>Aggressive variants lose up to 20 points on AIME25 and ~30% relative on 256k retrieval, and pay 10–68% latency for dequantization. FP8 beats all of them on the Pareto frontier.</td></tr>
+    </tbody>
+  </table>
+
+  <p>These look like unrelated failure modes. They are the same failure: both families fix the allocation <em>a priori</em>, then optimize a proxy objective — how faithfully a key is reproduced — that attention never actually evaluates.</p>
+
+  <p class="pull">Attention does not consume keys. It consumes \(o=\sum_i a_i v_i\). A key carrying 0.4 of the mass and a key carrying \(10^{-6}\) are not equally worth storing, and no reconstruction metric can tell them apart.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>The move</h2>
+  <p class="h2note">one substitution, and the answer is classical</p>
+
+  <p>Swap the distortion measure. Perturb stored keys so that \(\hat s_i = s_i+\delta_i\) with \(\operatorname{Var}(\delta_i)=\sigma_{b_i}^2\), and use \(\partial o/\partial s_i=a_i(v_i-o)\):</p>
+
+  $$\mathbb{E}\|\Delta o\|^2\;\approx\;\sum_i a_i^2\|v_i-o\|^2\,\sigma_{b_i}^2\,,\qquad \sum_i b_i\le B.$$
+
+  <p>This is textbook reverse water-filling. Stationarity gives</p>
+
+  $$b_i^\star=\log_2\!\big(a_i\|v_i-o\|\big)+c\,,\qquad b_i^\star=0 \ \text{ below the water level.}$$
+
+  <p>The zero-rate case is not an analogy. Dropping a set and renormalizing costs exactly \(\sum_{i\in E}a_i^2\|o_R-v_i\|^2\), so eviction's cost constant is <strong>\(c_0=1\), derived</strong> — sitting on the same axis as every quantized tier. Eviction and quantization become commensurable for the first time.</p>
+
+  <div class="correction">
+    <span class="tagline">a framing we discarded</span>
+    This project began with an intuitive heuristic: <em>spend precision where the selection boundary is uncertain.</em> The theorem says the opposite. Boundary tokens carry small \(a_i\) by construction, so \(b_i^\star\) is <strong>lowest</strong> at the cut and highest deep in the head — as far from any boundary as a token can be. The optimal allocation is monotone in attention mass, not peaked at a threshold.
+  </div>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Where the interior actually wins</h2>
+  <p class="h2note">the honest version, after a correction</p>
+
+  <p>Once eviction and quantization sit on one axis, the obvious claim is that the interior dominates both. It does — but only over a bounded regime, and an earlier version of this pitch got the boundary backwards. The controlling quantity is \(\tau\), the per-head spread of attention logits. Because the quantization noise is \(\sigma_b=\tau\sqrt{c_b}\) while the eviction cost is fixed at 1, <strong>\(\tau\) decides which corner the optimum drifts toward.</strong></p>
+
+  <figure class="plot">
+    <img src="fig3_envelope.png" alt="Convex envelope of the cost curve at two values of tau">
+    <figcaption>Why it happens. The eviction cost is fixed at 1 while a \(b\)-bit tier costs \(\tau^2c_b\), so raising \(\tau\) strips rungs off the bottom of the ladder (red crosses are tiers never optimal at any budget). At \(\tau{=}2.5\) only \(\{0,3,\dots,8\}\) survive — and an allocation with few rungs is an evictor. QJL costs about two extra rungs throughout, which is why the deployed backend drops it.</figcaption>
+  </figure>
+
+  <figure class="plot">
+    <img src="fig4_tau.png" alt="Gain versus logit spread showing non-monotonic behaviour">
+    <figcaption>Gain over uniform bits grows with \(\tau\). Gain over an oracle evictor <em>falls</em>. The gain over the better of the two — the only number a reviewer will accept — peaks near \(\tau\approx1.25\) and is gone by \(\tau\approx2\). Right: the mechanism. As \(\tau\) rises the absolute logit noise grows until only high-bit tiers are worth anything, the optimum collapses to two tiers, and it <em>becomes</em> eviction.</figcaption>
+  </figure>
+
+  <table>
+    <thead><tr><th>\(\tau\)</th><th class="n">vs uniform</th><th class="n">vs oracle eviction</th><th class="n">vs BEST corner</th><th>verdict</th></tr></thead>
+    <tbody>
+      <tr><td class="n">0.5</td><td class="n">1.3&#215;</td><td class="n">12.3&#215;</td><td class="n">1.3&#215;</td><td style="color:#c2334d">uniform is already near-optimal</td></tr>
+      <tr class="band"><td class="n">1.0</td><td class="n">8.3&#215;</td><td class="n">16.0&#215;</td><td class="n"><strong>8.3&#215;</strong></td><td style="color:#1f6b52">the band</td></tr>
+      <tr class="band"><td class="n">1.25</td><td class="n">17.8&#215;</td><td class="n">13.2&#215;</td><td class="n"><strong>13.2&#215;</strong></td><td style="color:#1f6b52">peak</td></tr>
+      <tr class="band"><td class="n">1.5</td><td class="n">32.7&#215;</td><td class="n">7.3&#215;</td><td class="n"><strong>7.3&#215;</strong></td><td style="color:#1f6b52">still strong</td></tr>
+      <tr><td class="n">2.0</td><td class="n">107.6&#215;</td><td class="n">1.2&#215;</td><td class="n">1.2&#215;</td><td style="color:#c2334d">eviction has caught up</td></tr>
+      <tr><td class="n">3.0</td><td class="n">100.0&#215;</td><td class="n">1.0&#215;</td><td class="n">1.0&#215;</td><td style="color:#c2334d">SIEVE &#8801; sparse attention</td></tr>
+    </tbody>
+  </table>
+
+  <div class="correction">
+    <span class="tagline">a claim we retracted</span>
+    v1 of this pitch reported that the gain <em>grows</em> with \(\tau\), reaching 14–70&#215;. That number compared only against uniform bits, and used a cost clamp that prevented any tier from costing more than eviction — precisely the situation that arises once \(\tau&gt;1\). Against the best corner the curve is non-monotonic. We report the retraction because the corrected result is the more useful one: <strong>it tells you which heads to run the method on</strong>, and a method that knows where it stops working is easier to deploy than one that claims everything.
+  </div>
+
+  <div class="correction good">
+    <span class="tagline">what this leaves open, and it is a lot</span>
+    The evictor in that table is an <strong>oracle</strong> — it ranks tokens by true sensitivity \(a_i\|v_i-o\|\), which requires knowing the very attention weights it is trying to avoid computing. Real H2O and SnapKV select on past attention statistics and cannot see the future query. So the corrected result says the interior does not beat a <em>clairvoyant</em> evictor at high \(\tau\). Whether it beats a <em>practical</em> one is unmeasured, and is a far weaker bar. That single experiment decides whether the productive band is one third of the space or nearly all of it.
+  </div>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Design space</h2>
+  <p class="h2note">five ways to occupy the interior</p>
+
+  <p>A per-token allocation needs a code readable to variable depth. TurboQuant's random rotation makes rotated coordinates asymptotically Gaussian, and Gaussian sources under squared error are <em>successively refinable</em> (Equitz–Cover) — so a nested code meets the rate-distortion bound at every layer. The rotation that makes the quantizer near-optimal is the rotation that makes it layerable at no cost. Given that, the design axis is how the ladder gets chosen:</p>
+
+  <table>
+    <thead><tr><th style="width:23%">Design</th><th style="width:25%">Idea</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr class="pick"><td><strong>D1 · adaptive ladder</strong><br><span style="color:#4a5b64">primary</span></td><td class="n">per-head tiers plus<br>per-head <em>routing</em></td><td>Ladder width is forced to be \(\tau/\ln2\) bits. Post-correction this design does double duty: it also routes heads outside the productive band to uniform bits or to plain eviction, so the method never runs where it cannot win.</td></tr>
+      <tr><td><strong>D2 · fixed ladder</strong></td><td class="n">one global tier set</td><td>Simplest kernel, no calibration. Wrong width for most heads, and no way to route. Serves as the ablation that prices D1.</td></tr>
+      <tr><td><strong>D3 · SIEVE-6</strong></td><td class="n">cap the ladder at 6 b</td><td>2.3&#215; memory, beating FP8's 2.0&#215;. But the ~1% of tokens wanting 7–8 bits are the highest-sensitivity ones, so the cap bites disproportionately.</td></tr>
+      <tr><td><strong>D4 · offload tier</strong></td><td class="n">full precision on CPU,<br>ladder in HBM</td><td>Largest HBM saving; trades for PCIe latency. Changes the baseline set to offloading methods and turns this into a systems paper.</td></tr>
+      <tr><td><strong>D5 · plug-in</strong></td><td class="n">allocation on top of<br>existing sparse attention</td><td>Lowest risk, inherits someone else's kernel. Now more attractive than before: if the productive band turns out narrow, layering allocation onto an existing evictor is the version that still ships.</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>D1 is the pick</strong>, with D5 promoted from fallback to serious contender by the correction. Storage is fixed at 8-bit keys plus FP8 values — precisely the <code>k8v4</code> budget, independently measured at BF16 parity — so memory is unchanged and the entire win is bandwidth. Layer-major storage keeps every pass a contiguous strided read plus a gather, which is what stops per-token mixed precision from dying on ragged access.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>What it buys</h2>
+  <p class="h2note">simulated with the real quantizer; hardware validation pending</p>
+
+  <div class="ben">
+    <div><div class="fig">7–13&#215;</div><div class="cap">lower output error than the <em>better</em> of both corners, at matched total bits, for heads in the productive band</div></div>
+    <div><div class="fig">4.7&#215;</div><div class="cap">fewer KV bytes read per decode step, at memory identical to the production FP8 default</div></div>
+    <div><div class="fig">81–101%</div><div class="cap">of the oracle gain recovered by a single refinement pass, so the result needs no oracle</div></div>
+    <div><div class="fig">1.0&#215;</div><div class="cap">the honest floor: at \(\tau\ge2\) the optimum <em>is</em> eviction, and the method routes to it rather than losing</div></div>
+  </div>
+
+  <p>Two softer benefits matter as much in review. <strong>The worst case is bounded:</strong> outside the band the method degenerates to whichever corner is optimal there, so it stops winning before it starts losing. And <strong>it subsumes rather than competes:</strong> sparse attention is recovered as the high-\(\tau\) limit with a now-quantified validity range, converting a rival literature into a corollary — at the price of conceding the margin in that regime, which is a trade we make explicitly rather than hide.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Novel claims</h2>
+  <p class="h2note">each one falsifiable</p>
+
+  <ol class="claims">
+    <li><strong>The objective is wrong.</strong> KV compression should minimize attention-output distortion, not key reconstruction distortion. Everything else follows from this one substitution. <span class="st open">theory</span></li>
+    <li><strong>Optimal precision is logarithmic in attention mass:</strong> \(b_i^\star=\log_2(a_i\|v_i-o\|)+c\), with dynamic range 13–21 bits — so uniform bit-width is not a mild approximation to the optimum. <span class="st ok">confirmed</span></li>
+    <li><strong>Eviction is quantization at zero rate.</strong> \(c_0=1\) is derived, not posited; H2O and KIVI are corner solutions to one program, and each loses badly in the other's regime. <span class="st ok">confirmed</span></li>
+    <li><strong>The interior's advantage is a bounded regime, and the theory predicts the boundary.</strong> Because \(\sigma_b=\tau\sqrt{c_b}\) while eviction costs 1, high \(\tau\) drives the optimum to two tiers. The gain over the best corner peaks near \(\tau\approx1.25\) and vanishes by \(\tau\approx2\). <span class="st rev">revised, then confirmed</span></li>
+    <li><strong>Unbiased quantizers make bad indices.</strong> Selection depends on the score vector only through its ordering, so monotone bias is free and variance is not. QJL's variance penalty pushes its 1-bit tier <em>above the cost of eviction</em> and knocks its 2-bit tier off the convex envelope — with QJL those tiers are never optimal at any budget. It costs roughly two rungs of the ladder at every \(\tau\). This independently explains why practitioners deleted QJL from the deployed implementation. <span class="st ok">confirmed</span></li>
+    <li><strong>Losing rungs is what turns allocation into eviction.</strong> Because the eviction cost is fixed at 1 while tier costs scale as \(\tau^2c_b\), raising \(\tau\) strips tiers off the bottom of the convex envelope. A ladder with two rungs <em>is</em> an evictor — so C4's regime boundary is not an empirical accident but a consequence of the same envelope argument that condemns QJL. <span class="st ok">confirmed</span></li>
+    <li><strong>Norm correction is the same mistake in miniature.</strong> Measured on real keys it moves the shrinkage \(\alpha\) from 0.64 to 0.80 at 1 bit while <em>raising</em> residual variance 57% — trading harmless order-preserving bias for order-breaking noise. <span class="st ok">confirmed</span></li>
+    <li><strong>Layering is free.</strong> Random rotation places rotated keys in the successively-refinable Gaussian regime, so a nested code costs no rate over a monolithic one — the enabling result for per-token allocation. <span class="st open">to test on real keys</span></li>
+    <li><strong>One cascade iteration suffices</strong> to resolve the circularity that \(b_i^\star\) depends on \(a_i\), which depends on \(b_i\). <span class="st ok">confirmed</span></li>
+  </ol>
+
+  <p class="pull">A framework that only reorganizes known results gets scored as a survey. This one made predictions before we ran anything — and the one that failed, failed into a sharper claim than the one it replaced.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>What happens next</h2>
+  <p class="h2note">two measurements, three days, and the project is decided</p>
+
+  <p>The question is no longer "is \(\tau\) large?" — it is <strong>what fraction of real heads sit inside the productive band</strong>, and how much of the band's apparent narrowness is an artifact of comparing against an evictor no real system can build.</p>
+
+  <table>
+    <thead><tr><th style="width:22%">Experiment</th><th style="width:12%">Cost</th><th>What it decides</th></tr></thead>
+    <tbody>
+      <tr class="pick"><td><strong>H0 · per-head \(\tau\) and measured gain</strong></td><td class="n">1 day</td><td>Forward-pass hooks on three production models; per head, the measured gain over the best corner using real quantized keys and exact recomputation. Stop if the median is below 1.5&#215;.</td></tr>
+      <tr class="pick"><td><strong>H0b · realistic evictor</strong></td><td class="n">2 days</td><td>Replace the oracle evictor with H2O/SnapKV-style selection on past attention. Decides whether the high-\(\tau\) regime is lost or merely contested — the single largest swing factor in the project's value.</td></tr>
+      <tr><td>H2 · order preservation</td><td class="n">free</td><td>Falls out of H0's captured tensors. Kills the index argument if \(\rho&lt;0.9\).</td></tr>
+      <tr><td>H3 · nested coding overhead</td><td class="n">1 week</td><td>Whether layering is actually free at \(d{=}128\) with scalar quantizers.</td></tr>
+      <tr><td>H4/H5 · GQA union, kernel, iso-budget on hardware</td><td class="n">5 weeks</td><td>Whether it beats dense FP8 at 128k.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Roughly seven weeks to a submission-grade result, with a kill gate at every stage — and the first two gates cost three days between them.</p>
+</div></section>
+
+<footer><div class="wrap">
+  Simulation: \(L{=}32{,}768\), \(d{=}128\), real TurboQuant<sub>mse</sub> quantizer (random rotation, converged Lloyd-Max levels, optional norm correction), absolute cost units, error measured by exact recomputation rather than through the first-order expansion. No result has yet been validated against a real KV cache. Deployment claims — the omission of QJL, the meaning of norm correction, accuracy and throughput against FP8 and BF16 — come from the vLLM project's May 2026 study and the merged attention-backend implementation. Companion documents: full proposal (v5), H0 experiment package, simulation code.
+</div></footer>
+
+<script>
+(function(){
+  var bits=[8,8,7.6,7.2,7,6.7,6.4,6.1,5.9,5.6,5.4,5.2,5,4.8,4.6,4.4,4.2,4.05,3.9,3.75,3.6,3.45,3.3,3.15,3,2.85,2.7,2.5,2.35,2.2,2,1.8,1.6,1.4,1.15,.9,.6,.3,-.35,-.9,-1.5,-2.2];
+  var n=bits.length, x0=14, w=(872-14)/n, base=176, unit=18.2, floor=214;
+  var g=document.getElementById('bars'), ns='http://www.w3.org/2000/svg';
+  bits.forEach(function(b,i){
+    var x=x0+i*w, bw=w*0.72, top=base-b*unit, sTop=Math.max(base,top);
+    var r1=document.createElementNS(ns,'rect');
+    r1.setAttribute('x',x); r1.setAttribute('y',sTop); r1.setAttribute('width',bw);
+    r1.setAttribute('height',Math.max(0,floor-sTop));
+    r1.setAttribute('fill', b>0 ? '#193b48' : '#4a2530');
+    r1.setAttribute('rx','1.5'); g.appendChild(r1);
+    if(b>0){
+      var r2=document.createElementNS(ns,'rect');
+      r2.setAttribute('x',x); r2.setAttribute('y',top); r2.setAttribute('width',bw);
+      r2.setAttribute('height',base-top); r2.setAttribute('fill','url(#wg)');
+      r2.setAttribute('rx','1.5'); g.appendChild(r2);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

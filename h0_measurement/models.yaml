@@ -1,0 +1,98 @@
+# Model registry. Add a model by appending an entry; no code changes needed.
+#   validate_with : small SAME-ARCHITECTURE model used for probe validation
+#                   (L1/L3 test the probe, which is architecture- but not
+#                    size-dependent -- avoids loading a 70B model 4x).
+#   quant_every   : run the expensive quantization sweep every N decode steps.
+#                   Cheap sensitivity stats still run every step.
+#   norm_correct  : vLLM's 'nc'. Set false to run the ablation -- it trades
+#                   shrinkage for variance, and M3 says that trade is wrong
+#                   for an index.
+defaults:
+  ctx: 131072
+  n_prompts: 6
+  n_decode: 8
+  families:
+  - niah
+  - qa
+  - cont
+  dtype: bfloat16
+  chunk: 4096
+  device_map: auto
+  bit_list:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 8
+  budgets:
+  - 1
+  - 2
+  - 3
+  - 4
+  quant_every: 4
+  norm_correct: true
+  rot_seed: 0
+  maxb: 8
+models:
+- tag: qwen3-1.7b
+  id: Qwen/Qwen3-1.7B
+  tier: debug
+  ctx: 8192
+  n_prompts: 2
+  n_decode: 2
+  chunk: 2048
+  validate_with: Qwen/Qwen3-0.6B
+  quant_every: 1
+- tag: qwen3-8b
+  id: Qwen/Qwen3-8B
+  tier: main
+  ctx: 40960
+  validate_with: Qwen/Qwen3-0.6B
+- tag: llama31-8b
+  id: meta-llama/Llama-3.1-8B-Instruct
+  tier: main
+  ctx: 131072
+  validate_with: meta-llama/Llama-3.2-1B-Instruct
+- tag: mistral-7b
+  id: mistralai/Mistral-7B-Instruct-v0.3
+  tier: main
+  ctx: 32768
+# MoE, and the registry's only MHA model: 16 query heads / 16 KV heads, so n_rep=1
+# and every query head owns its KV. Every other entry is GQA at ratio 4 or 8, where
+# heads sharing a KV head cannot be given independent rates -- this is the ratio-1
+# control for that. Cheap: 2.7B active of 14.3B.
+# config lists sliding_window 32768, but use_sliding_window is false, so Qwen2MoeConfig
+# normalises it to 0 and every layer_type is full_attention. Attention is dense and L
+# is the true context length, same as every other entry.
+- tag: qwen15-moe-a2.7b
+  id: Qwen/Qwen1.5-MoE-A2.7B-Chat
+  tier: main
+  ctx: 32768
+  validate_with: Qwen/Qwen1.5-0.5B-Chat
+# MoE. Attention is a stock Qwen3 GQA block (48L, 32H, kv=4, d=128) -- the experts
+# sit in the FFN and H0 never touches them. Kept for the sparse-activation slot.
+# NOTE: max_position_embeddings is 40960 with rope_scaling null. ctx 131072 runs
+# ~3x past trained positions with no YaRN; use the -2507 entry for real 128k.
+- tag: qwen3-30b-a3b
+  id: Qwen/Qwen3-30B-A3B
+  tier: large
+  ctx: 40960
+  n_prompts: 4
+  validate_with: Qwen/Qwen3-0.6B
+# Same MoE architecture, 262144 native context -- the only entry here that can
+# honestly be prefilled to 131072.
+- tag: qwen3-30b-a3b-2507
+  id: Qwen/Qwen3-30B-A3B-Instruct-2507
+  tier: large
+  ctx: 131072
+  n_prompts: 4
+  validate_with: Qwen/Qwen3-0.6B
+- tag: llama33-70b
+  id: meta-llama/Llama-3.3-70B-Instruct
+  tier: large
+  ctx: 131072
+  n_prompts: 4
+  quant_every: 4
+  validate_with: meta-llama/Llama-3.2-1B-Instruct

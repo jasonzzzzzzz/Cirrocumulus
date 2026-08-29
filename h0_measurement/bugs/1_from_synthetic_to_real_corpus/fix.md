@@ -337,6 +337,85 @@ model twice in float32, as the README notes.
 
 ---
 
+## 4b. Round two: the gate itself was wrong (see `fix_further.md`)
+
+The corpus fix above was correct. **The gate I attached to it was not.** The PG-19
+re-run (`job852849` + `job852851`) stamped UNKNOWN on all five models, and the
+cause was the gate, not the data.
+
+**The retired check was unpassable by construction.** It demanded the
+median-over-heads ladder width on `niah` exceed `cont` by ≥ 0.10 b. But
+`ladder_bits = std(log₂ aᵢ) ≈ τ/ln2` is a **bulk second moment over all L logits**,
+and a needle is one token in 131,072. Reproduce with `python -m sievelib.validity`:
+
+| needle tokens | needle logit | Δ ladder | vs the 0.1 b gate |
+|---|---|---|---|
+| 1 | 10·τ | +0.0016 b | FAIL |
+| 20 (the real needle) | 10·τ | +0.0325 b | FAIL |
+| 100 | 10·τ | +0.1600 b | pass |
+
+A *perfect* retrieval falls ~3× short of the threshold. Compounding it, the
+**median over ~5,120 heads** is dominated by heads that never do retrieval, so it
+cannot move however well retrieval works. The observed deltas (−0.010 to +0.061 b)
+are exactly what success looks like under this statistic. Setting 0.10 b without
+checking what the phenomenon can physically produce was my error.
+
+**The replacement** (`sievelib/validity.py`) asks two questions matched to the
+phenomenon, either sufficient:
+
+- **task-level, enforced** — does the model emit the needle code in its greedy
+  decode? Behavioural ground truth, needs no calibration.
+- **head-level, advisory** — do *any* heads put real attention mass on the needle
+  span? A **max over heads, never a median**.
+
+`MIN_MASS = 0.05` / `MIN_HEADS = 4` are **not yet calibrated**, so
+`ENFORCE_HEAD_LEVEL = False`. Enforcing a second plausible-looking-but-unmeasured
+attention threshold is precisely the mistake that produced the retired gate.
+Calibrate from the reported distribution, then flip the switch. `synthetic == False`
+remains hard, and `retired_ladder_gate` is kept, printed, and never decisive.
+
+**`--validity-only`, so this costs minutes not hours.** The probe needs attention
+and generation only — no bit sweep, no value tensors, niah only. Because the
+haystack is seeded on `prompt_idx` alone, it reads byte-identical text to a full
+run at the same ctx, so **it validates the measurement you already have**:
+
+```bash
+# FROM trig-login01 -- GPU requests are rejected from CPU login nodes
+sbatch --array=0-3 h0_measurement/submit_validity.slurm \
+       qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b
+sbatch --array=0-0 --gpus-per-node=4 --time=01:30:00 \
+       h0_measurement/submit_validity.slurm qwen3-30b-a3b-2507
+
+python h0_measurement/report.py \
+       "h0_measurement/results/job852849/*.parquet" \
+       "h0_measurement/results/job852851/*.parquet" \
+       "h0_measurement/results/validity<JOBID>/*.parquet" \
+       -o h0_measurement/reports/h0_report_gated.pdf
+```
+
+`report.py` keeps the two frames separate — `validity_*.parquet` has no gain
+columns, so pooling it would drag every per-head median.
+
+**The phase diagram moved off φ.** φ = n₉₅/L divides by context length, and these
+models ran at 32k / 40k / 128k, so the same head lands in different places
+depending on ctx — disqualifying for a phase claim regardless of fit. (The
+"non-monotone" argument in `fix_further.md` is weaker than it looks: it rests on a
+0.3-point inversion, which is noise. The ctx confound is the real disqualifier.)
+The new `page_phase` uses two axes that fall out of comparing τ²c_b against the
+derived c₀ = 1, so the boundaries are **derived rather than fitted**: ladder width
+owns the diffuse edge, and the dead-2-bit-tier fraction (`evict_beats_b2`, already
+measured) owns the sharp edge — the only axis separating qwen3-8B from qwen3-30B,
+0.13 b apart in ladder but 36 points apart here. The region between 39% and 75%
+dead tiers is unconstrained by data and is hatched, not drawn as a line.
+
+Verified: 30/30 corpus + validity unit checks pass; needle spans round-trip
+exactly through decode→concat→re-tokenise against the real Qwen tokenizer (17
+tokens, always containing the code, at both 4k and 32k); the report reaches GO on
+a model with retrieval evidence and UNKNOWN with a *meaningful* reason without it.
+**Not yet done: the calibration run.** GPU jobs cannot be submitted from
+`tri-login*`, so `submit_validity.slurm` is written and syntax-checked but must be
+launched from `trig-login01`.
+
 ## 5. What this does not fix
 
 Only the input. The other findings in `reports/analysis_from_fable.md` stand: the

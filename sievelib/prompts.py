@@ -210,7 +210,8 @@ def build(tok, family, ctx, seed=0, corpus_dir=None, *,
     corpus_dir = resolve_corpus_dir(corpus_dir)
     hay_key = prompt_idx if prompt_idx is not None else seed
     ids, meta = _build_haystack(tok, ctx, corpus_dir, hay_key, require_real)
-    meta.update(family=family, prompt_idx=hay_key, needle_tok=-1)
+    meta.update(family=family, prompt_idx=hay_key, needle_tok=-1,
+                needle_code="", needle_char_start=-1, needle_char_end=-1)
 
     txt = tok.decode(ids)
     if family == "niah":
@@ -218,9 +219,19 @@ def build(tok, family, ctx, seed=0, corpus_dir=None, *,
         code = rng.randint(10000, 99999)
         needle = f"\n\nThe access code for vault {rng.randint(10, 99)} is {code}.\n\n"
         cut = int(len(ids) * rng.uniform(0.15, 0.85))
-        txt = tok.decode(ids[:cut]) + needle + tok.decode(ids[cut:])
+        head = tok.decode(ids[:cut])
+        txt = head + needle + tok.decode(ids[cut:])
         txt += "\n\nQuestion: what is the access code mentioned above? Answer:"
-        meta.update(needle_tok=cut, needle_frac=cut / max(1, len(ids)))
+        # CHARACTER offsets, because they are exact: this function does the
+        # concatenation, so it knows precisely where the needle sits. `needle_tok`
+        # is an index into the HAYSTACK's tokens, which does not survive
+        # decode -> concat -> re-tokenise (BOS shifts everything, and BPE merges
+        # across the two seams). run_h0.py converts these to token positions with
+        # the tokenizer's offset mapping; validity.needle_mass needs that span.
+        meta.update(needle_tok=cut, needle_frac=cut / max(1, len(ids)),
+                    needle_code=str(code), needle_text=needle,
+                    needle_char_start=len(head),
+                    needle_char_end=len(head) + len(needle))
     elif family == "qa":
         txt += "\n\nSummarize the three most important claims in the document above:"
     return txt, meta

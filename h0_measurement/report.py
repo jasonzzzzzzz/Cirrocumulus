@@ -7,8 +7,10 @@ report.py -- multi-page PDF report from any number of result files.
 Model-agnostic: every panel is driven by whatever tags appear in the data.
 """
 from __future__ import annotations
-import argparse, glob, os
+import argparse, glob, os, sys, textwrap
 import numpy as np, pandas as pd
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from sievelib import validity as VAL
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -28,23 +30,84 @@ C_PAPER = {1: 0.36, 2: 0.117, 3: 0.03, 4: 0.009, 5: 0.00225, 6: 0.00056, 8: 3.5e
 GATE_DELTA_BITS = 0.10       # median paired  ladder(niah) - ladder(cont)
 GATE_PAIRED_FRAC = 0.60      # fraction of heads with niah > cont
 
+# --- summary-page layout -------------------------------------------------------
+# The decision summary is plain monospace text laid onto letter-size pages. Long
+# sentences (the VERDICT line especially) are hard-wrapped to SUMMARY_WRAP columns
+# so nothing runs off the right edge, and per-model blocks are packed onto pages
+# SUMMARY_LINES_PER_PAGE at a time, spilling onto a second/third page rather than
+# off the bottom.
+SUMMARY_WRAP = 118
+SUMMARY_LINES_PER_PAGE = 78
+SUMMARY_FONTSIZE = 7.8
+
+
+def _fit(lines, width=SUMMARY_WRAP):
+    """Hard-wrap any line wider than `width`, hanging the continuation under the
+    start of the wrapped line's text so columns stay readable."""
+    out = []
+    for ln in lines:
+        if len(ln) <= width:
+            out.append(ln)
+            continue
+        indent = " " * (len(ln) - len(ln.lstrip())) + "    "
+        wrapped = textwrap.wrap(ln, width=width, subsequent_indent=indent,
+                                break_long_words=False, break_on_hyphens=False)
+        out.extend(wrapped or [ln])
+    return out
+
+
+def _render_summary_pages(pdf, title, blocks):
+    """Paginate a list of per-model text blocks across as many pages as needed."""
+    pages, cur, used = [], [], 0
+    for blk in blocks:
+        if cur and used + len(blk) > SUMMARY_LINES_PER_PAGE:
+            pages.append(cur); cur, used = [], 0
+        cur.extend(blk); used += len(blk)
+    if cur:
+        pages.append(cur)
+    n = len(pages)
+    for i, page in enumerate(pages):
+        fig = plt.figure(figsize=(11, 8.5))
+        head = title if n == 1 else f"{title}  ({i + 1}/{n})"
+        fig.suptitle(head, fontsize=15, y=.97)
+        fig.text(.05, .93, "\n".join(page), va="top", family="monospace",
+                 fontsize=SUMMARY_FONTSIZE)
+        pdf.savefig(fig); plt.close(fig)
+
 
 def per_head(df):
     keys = ["model", "ctx", "layer", "head"]
     return df.groupby(keys).median(numeric_only=True).reset_index()
 
 
-def family_gate(raw):
-    """(model, ctx) -> validity record. Computed on `raw`, not on per_head():
-    per_head() groups `family` away, and a median over raw rows would pool
-    layers, heads and decode steps into one number that no longer pairs.
+def family_gate(raw, val=None):
+    """(model, ctx) -> input-validity record.
+
+    Two hard requirements and one advisory:
+
+      HARD  the haystack was real text, not filler. Unambiguous.
+      HARD  the model retrieved the needle in >= MIN_TASK_FRAC of niah prompts
+            (`sievelib.validity.task_level_gate`). Behavioural ground truth.
+      ADVIS. some heads put real attention mass on the needle span. Reported,
+            not enforced, until MIN_MASS is calibrated -- see validity.py.
+
+    The RETIRED median-ladder-delta statistic is still computed and printed, so
+    the paper can report what was tried, but it no longer affects the verdict:
+    a needle is one token in 131,072 and the ladder is a bulk second moment, so
+    even a perfect retrieval moves it ~60x less than the old threshold demanded.
+    Run `python -m sievelib.validity` for the arithmetic.
+
+    `val` is an optional frame of --validity-only rows, used when the measurement
+    run predates the needle columns.
     """
     out = {}
     for (mdl, ctx), g in raw.groupby(["model", "ctx"]):
         r = {"synthetic_frac": float(g["synthetic"].mean())
              if "synthetic" in g else float("nan"),
              "paired_delta": float("nan"), "paired_frac": float("nan"),
-             "n_paired": 0, "ladder": {}}
+             "n_paired": 0, "ladder": {}, "validity": None, "src": "measurement"}
+
+        # retired statistic, diagnostic only
         fam = (g.groupby(["family", "layer", "head"])["ladder_bits"]
                 .median().reset_index())
         r["ladder"] = {k: float(v) for k, v in
@@ -57,23 +120,33 @@ def family_gate(raw):
                 r.update(paired_delta=float(d.median()),
                          paired_frac=float((d > 0).mean()), n_paired=int(len(d)))
 
+        # Prefer needle columns from the measurement itself; fall back to a
+        # --validity-only probe, which reads byte-identical prompts because the
+        # haystack is seeded on prompt_idx.
+        niah = g[g["family"] == "niah"] if "family" in g else g.iloc[:0]
+        if "needle_mass" not in niah.columns and "needle_hit" not in niah.columns:
+            niah = niah.iloc[:0]
+        if not len(niah) and val is not None and len(val):
+            sub = val[(val["model"] == mdl) & (val["ctx"] == int(ctx))]
+            niah = sub[sub["family"] == "niah"] if "family" in sub else sub
+            if len(niah):
+                r["src"] = "validity probe"
+        r["validity"] = VAL.summarize(niah) if len(niah) else None
+
         reasons = []
         if not np.isfinite(r["synthetic_frac"]):
             reasons.append("no `synthetic` column -- results predate the corpus gate")
         elif r["synthetic_frac"] > 0:
             reasons.append(f"synthetic haystack on {100*r['synthetic_frac']:.0f}% "
                            f"of rows")
-        if not r["n_paired"]:
-            reasons.append("no paired niah/cont heads to compare")
-        else:
-            if r["paired_delta"] < GATE_DELTA_BITS:
-                reasons.append(f"paired ladder delta {r['paired_delta']:+.3f} b "
-                               f"< {GATE_DELTA_BITS} b")
-            if r["paired_frac"] < GATE_PAIRED_FRAC:
-                reasons.append(f"only {100*r['paired_frac']:.1f}% of heads have "
-                               f"niah > cont (need {100*GATE_PAIRED_FRAC:.0f}%)")
+        if r["validity"] is None:
+            reasons.append("no needle evidence -- run `run_h0.py --validity-only` "
+                           "and pass its parquet to report.py")
+        elif not r["validity"]["passed"]:
+            reasons.append(r["validity"]["reason"])
         r["passed"] = not reasons
-        r["reason"] = "; ".join(reasons) if reasons else "real text, niah > cont"
+        r["reason"] = ("; ".join(reasons) if reasons
+                       else f"real text; {r['validity']['reason']}")
         out[(mdl, int(ctx))] = r
     return out
 
@@ -116,10 +189,9 @@ def verdict(frac_band, portfolio, gate=None):
 
 
 def page_summary(pdf, df, ph, gates):
-    fig = plt.figure(figsize=(11, 8.5))
-    fig.suptitle("H0 — decision summary", fontsize=15, y=.97)
-    txt = []
+    blocks = []
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+        txt = []
         gate = gates.get((mdl, int(ctx)))
         lad = g["ladder_bits"].dropna()
         gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
@@ -132,13 +204,32 @@ def page_summary(pdf, df, ph, gates):
             txt.append(f"    INPUT VALIDITY {'PASS' if gate['passed'] else 'FAIL'}"
                        f"   haystack "
                        f"{'real' if gate['synthetic_frac'] == 0 else 'SYNTHETIC'}")
-            txt.append(f"      ladder niah {lb.get('niah', float('nan')):.3f} b   "
-                       f"cont {lb.get('cont', float('nan')):.3f} b   "
-                       f"paired delta {gate['paired_delta']:+.3f} b "
-                       f"(need >= {GATE_DELTA_BITS})")
-            txt.append(f"      heads with niah > cont  "
-                       f"{100*gate['paired_frac']:.1f}%  "
-                       f"(need >= {100*GATE_PAIRED_FRAC:.0f}%, n={gate['n_paired']:,})")
+            va = gate.get("validity")
+            if va and va.get("task"):
+                t = va["task"]
+                txt.append(f"      task-level  needle retrieved in "
+                           f"{t['n_retrieved']}/{t['n_prompts']} niah prompts "
+                           f"({'PASS' if t['passed'] else 'FAIL'}, need "
+                           f"{100*VAL.MIN_TASK_FRAC:.0f}%)   [{gate['src']}]")
+            if va and va.get("head"):
+                hd = va["head"]
+                txt.append(f"      head-level  needle mass: max "
+                           f"{hd['max_needle_mass']:.4f}  p99 "
+                           f"{hd['p99_needle_mass']:.4f}  median "
+                           f"{hd['median_needle_mass']:.6f}  "
+                           f"({hd['n_heads_on_needle']}/{hd['n_heads']} heads "
+                           f">= {VAL.MIN_MASS})")
+                txt.append("      heads above  " + "  ".join(
+                    f"{k}:{v}" for k, v in hd["counts"].items())
+                    + "   [ADVISORY - MIN_MASS uncalibrated, not enforced]")
+            # Retired, printed so the paper can say what was tried. A needle is
+            # 1 token in 131,072 and the ladder is a bulk second moment, so this
+            # cannot move: see `python -m sievelib.validity`.
+            txt.append(f"      RETIRED median-ladder gate (not enforced): niah "
+                       f"{lb.get('niah', float('nan')):.3f} b  cont "
+                       f"{lb.get('cont', float('nan')):.3f} b  delta "
+                       f"{gate['paired_delta']:+.3f} b  "
+                       f"{100*gate['paired_frac']:.1f}% of heads niah>cont")
         if frac is not None:
             txt.append(f"    HEADS IN BAND  {100*frac:5.1f}%  (gain over best "
                        f"corner >= {BAND_MIN}x at 3 b/token)")
@@ -184,8 +275,8 @@ def page_summary(pdf, df, ph, gates):
                        f"{g['lin_ratio3'].median():.2f}  (1.0 = exact)")
         txt.append(f"    VERDICT: {v} — {msg}")
         txt.append("")
-    fig.text(.06, .88, "\n".join(txt), va="top", family="monospace", fontsize=8.6)
-    pdf.savefig(fig); plt.close(fig)
+        blocks.append(_fit(txt))
+    _render_summary_pages(pdf, "H0 — decision summary", blocks)
 
 
 def page_model(pdf, mdl, ctx, g, raw, gate=None):
@@ -306,6 +397,71 @@ def page_compare(pdf, ph, gates=None):
     pdf.savefig(fig); plt.close(fig)
 
 
+def page_phase(pdf, ph, gates=None):
+    """The phase diagram on DERIVED axes, replacing phi = n95/L.
+
+    phi was an empirical proxy that happened to correlate on six points, and it
+    divides by L -- so the same head measured at 32k and at 128k lands in
+    different places. With models here running at 32k / 40k / 128k that is
+    disqualifying for a phase claim, independent of how well it fits.
+
+    Both replacements fall out of comparing tau^2*c_b against the derived
+    eviction cost c0 = 1, so the boundaries are derived rather than fitted:
+      x  ladder width  -- owns the DIFFUSE edge (too little spread to allocate)
+      y  dead 2-bit tier fraction (`evict_beats_b2`, i.e. sig2 > 1) -- owns the
+         SHARP edge, and is the only axis separating qwen3-8B from qwen3-30B,
+         which sit 0.13 b apart in ladder width but 36 points apart here.
+    """
+    rows = []
+    for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+        if "gain_best3" not in g or "evict_beats_b2" not in g:
+            continue
+        gb3 = g["gain_best3"].dropna()
+        if not len(gb3):
+            continue
+        ok = gates is None or gates.get((mdl, int(ctx)), {"passed": True})["passed"]
+        rows.append((mdl, int(ctx), float(g["ladder_bits"].median()),
+                     100 * float(g["evict_beats_b2"].mean()),
+                     100 * float((gb3 >= BAND_MIN).mean()), ok))
+    if not rows:
+        return
+
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.8))
+    fig.suptitle("Phase diagram on derived axes (phi = n95/L retired: it divides "
+                 "by context length)", fontsize=12)
+    xs = [r[2] for r in rows]; ys = [r[3] for r in rows]; bs = [r[4] for r in rows]
+    sc = ax[0].scatter(xs, ys, c=bs, s=170, cmap="viridis", vmin=0, vmax=100,
+                       edgecolor="#12414f", zorder=3)
+    for m, c, x, y, b, ok in rows:
+        ax[0].annotate(f"{m}\n{c//1024}k  {b:.0f}%", (x, y), fontsize=6.5,
+                       xytext=(6, 4), textcoords="offset points",
+                       color="#12414f" if ok else "#9b2c3a")
+    # The sharp boundary is unconstrained anywhere between the 39% and 75% points,
+    # so it is hatched rather than drawn as a line we cannot support.
+    ax[0].axhspan(39, 75, color="#c2334d", alpha=.10, hatch="//", zorder=0)
+    ax[0].text(min(xs), 57, " sharp boundary unconstrained\n (no data between "
+               "39% and 75%)", fontsize=6.5, color="#9b2c3a", va="center")
+    ax[0].set_xlabel("ladder width (bits) — diffuse edge")
+    ax[0].set_ylabel("dead 2-bit tier: heads with $\\sigma^2_2 > c_0$  (%)")
+    fig.colorbar(sc, ax=ax[0], label="% heads in band")
+
+    order = sorted(rows, key=lambda r: r[3])
+    ax[1].plot([r[3] for r in order], [r[4] for r in order], "o-", color="#1d6f80",
+               lw=2)
+    for m, c, x, y, b, ok in order:
+        ax[1].annotate(f"{m} {c//1024}k", (y, b), fontsize=6.5, xytext=(5, -9),
+                       textcoords="offset points")
+    ax[1].axhline(100 * F_GO, color="#1f6b52", ls="--", lw=1.2)
+    ax[1].axhline(100 * F_STOP, color="#c2334d", ls="--", lw=1.2)
+    ax[1].set_xlabel("dead 2-bit tier fraction (%)")
+    ax[1].set_ylabel("% heads in band")
+    ax[1].set_title("The sharp edge is monotone in dead tiers", fontsize=10)
+    for a in ax:
+        a.grid(alpha=.22); a.set_axisbelow(True)
+    fig.tight_layout(rect=[0, 0, 1, .92])
+    pdf.savefig(fig); plt.close(fig)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("inputs", nargs="+")
@@ -314,15 +470,29 @@ def main():
     files = [f for pat in args.inputs for f in glob.glob(pat)]
     if not files:
         raise SystemExit("no input files matched")
-    raw = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    # `validity_*.parquet` comes from run_h0.py --validity-only: niah only, no bit
+    # sweep. It must NEVER be concatenated into the measurement frame -- it has no
+    # gain columns, so pooling it would drag every per-head median. It feeds the
+    # input-validity gate and nothing else.
+    vfiles = [f for f in files if os.path.basename(f).startswith("validity_")]
+    mfiles = [f for f in files if f not in vfiles]
+    if not mfiles:
+        raise SystemExit("only validity probes matched; nothing to report on")
+    raw = pd.concat([pd.read_parquet(f) for f in mfiles], ignore_index=True)
+    val = (pd.concat([pd.read_parquet(f) for f in vfiles], ignore_index=True)
+           if vfiles else None)
+    if vfiles:
+        print(f"validity probes: {len(vfiles)} file(s), "
+              f"{0 if val is None else len(val):,} rows")
     ph = per_head(raw)
-    gates = family_gate(raw)
+    gates = family_gate(raw, val)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with PdfPages(args.out) as pdf:
         page_summary(pdf, raw, ph, gates)
         for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
             page_model(pdf, mdl, int(ctx), g, raw, gates.get((mdl, int(ctx))))
         page_compare(pdf, ph, gates)
+        page_phase(pdf, ph, gates)
     ph.to_csv(args.out.replace(".pdf", "_per_head.csv"), index=False)
     print(f"wrote {args.out}")
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):

@@ -240,6 +240,24 @@ def test_end_to_end():
           set(sensitivity_metrics(s, V)) and not quant_metrics(s, {}, V))
 
 
+class _Enc:
+    """Minimal stand-in for a fast tokenizer's BatchEncoding: attribute access for
+    input_ids, subscript access for offset_mapping, which is what run_h0 uses."""
+
+    def __init__(self, ids, offsets=None):
+        self.input_ids = ids
+        self._offsets = offsets
+
+    def __getitem__(self, k):
+        if k == "offset_mapping":
+            if self._offsets is None:
+                raise KeyError(k)
+            return self._offsets
+        if k == "input_ids":
+            return self.input_ids
+        raise KeyError(k)
+
+
 class FakeTok:
     """Reversible 4-chars-per-token stand-in, so the corpus tests need no model.
 
@@ -256,10 +274,12 @@ class FakeTok:
             self.vocab.append(s)
         return self.index[s]
 
-    def __call__(self, text, add_special_tokens=False, **kw):
+    def __call__(self, text, add_special_tokens=False,
+                 return_offsets_mapping=False, **kw):
         c = self.cpt
-        ids = [self._id(text[i:i + c]) for i in range(0, len(text), c)]
-        return type("Enc", (), {"input_ids": ids})()
+        spans = [(i, min(i + c, len(text))) for i in range(0, len(text), c)]
+        ids = [self._id(text[a:b]) for a, b in spans]
+        return _Enc(ids, spans if return_offsets_mapping else None)
 
     def decode(self, ids):
         return "".join(self.vocab[i] for i in ids)
@@ -352,47 +372,148 @@ def test_corpus_prompts():
 
 
 def test_family_gate():
-    print("\n[report gate: niah > cont on real text, or no verdict]")
+    print("\n[report gate: the retired ladder delta is reported, never decisive]")
     import pandas as pd
     sys.path.insert(0, os.path.join(os.path.dirname(
         os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
     import report as R
 
-    def frame(synthetic, delta):
+    def frame(synthetic, delta, needle=None):
         rows = []
         for layer in range(4):
             for head in range(8):
                 base = 1.2 + 0.01 * (layer * 8 + head)
                 for fam, add in (("niah", delta), ("qa", delta / 2), ("cont", 0.0)):
-                    rows.append(dict(model="m", ctx=32768, family=fam, layer=layer,
-                                     head=head, ladder_bits=base + add,
-                                     synthetic=synthetic))
+                    r = dict(model="m", ctx=32768, family=fam, layer=layer,
+                             head=head, ladder_bits=base + add, prompt=0,
+                             synthetic=synthetic)
+                    if needle is not None and fam == "niah":
+                        r.update(needle_hit=needle, needle_mass=1e-4)
+                    rows.append(r)
         return pd.DataFrame(rows)
 
+    # [REGRESSION] The retired gate demanded niah beat cont by >= 0.1 b. A needle
+    # is 1 token in 131,072 and the ladder is a bulk second moment, so a real
+    # retrieval moves it ~0.002 b: the threshold was unpassable and vetoed five
+    # good models. A wide delta must no longer be able to pass a run on its own,
+    # and a flat delta must no longer fail one.
     g = R.family_gate(frame(False, 0.30))[("m", 32768)]
-    check("real text + niah wider than cont -> PASS", g["passed"],
-          f"(delta {g['paired_delta']:+.2f}b, {100*g['paired_frac']:.0f}% of heads)")
-    check("passing gate leaves the verdict alone",
+    check("[REGRESSION] a huge ladder delta alone does NOT pass the gate",
+          not g["passed"], f"({g['reason']})")
+    check("...and the reason names missing needle evidence, not the ladder",
+          "needle evidence" in g["reason"])
+
+    g = R.family_gate(frame(False, 0.0, needle=True))[("m", 32768)]
+    check("[REGRESSION] a FLAT ladder delta passes when the model retrieves",
+          g["passed"], f"(delta {g['paired_delta']:+.3f} b, {g['reason']})")
+    check("verdict follows the band fraction again",
           R.verdict(0.50, 2.0, g)[0] == "GO")
+    check("retired statistic still computed for the record",
+          g["paired_delta"] == g["paired_delta"] and g["n_paired"] == 32)
 
-    g = R.family_gate(frame(False, 0.0))[("m", 32768)]
-    check("families indistinguishable -> gate fails", not g["passed"])
-    check("failed gate -> UNKNOWN, not GO", R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
+    g = R.family_gate(frame(False, 0.30, needle=False))[("m", 32768)]
+    check("no retrieval -> UNKNOWN even with a wide ladder",
+          R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
 
-    # The point of the bug report: a big band fraction on filler is an internally
-    # correct number about the wrong input, so it must not read as a result.
-    g = R.family_gate(frame(True, 0.30))[("m", 32768)]
-    check("[REGRESSION] synthetic haystack fails even when niah > cont",
+    # A big band fraction on filler is an internally correct number about the
+    # wrong input, so it must not read as a result.
+    g = R.family_gate(frame(True, 0.30, needle=True))[("m", 32768)]
+    check("[REGRESSION] filler fails even when the model retrieves",
           not g["passed"], f"({g['reason']})")
     check("[REGRESSION] synthetic -> UNKNOWN despite 50% in band",
           R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
+
+
+def test_needle_span():
+    print("\n[needle span: char offsets survive decode -> concat -> re-tokenise]")
+    import tempfile
+    from sievelib import prompts
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
+    from run_h0 import needle_token_span
+    tok = FakeTok()
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_corpus(tmp)
+        ok_all, contains = True, True
+        for p in range(4):
+            text, m = prompts.build(tok, "niah", 2048, corpus_dir=tmp,
+                                    prompt_idx=p, require_real=True)
+            ids = tok(text).input_ids
+            s, e = needle_token_span(tok, text, m, len(ids))
+            ok_all &= (0 <= s < e <= len(ids))
+            contains &= (m["needle_code"] in tok.decode(ids[s:e]))
+        check("span found for every niah prompt", ok_all)
+        # [REGRESSION] needle_tok indexes HAYSTACK tokens; using it directly as a
+        # prompt position silently mislocates the needle once BOS and the two
+        # BPE seams shift everything after the insertion point.
+        check("[REGRESSION] span actually contains the needle code", contains)
+
+        _, mc = prompts.build(tok, "cont", 2048, corpus_dir=tmp, prompt_idx=0,
+                              require_real=True)
+        tc, _ = prompts.build(tok, "cont", 2048, corpus_dir=tmp, prompt_idx=0,
+                              require_real=True)
+        check("non-niah families have no span",
+              needle_token_span(tok, tc, mc, 2048) == (-1, -1))
+
+
+def test_validity_gate():
+    print("\n[validity: task-level enforced, head-level advisory, ladder retired]")
+    import pandas as pd
+    from sievelib import validity as V
+
+    def frame(hit_frac, mass_hi, n_prompts=6, nl=4, nh=8):
+        rows = []
+        for p in range(n_prompts):
+            for l in range(nl):
+                for h in range(nh):
+                    rows.append(dict(prompt=p, layer=l, head=h,
+                                     needle_hit=p < round(n_prompts * hit_frac),
+                                     needle_mass=mass_hi if (l * nh + h) % 5 == 0
+                                     else 1e-4))
+        return pd.DataFrame(rows)
+
+    r = V.summarize(frame(1.0, 0.4))
+    check("model retrieves -> pass on task level",
+          r["passed"] and r["basis"] == "task_level", f"({r['reason']})")
+    r = V.summarize(frame(0.0, 1e-4))
+    check("no retrieval, no needle attention -> fail", not r["passed"])
+    check("failure names the real reason, not a ladder delta",
+          "retrieved the code in only" in r["reason"], f"({r['reason']})")
+
+    # [REGRESSION] MIN_MASS is uncalibrated, so head-level evidence must not
+    # silently pass a run on its own -- that is how the retired gate got shipped.
+    r = V.summarize(frame(0.0, 0.4))
+    check("[REGRESSION] head-level alone is advisory, not enforced",
+          "advisory" in r["basis"], f"(basis={r['basis']})")
+    r = V.summarize(frame(0.0, 0.4), enforce_head=True)
+    check("...but enforceable once calibrated", r["basis"] == "head_level")
+
+    # [REGRESSION] the retired statistic must never gate again.
+    rg = V.retired_ladder_gate(4.06, 4.05, 0.52)
+    check("[REGRESSION] retired gate rejects a real retrieval", not rg["passed"])
+    check("retired gate is labelled do-not-use", "Do not use" in rg["note"])
+
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
+    import report as R
+    base = dict(model="m", ctx=32768, family="niah", ladder_bits=4.0,
+                synthetic=False, step=0)
+    good = pd.concat([frame(1.0, 0.4).assign(**base)], ignore_index=True)
+    g = R.family_gate(good)[("m", 32768)]
+    check("report gate passes on retrieval alone (no niah/cont pairing needed)",
+          g["passed"], f"({g['reason']})")
+    check("verdict is no longer UNKNOWN", R.verdict(0.69, 2.49, g)[0] == "GO")
+    syn = good.copy(); syn["synthetic"] = True
+    check("[REGRESSION] filler still fails even when the model retrieves",
+          not R.family_gate(syn)[("m", 32768)]["passed"])
 
 
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
-              test_end_to_end, test_corpus_prompts, test_family_gate):
+              test_end_to_end, test_corpus_prompts, test_family_gate,
+              test_needle_span, test_validity_gate):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

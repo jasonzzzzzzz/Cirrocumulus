@@ -13,7 +13,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sievelib import probe as P
-from sievelib import prompts, quant, validate
+from sievelib import prompts, quant, validate, validity
 from sievelib.alloc import head_metrics
 
 
@@ -44,6 +44,38 @@ def chunked_prefill(model, ids, chunk):
         past = out.past_key_values
         del out
     return past
+
+
+def needle_token_span(tok, text, meta, n_ctx):
+    """Character offsets -> token positions in the prompt actually fed to the model.
+
+    The needle is ~20 tokens out of up to 131,072, so the span has to be exact:
+    validity.needle_mass sums attention over it, and being a few tokens off either
+    drops real mass or counts haystack tokens as needle. Fast tokenizers give an
+    offset mapping, which is exact. Falls back to locating the needle's token
+    subsequence, which is only approximate at the BPE seams -- hence the warning.
+    """
+    lo, hi = meta.get("needle_char_start", -1), meta.get("needle_char_end", -1)
+    if lo < 0:
+        return -1, -1
+    try:
+        enc = tok(text, return_offsets_mapping=True)
+        offs = enc["offset_mapping"]
+        tokspan = [i for i, (a, b) in enumerate(offs) if b > lo and a < hi and b > a]
+        if tokspan:
+            s, e = tokspan[0], tokspan[-1] + 1
+            return (s, e) if e <= n_ctx else (-1, -1)
+    except Exception as ex:
+        print(f"note: no offset mapping ({type(ex).__name__}); falling back to "
+              f"subsequence search for the needle span", flush=True)
+    nid = tok(meta.get("needle_text", ""), add_special_tokens=False).input_ids
+    pid = tok(text).input_ids[:n_ctx]
+    if nid:
+        first = nid[0]
+        for i in range(len(pid) - len(nid) + 1):
+            if pid[i] == first and pid[i:i + len(nid)] == nid:
+                return i, i + len(nid)
+    return -1, -1
 
 
 def _attn_facts(model_id):
@@ -99,6 +131,13 @@ def main():
     ap.add_argument("--override", nargs="*", default=[], help="key=value pairs")
     ap.add_argument("--out-dir", default="results")
     ap.add_argument("--validate-only", action="store_true")
+    ap.add_argument("--validity-only", action="store_true",
+                    help="INPUT-validity probe: prefill, decode, record whether the "
+                         "model retrieves the needle and how much attention mass "
+                         "each head puts on it. Skips the quantization sweep "
+                         "entirely, so it costs minutes rather than hours. Prompts "
+                         "are seeded on prompt_idx, so this reads byte-identical "
+                         "text to a full run and its verdict applies to one.")
     ap.add_argument("--skip-external-check", action="store_true")
     ap.add_argument("--allow-synthetic", action="store_true",
                     help="run a main/large tier model on synthetic filler anyway. "
@@ -109,6 +148,18 @@ def main():
     if args.validate_only:
         c["ctx"] = min(int(c["ctx"]), 8192)   # no need to prefill 128k to validate
         c["n_prompts"], c["n_decode"] = 1, 1
+    if args.validity_only:
+        if args.validate_only:
+            raise SystemExit("--validate-only and --validity-only are different "
+                             "things: the first checks the PROBE, the second checks "
+                             "the INPUT. Run them separately.")
+        # Only niah carries a needle, and the bit sweep is what makes a full run
+        # expensive -- neither the other families nor quantization is needed to ask
+        # whether the haystack induced retrieval. ctx and prompt seeds are
+        # untouched, so these are byte-identical to a full run's niah prompts and
+        # the resulting verdict applies to one.
+        c["families"] = ["niah"]
+        c["n_decode"] = max(int(c.get("n_decode", 8)), 8)
     os.makedirs(args.out_dir, exist_ok=True)
     # The ONLY write is df.to_parquet on the last line, so a missing engine costs
     # the entire run: job 846476 lost 3 x ~25 min of GPU work with 165,888 rows in
@@ -240,6 +291,8 @@ def main():
 
     rows, t0 = [], time.time()
     prev_a = {}                 # (layer, head) -> previous step's attention weights
+    gens: dict[tuple, str] = {}     # (prompt, family) -> greedy decode, for the
+    hits: dict[tuple, bool] = {}    # task-level validity check
     fams = c.get("families", ["niah", "qa", "cont"])
     for p in range(int(c["n_prompts"])):
         for fam in fams:
@@ -256,9 +309,21 @@ def main():
             src = ("synthetic haystack" if synth else
                    f"{meta['doc']}@{meta['offset']}"
                    f"{' spliced' if meta['spliced'] else ''}")
-            print(f"[{p}/{fam}] prefill {ids.shape[1]} tok  [{src}] ...", flush=True)
+            n_ctx_actual = ids.shape[1]
+            n_start, n_end = needle_token_span(tok, text, meta, n_ctx_actual)
+            needle_mask = None
+            if n_start >= 0:
+                needle_mask = torch.zeros(n_ctx_actual + int(c["n_decode"]) + 4,
+                                          dtype=torch.bool, device=dev)
+                needle_mask[n_start:n_end] = True
+                src += f", needle tok {n_start}-{n_end}"
+            elif fam == "niah":
+                print(f"     WARNING: could not locate the needle span; "
+                      f"needle_mass will be NaN for this prompt", flush=True)
+            print(f"[{p}/{fam}] prefill {n_ctx_actual} tok  [{src}] ...", flush=True)
             past = chunked_prefill(model, ids, int(c.get("chunk", 4096)))
             cur = ids[:, -1:]
+            gen_ids: list[int] = []
             prev_a.clear()      # selection history does not carry across prompts
 
             for step in range(int(c["n_decode"])):
@@ -268,6 +333,7 @@ def main():
                 P.STATE.enabled = False
                 past = out.past_key_values
                 cur = out.logits[:, -1:].argmax(-1)
+                gen_ids.append(int(cur.reshape(-1)[0].item()))
                 del out
 
                 if p == 0 and fam == fams[0] and step == 0:
@@ -279,11 +345,18 @@ def main():
                     if args.validate_only:
                         print("\nall validations passed."); return
 
-                do_quant = (step % int(c.get("quant_every", 1)) == 0)
+                # The bit sweep is the expensive part and answers a question the
+                # validity probe is not asking. head_metrics still runs its cheap
+                # path, so tau/ladder_bits are recorded either way.
+                do_quant = (not args.validity_only
+                            and step % int(c.get("quant_every", 1)) == 0)
                 for li, qh in P.STATE.q.items():
                     K, V = P.cache_kv(past, li)
                     K = K.to(dev, torch.float32)          # [Hkv, L, d]
-                    V = V.to(dev, torch.float32)
+                    # The value tensor is only needed for the sensitivity term
+                    # a_i*||v_i - o||. The validity probe never forms it, and
+                    # a@V over L=131072 is what makes the full path slow.
+                    V = None if args.validity_only else V.to(dev, torch.float32)
                     qd = qh.to(dev)
                     n_rep = qd.shape[0] // K.shape[0]
                     scl = P.STATE.scaling[li]
@@ -303,19 +376,42 @@ def main():
                             shat_all[b] = shat_all[b] + msk
                     for h in range(s_all.shape[0]):
                         fin = torch.isfinite(s_all[h])
-                        Vh = V[h // n_rep][fin]           # index, do not expand
                         sh = s_all[h][fin]
-                        # H2O/SnapKV-style score: last step's attention, which is
-                        # all a real evictor can see. None on the first step.
-                        pa = prev_a.get((li, h))
-                        if pa is not None and pa.numel() >= sh.numel():
-                            pa = pa[: sh.numel()].to(sh.device)
+                        a_h = torch.softmax(sh.double(), -1)
+                        if args.validity_only:
+                            # Minimal record: no a@V, no value norms, no lagged
+                            # selection history. tau and the a-only ladder are
+                            # free, and are enough to reproduce the retired
+                            # statistic if anyone wants to see it again.
+                            pa_ = a_h[a_h > 0]
+                            rec = {"L": int(sh.numel()),
+                                   "tau": float(sh.double().std().item()),
+                                   "ladder_bits_a_only": float(
+                                       torch.log2(pa_).std().item())
+                                   if pa_.numel() > 64 else float("nan")}
                         else:
-                            pa = None
-                        rec = head_metrics(
-                            sh, {b: v[h][fin] for b, v in shat_all.items()},
-                            Vh, budgets=budgets, maxb=maxb, practical_score=pa)
-                        prev_a[(li, h)] = torch.softmax(sh.double(), -1).float().cpu()
+                            Vh = V[h // n_rep][fin]       # index, do not expand
+                            # H2O/SnapKV-style score: last step's attention, which
+                            # is all a real evictor can see. None on the first step.
+                            pa = prev_a.get((li, h))
+                            if pa is not None and pa.numel() >= sh.numel():
+                                pa = pa[: sh.numel()].to(sh.device)
+                            else:
+                                pa = None
+                            rec = head_metrics(
+                                sh, {b: v[h][fin] for b, v in shat_all.items()},
+                                Vh, budgets=budgets, maxb=maxb, practical_score=pa)
+                            prev_a[(li, h)] = a_h.float().cpu()
+                        # Attention mass on the needle span. An EXTREME-value
+                        # quantity: report.py takes a max over heads, never a
+                        # median, because retrieval lives in a few heads and a
+                        # median over all of them cannot move (that is exactly
+                        # what made the retired ladder gate unpassable).
+                        nmass = float("nan")
+                        if needle_mask is not None:
+                            nmk = needle_mask[: s_all.shape[-1]][fin]
+                            if bool(nmk.any()):
+                                nmass = float(a_h[nmk].sum().item())
                         if rec:
                             rec.update(prompt=p, family=fam, step=step, layer=li,
                                        head=h, model=c["tag"], ctx=int(c["ctx"]),
@@ -326,17 +422,53 @@ def main():
                                        corpus_offset=meta["offset"] or 0,
                                        corpus_spliced=meta["spliced"],
                                        corpus_sha=meta["corpus_sha"],
-                                       needle_tok=meta["needle_tok"])
+                                       needle_tok=meta["needle_tok"],
+                                       needle_start=n_start, needle_end=n_end,
+                                       needle_mass=nmass)
                             rows.append(rec)
                     del K, V, s_all, shat_all
                     torch.cuda.empty_cache()
             del past; gc.collect(); torch.cuda.empty_cache()
+
+            # Task-level validity: behavioural ground truth. If the model emits the
+            # code, the haystack induced retrieval and no attention statistic can
+            # argue otherwise. Recorded per (prompt, family) and broadcast onto the
+            # rows below -- it is a property of the prompt, not of a head.
+            gen = tok.decode(gen_ids, skip_special_tokens=True) if gen_ids else ""
+            gens[(p, fam)] = gen
+            if fam == "niah" and meta.get("needle_code"):
+                tg = validity.task_level_gate(gen, meta["needle_code"])
+                hits[(p, fam)] = tg["passed"]
+                print(f"    needle {meta['needle_code']} -> "
+                      f"{'RETRIEVED' if tg['passed'] else 'missed'}  "
+                      f"answer={gen[:48]!r}", flush=True)
             print(f"    {len(rows):,} rows  {time.time()-t0:.0f}s", flush=True)
 
     df = pd.DataFrame(rows)
-    out = os.path.join(args.out_dir, f"h0_{c['tag']}_{c['ctx']}.parquet")
+    if not len(df):
+        raise SystemExit("no rows produced -- every head was shorter than the "
+                         "128-token floor in sensitivity_metrics. Check ctx.")
+    key = list(zip(df["prompt"], df["family"]))
+    df["needle_hit"] = [bool(hits.get(k, False)) for k in key]
+    df["generated"] = [gens.get(k, "")[:60] for k in key]
+    kind = "validity" if args.validity_only else "h0"
+    out = os.path.join(args.out_dir, f"{kind}_{c['tag']}_{c['ctx']}.parquet")
     df.to_parquet(out)
     print(f"\nwrote {out}  ({len(df):,} rows, {time.time()-t0:.0f}s)")
+
+    if hits:
+        n_hit, n_tot = sum(hits.values()), len(hits)
+        print(f"\nTASK-LEVEL VALIDITY: the model retrieved the needle in "
+              f"{n_hit}/{n_tot} niah prompts")
+        nm = df.loc[df.family == "niah", "needle_mass"].dropna()
+        if len(nm):
+            ph = df[df.family == "niah"].groupby(["layer", "head"])["needle_mass"].median()
+            print(f"HEAD-LEVEL (advisory, uncalibrated -- see sievelib/validity.py):")
+            print(f"  per-head needle mass: max {ph.max():.4f}  p99 "
+                  f"{ph.quantile(.99):.4f}  median {ph.median():.6f}")
+            print("  heads above  " + "  ".join(
+                f"{t:g}:{int((ph >= t).sum())}"
+                for t in (0.001, 0.005, 0.01, 0.05, 0.1, 0.25)))
 
 
 if __name__ == "__main__":

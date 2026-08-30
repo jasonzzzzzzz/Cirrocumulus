@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-3                  # one task per model; override for a subset
 #SBATCH --cpus-per-task=16
-#SBATCH --time=01:30:00
+#SBATCH --time=00:45:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
 
@@ -25,6 +25,7 @@
 #                                                    # LOGIN node (no internet here)
 #   sbatch h0_measurement/submit_h0.slurm
 #   sbatch h0_measurement/submit_h0.slurm qwen3-8b mistral-7b    # a subset
+#   SIEVE_CTX=32768 sbatch h0_measurement/submit_h0.slurm        # matched-ctx campaign
 #
 # The --array size above must match the number of models. If you pass a subset,
 # override it:  sbatch --array=0-1 h0_measurement/submit_h0.slurm a b
@@ -66,6 +67,20 @@ else
   MODELS=(qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b)
 fi
 MODELS_COLON=$(IFS=':'; echo "${MODELS[*]}")
+
+# SIEVE_CTX: optional MATCHED-CONTEXT override (bugs/3_context_sweep_and_reports).
+# When set, every model runs at this ctx via `--override ctx=` instead of its
+# per-model registry value, so the cross-model table compares architectures at one
+# context length instead of confounding model size with ctx. 32768 is the largest
+# value every main-tier model supports natively (qwen3-8b caps at 40960,
+# mistral-7b and qwen15-moe at 32768 -- see README "context length methodology").
+# Values above a model's registry ctx are rejected per task below: the registry
+# caps are native limits, not advisory. Unset = today's behavior, per-model ctx.
+SIEVE_CTX="${SIEVE_CTX:-}"
+if [[ -n "$SIEVE_CTX" && ! "$SIEVE_CTX" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: SIEVE_CTX must be a positive integer, got '$SIEVE_CTX'" >&2
+  exit 1
+fi
 
 VENV="${SIEVE_VENV:-$PROJECT_ROOT/.venv}"
 # HF_TOKEN is read from an untracked file, never hard-coded here.
@@ -113,7 +128,8 @@ mkdir -p "$LOG_DIR" "$REPORT_DIR" "$OUT_DIR"
 
 # ---------------------------------------------------------------- report stage
 if [[ "$SIEVE_ROLE" == "report" ]]; then
-  echo "host=$(hostname) role=report run_id=$RUN_ID models=${MODELS[*]}"
+  echo "host=$(hostname) role=report run_id=$RUN_ID models=${MODELS[*]}" \
+       "ctx=${SIEVE_CTX:-per-model}"
 
   # afterok already proves every task exited 0, but a task could exit 0 having
   # written nothing if run_h0.py changes later. Fail loudly rather than publish a
@@ -140,18 +156,28 @@ fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
 # stage nothing and surface only as a confusing failure later. Reject it here.
+# Also reject a SIEVE_CTX above this model's registry ctx: the registry values
+# are native RoPE limits (README ctx audit), so running past them measures
+# untrained positions and the parquet would poison the matched-ctx table.
 python - "$MODEL" <<'PY'
-import sys, yaml
+import os, sys, yaml
 cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
-known = {m["tag"] for m in cfg["models"]}
-if sys.argv[1] not in known:
+m = next((x for x in cfg["models"] if x["tag"] == sys.argv[1]), None)
+if m is None:
     sys.exit(f"ERROR: unknown model tag '{sys.argv[1]}'\n"
-             f"available: {' '.join(sorted(known))}")
+             f"available: {' '.join(sorted(x['tag'] for x in cfg['models']))}")
+ctx = os.environ.get("SIEVE_CTX")
+if ctx:
+    cap = int(m.get("ctx", cfg.get("defaults", {}).get("ctx", 0)))
+    if int(ctx) > cap:
+        sys.exit(f"ERROR: SIEVE_CTX={ctx} exceeds {m['tag']}'s registry ctx {cap} "
+                 f"(a native limit, not advisory -- see README ctx audit). "
+                 f"Drop this model from the list or lower SIEVE_CTX.")
 PY
 
 # Corpus precondition, FATAL. Every model in the default list is tier main, which
@@ -178,7 +204,8 @@ fi
 # the first to finish. Resource overrides on the command line beat the #SBATCH
 # header above: no GPU, single task, short walltime.
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
-  { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}"; } \
+  { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}";
+    echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}"; } \
     > "${OUT_DIR}/RUN_INFO.txt"
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
@@ -187,7 +214,7 @@ if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
     --error="${LOG_DIR}/h0_report_%j.err" \
     --array=0-0 \
     --time=00:30:00 \
-    --export="ALL,SIEVE_ROLE=report,SIEVE_RUN_ID=${RUN_ID},SIEVE_MODELS=${MODELS_COLON}" \
+    --export="ALL,SIEVE_ROLE=report,SIEVE_RUN_ID=${RUN_ID},SIEVE_MODELS=${MODELS_COLON},SIEVE_CTX=${SIEVE_CTX}" \
     "$SELF") \
     && echo "chained report job ${REPORT_JOB} (afterok:${SLURM_ARRAY_JOB_ID})" \
     || echo "WARNING: could not chain the report job; run report.py by hand" >&2
@@ -198,7 +225,10 @@ fi
 # proxy would kill the job at validation with the GPU already allocated.
 python h0_measurement/prefetch.py -m "$MODEL"
 
+# ${SIEVE_CTX:+...} appends the override only when SIEVE_CTX is set, so the
+# unset case is byte-identical to the pre-bug-3 invocation.
 srun python h0_measurement/run_h0.py \
      --model "$MODEL" \
-     --out-dir "$OUT_DIR"
+     --out-dir "$OUT_DIR" \
+     ${SIEVE_CTX:+--override ctx=$SIEVE_CTX}
 

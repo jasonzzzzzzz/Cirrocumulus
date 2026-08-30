@@ -397,6 +397,105 @@ def page_compare(pdf, ph, gates=None):
     pdf.savefig(fig); plt.close(fig)
 
 
+def page_ctx_slope(pdf, ph, gates=None):
+    """Band fraction vs context length -- the phi-window ctx-coupling, measured.
+
+    Eviction keeps a fixed FRACTION of tokens (B*L/maxb), so a head whose
+    support is roughly constant in absolute tokens gets relatively cheaper to
+    evict as L grows: eff_frac = n95/L falls, the eviction corner strengthens,
+    and heads slide out of the band. That is a real property of the tradeoff,
+    not an artifact (bugs/3_context_sweep_and_reports/why.md), so it is measured
+    as a slope here rather than defined away. Drawn only when some model appears
+    at >= 2 context lengths (i.e. after a submit_h0_ctx_sweep.slurm run, or a
+    matched-ctx rerun combined with an older campaign); silently skipped
+    otherwise, so single-ctx reports are unchanged.
+
+    Three panels, left to right = claim, mechanism, driver:
+      1. % heads in band vs ctx     -- the verdict axis; its slope per ctx
+                                       doubling is the headline number.
+      2. median gain @3b vs ctx     -- vs eviction falls and vs uniform rises
+                                       with ctx: the quantize/evict crossover
+                                       moving, which is the TurboQuant-adjacent
+                                       claim named in why.md.
+      3. median eff_frac vs ctx     -- n95/L, the mechanical driver. A slope of
+                                       -1 on the log-log axes means absolute
+                                       support (n95) is ctx-invariant and the
+                                       whole effect is the fixed-fraction
+                                       eviction window sliding past it.
+    """
+    sweeps = {}
+    for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
+        gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
+        if not len(gb3):
+            continue
+        ok = gates is None or gates.get((mdl, int(ctx)), {"passed": True})["passed"]
+        sweeps.setdefault(mdl, []).append({
+            "ctx": int(ctx),
+            "band": 100 * float((gb3 >= BAND_MIN).mean()),
+            "gain_e": float(g["gain_e3"].median()) if "gain_e3" in g else np.nan,
+            "gain_u": float(g["gain_u3"].median()) if "gain_u3" in g else np.nan,
+            "eff": 100 * float(g["eff_frac"].median()) if "eff_frac" in g else np.nan,
+            "ok": ok})
+    sweeps = {m: sorted(v, key=lambda r: r["ctx"]) for m, v in sweeps.items()
+              if len({r["ctx"] for r in v}) >= 2}
+    if not sweeps:
+        return
+
+    palette = ["#1d6f80", "#c2410c", "#7c3aed", "#1f6b52", "#9b2c3a", "#e0a838"]
+    fig, ax = plt.subplots(1, 3, figsize=(11, 4.6))
+    fig.suptitle("Band fraction vs context length (the ctx sweep)", fontsize=13)
+
+    all_ctx = sorted({r["ctx"] for v in sweeps.values() for r in v})
+    for i, (mdl, rows) in enumerate(sorted(sweeps.items())):
+        col = palette[i % len(palette)]
+        xs = [r["ctx"] for r in rows]
+        # slope in band-percentage points per ctx doubling, fit on log2(ctx)
+        slope = float(np.polyfit(np.log2(xs), [r["band"] for r in rows], 1)[0])
+        ax[0].plot(xs, [r["band"] for r in rows], "o-", color=col, lw=2,
+                   label=f"{mdl}  ({slope:+.1f} pts / ctx doubling)")
+        ax[1].plot(xs, [r["gain_e"] for r in rows], "o-", color=col, lw=2,
+                   label=f"{mdl} vs eviction")
+        ax[1].plot(xs, [r["gain_u"] for r in rows], "s--", color=col, lw=1.4,
+                   alpha=.65, label=f"{mdl} vs uniform")
+        ax[2].plot(xs, [r["eff"] for r in rows], "o-", color=col, lw=2, label=mdl)
+        # a gate-failed point is drawn but flagged: its band fraction describes
+        # the prompt, not the model (family_gate docstring)
+        for r in rows:
+            if not r["ok"]:
+                for a, y in ((ax[0], r["band"]), (ax[2], r["eff"])):
+                    a.plot(r["ctx"], y, "x", color="#9b2c3a", ms=11, mew=2.2,
+                           zorder=5)
+        if any(not r["ok"] for r in rows):
+            ax[0].plot([], [], "x", color="#9b2c3a", label="input gate FAIL")
+
+    ax[0].axhline(100 * F_GO, color="#1f6b52", ls="--", lw=1.2)
+    ax[0].axhline(100 * F_STOP, color="#c2334d", ls="--", lw=1.2)
+    ax[0].text(all_ctx[0], 100 * F_GO + 1, "GO", fontsize=7, color="#1f6b52")
+    ax[0].text(all_ctx[0], 100 * F_STOP + 1, "STOP", fontsize=7, color="#c2334d")
+    ax[0].set_ylabel("% heads in band (gain over best corner ≥ 2x @3b)")
+    ax[0].set_title("The verdict moves with ctx", fontsize=10)
+
+    ax[1].axhline(1, color="#c2334d", ls=":", lw=1.2)
+    ax[1].set_yscale("log")
+    ax[1].set_ylabel("median gain @3b")
+    ax[1].set_title("The quantize/evict crossover moves", fontsize=10)
+
+    ax[2].set_yscale("log")
+    ax[2].set_ylabel("median eff_frac = n95/L  (% of ctx)")
+    ax[2].set_title("Driver: support fraction shrinks with L", fontsize=10)
+
+    for a in ax:
+        a.set_xscale("log", base=2)
+        a.set_xticks(all_ctx)
+        a.set_xticklabels([f"{c//1024}k" for c in all_ctx])
+        a.minorticks_off()
+        a.set_xlabel("context length")
+        a.grid(alpha=.22); a.set_axisbelow(True)
+        a.legend(fontsize=6.5)
+    fig.tight_layout(rect=[0, 0, 1, .92])
+    pdf.savefig(fig); plt.close(fig)
+
+
 def page_phase(pdf, ph, gates=None):
     """The phase diagram on DERIVED axes, replacing phi = n95/L.
 
@@ -538,6 +637,7 @@ def main():
         for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
             page_model(pdf, mdl, int(ctx), g, raw, gates.get((mdl, int(ctx))))
         page_compare(pdf, ph, gates)
+        page_ctx_slope(pdf, ph, gates)
         page_phase(pdf, ph, gates)
     ph.to_csv(args.out.replace(".pdf", "_per_head.csv"), index=False)
     print(f"wrote {args.out}")

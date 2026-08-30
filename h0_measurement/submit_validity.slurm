@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-4
 #SBATCH --cpus-per-task=16
-#SBATCH --time=00:40:00
+#SBATCH --time=00:20:00
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
 

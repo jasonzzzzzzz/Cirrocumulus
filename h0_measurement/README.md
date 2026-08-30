@@ -28,10 +28,16 @@ STOP, above 35% is GO.
 │   │                               --model TAG --out-dir DIR [--override k=v ...] [--validate-only]
 │   ├── report.py                 multi-page PDF + go/no-go verdict + per-head CSV
 │   ├── mock_report.py            regenerates docs/h0_expected_outputs.pdf
+│   ├── diagnose_generation.py    NOT part of the measurement — a bisect for the
+│   │                             0/26 needle-retrieval failure: sdpa vs probe x
+│   │                             single vs chunked prefill x raw vs chat template
 │   ├── quick_test.sh             LOGIN-node smoke test for ONE model, <10 min
 │   ├── quick_test_all.slurm      CPU cluster: prefetch + quick_test.sh for a LIST of models
 │   ├── submit_h0.slurm           MAIN campaign — array, 1×H100/task, self-chains the CPU report
 │   ├── submit_h0_large_models.slurm   LARGE tier — same structure, 4 GPUs/task (70B / 30B-MoE)
+│   ├── submit_validity.slurm     INPUT-validity probe — niah only, no bit sweep,
+│   │                             minutes/model. Validates an EXISTING run, because
+│   │                             the haystack is seeded on prompt_idx alone.
 │   ├── report.slurm              SUPERSEDED — report is now a SIEVE_ROLE=report resubmission
 │   ├── logs/                     SLURM .out/.err + per-model quick_test logs
 │   ├── results/<RUN_ID>/         *.parquet (one per model) + RUN_INFO.txt
@@ -88,9 +94,26 @@ sbatch --array=0-1 h0_measurement/submit_h0.slurm qwen3-8b mistral-7b
 
 sbatch h0_measurement/submit_h0_large_models.slurm          # large tier: qwen3-30b-a3b-2507, llama33-70b (4 GPUs/task)
 
+# 4b. the INPUT-validity probe. Answers "did the haystack induce retrieval?" --
+#     niah only, no bit sweep, minutes per model. The haystack is seeded on
+#     prompt_idx alone, so at the same ctx this reads byte-identical text to the
+#     run in step 4 and its verdict applies to that run. report.py stamps the
+#     verdict UNKNOWN until it has this evidence.
+sbatch --array=0-3 h0_measurement/submit_validity.slurm \
+       qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b
+
 # 5. read the verdict. RUN_ID = job<arrayjobid>, printed by step 4 and in RUN_INFO.txt
-open h0_measurement/reports/h0_report_<RUN_ID>_<date>.pdf
+#    Pass the validity parquet too -- report.py keeps the frames separate and
+#    uses the probe only for the gate.
+python h0_measurement/report.py \
+       "h0_measurement/results/<RUN_ID>/*.parquet" \
+       "h0_measurement/results/validity<VJOBID>/*.parquet" \
+       -o h0_measurement/reports/h0_report_<RUN_ID>.pdf
 ```
+
+**Submit every GPU job from `trig-login01`.** This cluster rejects a GPU request
+made from a CPU login node (`tri-login*`) with an error that does not name the
+script: `GPU resources requested from a CPU login node`.
 
 
 Steps 0–1 are one-time setup. Steps 2 and 4 are what you repeat per campaign;
@@ -105,8 +128,11 @@ report in `h0_measurement/reports/h0_report_<RUN_ID>_<date>.pdf` plus a
 Run the report by hand (e.g. after a partial array):
 
 ```bash
-python h0_measurement/report.py "h0_measurement/results/<RUN_ID>/*.parquet" \
-       -o h0_measurement/reports/h0_report_<RUN_ID>.pdf
+python h0_measurement/report.py \
+       "h0_measurement/results/job852849/*.parquet" \
+       "h0_measurement/results/job852851/*.parquet" \
+       -o h0_measurement/reports/h0_report_job852849+job852851.pdf
+
 ```
 
 Regenerating things without a GPU:
@@ -135,6 +161,20 @@ python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
 ## Version notes
 
 Kept deliberately short since there is no VCS here.
+
+- **Validity gate replaced (bug 1, round two).** The niah-vs-cont ladder gate was
+  unpassable by construction — the ladder is a bulk second moment and a needle is
+  one token in 131,072, so a perfect retrieval moves it ~3x less than the 0.1 b
+  threshold demanded, and the median over heads cannot move at all. It stamped
+  UNKNOWN on all five PG-19 models. New `sievelib/validity.py` checks retrieval
+  where it actually lives: task-level (does the model emit the code — enforced)
+  and head-level (attention mass on the needle span, a max over heads — advisory
+  until `MIN_MASS` is calibrated). `run_h0.py --validity-only` +
+  `submit_validity.slurm` run that probe for minutes per model instead of hours,
+  and validate an existing run because the haystack is seeded on `prompt_idx`.
+  `report.py` gains `page_phase`, which retires phi = n95/L (it divides by context
+  length) for ladder width x dead-2-bit-tier fraction, both derived from
+  tau^2*c_b vs c0 = 1. Run `python -m sievelib.validity` for the arithmetic.
 
 - **Real haystack (bug 1).** `H0_CORPUS` went from an optional knob to a gate.
   New `prefetch_corpus.py` (PG-19 via Project Gutenberg, no new pip dependency);

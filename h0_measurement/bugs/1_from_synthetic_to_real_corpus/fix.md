@@ -1,5 +1,11 @@
 # Fix: synthetic filler → real long-context corpus
 
+> **This file records two bugs.** Bug 1 (below) is the synthetic haystack. The
+> validity gate it added then exposed **[Bug 2](#bug-2--the-probe-read-the-wrong-keys-on-every-chunked-prefill)**,
+> a causal-mask misalignment in `sievelib/probe.py` that invalidates every H0
+> measurement taken before it. Read bug 2 first if you are here to find out
+> whether a result is trustworthy.
+
 Status: **implemented and verified.** All six existing runs (`job847127`,
 `job847130`) now report `UNKNOWN` instead of STOP/NARROW/GO, because they were
 measured on filler.
@@ -428,3 +434,170 @@ The first real campaign should therefore be treated as new data, not as a
 correction of the old table. The two pathologies documented in `why.md` push in
 opposite directions and both should relax, so both currently-STOP models may move
 up and the "bigger → less benefit" trend could attenuate or invert.
+
+---
+---
+
+# BUG 2 — the probe read the wrong keys on every chunked prefill
+
+Found by the validity gate that bug 1 added. Fixed in `sievelib/probe.py`,
+confirmed on hardware. **It invalidates every H0 measurement taken before it.**
+
+## The short version
+
+To prefill a 131,072-token prompt we feed the model 4,096 tokens at a time,
+carrying a KV cache forward. The probe's attention function told PyTorch to apply
+a **causal mask aligned to the top-left corner** of the attention matrix. That
+alignment is only correct for the *first* chunk. For every chunk after it, each
+token was allowed to look at almost none of the text that came before it.
+
+The model therefore read the prompt through a keyhole, produced nonsense, and we
+measured its attention anyway.
+
+## What "top-left aligned" means
+
+Say the cache already holds 4,096 tokens and we hand the model the next 4,096.
+The attention matrix is 4,096 queries wide by 8,192 keys long. Query 0 sits at
+absolute position 4,096, so it should see **all** 4,096 cached tokens plus
+itself:
+
+```
+                 keys 0 ............ 4095 | 4096 ......... 8191
+  WANTED         [============ visible ==========]                 <- query 0
+  (bottom-right)
+  GOT            [x]                                               <- query 0
+  (top-left)      ^ key 0 only
+```
+
+`F.scaled_dot_product_attention(is_causal=True)` implements the top-left form:
+query *i* sees keys `0..i`. That equals the correct answer only when the query
+block is the whole sequence (`q_len == k_len`), which is exactly the first chunk
+and nothing else.
+
+The offending line was:
+
+```python
+is_causal=(is_causal and mask is None)      # is_causal := q_len > 1
+```
+
+## How it was found
+
+Bug 1's validity gate asked a question nobody had asked before — *did the model
+actually answer?* — and the answer was no, 0/26 prompts across five models, three
+architecture families and three context lengths. Every generation collapsed to
+the most frequent tokens in the vocabulary (`the`, newline, comma), which is what
+a model emits when it has no signal at all, not what a model emits when it
+searched and missed. Five unrelated architectures do not fail the same easy task
+at once, so the fault had to be ours.
+
+`diagnose_generation.py` then bisected it on three binary axes at two context
+lengths. `chunk` is 4,096, so **ctx 1,024 is a single chunk** — the case where
+top-left alignment happens to be right:
+
+| attention | prefill | ctx 1,024 | ctx 8,192 | needle mass @8k |
+|---|---|---|---|---|
+| sdpa | single | retrieved | retrieved | — |
+| sdpa | chunked | retrieved | retrieved | — |
+| sieve_probe | single | retrieved | retrieved | — |
+| **sieve_probe** | **chunked** | **retrieved** | **FAILED** | **0.1385** |
+
+One cell out of ten. The failure needs all three of: our probe, a multi-chunk
+prefill, and a query block wider than one token. `sdpa` is unaffected because
+transformers builds an explicit, correctly-offset mask for its own path.
+
+The needle-mass column is what settles the mechanism. At ctx 1,024 the best head
+put **0.93** of its attention on the needle; at 8,192 it put **0.14**. Attention
+was smeared off the target, so this is a broken forward pass, not broken decoding.
+
+## Why neither guard caught it — the two-guard gap
+
+Two tests already covered the two halves of this bug. Neither covered both.
+
+| guard | uses the probe? | chunks the prefill? |
+|---|---|---|
+| `validate.level1_dropin` / `level3_external` | **yes** | no — one forward pass at ctx 512 / 384, `past_len = 0` |
+| `tests/test_units.py::test_chunked_prefill` | no — builds the model `attn_implementation="eager"` | **yes** |
+
+L1 proves the probe is a transparent drop-in, but only where top-left alignment
+is already correct. The chunking test exercises the cache threading thoroughly,
+but through an attention implementation that isn't ours. The bug lived precisely
+in the intersection, and both guards stayed green for the entire project.
+
+`submit_validity.slurm` also passes `--skip-external-check`, dropping L3 — but
+that made no difference here, since L3 is single-pass too.
+
+The new `tests/test_units.py::test_probe_chunked_prefill` requires all three
+conditions simultaneously. It fails 3/3 checks against the old code
+(`max |ΔKV| = 5.09e-01`) and passes at `8.94e-08` after the fix.
+
+## What it invalidates
+
+**Every H0 run produced before this fix.** `run_h0.py` prefills with
+`chunk: 4096` at ctx 32,768–131,072, so every campaign built its KV cache through
+the broken path — everything except the first 4,096 tokens of every prompt:
+
+- `job847127`, `job847130` — the synthetic-haystack runs
+- `job852849`, `job852851` — the PG-19 runs
+- `validity19936826`, `validity19936861` — both validity probes
+
+The per-head numbers in those files are arithmetically correct statistics of a
+corrupted cache. The band fractions quoted in `fix_further.md` — 84.5%, 69.1%,
+68.8%, 54.3%, 14.1% — are not measurements of these models.
+
+Two consequences worth stating plainly:
+
+1. **The "robustness" result is withdrawn.** Synthetic and PG-19 agreeing within
+   8.7 points looked like evidence that the conclusion survives a corpus change.
+   Both arms carried this bug, so the agreement partly reflects a shared artifact.
+2. **Bug 1's conclusions still stand.** The corpus fix and the validity gate were
+   both correct, and the gate is what exposed this. A pipeline that never looked
+   at a generation had no way to notice that its models had stopped reading.
+
+## The fix
+
+`sievelib/probe.py::_sdpa` builds an explicit bottom-right-aligned causal mask
+whenever the query block is narrower than the key sequence, and only passes
+`is_causal=True` in the square case where it means the right thing:
+
+```python
+if mask is None and is_causal and q_len != k_len:
+    pos = torch.arange(q_len, device=query.device).unsqueeze(-1) + (k_len - q_len)
+    j   = torch.arange(k_len, device=query.device).unsqueeze(0)
+    mask = torch.zeros(q_len, k_len, dtype=query.dtype, device=query.device)
+    mask.masked_fill_(j > pos, torch.finfo(query.dtype).min)
+    mask = mask[None, None]
+...
+is_causal=(is_causal and mask is None and q_len == k_len)
+```
+
+## Verification
+
+CPU regression tests: chunked and single-shot prefill now agree under
+`sieve_probe` to `8.9e-08` on KV and `6.0e-08` on next-token logits; the same
+tests fail by `5.1e-01` on the pre-fix code.
+
+On hardware, `diagnose_generation.py --model llama31-8b --ctx 8192 32768` —
+all 20 cells retrieve:
+
+| ctx | cell | needle mass before | needle mass after |
+|---|---|---|---|
+| 8,192 | probe / chunked / raw | 0.1385 (failed) | **0.9639** (retrieved) |
+| 8,192 | probe / chunked / chat | 0.0815 (failed) | **0.7573** (retrieved) |
+| 32,768 | probe / chunked / raw | not run | **0.9275** (retrieved) |
+| 32,768 | probe / chunked / chat | not run | **0.7861** (retrieved) |
+
+`sieve_probe` now matches `sdpa` in every cell at both lengths, and retrieval
+holds at 4x the context.
+
+## What to do next
+
+1. Re-run `submit_h0.slurm` and `submit_h0_large_models.slurm` from scratch. No
+   earlier parquet is usable; consider deleting or clearly quarantining the six
+   result directories listed above so they cannot be globbed into a report.
+2. Re-run `submit_validity.slurm`. The gate should now pass on task level.
+3. **Then** calibrate `MIN_MASS`. The scale is finally known: a genuine retrieval
+   head reaches 0.76-0.96 attention mass on the needle, against a uniform
+   baseline of 1.3e-4. `MIN_MASS = 0.05` sits an order of magnitude below
+   observed retrieval and ~400x above uniform, so it is likely about right — but
+   set `MIN_HEADS` from the measured count of heads above it, then flip
+   `ENFORCE_HEAD_LEVEL`.

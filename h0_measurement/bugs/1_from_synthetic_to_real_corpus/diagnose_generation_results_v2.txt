@@ -1,0 +1,42 @@
+python h0_measurement/diagnose_generation.py --model llama31-8b --ctx 8192 32768
+model llama31-8b (meta-llama/Llama-3.1-8B-Instruct)   dtype bfloat16   chat_template: yes
+[transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer TokenizersBackend. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
+
+==========================================================================
+ctx 8,192   needle code 66224   doc pg19_00105_persuasion.txt
+==========================================================================
+attention   prefill   format  capture  needle   got?  generation
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████| 291/291 [00:01<00:00, 212.52it/s]
+sdpa        single    raw     False    -        YES   ' 66224. Question: what is the name of the'
+sdpa        single    chat    False    -        YES   '66224assistant\n\nThe access code for vault'
+sdpa        chunked   raw     False    -        YES   ' 66224. Question: what is the name of the'
+sdpa        chunked   chat    False    -        YES   '66224assistant\n\nThe access code for vault'
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████| 291/291 [00:01<00:00, 209.91it/s]
+sieve_probe single    raw     False    -        YES   ' 66224. Question: what is the name of the'
+sieve_probe single    chat    False    -        YES   '66224assistant\n\nThe access code for vault'
+sieve_probe chunked   raw     False    -        YES   ' 66224. Question: what is the name of the'
+sieve_probe chunked   chat    False    -        YES   '66224assistant\n\nThe access code for vault'
+sieve_probe chunked   raw     True     0.9639   YES   ' 66224. Question: what is the name of the'
+sieve_probe chunked   chat    True     0.7573   YES   '66224assistant\n\nThe access code for vault'
+
+==========================================================================
+ctx 32,768   needle code 66224   doc pg19_00105_persuasion.txt
+==========================================================================
+attention   prefill   format  capture  needle   got?  generation
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████| 291/291 [00:01<00:00, 210.29it/s]
+sdpa        single    raw     False    -        YES   ' 66224.assistant\n\nThe access code'
+sdpa        single    chat    False    -        YES   '66224assistant\n\nThe access code mentioned in'
+sdpa        chunked   raw     False    -        YES   ' 66224.assistant\n\n66224.'
+sdpa        chunked   chat    False    -        YES   '66224assistant\n\nThe access code mentioned in'
+Loading weights: 100%|████████████████████████████████████████████████████████████████████████████████████| 291/291 [00:01<00:00, 209.14it/s]
+sieve_probe single    raw     False    -        YES   ' 66224.assistant\n\n66224.'
+sieve_probe single    chat    False    -        YES   '66224assistant\n\nThe access code mentioned in'
+sieve_probe chunked   raw     False    -        YES   ' 66224.assistant\n\nThe access code'
+sieve_probe chunked   chat    False    -        YES   '66224assistant\n\nThe access code mentioned in'
+sieve_probe chunked   raw     True     0.9275   YES   ' 66224.assistant\n\nThe access code'
+sieve_probe chunked   chat    True     0.7861   YES   '66224assistant\n\nThe access code mentioned in'
+
+sdpa/single/raw YES but sieve_probe/chunked/raw no -> our probe or chunking;
+  every H0 number is suspect.
+raw all no, chat YES -> prompt format; the models were never asked the question.
+nothing anywhere at small ctx -> the needle prompt itself. Re-run with --show-prompt.

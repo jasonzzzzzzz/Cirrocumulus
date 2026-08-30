@@ -462,6 +462,48 @@ def page_phase(pdf, ph, gates=None):
     pdf.savefig(fig); plt.close(fig)
 
 
+def print_validity_calibration(vfiles):
+    """Read `validity_*.parquet` on its own and print what MIN_MASS should be set
+    from. No PDF: a probe has no gain columns, so there is no verdict to render.
+
+    The number to compare everything against is UNIFORM attention over the needle,
+    `needle_len / L`. A head at 2-3x uniform is not retrieving, it is averaging.
+    A real retrieval head sits orders of magnitude above it.
+    """
+    val = pd.concat([pd.read_parquet(f) for f in vfiles], ignore_index=True)
+    print(f"input-validity probe: {len(vfiles)} file(s), {len(val):,} rows\n")
+    for (mdl, ctx), g in val.groupby(["model", "ctx"]):
+        nlen = int((g["needle_end"] - g["needle_start"]).median())
+        unif = nlen / int(ctx)
+        print(f"{mdl}  ctx {int(ctx):,}   needle {nlen} tok   "
+              f"uniform mass = {unif:.2e}")
+        if "needle_hit" in g:
+            pp = g.groupby("prompt")["needle_hit"].max()
+            print(f"  TASK-LEVEL   retrieved {int(pp.sum())}/{len(pp)} prompts   "
+                  f"{'PASS' if pp.mean() >= VAL.MIN_TASK_FRAC else 'FAIL'}")
+            if "generated" in g:
+                for s in list(g["generated"].unique())[:3]:
+                    print(f"    answer: {s[:64]!r}")
+        ph = g.groupby(["layer", "head"])["needle_mass"].median().dropna()
+        if len(ph):
+            print(f"  HEAD-LEVEL   {len(ph):,} heads   max {ph.max():.2e} "
+                  f"({ph.max()/unif:.1f}x uniform)   p99 {ph.quantile(.99):.2e}   "
+                  f"median {ph.median():.2e}")
+            print("    heads above: " + "  ".join(
+                f"{t:g}:{int((ph >= t).sum())}"
+                for t in (0.001, 0.005, 0.01, 0.05, 0.1, 0.25)))
+            if ph.max() < 20 * unif:
+                print("    -> NO RETRIEVAL. The strongest head is within an order "
+                      "of magnitude of\n       uniform, so there is nothing to "
+                      "calibrate a threshold against. Do NOT\n       lower "
+                      "MIN_MASS to make this pass -- that is fitting the gate to "
+                      "the data.")
+        print()
+    print("Set MIN_MASS in sievelib/validity.py from a run where retrieval "
+          "clearly happened,\nthen flip ENFORCE_HEAD_LEVEL. A probe showing no "
+          "retrieval calibrates nothing.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("inputs", nargs="+")
@@ -477,7 +519,11 @@ def main():
     vfiles = [f for f in files if os.path.basename(f).startswith("validity_")]
     mfiles = [f for f in files if f not in vfiles]
     if not mfiles:
-        raise SystemExit("only validity probes matched; nothing to report on")
+        # Probe-only input cannot produce a band fraction, but it is exactly what
+        # you have in hand when calibrating MIN_MASS. Print the distribution
+        # instead of refusing, so the calibration step does not require digging
+        # the numbers back out of a SLURM log.
+        return print_validity_calibration(vfiles)
     raw = pd.concat([pd.read_parquet(f) for f in mfiles], ignore_index=True)
     val = (pd.concat([pd.read_parquet(f) for f in vfiles], ignore_index=True)
            if vfiles else None)

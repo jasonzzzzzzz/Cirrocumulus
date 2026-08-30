@@ -424,6 +424,67 @@ def test_family_gate():
           R.verdict(0.50, 2.0, g)[0] == "UNKNOWN")
 
 
+def test_probe_chunked_prefill():
+    print("\n[REGRESSION] the PROBE must survive a multi-chunk prefill")
+    from transformers import LlamaConfig, LlamaForCausalLM
+    from sievelib import probe as P
+    chunked_prefill = _load_run_h0().chunked_prefill
+    P.install()
+
+    # The bug needed all three at once: the sieve_probe attention function, a
+    # prefill split into >1 chunk, and a query block wider than 1 token. Neither
+    # existing test had all three -- test_chunked_prefill builds the model
+    # "eager", and L1/L3 run the probe in a single pass -- so a top-left aligned
+    # causal mask silently truncated the KV cache for every chunk after the first.
+    torch.manual_seed(0)
+    cfg = LlamaConfig(vocab_size=256, hidden_size=64, intermediate_size=128,
+                      num_hidden_layers=2, num_attention_heads=8,
+                      num_key_value_heads=2, max_position_embeddings=1024,
+                      attn_implementation="sieve_probe")
+    model = LlamaForCausalLM(cfg).eval()
+    n_pre = 192
+    ids = torch.randint(0, 256, (1, n_pre + 1))
+
+    with torch.no_grad():
+        ref = model(ids[:, :-1], use_cache=True)
+    ref_kv = [tuple(x.clone() for x in P.cache_kv(ref.past_key_values, li))
+              for li in range(cfg.num_hidden_layers)]
+    with torch.no_grad():
+        ref_logits = model(ids[:, -1:], past_key_values=ref.past_key_values,
+                           use_cache=False).logits[0, -1].clone()
+
+    worst_kv, worst_lg = 0.0, 0.0
+    for chunk in (64, 50, 7):          # every one of these is >1 chunk over n_pre
+        past = chunked_prefill(model, ids, chunk)
+        for li, (Ka, Va) in enumerate(ref_kv):
+            Kb, Vb = P.cache_kv(past, li)
+            worst_kv = max(worst_kv, (Ka - Kb).abs().max().item(),
+                           (Va - Vb).abs().max().item())
+        with torch.no_grad():
+            lg = model(ids[:, -1:], past_key_values=past,
+                       use_cache=False).logits[0, -1]
+        worst_lg = max(worst_lg, (ref_logits - lg).abs().max().item())
+    check("[REGRESSION] chunked KV matches single-shot under sieve_probe",
+          worst_kv < 1e-4, f"(max |dKV| = {worst_kv:.2e})")
+    check("[REGRESSION] chunked next-token logits match under sieve_probe",
+          worst_lg < 1e-3, f"(max |dlogit| = {worst_lg:.2e})")
+
+    # The mask has to be built for a wide query block continuing a cache, which
+    # is the case is_causal=True gets wrong. Check it directly.
+    torch.manual_seed(1)
+    q = torch.randn(1, 8, 4, 16); kk = torch.randn(1, 2, 10, 16)
+    vv = torch.randn(1, 2, 10, 16)
+    out = P._sdpa(q, kk, vv, None, 0.25, True)
+    kfull = P.repeat_kv(kk, 4)
+    s = (q @ kfull.transpose(-1, -2)) * 0.25
+    pos = torch.arange(4).unsqueeze(-1) + 6
+    s = s.masked_fill(torch.arange(10).unsqueeze(0) > pos, float("-inf"))
+    want = (torch.softmax(s, -1) @ P.repeat_kv(vv, 4)).transpose(1, 2)
+    check("[REGRESSION] wide query over a populated cache is bottom-right causal",
+          torch.allclose(out, want, atol=1e-5),
+          f"(max diff {(out - want).abs().max():.2e})")
+
+
 def test_needle_span():
     print("\n[needle span: char offsets survive decode -> concat -> re-tokenise]")
     import tempfile
@@ -513,6 +574,7 @@ if __name__ == "__main__":
               test_chunked_prefill, test_monotone_error, test_units_regression,
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
               test_end_to_end, test_corpus_prompts, test_family_gate,
+              test_probe_chunked_prefill,
               test_needle_span, test_validity_gate):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")

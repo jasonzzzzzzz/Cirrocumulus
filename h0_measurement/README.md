@@ -35,6 +35,8 @@ STOP, above 35% is GO.
 │   ├── quick_test_all.slurm      CPU cluster: prefetch + quick_test.sh for a LIST of models
 │   ├── submit_h0.slurm           MAIN campaign — array, 1×H100/task, self-chains the CPU report
 │   ├── submit_h0_large_models.slurm   LARGE tier — same structure, 4 GPUs/task (70B / 30B-MoE)
+│   ├── submit_h0_ctx_sweep.slurm ONE model swept across CONTEXT LENGTHS — array
+│   │                             axis is ctx, not model (§ matched context & ctx sweep)
 │   ├── submit_validity.slurm     INPUT-validity probe — niah only, no bit sweep,
 │   │                             minutes/model. Validates an EXISTING run, because
 │   │                             the haystack is seeded on prompt_idx alone.
@@ -135,6 +137,123 @@ python h0_measurement/report.py \
 
 ```
 
+## Matched context & ctx sweep (bug 3)
+
+The φ-window couples ctx into the verdict: eviction keeps a fixed *fraction* of
+tokens, so a head whose support is ~constant in absolute tokens gets relatively
+cheaper to evict as ctx grows. Comparing models measured at different ctx
+therefore confounds architecture with context length
+(`bugs/3_context_sweep_and_reports/`). Two campaigns fix the comparison:
+
+### 1. Matched-ctx campaign — `SIEVE_CTX`
+
+`SIEVE_CTX` makes **every** model in a submission run at one context length via
+`--override ctx=`. Unset means today's per-model registry ctx. 32,768 is the
+largest value all main-tier models support natively (see the ctx audit below);
+a `SIEVE_CTX` above any submitted model's registry ctx fails that task fast.
+
+```bash
+# the matched-32k cross-model table: both tiers at ctx 32768
+SIEVE_CTX=32768 sbatch h0_measurement/submit_h0.slurm
+SIEVE_CTX=32768 sbatch h0_measurement/submit_h0_large_models.slurm
+
+# a subset, same rules as before (--array must match the model count)
+SIEVE_CTX=32768 sbatch --array=0-1 h0_measurement/submit_h0.slurm qwen3-8b mistral-7b
+
+# WRONG — mistral-7b caps at 32768, so this task exits with a clear error:
+SIEVE_CTX=65536 sbatch h0_measurement/submit_h0.slurm
+```
+
+Each script still chains its own per-tier report. For the **single** matched-32k
+table across both tiers, combine the two runs by hand (RUN_IDs are printed at
+submission and recorded in each `RUN_INFO.txt`):
+
+```bash
+python h0_measurement/report.py \
+       "h0_measurement/results/<SMALL_RUN_ID>/*.parquet" \
+       "h0_measurement/results/<LARGE_RUN_ID>/*.parquet" \
+       -o h0_measurement/reports/h0_matched32k.pdf
+```
+
+### 2. Ctx sweep — `submit_h0_ctx_sweep.slurm`
+
+One model, one array task per **ctx value**. Arg 1 = model tag, remaining args =
+ctx list (default `32768 65536 131072`, matching the header's `--array=0-2`).
+Output parquet is `h0_<tag>_<ctx>.parquet`, so all tasks share one results dir;
+the chained report includes the **“Band fraction vs context length”** page — the
+slope figure this sweep exists to draw (it appears whenever a model shows up at
+≥ 2 ctx values).
+
+The registry ctx values are native RoPE limits, not advisory, and the script
+rejects any ctx above the model's cap. Per model:
+
+```bash
+# ---- small tier (1×H100/task, the header as-is) --------------------------------
+# llama31-8b — cap 131,072; the ONLY main-tier model that can sweep past 40,960,
+# hence the flagship sweep. Default = the plan's 32k/64k/128k:
+sbatch h0_measurement/submit_h0_ctx_sweep.slurm llama31-8b
+# ...or the full 4k -> 128k ladder (everything below 32k combined costs less
+# than the 32k point alone; cost scales ~quadratically with ctx):
+sbatch --array=0-5 h0_measurement/submit_h0_ctx_sweep.slurm \
+       llama31-8b 4096 8192 16384 32768 65536 131072
+
+# qwen3-8b — cap 40,960 (native, no rope_scaling):
+sbatch --array=0-4 h0_measurement/submit_h0_ctx_sweep.slurm \
+       qwen3-8b 4096 8192 16384 32768 40960
+
+# mistral-7b — cap 32,768:
+sbatch --array=0-3 h0_measurement/submit_h0_ctx_sweep.slurm \
+       mistral-7b 4096 8192 16384 32768
+
+# qwen15-moe-a2.7b — cap 32,768 (the ratio-1 GQA control):
+sbatch --array=0-3 h0_measurement/submit_h0_ctx_sweep.slurm \
+       qwen15-moe-a2.7b 4096 8192 16384 32768
+
+# qwen3-1.7b — debug tier, cap 8,192; only for smoke-testing the sweep plumbing:
+sbatch --array=0-1 h0_measurement/submit_h0_ctx_sweep.slurm qwen3-1.7b 4096 8192
+
+# ---- large tier: override resources on the sbatch line (header is 1-GPU) ------
+# llama33-70b — cap 131,072; needs 4×H100 at 128k (weights 141 GB + KV 43 GB):
+sbatch --gpus-per-node=4 --cpus-per-task=32 --time=02:30:00 --array=0-2 \
+       h0_measurement/submit_h0_ctx_sweep.slurm llama33-70b 32768 65536 131072
+
+# qwen3-30b-a3b-2507 — cap 131,072 (262k native); 2×H100 is the real floor:
+sbatch --gpus-per-node=2 --cpus-per-task=32 --time=02:30:00 --array=0-2 \
+       h0_measurement/submit_h0_ctx_sweep.slurm qwen3-30b-a3b-2507 8192 16384 32768 65536 131072
+
+# qwen3-30b-a3b — cap 40,960 (no YaRN; use the -2507 entry for real 128k):
+sbatch --gpus-per-node=2 --cpus-per-task=32 --time=02:30:00 --array=0-4 \
+       h0_measurement/submit_h0_ctx_sweep.slurm qwen3-30b-a3b 4096 8192 16384 32768 40960
+```
+
+`--gpus-per-node=4 --array=0-2` also works on a *small* model (e.g. llama31-8b —
+`device_map=auto` shards to whatever it is given), but it parks 3 idle H100s per
+task; a VRAM preflight in the script tells you when extra cards are actually
+required rather than wasted. The mismatch trap is the same as the sibling
+scripts: **`--array` must be `0-(N_ctx - 1)`** — a wrong range is caught before
+any GPU work.
+
+### 3. Getting the report
+
+Each submission self-chains its report (skip with `SIEVE_NO_REPORT=1`):
+
+- matched-ctx runs → `reports/h0_report_<RUN_ID>_<date>.pdf` per tier, plus the
+  combined-table command above;
+- the sweep → `reports/h0_ctxsweep_<tag>_<RUN_ID>_<date>.pdf`, whose
+  ctx-slope page is the figure.
+
+By hand — any mix of globs works, and pooling a sweep with a matched-ctx
+campaign puts *both* the cross-model table and the slope page in one PDF:
+
+```bash
+python h0_measurement/report.py \
+       "h0_measurement/results/<SWEEP_RUN_ID>/*.parquet" \
+       "h0_measurement/results/<MATCHED_RUN_ID>/*.parquet" \
+       -o h0_measurement/reports/h0_ctx_study.pdf
+```
+
+---
+
 Regenerating things without a GPU:
 
 ```bash
@@ -151,6 +270,8 @@ python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
 | `HF_TOKEN_FILE` | token file path read by the slurm scripts. Default `$PROJECT_ROOT/.hf_token`. |
 | `HF_HUB_OFFLINE` | forced to `1` in the measure stage — compute nodes have no internet. |
 | `SIEVE_MODELS` | colon-separated model list (survives `sbatch --export`). |
+| `SIEVE_CTX` | matched-context override for `submit_h0.slurm` / `submit_h0_large_models.slurm`: every model runs at this ctx via `--override ctx=`. Rejected per task if above a model's registry ctx. Unset ⇒ per-model registry ctx (§ matched context & ctx sweep). |
+| `SIEVE_MODEL`, `SIEVE_CTXS` | `submit_h0_ctx_sweep.slurm` internals: the swept model tag and colon-separated ctx list, carried into the report resubmission. Set them via the command line, not by hand. |
 | `SIEVE_VENV` | venv to activate. Default `$PROJECT_ROOT/.venv`. |
 | `SIEVE_NO_REPORT=1` | do not chain the report job. |
 | `H0_CORPUS` | directory of real haystack text. Staged by `prefetch_corpus.py`; the slurm scripts default it to `$PROJECT_ROOT/.h0_corpus/pg19`. Unset ⇒ **tier main/large refuses to start** (see § synthetic-haystack confound). |
@@ -161,6 +282,16 @@ python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
 ## Version notes
 
 Kept deliberately short since there is no VCS here.
+
+- **Matched ctx + ctx sweep (bug 3).** The two Recommendation bullets below are
+  now runnable: `SIEVE_CTX` in both campaign scripts pins every model to one
+  context length (`--override ctx=`, validated against each model's registry
+  cap), and `submit_h0_ctx_sweep.slurm` arrays one model over a ctx list.
+  `report.py` gains `page_ctx_slope` — band fraction, the quantize/evict
+  crossover, and `eff_frac = n95/L` each plotted against ctx, drawn whenever a
+  model appears at ≥ 2 ctx values and skipped otherwise, so single-ctx reports
+  are unchanged. The sink-excluded φ piece of bug 3 is deliberately NOT in this
+  round; see `bugs/3_context_sweep_and_reports/plan.md`.
 
 - **Validity gate replaced (bug 1, round two).** The niah-vs-cont ladder gate was
   unpassable by construction — the ladder is a bulk second moment and a needle is

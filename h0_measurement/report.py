@@ -80,6 +80,56 @@ def per_head(df):
     return df.groupby(keys).median(numeric_only=True).reset_index()
 
 
+# --- which corner the verdict is measured against ------------------------------
+# The eviction corner used to be an ORACLE ranking by the current step's
+# a_i*||v_i-o||, which needs the very attention weights eviction exists to avoid
+# computing. Every pre-fix band fraction was therefore measured against a
+# competitor no deployable system has. `gain_best_practical<B>` is the same
+# quantity against the strongest corner a real evictor could field; when it is
+# present it IS the verdict, and the oracle is reported beside it as the bound.
+# bugs/2_towards_real_evictor/.
+def band_col(g, B=3):
+    """(column, label) the band fraction should be computed from."""
+    if f"gain_best_practical{B}" in g and g[f"gain_best_practical{B}"].notna().any():
+        return f"gain_best_practical{B}", "practical"
+    return f"gain_best{B}", "oracle"
+
+
+def band_series(g, B=3):
+    col, kind = band_col(g, B)
+    s = g[col].dropna() if col in g else pd.Series(dtype=float)
+    return s, kind
+
+
+def corner_label(g, B=3, raw=None):
+    """Name the corner the verdict keyed off, for the VERDICT line.
+
+    `best_evictor<B>` and `corner_policies` are strings, so per_head()'s
+    numeric-only median drops them; pass the RAW rows for this (model, ctx) to
+    recover which evictor actually won.
+    """
+    col, kind = band_col(g, B)
+    if kind == "oracle":
+        return "oracle corner -- NO practical evictor in this run"
+    src = raw if raw is not None else g
+    who = ""
+    if f"best_evictor{B}" in src:
+        vc = src[f"best_evictor{B}"].dropna()
+        if len(vc):
+            who = str(vc.mode().iloc[0])
+    pol = ""
+    if "corner_policies" in src:
+        pv = src["corner_policies"].dropna()
+        if len(pv):
+            pol = "/" + str(pv.mode().iloc[0]).split(",")[0]
+    bound = ""
+    if f"oracle_evict_advantage{B}" in g:
+        oa = g[f"oracle_evict_advantage{B}"].dropna()
+        if len(oa):
+            bound = f"; oracle bound {oa.median():.2f}x"
+    return f"vs {who or 'practical'}{pol}{bound}"
+
+
 def family_gate(raw, val=None):
     """(model, ctx) -> input-validity record.
 
@@ -194,10 +244,12 @@ def page_summary(pdf, df, ph, gates):
         txt = []
         gate = gates.get((mdl, int(ctx)))
         lad = g["ladder_bits"].dropna()
-        gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
+        gb3, kind = band_series(g, 3)
         frac = float((gb3 >= BAND_MIN).mean()) if len(gb3) else None
         port = float(np.exp(np.log(np.maximum(gb3, 1.0)).mean())) if len(gb3) else None
         v, msg = verdict(frac, port, gate)
+        rsub = df[(df["model"] == mdl) & (df["ctx"] == ctx)] if df is not None else None
+        msg = f"[{corner_label(g, 3, rsub)}]  " + msg
         txt.append(f"{mdl}  (ctx {int(ctx):,},  {len(g):,} heads)")
         if gate:
             lb = gate["ladder"]
@@ -232,7 +284,7 @@ def page_summary(pdf, df, ph, gates):
                        f"{100*gate['paired_frac']:.1f}% of heads niah>cont")
         if frac is not None:
             txt.append(f"    HEADS IN BAND  {100*frac:5.1f}%  (gain over best "
-                       f"corner >= {BAND_MIN}x at 3 b/token)")
+                       f"{kind.upper()} corner >= {BAND_MIN}x at 3 b/token)")
             txt.append(f"    ROUTED GAIN    {port:5.2f}x  (geometric mean of "
                        f"max(gain,1) over all heads)")
             if len(gb3):
@@ -240,13 +292,58 @@ def page_summary(pdf, df, ph, gates):
                 if len(inb):
                     txt.append(f"    in-band heads  median {inb.median():5.1f}x   "
                                f"p90 {inb.quantile(.9):5.1f}x")
-        if "in_band_practical3" in g:
-            fp = float(g["in_band_practical3"].mean())
-            txt.append(f"    vs PRACTICAL evictor (lagged attention): "
-                       f"{100*fp:5.1f}% in band, median "
-                       f"{g['gain_best_practical3'].median():.1f}x   "
-                       f"[oracle evictor is {g['oracle_evict_advantage3'].median():.1f}x "
-                       f"stronger than practical]")
+        # E2: what the verdict changed. Both numbers in one frame, so the
+        # monotonicity claim (practical >= oracle, always) is checkable here.
+        if "gain_best3" in g and "gain_best_practical3" in g:
+            ob = g["gain_best3"].dropna()
+            fo = float((ob >= BAND_MIN).mean()) if len(ob) else float("nan")
+            txt.append(f"    vs ORACLE corner (upper bound, NOT deployable): "
+                       f"{100*fo:5.1f}% in band, median {ob.median():.2f}x"
+                       f"   -> honest corner moves it {100*(frac-fo):+.1f} pts")
+        # E2: per-evictor corner table. `gain_e3_<name>_<policy>` is emitted per
+        # (evictor, policy) cell; oracle_evict_advantage3_<name> is what that
+        # evictor loses to the oracle -- the publishable per-head number.
+        cells = sorted(c for c in g.columns if c.startswith("gain_e3_"))
+        if cells:
+            txt.append("    CORNER GRID @3b   (median gain of the interior over "
+                       "each corner; higher = weaker corner)")
+            names, pols = [], []
+            for c in cells:
+                # labels may contain '_' (last_step); policies never do
+                nm, _, pol = c[len("gain_e3_"):].rpartition("_")
+                if nm not in names: names.append(nm)
+                if pol not in pols: pols.append(pol)
+            # frac is the status quo, so it leads; oracle is the bound, so it
+            # trails the deployable corners it bounds.
+            pols.sort(key=lambda p: (p != "frac", p))
+            names.sort(key=lambda n: (n == "oracle", n))
+            hdr = "      " + " " * 12 + "".join(f"{p:>12s}" for p in pols)
+            txt.append(hdr + "     oracle_adv")
+            for nm in names:
+                row = f"      {nm:<12s}"
+                for p in pols:
+                    k = f"gain_e3_{nm}_{p}"
+                    row += (f"{g[k].median():11.2f}x" if k in g else " " * 12)
+                ka = f"oracle_evict_advantage3_{nm}"
+                row += (f"     {g[ka].median():9.2f}x" if ka in g else "")
+                txt.append(row)
+        # E1: what each budget policy actually spent, and the slack diagnostic.
+        bits = sorted((c for c in g.columns if c.startswith("corner_bits_used3_")),
+                      key=lambda c: (not c.endswith("_frac"), c))
+        if bits:
+            txt.append("    CORNER SPEND @3b  " + "   ".join(
+                f"{c[len('corner_bits_used3_'):]}: {g[c].median():.2f} b/tok "
+                f"({g['corner_tokens3_' + c[len('corner_bits_used3_'):]].median():,.0f} tok)"
+                for c in bits if 'corner_tokens3_' + c[len('corner_bits_used3_'):] in g))
+        if "kstar3" in g:
+            ks = g["kstar3"].dropna()
+            extra = (f"   = {g['kstar_over_n953'].median():.1f}x n95"
+                     if "kstar_over_n953" in g else "")
+            txt.append(f"    K* @3b         median {ks.median():,.0f} tokens "
+                       f"({100*g['kstar_frac3'].median():.1f}% of the corner's "
+                       f"budget){extra}")
+            txt.append("                   [smallest keep-count within 10% of the "
+                       "full-budget corner: the budget's slack, measured]")
         txt.append(f"    ladder width   median {lad.median():5.2f} b   "
                    f"IQR [{lad.quantile(.25):.2f}, {lad.quantile(.75):.2f}]   "
                    f"{100*(lad>GO).mean():.0f}% of heads above {GO}")
@@ -285,20 +382,20 @@ def page_model(pdf, mdl, ctx, g, raw, gate=None):
     fig.suptitle(f"{mdl} — ctx {int(ctx):,}{stamp}", fontsize=14,
                  color="#12414f" if not stamp else "#9b2c3a")
 
-    if "gain_best3" in g:
-        gb3 = g["gain_best3"].dropna()
+    gb3, kind = band_series(g, 3)
+    if len(gb3):
         frac = float((gb3 >= BAND_MIN).mean())
         ax[0, 0].hist(np.log10(np.maximum(gb3, .5)), bins=44, color="#94a3b8",
                       edgecolor="white")
         ax[0, 0].hist(np.log10(np.maximum(gb3[gb3 >= BAND_MIN], .5)), bins=44,
                       color="#1f6b52", edgecolor="white", label="in band")
         ax[0, 0].axvline(np.log10(BAND_MIN), color="#e0a838", ls="--", lw=2)
-        ax[0, 0].set_xlabel("log10  gain over BEST corner @3b")
+        ax[0, 0].set_xlabel(f"log10  gain over BEST {kind} corner @3b")
         ax[0, 0].set_ylabel("heads"); ax[0, 0].legend(fontsize=8)
         ax[0, 0].set_title(f"HEADS IN BAND: {100*frac:.0f}%", fontsize=11,
                            color="#1f6b52" if frac >= F_GO else "#9b2c3a")
 
-    val = "gain_best3" if "gain_best3" in g else "ladder_bits"
+    val = band_col(g, 3)[0] if len(gb3) else "ladder_bits"
     piv = g.pivot_table(index="layer", columns="head", values=val)
     im = ax[0, 1].imshow(np.log10(np.maximum(piv.values, .5)), aspect="auto",
                          cmap="viridis", origin="lower")
@@ -306,13 +403,17 @@ def page_model(pdf, mdl, ctx, g, raw, gate=None):
     ax[0, 1].set_title("Which heads the router sends to SIEVE", fontsize=10)
     fig.colorbar(im, ax=ax[0, 1], label="log10 gain over best corner")
 
-    if "gain_best3" in g:
+    if len(gb3):
         ax[0, 2].scatter(g["tau"], g["gain_u3"], s=7, alpha=.35, color="#c2410c",
                          label="vs uniform")
-        ax[0, 2].scatter(g["tau"], g["gain_e3"], s=7, alpha=.35, color="#7c3aed",
-                         label="vs eviction")
-        ax[0, 2].scatter(g["tau"], g["gain_best3"], s=9, alpha=.6, color="#12414f",
-                         label="vs BEST corner")
+        if "gain_e3" in g:
+            ax[0, 2].scatter(g["tau"], g["gain_e3"], s=7, alpha=.35,
+                             color="#7c3aed", label="vs eviction (oracle)")
+        if "gain_practical3" in g:
+            ax[0, 2].scatter(g["tau"], g["gain_practical3"], s=7, alpha=.35,
+                             color="#1f6b52", label="vs eviction (practical)")
+        ax[0, 2].scatter(g["tau"], gb3.reindex(g.index), s=9, alpha=.6,
+                         color="#12414f", label=f"vs BEST {kind} corner")
         ax[0, 2].axhline(BAND_MIN, color="#e0a838", ls="--", lw=1.5)
         ax[0, 2].axhline(1, color="#c2334d", ls=":")
         ax[0, 2].set_yscale("log"); ax[0, 2].set_xlabel(r"logit spread $\tau$")
@@ -385,12 +486,13 @@ def page_compare(pdf, ph, gates=None):
     ax[0].set_xticklabels(labs)
     ax[0].axhline(GO, color="#e0a838", ls="--"); ax[0].axhline(KILL, color="#c2334d", ls="--")
     ax[0].set_ylabel("ladder width (bits)"); ax[0].tick_params(axis="x", rotation=20)
-    if "gain_best3" in ph:
-        ax[1].boxplot([g["gain_best3"].dropna().values for _, g in grp],
+    if len(band_series(ph, 3)[0]):
+        ax[1].boxplot([band_series(g, 3)[0].values for _, g in grp],
                       showfliers=False)
         ax[1].set_xticklabels(labs)
         ax[1].axhline(BAND_MIN, color="#e0a838", ls="--")
-        ax[1].set_yscale("log"); ax[1].set_ylabel("gain vs BEST corner @3b")
+        ax[1].set_yscale("log")
+        ax[1].set_ylabel(f"gain vs BEST {band_col(ph, 3)[1]} corner @3b")
         ax[1].tick_params(axis="x", rotation=20)
     for a in ax: a.grid(alpha=.22); a.set_axisbelow(True)
     fig.tight_layout(rect=[0, 0, 1, .93])
@@ -425,7 +527,7 @@ def page_ctx_slope(pdf, ph, gates=None):
     """
     sweeps = {}
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
-        gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
+        gb3, _ = band_series(g, 3)
         if not len(gb3):
             continue
         ok = gates is None or gates.get((mdl, int(ctx)), {"passed": True})["passed"]
@@ -513,9 +615,9 @@ def page_phase(pdf, ph, gates=None):
     """
     rows = []
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
-        if "gain_best3" not in g or "evict_beats_b2" not in g:
+        if "evict_beats_b2" not in g:
             continue
-        gb3 = g["gain_best3"].dropna()
+        gb3, _ = band_series(g, 3)
         if not len(gb3):
             continue
         ok = gates is None or gates.get((mdl, int(ctx)), {"passed": True})["passed"]
@@ -652,13 +754,14 @@ def main():
     print(f"wrote {args.out}")
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):
         gate = gates.get((mdl, int(ctx)))
-        gb3 = g["gain_best3"].dropna() if "gain_best3" in g else pd.Series(dtype=float)
+        gb3, kind = band_series(g, 3)
         frac = float((gb3 >= BAND_MIN).mean()) if len(gb3) else None
         port = float(np.exp(np.log(np.maximum(gb3, 1.0)).mean())) if len(gb3) else None
         v, _ = verdict(frac, port, gate)
         band = f"{100*frac:5.1f}%" if frac is not None else "   n/a"
         rout = f"{port:.2f}x" if port is not None else " n/a"
-        print(f"  {mdl:24s} {int(ctx)//1024:>4}k  band {band}  routed {rout}  -> {v}"
+        print(f"  {mdl:24s} {int(ctx)//1024:>4}k  band {band} [{kind:9s}] "
+              f"routed {rout}  -> {v}"
               + ("" if gate is None or gate["passed"] else f"   [{gate['reason']}]"))
 
 

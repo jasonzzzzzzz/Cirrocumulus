@@ -31,8 +31,6 @@ from __future__ import annotations
 import math
 import torch
 
-from . import evict as _EV
-
 
 BAND_MIN = 2.0   # a head is "in the productive band" if the interior beats the
                  # best corner by at least this factor; below it, routing to the
@@ -104,10 +102,10 @@ def exact_error(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tensor,
                 b: torch.Tensor, o: torch.Tensor | None = None) -> float:
     """Relative output error under a per-token allocation, computed exactly.
 
-    `o` is the exact unquantized output. It does not depend on the allocation,
-    so a caller comparing many allocations for one head -- quant_metrics now
-    runs one corner per (evictor, policy) cell per budget -- should compute it
-    once and pass it in. Recomputed here when omitted.
+    `o` is the exact (unquantized) output. It does not depend on the allocation,
+    so callers comparing many allocations for one head -- quant_metrics runs
+    three corners plus one per configured evictor, per budget -- should compute
+    it once and pass it in. Recomputed here when omitted.
     """
     used = set(int(x) for x in torch.unique(b).tolist()) - {0}
     missing = used - set(shat)
@@ -129,56 +127,6 @@ def exact_error(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tensor,
     ah = torch.softmax(sh - sh.max(), -1)
     oh = ah @ Vd[keep]
     return float((oh - o).norm().item() / max(float(o.norm().item()), 1e-12))
-
-
-def evict_error_curve(s: torch.Tensor, shat_max: torch.Tensor, V: torch.Tensor,
-                      order: torch.Tensor, Ks, o: torch.Tensor | None = None,
-                      chunk: int = 32768) -> dict[int, float]:
-    """Eviction-corner error for EVERY kept-token count in `Ks`, in one pass.
-
-    An eviction corner keeps the top-K tokens by some ranking, all at maxb, and
-    drops the rest. Walking K therefore walks a NESTED family of kept sets, so
-    the softmax numerator and denominator are running sums along `order` and the
-    whole curve costs about one `exact_error` instead of one per K. That is what
-    makes E1's K* diagnostic and the (evictor x policy) grid affordable.
-
-    Exact, not an approximation: softmax is shift-invariant, so factoring out a
-    single global max leaves oh(K) = sum_{i<K} w_i v_i / sum_{i<K} w_i equal to
-    the softmax over the kept subset. Accumulated in chunks so peak memory stays
-    O(chunk*d) rather than O(L*d).
-    """
-    sd, Vd = s.double(), V.double()
-    if o is None:
-        o = torch.softmax(sd, -1) @ Vd
-    onorm = max(float(o.norm().item()), 1e-12)
-    L = sd.numel()
-    z = shat_max.double()[order]
-    w = torch.exp(z - z.max())
-    ks = sorted({max(1, min(int(k), L)) for k in Ks})
-    num = torch.zeros_like(o)
-    den = torch.zeros((), dtype=torch.float64, device=o.device)
-    out, prev = {}, 0
-    for k in ks:
-        for lo in range(prev, k, chunk):
-            hi = min(lo + chunk, k)
-            ww = w[lo:hi]
-            num = num + (ww[:, None] * Vd[order[lo:hi]]).sum(0)
-            den = den + ww.sum()
-        prev = k
-        oh = num / den.clamp_min(1e-300)
-        out[k] = float((oh - o).norm().item() / onorm)
-    return out
-
-
-def _kstar_grid(m: int, points: int) -> list[int]:
-    """Geometric ladder of kept-token counts from 1 to m, m always included."""
-    if m <= 1:
-        return [1]
-    n = max(2, int(points))
-    ks = {1, m}
-    for i in range(1, n):
-        ks.add(max(1, int(round(m ** (i / (n - 1))))))
-    return sorted(ks)
 
 
 def sensitivity_metrics(s: torch.Tensor, V: torch.Tensor, n_sink: int = 4) -> dict:
@@ -216,28 +164,25 @@ def sensitivity_metrics(s: torch.Tensor, V: torch.Tensor, n_sink: int = 4) -> di
 def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tensor,
                   budgets=(1, 2, 3, 4), maxb: int = 8,
                   practical_scores: dict[str, torch.Tensor] | None = None,
-                  n95: float | None = None, corner=None,
                   practical_score: torch.Tensor | None = None) -> dict:
     """EXPENSIVE: needs quantized logits at every bit-width in `shat`.
 
-    The eviction corner is built on TWO axes (see sievelib/evict.py):
+    `practical_scores` maps an evictor label (see sievelib.evict) to a selection
+    score available WITHOUT seeing the current query -- lagged attention, which
+    is all H2O/SnapKV/TOVA/StreamingLLM ever get. The oracle eviction corner
+    ranks by true sensitivity a_i||v_i-o||, which requires the very weights it
+    is trying to avoid computing; it is an upper bound on any real evictor, so
+    the honest headline is the gain over the PRACTICAL corner.
 
-      WHO   `practical_scores` maps a corner label to a selection score computed
-            WITHOUT the current query -- lagged attention, which is all
-            H2O/SnapKV/TOVA/StreamingLLM ever get. The `oracle` corner is added
-            here, ranking by the true sensitivity a_i||v_i-o||; it needs the very
-            weights it is trying to avoid computing, so it is an upper bound on
-            any real evictor rather than a baseline anything can field.
-
-      HOW MUCH  `corner.policies`: `frac` keeps B*L/maxb tokens (the literature's
-            definition, linear in L); `abs` caps that at max(kappa*n95, floor),
-            a multiple of the head's OWN support, and records the bits it
-            declined to spend.
-
-    The oracle is ALWAYS measured and keeps its legacy column names, so
-    `gain_best<B>` stays exactly the v7 quantity and the monotonicity check
-    (`gain_best_practical >= gain_best`) is computable row by row in one frame.
-    The VERDICT columns are the `*_practical` family, which never see the oracle.
+    Every evictor gets its own `*_<label><B>` columns. The unsuffixed
+    `err_practical<B>` / `gain_best_practical<B>` / `in_band_practical<B>`
+    aggregate them by taking the STRONGEST (lowest-error) practical corner per
+    head. That is deliberately the conservative direction for H0: it makes the
+    baseline as hard to beat as any deployable evictor could make it, so an
+    in-band verdict cannot be blamed on having picked a weak competitor. It is
+    also mildly optimistic about evictor selection (you would not know per head
+    which one wins), which is why the per-evictor columns are kept -- rerun any
+    analysis against a single fixed evictor from those.
 
     `practical_score` (singular tensor) is the pre-registry spelling, kept so
     older callers and tests still work; it is labelled "practical".
@@ -245,15 +190,10 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     L = s.numel()
     if L < 128 or not shat:
         return {}
-    if corner is None:
-        corner = _EV.CornerSpec()
     scores = dict(practical_scores or {})
     if practical_score is not None:
         scores.setdefault("practical", practical_score)
     for nm, ps in scores.items():
-        if nm == _EV.ORACLE:
-            raise ValueError("'oracle' is computed here, not supplied -- it "
-                             "needs the current step's attention")
         if ps.numel() != L:
             raise ValueError(
                 f"practical score {nm!r} has {ps.numel()} entries but the head "
@@ -268,6 +208,8 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     nm = noise_model(s, shat)
     sig2 = nm["sig2"]
     out: dict[str, object] = {}
+    if scores:
+        out["n_practical"] = len(scores)
     order = torch.argsort(sd, descending=True)
     top = order[: max(64, L // 100)]
     rt = torch.argsort(torch.argsort(sd[top])).double()
@@ -283,17 +225,6 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         out[f"spearman_top_b{b}"] = float(
             (rt @ rh / (rt.norm() * rh.norm()).clamp_min(1e-12)).item())
 
-    # Corner rankings. The oracle is a CONFIGURED corner like any other (listed
-    # by default); it is the only one that sees the current step.
-    orc = corner.oracle_label
-    rank = {}
-    if orc is not None:
-        rank[orc] = torch.argsort(w2, descending=True)
-    for nm, ps in scores.items():
-        rank[nm] = torch.argsort(ps.double(), descending=True)
-    have_maxb = int(maxb) in shat
-    out["n_practical"] = len(scores)
-
     cv = _cost_vector(sig2, maxb, w2.device)
     for B in budgets:
         if int(B) not in shat:
@@ -301,95 +232,49 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         bw = waterfill(w2, sig2, float(B), maxb)
         e_wf = exact_error(s, shat, V, bw, o)
         e_un = exact_error(s, shat, V, torch.full_like(bw, int(B)), o)
+        m = max(1, int(round(B * L / maxb)))
+        be = torch.zeros_like(bw)
+        be[torch.argsort(w2, descending=True)[:m]] = maxb
+        e_ev = exact_error(s, shat, V, be, o)
         out[f"err_wf{B}"] = e_wf
         out[f"err_uniform{B}"] = e_un
+        out[f"err_evict{B}"] = e_ev
         out[f"gain_u{B}"] = e_un / max(e_wf, 1e-12)
+        out[f"gain_e{B}"] = e_ev / max(e_wf, 1e-12)
+        out[f"gain_best{B}"] = min(e_un, e_ev) / max(e_wf, 1e-12)
+        out[f"in_band{B}"] = float(out[f"gain_best{B}"] >= BAND_MIN)
+        if scores:
+            e_best, who = None, ""
+            for nm_, ps in scores.items():
+                bp = torch.zeros_like(bw)
+                bp[torch.argsort(ps.double(), descending=True)[:m]] = maxb
+                e_p = exact_error(s, shat, V, bp, o)
+                out[f"err_practical_{nm_}_b{B}"] = e_p
+                out[f"gain_practical_{nm_}_b{B}"] = e_p / max(e_wf, 1e-12)
+                out[f"oracle_evict_advantage_{nm_}_b{B}"] = e_p / max(e_ev, 1e-12)
+                if e_best is None or e_p < e_best:
+                    e_best, who = e_p, nm_
+            out[f"err_practical{B}"] = e_best
+            out[f"gain_practical{B}"] = e_best / max(e_wf, 1e-12)
+            out[f"gain_best_practical{B}"] = min(e_un, e_best) / max(e_wf, 1e-12)
+            out[f"in_band_practical{B}"] = float(
+                out[f"gain_best_practical{B}"] >= BAND_MIN)
+            out[f"oracle_evict_advantage{B}"] = e_best / max(e_ev, 1e-12)
+            out[f"best_evictor{B}"] = who
         out[f"evict_frac{B}"] = float((bw == 0).double().mean().item())
         out[f"mean_bits{B}"] = float(bw.double().mean().item())
         pred = math.sqrt(
             float((w2 * cv[torch.full_like(bw, int(B))]).sum().item())
             / max(float((w2 * cv[bw]).sum().item()), 1e-300))
         out[f"lin_ratio{B}"] = pred / max(out[f"gain_u{B}"], 1e-12)
-        if not have_maxb or not rank:
-            continue                      # no top tier -> no eviction corner
-
-        # How many tokens each policy lets the corner keep, and what that costs.
-        # `abs` deliberately spends LESS than the budget allows; recording the
-        # spend makes the comparison explicit instead of smuggled.
-        mtok = {p: _EV.corner_tokens(p, float(B), L, maxb, n95,
-                                     corner.kappa, corner.floor)
-                for p in corner.policies}
-        for p, mk in mtok.items():
-            out[f"corner_tokens{B}_{p}"] = int(mk)
-            out[f"corner_bits_used{B}_{p}"] = mk * maxb / L
-        pol0 = "frac" if "frac" in mtok else list(mtok)[0]
-        mfrac = mtok[pol0]
-
-        # One cumulative pass per ranking covers every policy's K, plus the K*
-        # ladder for the oracle -- see evict_error_curve.
-        ks_extra = _kstar_grid(mfrac, corner.kstar_points) if corner.kstar else []
-        err = {}
-        for nm, idx in rank.items():
-            need = set(mtok.values()) | (set(ks_extra) if nm == orc else set())
-            curve = evict_error_curve(s, shat[int(maxb)], V, idx, need, o)
-            err[nm] = curve
-            for p, mk in mtok.items():
-                e = curve[max(1, min(int(mk), L))]
-                out[f"err_e{B}_{nm}_{p}"] = e
-                out[f"gain_e{B}_{nm}_{p}"] = e / max(e_wf, 1e-12)
-
-        # Legacy names == oracle at the fractional budget, so `gain_best<B>`
-        # stays bit-for-bit the v7 quantity and the rerun remains comparable.
-        e_ev = None
-        if orc is not None:
-            e_ev = out[f"err_e{B}_{orc}_{pol0}"]
-            out[f"err_evict{B}"] = e_ev
-            out[f"gain_e{B}"] = e_ev / max(e_wf, 1e-12)
-            out[f"gain_best{B}"] = min(e_un, e_ev) / max(e_wf, 1e-12)
-            out[f"in_band{B}"] = float(out[f"gain_best{B}"] >= BAND_MIN)
-
-        # THE VERDICT CORNER: strongest DEPLOYABLE corner at the full budget.
-        # `min` picks the lowest error, i.e. the hardest competitor -- the
-        # conservative direction, so an in-band verdict cannot be dismissed as
-        # having been measured against a weak evictor.
-        if scores:
-            e_best, who = None, ""
-            for nm in scores:
-                e_p = out[f"err_e{B}_{nm}_{pol0}"]
-                if e_ev is not None:
-                    out[f"oracle_evict_advantage{B}_{nm}"] = e_p / max(e_ev, 1e-12)
-                if e_best is None or e_p < e_best:
-                    e_best, who = e_p, nm
-            out[f"err_practical{B}"] = e_best
-            out[f"gain_practical{B}"] = e_best / max(e_wf, 1e-12)
-            out[f"gain_best_practical{B}"] = min(e_un, e_best) / max(e_wf, 1e-12)
-            out[f"in_band_practical{B}"] = float(
-                out[f"gain_best_practical{B}"] >= BAND_MIN)
-            out[f"best_evictor{B}"] = who
-            if e_ev is not None:
-                out[f"oracle_evict_advantage{B}"] = e_best / max(e_ev, 1e-12)
-
-        # E1's policy-free diagnostic: the smallest kept-token count that gets
-        # within kstar_tol of the FULL-budget corner. K* << B*L/maxb means the
-        # corner was winning on slack the budget handed it, not on merit.
-        if corner.kstar and ks_extra and orc is not None:
-            curve = err[orc]
-            thr = (1.0 + corner.kstar_tol) * curve[max(1, min(int(mfrac), L))]
-            ks_ok = [k for k in sorted(curve) if k <= mfrac and curve[k] <= thr]
-            kstar = ks_ok[0] if ks_ok else int(mfrac)
-            out[f"kstar{B}"] = int(kstar)
-            out[f"kstar_frac{B}"] = kstar / max(int(mfrac), 1)
-            if n95 is not None and math.isfinite(float(n95)) and float(n95) > 0:
-                out[f"kstar_over_n95{B}"] = kstar / float(n95)
     return out
 
 
 def head_metrics(s, shat, V, budgets=(1, 2, 3, 4), maxb=8, n_sink=4,
-                 practical_scores=None, corner=None, practical_score=None) -> dict:
+                 practical_scores=None, practical_score=None) -> dict:
     m = sensitivity_metrics(s, V, n_sink)
     if m and shat:
         m.update(quant_metrics(s, shat, V, budgets, maxb,
                                practical_scores=practical_scores,
-                               n95=m.get("n95"), corner=corner,
                                practical_score=practical_score))
     return m

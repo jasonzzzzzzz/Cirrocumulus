@@ -7,7 +7,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-3                  # one task per model; override for a subset
 #SBATCH --cpus-per-task=16
-#SBATCH --time=00:45:00
+#SBATCH --mem=96G
+#SBATCH --time=01:15:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
 
@@ -26,6 +27,17 @@
 #   sbatch h0_measurement/submit_h0.slurm
 #   sbatch h0_measurement/submit_h0.slurm qwen3-8b mistral-7b    # a subset
 #   SIEVE_CTX=32768 sbatch h0_measurement/submit_h0.slurm        # matched-ctx campaign
+#
+# THE EVICTION CORNER (bugs/2_towards_real_evictor). The verdict is measured
+# against the strongest DEPLOYABLE corner, with the oracle reported beside it as
+# the bound. Two optional knobs, same shape as SIEVE_CTX:
+#   SIEVE_EVICTORS='oracle,last_step,accum' sbatch h0_measurement/submit_h0.slurm
+#   SIEVE_CORNER_POLICIES=frac              sbatch h0_measurement/submit_h0.slurm
+# Unset = the models.yaml defaults (all five corners, frac+abs). The header's
+# --mem and --time were raised for that default: the lagged evictor state is host
+# RAM (~28 B per layer-head-token, so ~1.3 GB for llama31-8b at 128k) and the
+# corner grid adds ~4 O(L*d) passes per (head, budget). SIEVE_EVICTORS=oracle
+# reproduces the pre-fix cost exactly.
 #
 # The --array size above must match the number of models. If you pass a subset,
 # override it:  sbatch --array=0-1 h0_measurement/submit_h0.slurm a b
@@ -81,6 +93,27 @@ if [[ -n "$SIEVE_CTX" && ! "$SIEVE_CTX" =~ ^[0-9]+$ ]]; then
   echo "ERROR: SIEVE_CTX must be a positive integer, got '$SIEVE_CTX'" >&2
   exit 1
 fi
+
+# SIEVE_EVICTORS / SIEVE_CORNER_POLICIES: optional eviction-corner overrides
+# (bugs/2_towards_real_evictor). Unset = the models.yaml defaults. Validated by
+# run_h0.py itself, which rejects a bad name before the tokenizer loads.
+#
+# Deliberately NOT forwarded through `sbatch --export` to the report stage: that
+# value list is COMMA-separated (the same reason SIEVE_MODELS is colon-encoded),
+# and the natural spelling here -- SIEVE_EVICTORS='oracle,accum' -- would be
+# parsed as two separate variable assignments. The report does not need them:
+# run_h0.py stamps `evictors` and `corner_policies` into every parquet row, and
+# report.py names the corner on each verdict line from those columns.
+SIEVE_EVICTORS="${SIEVE_EVICTORS:-}"
+SIEVE_CORNER_POLICIES="${SIEVE_CORNER_POLICIES:-}"
+
+# run_h0.py's --override takes nargs="*", so a SECOND --override flag REPLACES
+# the first rather than adding to it -- ctx would be silently dropped. Collect
+# every k=v into one array and emit a single flag.
+OVERRIDES=()
+[[ -n "$SIEVE_CTX" ]]              && OVERRIDES+=("ctx=$SIEVE_CTX")
+[[ -n "$SIEVE_EVICTORS" ]]         && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
+[[ -n "$SIEVE_CORNER_POLICIES" ]]  && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
 
 VENV="${SIEVE_VENV:-$PROJECT_ROOT/.venv}"
 # HF_TOKEN is read from an untracked file, never hard-coded here.
@@ -151,12 +184,17 @@ if [[ "$SIEVE_ROLE" == "report" ]]; then
   echo "was synthetic, or niah's sensitivity ladder did not beat cont's, so no"
   echo "retrieval behaviour was induced and the band fraction describes the"
   echo "prompt rather than the model."
+  echo
+  echo "The band fraction is measured against the corner named in brackets on"
+  echo "each verdict line. [practical] = a deployable evictor; [oracle] = that"
+  echo "parquet has no practical columns, and the number is against a baseline"
+  echo "no system can field (bugs/2_towards_real_evictor)."
   exit 0
 fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model}"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
@@ -205,7 +243,9 @@ fi
 # header above: no GPU, single task, short walltime.
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}";
-    echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}"; } \
+    echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}";
+    echo "evictors: ${SIEVE_EVICTORS:-none (models.yaml defaults)}";
+    echo "corner policies: ${SIEVE_CORNER_POLICIES:-none (models.yaml defaults)}"; } \
     > "${OUT_DIR}/RUN_INFO.txt"
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
@@ -225,10 +265,12 @@ fi
 # proxy would kill the job at validation with the GPU already allocated.
 python h0_measurement/prefetch.py -m "$MODEL"
 
-# ${SIEVE_CTX:+...} appends the override only when SIEVE_CTX is set, so the
-# unset case is byte-identical to the pre-bug-3 invocation.
-srun python h0_measurement/run_h0.py \
-     --model "$MODEL" \
-     --out-dir "$OUT_DIR" \
-     ${SIEVE_CTX:+--override ctx=$SIEVE_CTX}
+# One --override carrying every k=v (see the OVERRIDES note above). With no
+# knobs set the invocation is byte-identical to the pre-bug-2/3 one.
+RUN_ARGS=(--model "$MODEL" --out-dir "$OUT_DIR")
+if (( ${#OVERRIDES[@]} )); then
+  RUN_ARGS+=(--override "${OVERRIDES[@]}")
+  echo "overrides: ${OVERRIDES[*]}"
+fi
+srun python h0_measurement/run_h0.py "${RUN_ARGS[@]}"
 

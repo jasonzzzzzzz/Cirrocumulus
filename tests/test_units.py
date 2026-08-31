@@ -8,9 +8,10 @@ import math, os, sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from sievelib import quant
+from sievelib import evict, quant
 from sievelib.alloc import (waterfill, exact_error, noise_model, head_metrics,
-                            sensitivity_metrics, quant_metrics)
+                            sensitivity_metrics, quant_metrics,
+                            evict_error_curve)
 
 OK, BAD = "\033[32mPASS\033[0m", "\033[31mFAIL\033[0m"
 fails = 0
@@ -256,6 +257,245 @@ class _Enc:
         if k == "input_ids":
             return self.input_ids
         raise KeyError(k)
+
+
+def _raises(fn, exc):
+    try:
+        fn()
+    except exc:
+        return True
+    except Exception:
+        return False
+    return False
+
+
+def _grow(L):
+    """fin mask for a full-attention cache of length L (everything live)."""
+    return torch.ones(L, dtype=torch.bool)
+
+
+def _decode(ev, steps):
+    """Drive an evictor exactly as run_h0 does: score() then observe() each step,
+    with the cache one token longer every step. Returns the score visible at the
+    start of the step AFTER the last one supplied."""
+    L0 = steps[0].numel()
+    for i, a in enumerate(steps):
+        ev.score(_grow(L0 + i))
+        ev.observe(a, _grow(L0 + i))
+    return ev.score(_grow(L0 + len(steps)))
+
+
+def test_p0_alignment():
+    print("\n[P0][REGRESSION] the practical score must survive the cache growing")
+    # The bug: run_h0 required len(prev_a) >= len(current logits). prev_a is
+    # always exactly one SHORTER, so the guard rejected every step and the
+    # practical corner has never run in any campaign.
+    ev = evict.make("last_step")[1]
+    check("no score before any history", ev.score(_grow(10)) is None)
+    ev.observe(torch.full((10,), 0.1), _grow(10))
+    s = ev.score(_grow(11))                       # cache grew by the new token
+    check("[REGRESSION] scores on the step after the first", s is not None)
+    check("score length tracks the live positions", s is not None and s.numel() == 11)
+    check("new token outranks all history",
+          s is not None and int(s.argmax()) == 10 and float(s[10]) > float(s[:10].max()))
+
+    # Sliding window: length is held constant and the OLDEST position drops, so
+    # the state must roll left rather than be reused in place.
+    ev = evict.make("last_step")[1]
+    ev.observe(torch.tensor([0.0, 0.0, 0.9, 0.1]), _grow(4))
+    s = ev.score(_grow(4))
+    check("sliding window rolls the front off",
+          torch.allclose(s[:3].float(), torch.tensor([0.0, 0.9, 0.1])))
+    check("sliding window keeps the newest", int(s.argmax()) == 3)
+
+    # A length change we do not model must drop history, never mis-attribute it.
+    ev = evict.make("accum")[1]
+    ev.observe(torch.full((8,), 0.125), _grow(8))
+    check("unmodelled length jump resets rather than mis-aligns",
+          ev.score(_grow(64)) is None)
+
+
+def test_e2_registry():
+    print("\n[E2] evictor registry: scoring rules, config, oracle stays optional")
+    steps = [torch.tensor([0.5, 0.5, 0.0, 0.0, 0.0]),
+             torch.tensor([0.0, 0.0, 0.0, 0.0, 0.1, 0.9])]
+    check("accum (H2O) sums every step seen",
+          torch.allclose(_decode(evict.make("accum")[1], steps)[:6].float(),
+                         torch.tensor([0.5, 0.5, 0.0, 0.0, 0.1, 0.9])))
+    check("last_step (TOVA) keeps only the last step",
+          torch.allclose(_decode(evict.make("last_step")[1], steps)[:6].float(),
+                         steps[1]))
+    sk = _decode(evict.make("window:window=2,pool=1")[1],
+                 [torch.tensor([9.0, 0, 0, 0, 0]),
+                  torch.tensor([0.0, 1, 0, 0, 0, 0]),
+                  torch.tensor([0.0, 0, 1, 0, 0, 0, 0])])
+    check("window (SnapKV) forgets outside its window", float(sk[0]) == 0.0)
+    sp = _decode(evict.make("window:window=1,pool=3")[1],
+                 [torch.tensor([0.0, 0.0, 1.0, 0.0, 0.0])])
+    check("window max-pools onto neighbours",
+          float(sp[1]) == 1.0 and float(sp[3]) == 1.0 and float(sp[4]) == 0.0)
+    s = evict.make("recency:sinks=2")[1].score(_grow(6))
+    check("recency (StreamingLLM) scores on the very first step", s is not None)
+    check("recency ranks sinks first, then newest",
+          torch.argsort(s, descending=True)[:3].tolist() == [0, 1, 5])
+
+    check("paper names alias onto the plan's names",
+          evict.make("h2o")[1].name == "accum"
+          and evict.make("tova")[1].name == "last_step"
+          and evict.make("snapkv")[1].name == "window"
+          and evict.make("slm")[1].name == "recency")
+    check("oracle is a CORNER, not a stateful evictor",
+          evict.make("oracle")[1] is None
+          and "oracle" not in evict.make_many(["oracle", "accum"]))
+    cs = evict.CornerSpec.from_cfg({"evictors": ["oracle", "accum"]})
+    check("oracle stays configurable and is on by default",
+          cs.oracle_label == "oracle" and cs.practical == ("accum",)
+          and evict.CornerSpec().oracle_label == "oracle")
+    check("a run may drop the oracle",
+          evict.CornerSpec.from_cfg({"evictors": ["accum"]}).oracle_label is None)
+    check("unknown evictor is rejected loudly",
+          _raises(lambda: evict.make("h2o_typo"), KeyError))
+    check("bad option is rejected loudly",
+          _raises(lambda: evict.make("window:pool=4"), ValueError))
+    check("bad policy is rejected loudly",
+          _raises(lambda: evict.CornerSpec.from_cfg({"corner_policies": "nope"}),
+                  ValueError))
+    check("config string forms parse",
+          evict.parse_specs("oracle,accum") == ["oracle", "accum"]
+          and evict.parse_specs("window:window=8,pool=7") == ["window:window=8,pool=7"]
+          and evict.parse_specs("none") == [])
+
+
+def test_e1_budget_policy():
+    print("\n[E1] corner budget: fractional vs absolute-support, and K*")
+    # frac is linear in L; abs caps at max(kappa*n95, floor) and never exceeds it.
+    m = evict.corner_tokens("frac", 3, 131072, 8, n95=500, kappa=4, floor=256)
+    check("frac keeps B*L/maxb", m == 49152)
+    a = evict.corner_tokens("abs", 3, 131072, 8, n95=500, kappa=4, floor=256)
+    check("abs caps at kappa*n95", a == 2000, f"({a})")
+    a2 = evict.corner_tokens("abs", 3, 131072, 8, n95=4, kappa=4, floor=256)
+    check("abs respects the floor", a2 == 256, f"({a2})")
+    a3 = evict.corner_tokens("abs", 3, 4096, 8, n95=9999, kappa=4, floor=256)
+    check("[REGRESSION] abs never spends MORE than frac",
+          a3 == evict.corner_tokens("frac", 3, 4096, 8, None, 4, 256), f"({a3})")
+    a4 = evict.corner_tokens("abs", 3, 4096, 8, n95=float("nan"), kappa=4, floor=256)
+    check("abs falls back to frac with no support estimate", a4 == 1536)
+
+    # The cumulative curve is what makes the (evictor x policy) grid and K*
+    # affordable; it must be EXACT, not an approximation.
+    torch.manual_seed(0)
+    L, d, maxb = 2048, 32, 8
+    s = torch.randn(L) * 2.5
+    V = torch.randn(L, d) / math.sqrt(d)
+    shat = {maxb: s + 0.02 * torch.randn(L)}
+    o = torch.softmax(s.double(), -1) @ V.double()
+    order = torch.argsort(torch.rand(L), descending=True)
+    Ks = [1, 33, 512, L]
+    curve = evict_error_curve(s, shat[maxb], V, order, Ks, o)
+    worst = 0.0
+    for K in Ks:
+        b = torch.zeros(L, dtype=torch.long); b[order[:K]] = maxb
+        ref = exact_error(s, shat, V, b, o)
+        worst = max(worst, abs(ref - curve[K]) / max(ref, 1e-12))
+    check("evict_error_curve == exact_error at every K", worst < 1e-9,
+          f"(worst rel dev {worst:.1e})")
+
+    # [REGRESSION] Corner error is NOT monotone in K, so nothing may assume a
+    # bigger keep-set is a stronger corner. Every kept token is quantized at
+    # maxb, so extending down the tail adds low-weight tokens carrying
+    # quantization noise. This is why E1 reports the frac/abs comparison per
+    # cell instead of asserting its sign -- and why `abs` can be both cheaper
+    # and MORE accurate on sharp heads.
+    torch.manual_seed(3)
+    L2, d2 = 16384, 64
+    Kx = torch.randn(L2, d2); qx = torch.randn(d2)
+    Rx = quant.random_rotation(d2, "cpu", seed=0)
+    Vx = torch.randn(L2, d2) / math.sqrt(d2)
+    bs = Kx @ qx / math.sqrt(d2)
+    scx = 4.0 / bs.std()                     # a SHARP head
+    sx = bs * scx
+    shx = {b: (quant.quantize_keys(Kx, b, Rx) @ qx / math.sqrt(d2)) * scx
+           for b in (3, 8)}
+    cs = evict.CornerSpec(evictors=("oracle",), policies=("frac", "abs"))
+    mx = quant_metrics(sx, shx, Vx, budgets=(3,), maxb=8, n95=180, corner=cs)
+    check("abs corner is far cheaper on a sharp head",
+          mx["corner_bits_used3_abs"] < 0.5 * mx["corner_bits_used3_frac"],
+          f"({mx['corner_bits_used3_abs']:.2f} vs "
+          f"{mx['corner_bits_used3_frac']:.2f} b/tok)")
+    check("[REGRESSION] and can be MORE accurate while spending less",
+          mx["err_e3_oracle_abs"] < mx["err_e3_oracle_frac"],
+          f"({mx['err_e3_oracle_abs']:.3e} < {mx['err_e3_oracle_frac']:.3e})")
+    check("K* detects the slack the fractional budget hands the corner",
+          mx["kstar_frac3"] < 0.25,
+          f"(K*={mx['kstar3']} = {100*mx['kstar_frac3']:.1f}% of budget)")
+
+
+def test_corner_columns():
+    print("\n[E1+E2] the corner grid reaches the output frame")
+    torch.manual_seed(0)
+    L, d = 4096, 64
+    K = torch.randn(L, d); q = torch.randn(d)
+    R = quant.random_rotation(d, "cpu", seed=0)
+    V = torch.randn(L, d) / math.sqrt(d)
+    sc = 2.5 / (K @ q / math.sqrt(d)).std()
+    s = (K @ q / math.sqrt(d)) * sc
+    shat = {b: (quant.quantize_keys(K, b, R) @ q / math.sqrt(d)) * sc
+            for b in (2, 3, 8)}
+    lag = torch.softmax(s * 0.9 + 0.05 * torch.randn(L), -1)      # a plausible lag
+    ps = {"last_step": lag, "recency": torch.arange(L, dtype=torch.float64)}
+    cs = evict.CornerSpec(evictors=("oracle", "last_step", "recency"),
+                          policies=("frac", "abs"))
+    m = quant_metrics(s, shat, V, budgets=(3,), maxb=8, practical_scores=ps,
+                      n95=64, corner=cs)
+
+    check("per (evictor, policy) cells present",
+          {"gain_e3_oracle_frac", "gain_e3_oracle_abs", "gain_e3_last_step_frac",
+           "gain_e3_recency_abs"} <= set(m))
+    check("legacy oracle columns preserved bit-for-bit",
+          m["err_evict3"] == m["err_e3_oracle_frac"]
+          and "gain_best3" in m and "in_band3" in m)
+    check("verdict columns present",
+          {"gain_best_practical3", "in_band_practical3", "best_evictor3",
+           "oracle_evict_advantage3", "oracle_evict_advantage3_last_step"} <= set(m))
+    check("verdict takes the strongest practical corner",
+          m["err_practical3"] == min(m["err_e3_last_step_frac"],
+                                     m["err_e3_recency_frac"])
+          and m[f"err_e3_{m['best_evictor3']}_frac"] == m["err_practical3"])
+    # NOT asserted: gain_best_practical >= gain_best per head. The plan called
+    # that "provably monotone", and it is not. The `oracle` corner is an oracle
+    # only w.r.t. the FIRST-ORDER proxy w2 = (a*||v-o||)^2, while the reported
+    # error is exact recomputation -- alloc.py keeps those two strictly separate
+    # by design. Ranking by the proxy is not the argmin of the exact error, so a
+    # differently-ranked corner can land on a better kept set. Measured on a real
+    # qwen3-1.7b run: a practical corner beats the oracle on 15.9% of head-rows,
+    # by up to 4x. The direction holds in AGGREGATE (median err_practical /
+    # err_evict = 1.19; band 2.5% -> 32.6%), which is the claim to make -- a
+    # single head falling is NOT a bug signal.
+    check("gain_best_practical is min(uniform, practical) / waterfill",
+          abs(m["gain_best_practical3"]
+              - min(m["err_uniform3"], m["err_practical3"]) / m["err_wf3"]) < 1e-9)
+    check("gain_best is min(uniform, oracle) / waterfill",
+          abs(m["gain_best3"]
+              - min(m["err_uniform3"], m["err_evict3"]) / m["err_wf3"]) < 1e-9)
+    check("abs never keeps MORE tokens, nor spends more bits, than frac",
+          m["corner_tokens3_abs"] <= m["corner_tokens3_frac"]
+          and m["corner_bits_used3_abs"] <= m["corner_bits_used3_frac"] + 1e-12
+          and m["corner_tokens3_frac"] == 1536)
+    check("K* reported and within the budget",
+          1 <= m["kstar3"] <= m["corner_tokens3_frac"] and 0 < m["kstar_frac3"] <= 1
+          and "kstar_over_n953" in m)
+    check("mis-aligned score is rejected, not silently ranked",
+          _raises(lambda: quant_metrics(s, shat, V, budgets=(3,),
+                                        practical_scores={"x": lag[:-1]}),
+                  ValueError))
+    check("supplying 'oracle' as a lagged score is rejected",
+          _raises(lambda: quant_metrics(s, shat, V, budgets=(3,),
+                                        practical_scores={"oracle": lag}),
+                  ValueError))
+    mo = quant_metrics(s, shat, V, budgets=(3,), maxb=8,
+                       corner=evict.CornerSpec(evictors=("oracle",)))
+    check("oracle-only run still produces the legacy corner",
+          "err_evict3" in mo and "gain_best_practical3" not in mo)
 
 
 class FakeTok:
@@ -576,7 +816,9 @@ if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
-              test_end_to_end, test_corpus_prompts, test_family_gate,
+              test_end_to_end, test_p0_alignment, test_e2_registry,
+              test_e1_budget_policy, test_corner_columns,
+              test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
               test_needle_span, test_validity_gate):
         t()

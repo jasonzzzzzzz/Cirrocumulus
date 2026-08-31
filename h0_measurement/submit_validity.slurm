@@ -25,6 +25,17 @@
 # the haystack is seeded on prompt_idx alone: at the same ctx this reads
 # byte-identical text to the run it is validating.
 #
+# NO EVICTION-CORNER KNOBS HERE, deliberately. SIEVE_EVICTORS /
+# SIEVE_CORNER_POLICIES exist in the three measurement scripts
+# (bugs/2_towards_real_evictor) and are meaningless in this one: --validity-only
+# forms no corners at all -- it never materialises V, never runs the bit sweep,
+# and never keeps lagged attention state. run_h0.py therefore prints
+# "eviction corners: (none)" here and writes an empty `evictors` column, so a
+# validity parquet cannot be mistaken for a run that measured a corner. It also
+# means this script needs none of the extra --mem or walltime the measurement
+# scripts took on: the ~28 B per layer-head-token of lagged state is not
+# allocated, so the header below is unchanged.
+#
 # SUBMIT FROM trig-login01. This cluster rejects any GPU request made from a CPU
 # login node ("GPU resources requested from a CPU login node"), so sbatch fails
 # here with an error that does not mention the script. Same for submit_h0*.slurm.

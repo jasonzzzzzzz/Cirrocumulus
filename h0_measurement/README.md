@@ -96,6 +96,13 @@ sbatch --array=0-1 h0_measurement/submit_h0.slurm qwen3-8b mistral-7b
 
 sbatch h0_measurement/submit_h0_large_models.slurm          # large tier: qwen3-30b-a3b-2507, llama33-70b (4 GPUs/task)
 
+#    Optional eviction-corner knobs (§ Eviction corner). Unset = models.yaml
+#    defaults, which is what the headers' --mem/--time are sized for.
+SIEVE_EVICTORS='oracle,last_step,accum' \
+  sbatch h0_measurement/submit_h0.slurm                     # a cheaper corner set
+SIEVE_CORNER_POLICIES=frac \
+  sbatch h0_measurement/submit_h0.slurm                     # drop the E1 abs policy
+
 # 4b. the INPUT-validity probe. Answers "did the haystack induce retrieval?" --
 #     niah only, no bit sweep, minutes per model. The haystack is seeded on
 #     prompt_idx alone, so at the same ctx this reads byte-identical text to the
@@ -136,6 +143,303 @@ python h0_measurement/report.py \
        -o h0_measurement/reports/h0_report_job852849+job852851.pdf
 
 ```
+
+---
+
+## A complete run, start to finish
+
+Every command below is literal — no placeholders except the two RUN_IDs, which
+the tooling prints. Copy-paste from a clean checkout on `trig-login01`.
+
+```bash
+cd /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+
+# ---- 1. environment (once per machine) ----------------------------------------
+python -m venv .venv && source .venv/bin/activate
+pip install -U "torch>=2.4" "transformers>=4.48" accelerate \
+               pandas fastparquet pyyaml matplotlib huggingface_hub
+printf '%s' hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx > .hf_token
+export HF_HOME=$PWD/.hf_cache
+
+# ---- 2. CPU-only checks (no weights, no GPU, ~1 min) --------------------------
+python tests/test_units.py
+
+# ---- 3. stage weights + haystack (LOGIN node: compute nodes have no internet) --
+python h0_measurement/prefetch.py -m qwen3-1.7b llama31-8b
+python h0_measurement/prefetch_corpus.py --check-ctx 131072 --n-prompts 6
+export H0_CORPUS=$PWD/.h0_corpus/pg19
+
+# ---- 4. smoke the whole path on the debug tier (<10 min, CPU or 1 GPU) --------
+./h0_measurement/quick_test.sh qwen3-1.7b
+
+# ---- 5. a real single-model run by hand, before spending array hours ----------
+#     n_decode=4 quant_every=1 makes 3 of the 4 decode steps carry full lagged
+#     history, which is what you want when checking the practical corner (§ below).
+mkdir -p h0_measurement/{logs,results,reports,results_smoke}
+python h0_measurement/run_h0.py --model qwen3-1.7b \
+       --out-dir h0_measurement/results_smoke \
+       --override n_decode=4 quant_every=1
+
+# ---- 6. confirm the practical corner actually populated -----------------------
+python - <<'PY'
+import glob, pandas as pd
+df = pd.concat([pd.read_parquet(f)
+                for f in glob.glob("h0_measurement/results_smoke/h0_*.parquet")])
+q = df[df.quantized]
+print("rows", len(q), "| corners:", q["evictors"].iloc[0])
+print("practical evictors scored per row:", q["n_practical"].value_counts().to_dict())
+print("gain_best_practical3 null frac: %.3f" % q["gain_best_practical3"].isna().mean())
+print("band   oracle %.1f%%  ->  practical %.1f%%"
+      % (100*(q.gain_best3 >= 2).mean(), 100*(q.gain_best_practical3 >= 2).mean()))
+print("winning corner:", q["best_evictor3"].value_counts().to_dict())
+print("K* median %.0f tok = %.1f%% of the corner's budget"
+      % (q.kstar3.median(), 100*q.kstar_frac3.median()))
+PY
+# EXPECT: null frac 0.000, and the practical band fraction well above the oracle
+# one. A null frac of 1.000 means no practical corner ran -- that is the bug this
+# replaced, and it is the one thing to check before spending array hours.
+#
+# Real output from the command above (qwen3-1.7b, ctx 2048, CPU, ~15 s):
+#   rows 1344 | corners: oracle,last_step,accum,window,recency
+#   practical evictors scored per row: {4: 896, 1: 448}
+#   gain_best_practical3 null frac: 0.000
+#   band   oracle 2.5%  ->  practical 32.6%
+#   winning corner: {'last_step': 527, 'recency': 495, 'accum': 233, 'window': 89}
+#   K* median 718 tok = 100.0% of the corner's budget
+#
+# `{4: 896, 1: 448}` is expected, not a fault: step 0 has no lagged history, so
+# only `recency` scores there. Filter on `n_practical` for a clean comparison.
+# K* = 100% is also expected at ctx 2048 -- the budget only has slack to detect
+# at long context, which is the whole point of E1.
+
+# ---- 7. submit the campaign --------------------------------------------------
+sbatch h0_measurement/submit_h0.slurm                  # prints RUN_ID = job<arrayjobid>
+sbatch --array=0-3 h0_measurement/submit_validity.slurm \
+       qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b # prints VJOBID
+
+# ---- 8. the verdict ----------------------------------------------------------
+python h0_measurement/report.py \
+       "h0_measurement/results/<RUN_ID>/*.parquet" \
+       "h0_measurement/results/validity<VJOBID>/*.parquet" \
+       -o h0_measurement/reports/h0_report_<RUN_ID>.pdf
+```
+
+Step 8 prints one line per `(model, ctx)`; the bracket names which corner the
+band fraction was measured against:
+
+```
+  llama31-8b                128k  band  31.4% [practical] routed 2.71x  -> NARROW
+```
+
+`[practical]` = a deployable evictor. `[oracle]` = that parquet has no practical
+columns (a pre-fix run), and the number is against a baseline no system can field.
+
+---
+
+## Eviction corner: which baseline the verdict uses (bug 2)
+
+The corner the interior is compared against has two axes, both configurable in
+`models.yaml` `defaults:` or per run with `--override`
+(`bugs/2_towards_real_evictor/fix.md`).
+
+**WHO — `evictors`.** `oracle` ranks by the current step's `a·‖v−o‖`; it needs the
+attention weights eviction exists to avoid computing, so it is an upper bound, not
+a baseline. It is kept and reported as that bound, but the **verdict keys off the
+practical corners**.
+
+| name | score | anchor |
+|---|---|---|
+| `oracle` | current-step `a·‖v−o‖` | upper bound (not deployable) |
+| `last_step` | previous step's attention | TOVA |
+| `accum` | running sum of attention received | H2O |
+| `window` | last `window` steps, max-pooled over `pool` neighbours | SnapKV |
+| `recency` | sinks + newest, no attention stats at all | StreamingLLM (floor) |
+
+**HOW MUCH — `corner_policies`.** `frac` keeps `B·L/maxb` tokens (the literature's
+definition, linear in `L`); `abs` caps that at `max(corner_kappa·n95, corner_floor)`,
+a multiple of the head's own measured support.
+
+```bash
+# the shipped default: all five corners, both budget policies
+python h0_measurement/run_h0.py --model qwen3-1.7b --out-dir h0_measurement/results_smoke
+
+# reproduce the PRE-FIX baseline exactly (oracle only, fractional budget)
+python h0_measurement/run_h0.py --model qwen3-1.7b --out-dir h0_measurement/results_smoke \
+       --override evictors=oracle corner_policies=frac kstar=false
+
+# fastest honest run: oracle bound + H2O, fractional budget only
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir h0_measurement/results/manual \
+       --override evictors=oracle,accum corner_policies=frac
+
+# SnapKV with a longer window and wider pooling (quote it: ';' is a shell metachar)
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir h0_measurement/results/manual \
+       --override 'evictors=oracle;accum;window:window=8,pool=13'
+
+# two SnapKV variants in one run -- @alias keeps their columns apart
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir h0_measurement/results/manual \
+       --override 'evictors=oracle;window:window=2@w2;window:window=16@w16'
+
+# tune the absolute-support cap, drop the K* ladder
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir h0_measurement/results/manual \
+       --override corner_policies=frac,abs corner_kappa=8 corner_floor=512 kstar=false
+
+# paper names work as aliases: tova/h2o/snapkv/streamingllm
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir h0_measurement/results/manual \
+       --override evictors=oracle,tova,h2o,snapkv
+```
+
+Whole-campaign overrides go through the slurm scripts the same way as `SIEVE_CTX`
+— pass them on the `run_h0.py` line inside the script, or edit `models.yaml`
+`defaults:` once and submit normally.
+
+A bad name, option or policy fails **before** the tokenizer loads and long before
+a GPU allocation is held:
+
+```bash
+$ python h0_measurement/run_h0.py --model qwen3-1.7b --override evictors=h2o_typo
+bad eviction-corner config: unknown evictor 'h2o_typo'; available: ['oracle', 'accum', 'last_step', 'recency', 'window']
+  evictors='h2o_typo'  corner_policies=['frac', 'abs']
+
+$ python h0_measurement/run_h0.py --model qwen3-1.7b --override corner_policies=nope
+bad eviction-corner config: unknown corner policy 'nope'; use frac / abs
+  evictors=['oracle', 'last_step', 'accum', 'window', 'recency']  corner_policies='nope'
+
+$ python h0_measurement/run_h0.py --model qwen3-1.7b --override 'evictors=oracle;window:pool=4'
+bad eviction-corner config: pool must be odd and >= 1, got 4
+  evictors='oracle;window:pool=4'  corner_policies=['frac', 'abs']
+```
+
+### Reading the new report output
+
+`report.py` gains three blocks per model. `oracle_adv` is what each evictor loses
+to the oracle — a publishable per-head number in its own right:
+
+```
+    HEADS IN BAND   31.4%  (gain over best PRACTICAL corner >= 2.0x at 3 b/token)
+    vs ORACLE corner (upper bound, NOT deployable):  12.5% in band, median 1.31x
+                                                     -> honest corner moves it +18.9 pts
+    CORNER GRID @3b   (median gain of the interior over each corner; higher = weaker corner)
+                          frac         abs     oracle_adv
+      accum              7.41x       7.902x        5.66x
+      last_step          6.98x       7.11x         5.33x
+      window             8.02x       8.30x         6.13x
+      recency           11.40x      11.62x         8.71x
+      oracle             1.31x       1.42x
+    CORNER SPEND @3b  frac: 3.00 b/tok (49,152 tok)   abs: 0.33 b/tok (5,400 tok)
+    K* @3b         median 4,610 tokens (9.4% of the corner's budget)   = 3.1x n95
+    VERDICT: NARROW — [vs accum/frac; oracle bound 5.66x]  31% of heads are in band ...
+```
+
+### On the cluster — `SIEVE_EVICTORS` / `SIEVE_CORNER_POLICIES`
+
+The three measurement scripts take the same two axes as environment variables,
+exactly like `SIEVE_CTX`. `submit_validity.slurm` deliberately has **no** corner
+knobs: `--validity-only` forms no corners at all, so it prints
+`eviction corners: (none)` and writes empty `evictors` / `corner_policies`
+columns — a validity parquet can never be mistaken for one that measured a corner.
+
+```bash
+# ---- main tier -----------------------------------------------------------------
+sbatch h0_measurement/submit_h0.slurm                        # models.yaml defaults
+SIEVE_EVICTORS='oracle,last_step,accum' \
+  sbatch h0_measurement/submit_h0.slurm
+SIEVE_CORNER_POLICIES=frac \
+  sbatch h0_measurement/submit_h0.slurm
+# reproduce the PRE-FIX campaign exactly (oracle corner, fractional budget only)
+SIEVE_EVICTORS=oracle SIEVE_CORNER_POLICIES=frac \
+  sbatch h0_measurement/submit_h0.slurm
+# combines with SIEVE_CTX -- both land in ONE --override, so neither is dropped
+SIEVE_CTX=32768 SIEVE_EVICTORS='oracle,accum' \
+  sbatch h0_measurement/submit_h0.slurm
+
+# a spec with options: quote it, and use ';' between corners (',' is inside the spec)
+SIEVE_EVICTORS='oracle;accum;window:window=8,pool=13' \
+  sbatch h0_measurement/submit_h0.slurm
+
+# ---- large tier ----------------------------------------------------------------
+sbatch h0_measurement/submit_h0_large_models.slurm           # 4×H100, --mem=320G
+SIEVE_EVICTORS='oracle,last_step,accum,recency' \
+  sbatch h0_measurement/submit_h0_large_models.slurm         # drops `window`: 28 B/slot -> 11
+
+# ---- ctx sweep -----------------------------------------------------------------
+sbatch h0_measurement/submit_h0_ctx_sweep.slurm llama31-8b
+SIEVE_CORNER_POLICIES=frac,abs \
+  sbatch h0_measurement/submit_h0_ctx_sweep.slurm llama31-8b # E1 is a ctx question
+
+# ---- validity probe: no corner knobs, unchanged resources ----------------------
+sbatch --array=0-3 h0_measurement/submit_validity.slurm \
+       qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b
+```
+
+`SIEVE_EVICTORS` is **not** forwarded to the chained report job. `sbatch --export`
+takes a comma-separated list, so `SIEVE_EVICTORS='oracle,accum'` would arrive as
+two variable assignments — the same trap `SIEVE_MODELS` colon-encodes around. The
+report does not need it: every parquet row carries `evictors` and
+`corner_policies`, and `report.py` names the corner on each verdict line from
+those. `RUN_INFO.txt` records them too.
+
+### Resources: the corner costs host RAM
+
+The lagged evictor state is **host** RAM, per (layer, head), linear in ctx:
+
+```
+bytes = n_layers × n_heads × ctx × slot        slot = Σ (4·n_bufs + 1) per evictor
+```
+
+`slot` is 28 B for the shipped default set; `window` alone is 17 of those.
+
+| corner set | slot | llama31-8b @128k | llama33-70b @128k |
+|---|---|---|---|
+| default (`oracle,last_step,accum,window,recency`) | 28 B | 1.3 GB | **18.8 GB** |
+| `oracle,last_step,accum,recency` | 11 B | 0.5 GB | 7.4 GB |
+| `oracle` | 0 B | 0 | 0 |
+
+The headers were raised for the default set — `--mem=96G` on the main and sweep
+scripts, `--mem=320G` on the large one, and `--time` up ~50% for the extra corner
+passes. Both the large and sweep scripts preflight this and **refuse to start**
+rather than getting OOM-killed an hour in:
+
+```
+  corners=['oracle', 'last_step', 'accum', 'window', 'recency']  lagged state=18.8 GB host RAM (28 B per layer-head-token)
+ERROR: the lagged evictor state needs 18.8 GB of host RAM, more than a quarter of
+  the 31 GB allocated, and the weights need the rest. Raise --mem, or shrink the
+  corner set: SIEVE_EVICTORS='oracle,last_step,accum,recency' drops `window`
+  (17 of 28 B/slot), SIEVE_EVICTORS=oracle drops all of it.
+```
+
+**If you override resources on the sbatch line, override `--mem` too.** The sweep
+header is sized for a 1-GPU model; a tier-large model swept to 128k needs the
+large-tier memory as well as its GPUs:
+
+```bash
+sbatch --gpus-per-node=4 --cpus-per-task=32 --mem=320G --time=03:30:00 --array=0-2 \
+       h0_measurement/submit_h0_ctx_sweep.slurm llama33-70b 32768 65536 131072
+```
+
+### Caveats that change how you configure a run
+
+- **`n_decode` must be ≥ 2.** Lagged evictors have no history on step 0, so only
+  `recency` scores there. `--validate-only` sets `n_decode=1` and produces no
+  lagged columns — that is a probe check, not a measurement.
+- **`quant_every` thins the comparison.** Practical columns only exist on
+  quantization steps, and `do_quant = step % quant_every == 0` makes step 0 always
+  a quant step — the one step with no history. With the defaults (`n_decode: 8`,
+  `quant_every: 4`) the quant steps are 0 and 4, so half the quant rows carry only
+  `recency`. Filter on `n_practical`, or run `--override quant_every=2`.
+- **`accum` accumulates from decode, not prefill** (the probe only captures decode
+  queries), so it is weaker than a deployed H2O and biases gains *up*. Raise
+  `n_decode` when it is the headline.
+- **RAM.** Each evictor holds `ctx × (4·n_bufs + 1)` bytes per (layer, head);
+  `window` holds `window` times what the others do. On llama33-70b @ 128k the
+  default set is ~18.8 GB of host RAM. Drop `window` first:
+  `--override evictors=oracle,last_step,accum,recency`.
+- **`gain_best_practical ≥ gain_best` is NOT a per-head theorem.** `oracle` is an
+  oracle only w.r.t. the first-order proxy `w² = (a·‖v−o‖)²`; the reported error
+  is exact recomputation, and the proxy ranking is not the argmin of the exact
+  error. On the real qwen3-1.7b run above a practical corner beat the oracle on
+  **15.9% of head-rows**, by up to 4×. The direction holds in *aggregate* (median
+  `err_practical/err_evict` = 1.19, band 2.5% → 32.6%) — so compare distributions,
+  and do not treat a single falling head as a bug.
 
 ## Matched context & ctx sweep (bug 3)
 
@@ -213,16 +517,19 @@ sbatch --array=0-3 h0_measurement/submit_h0_ctx_sweep.slurm \
 sbatch --array=0-1 h0_measurement/submit_h0_ctx_sweep.slurm qwen3-1.7b 4096 8192
 
 # ---- large tier: override resources on the sbatch line (header is 1-GPU) ------
+# --mem MUST be overridden too: the header's 96G is sized for a 1-GPU model, and
+# the lagged evictor state alone is ~19 GB for the 70B at 128k (§ Resources).
 # llama33-70b — cap 131,072; needs 4×H100 at 128k (weights 141 GB + KV 43 GB):
-sbatch --gpus-per-node=4 --cpus-per-task=32 --time=02:30:00 --array=0-2 \
+sbatch --gpus-per-node=4 --cpus-per-task=32 --mem=320G --time=03:30:00 --array=0-2 \
        h0_measurement/submit_h0_ctx_sweep.slurm llama33-70b 32768 65536 131072
 
-# qwen3-30b-a3b-2507 — cap 131,072 (262k native); 2×H100 is the real floor:
-sbatch --gpus-per-node=2 --cpus-per-task=32 --time=02:30:00 --array=0-2 \
+# qwen3-30b-a3b-2507 — cap 131,072 (262k native); 2×H100 is the real floor.
+# NOTE: --array must match the ctx COUNT -- five values below, so 0-4, not 0-2.
+sbatch --gpus-per-node=2 --cpus-per-task=32 --mem=200G --time=03:30:00 --array=0-4 \
        h0_measurement/submit_h0_ctx_sweep.slurm qwen3-30b-a3b-2507 8192 16384 32768 65536 131072
 
 # qwen3-30b-a3b — cap 40,960 (no YaRN; use the -2507 entry for real 128k):
-sbatch --gpus-per-node=2 --cpus-per-task=32 --time=02:30:00 --array=0-4 \
+sbatch --gpus-per-node=2 --cpus-per-task=32 --mem=200G --time=03:30:00 --array=0-4 \
        h0_measurement/submit_h0_ctx_sweep.slurm qwen3-30b-a3b 4096 8192 16384 32768 40960
 ```
 
@@ -257,9 +564,36 @@ python h0_measurement/report.py \
 Regenerating things without a GPU:
 
 ```bash
-python tests/test_units.py               # regression checks, ~30 s
+python tests/test_units.py               # regression checks
 python h1_simulation/run_h1.py           # rebuilds docs/fig1_curves.png + docs/fig4_tau.png
 python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
+```
+
+Run these **inside the venv** (`source .venv/bin/activate`, or call
+`.venv/bin/python` directly) — the bare login-node interpreter has no `pandas`,
+`torch` or `transformers`, and the failure looks like a missing module rather than
+a missing venv.
+
+The login node also enforces a CPU-time rlimit that can kill a single full
+`test_units.py` run partway (it exits 152 with no summary line). Split it:
+
+```bash
+.venv/bin/python -c "
+import sys; sys.argv=['x']
+import tests.test_units as T
+for t in (T.test_lloyd_max, T.test_rotation_and_chunking, T.test_gqa_mapping,
+          T.test_chunked_prefill, T.test_monotone_error, T.test_units_regression): t()
+print('FAILS:', T.fails)"
+
+.venv/bin/python -c "
+import sys; sys.argv=['x']
+import tests.test_units as T
+for t in (T.test_bias_regression, T.test_waterfill_budget, T.test_exact_error_guards,
+          T.test_end_to_end, T.test_p0_alignment, T.test_e2_registry,
+          T.test_e1_budget_policy, T.test_corner_columns, T.test_corpus_prompts,
+          T.test_family_gate, T.test_probe_chunked_prefill, T.test_needle_span,
+          T.test_validity_gate): t()
+print('FAILS:', T.fails)"
 ```
 
 ### Environment knobs
@@ -272,10 +606,29 @@ python h0_measurement/mock_report.py     # rebuilds docs/h0_expected_outputs.pdf
 | `SIEVE_MODELS` | colon-separated model list (survives `sbatch --export`). |
 | `SIEVE_CTX` | matched-context override for `submit_h0.slurm` / `submit_h0_large_models.slurm`: every model runs at this ctx via `--override ctx=`. Rejected per task if above a model's registry ctx. Unset ⇒ per-model registry ctx (§ matched context & ctx sweep). |
 | `SIEVE_MODEL`, `SIEVE_CTXS` | `submit_h0_ctx_sweep.slurm` internals: the swept model tag and colon-separated ctx list, carried into the report resubmission. Set them via the command line, not by hand. |
+| `SIEVE_EVICTORS` | eviction-corner override for the three MEASUREMENT scripts — `--override evictors=`. Quote it; use `;` between corners when a spec carries `k=v` options. NOT forwarded to the chained report (`sbatch --export` is comma-separated); the parquet's `evictors` column carries it instead. No effect on `submit_validity.slurm`, which measures no corner. Unset ⇒ models.yaml defaults (§ Eviction corner). |
+| `SIEVE_CORNER_POLICIES` | budget-policy override, `frac` / `abs` / `frac,abs` — `--override corner_policies=`. Same scope and non-forwarding as `SIEVE_EVICTORS`. |
 | `SIEVE_VENV` | venv to activate. Default `$PROJECT_ROOT/.venv`. |
 | `SIEVE_NO_REPORT=1` | do not chain the report job. |
 | `H0_CORPUS` | directory of real haystack text. Staged by `prefetch_corpus.py`; the slurm scripts default it to `$PROJECT_ROOT/.h0_corpus/pg19`. Unset ⇒ **tier main/large refuses to start** (see § synthetic-haystack confound). |
 | `H0_ALLOW_SYNTHETIC=1` | run main/large on filler anyway. Same as `run_h0.py --allow-synthetic`. `report.py` still stamps the verdict UNKNOWN. |
+
+### Registry knobs (`models.yaml`, or `--override k=v`)
+
+Not environment variables — config keys. `defaults:` applies to every model; a
+model entry overrides it; `--override` overrides both.
+
+| key | default | meaning |
+|---|---|---|
+| `evictors` | `[oracle, last_step, accum, window, recency]` | WHO the eviction corner is. `oracle` is the bound and stays configurable; the verdict keys off the practical ones. `name:k=v,k=v` for options, `@alias` to disambiguate. `none` ⇒ oracle only. |
+| `corner_policies` | `[frac, abs]` | HOW MUCH it may keep. `frac` = `B·L/maxb`; `abs` = capped at `max(corner_kappa·n95, corner_floor)`. |
+| `corner_kappa` | `4.0` | `abs`: keep this many times the head's `n95` support. |
+| `corner_floor` | `256` | `abs`: never fewer than this many tokens. |
+| `kstar` | `true` | the slack diagnostic: smallest keep-count within `kstar_tol` of the full-budget corner. Nearly free — rides the same cumulative pass. |
+| `kstar_points` | `12` | resolution of the geometric K ladder. |
+| `kstar_tol` | `0.10` | "within 10% of the full-budget corner". |
+| `quant_every` | `4` | the expensive bit sweep every N decode steps. Practical columns only exist on those steps — see the caveats above. |
+| `budgets`, `bit_list`, `maxb` | `[1,2,3,4]`, `[1,2,3,4,5,6,8]`, `8` | every budget must be in `bit_list` or the run refuses to start. |
 
 ---
 

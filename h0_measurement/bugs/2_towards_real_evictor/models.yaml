@@ -7,25 +7,13 @@
 #   norm_correct  : vLLM's 'nc'. Set false to run the ablation -- it trades
 #                   shrinkage for variance, and M3 says that trade is wrong
 #                   for an index.
-#   evictors      : WHO the eviction corner is. Names from sievelib/evict.py:
-#                   oracle (current-step a*||v-o||, the UPPER BOUND -- keep it,
-#                   it is the bound gain_best/err_evict are defined against),
-#                   last_step (TOVA), accum (H2O), window (SnapKV), recency
-#                   (StreamingLLM, the floor). Options as name:k=v,k=v and an
-#                   optional @alias. Paper names work as aliases. The VERDICT
-#                   keys off the practical ones; the oracle is reported beside
-#                   them. Each corner costs one cumulative pass per (head,
-#                   budget) and holds ctx*4 B per (layer, head) of CPU state --
-#                   `window` holds that times its `window`, so drop it first if
-#                   a large model runs the host out of RAM.
-#   corner_policies : HOW MUCH the corner may keep. frac = B*L/maxb (the
-#                   literature's definition, linear in L); abs = capped at
-#                   max(corner_kappa*n95, corner_floor), i.e. a multiple of the
-#                   head's own support. Both -> both are measured, and
-#                   corner_bits_used<B>_<policy> records what each spent.
-#   kstar         : the policy-free slack diagnostic. Smallest kept-token count
-#                   within kstar_tol of the full-budget corner. Nearly free --
-#                   it rides the same cumulative pass.
+#   evictors      : DEPLOYABLE eviction corners measured alongside the oracle
+#                   one (which is always measured and cannot be turned off).
+#                   Names from sievelib/evict.py; options as name:k=v,k=v and an
+#                   optional @alias. 'none' measures the oracle corner only.
+#                   Each one costs an extra exact_error per (head, budget) and
+#                   holds ctx*4 bytes per (layer, head) of CPU state -- snapkv
+#                   holds `window` times that, so drop it first if RAM is tight.
 defaults:
   ctx: 131072
   n_prompts: 6
@@ -55,17 +43,10 @@ defaults:
   rot_seed: 0
   maxb: 8
   evictors:
-  - oracle
-  - last_step
-  - accum
-  - window
-  - recency
-  corner_policies:
-  - frac
-  - abs
-  corner_kappa: 4.0
-  corner_floor: 256
-  kstar: true
+  - tova
+  - h2o
+  - snapkv
+  - slm
 models:
 - tag: qwen3-1.7b
   id: Qwen/Qwen3-1.7B

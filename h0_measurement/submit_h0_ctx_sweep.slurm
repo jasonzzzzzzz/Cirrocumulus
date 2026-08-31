@@ -7,7 +7,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-2                  # one task per CTX VALUE; match your ctx list
 #SBATCH --cpus-per-task=16
-#SBATCH --time=01:00:00
+#SBATCH --mem=96G
+#SBATCH --time=01:30:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
 
@@ -30,7 +31,17 @@
 #   sbatch --gpus-per-node=4 --cpus-per-task=32 --time=02:30:00 --array=0-2 \
 #          h0_measurement/submit_h0_ctx_sweep.slurm llama33-70b
 #       # a tier-large model needs the large-tier resources on the command line;
-#       # the header is sized for a 1-H100 model.
+#       # the header is sized for a 1-H100 model. Raise --mem too: the lagged
+#       # evictor state below is per (layer, head) and linear in ctx, so the
+#       # 70B at 131072 wants ~19 GB on top of the weights (--mem=320G).
+#
+# THE EVICTION CORNER (bugs/2_towards_real_evictor), same knobs as submit_h0.slurm:
+#   SIEVE_EVICTORS='oracle,last_step,accum' sbatch ... submit_h0_ctx_sweep.slurm llama31-8b
+#   SIEVE_CORNER_POLICIES=frac              sbatch ... submit_h0_ctx_sweep.slurm llama31-8b
+# This sweep is where the corner axes matter most. E1's `abs` policy caps the
+# corner at a multiple of the head's own support instead of B*L/maxb, and K*
+# measures the slack the fractional budget hands it -- both are ctx-dependent by
+# construction, and only have room to differ at the long end of the sweep.
 #
 # Arg 1 is the model tag (REQUIRED); remaining args are ctx values. The --array
 # range must match the number of ctx values (0-2 for 3 values); a mismatch is
@@ -210,6 +221,8 @@ fi
 # --gpus-per-node=4 for a large model -- the report is pure CPU).
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "model: ${MODEL}"; echo "ctx sweep: ${CTXS[*]}";
+    echo "evictors: ${SIEVE_EVICTORS:-none (models.yaml defaults)}";
+    echo "corner policies: ${SIEVE_CORNER_POLICIES:-none (models.yaml defaults)}";
     echo "array job: ${SLURM_ARRAY_JOB_ID}"; } \
     > "${OUT_DIR}/RUN_INFO.txt"
   REPORT_JOB=$(sbatch --parsable \
@@ -236,9 +249,10 @@ python h0_measurement/prefetch.py -m "$MODEL"
 # device_map=auto would otherwise shard onto too little aggregate VRAM and OOM
 # 20 minutes into the load.
 python - "$MODEL" "$CTX" <<'PY'
-import sys, yaml, torch
+import os, sys, yaml, torch
 from transformers import AutoConfig
 cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
+d = cfg["defaults"]
 m = next(x for x in cfg["models"] if x["tag"] == sys.argv[1])
 ctx = int(sys.argv[2])
 c = AutoConfig.from_pretrained(m["id"], trust_remote_code=True)
@@ -253,9 +267,37 @@ if have < kv_gb * 1.15:
              f"{kv_gb:.0f} GB KV cache for {sys.argv[1]} at ctx {ctx}, before "
              f"weights. Re-submit with --gpus-per-node=4 (see the large-model "
              f"example in the header).")
+
+# HOST RAM for the lagged eviction state (bugs/2_towards_real_evictor): per
+# (layer, head) and LINEAR IN CTX, so on a sweep the long tasks need the most
+# and a --mem sized for the 4k task will OOM-kill the 128k one.
+sys.path.insert(0, os.getcwd())
+from sievelib import evict
+cs = evict.CornerSpec.from_cfg({**d, **m,
+     **({"evictors": os.environ["SIEVE_EVICTORS"]}
+        if os.environ.get("SIEVE_EVICTORS") else {}),
+     **({"corner_policies": os.environ["SIEVE_CORNER_POLICIES"]}
+        if os.environ.get("SIEVE_CORNER_POLICIES") else {})})
+slot = evict.state_bytes_per_slot(cs)
+ev_gb = c.num_hidden_layers * c.num_attention_heads * ctx * slot / 1e9
+mem_mb = int(os.environ.get("SLURM_MEM_PER_NODE") or 0)
+print(f"  corners={list(cs.evictors)}  lagged state={ev_gb:.1f} GB host RAM "
+      f"({slot} B per layer-head-token at ctx {ctx})")
+if mem_mb and ev_gb * 1e9 > 0.25 * mem_mb * 1e6:
+    sys.exit(f"ERROR: the lagged evictor state needs {ev_gb:.1f} GB of host RAM "
+             f"at ctx {ctx}, more than a quarter of the {mem_mb/1024:.0f} GB "
+             f"allocated. Raise --mem, or shrink the corner set: "
+             f"SIEVE_EVICTORS='oracle,last_step,accum,recency' drops `window` "
+             f"(17 of {slot} B/slot), SIEVE_EVICTORS=oracle drops all of it.")
 PY
 
+# One --override carrying every k=v: run_h0.py's --override is nargs="*", so a
+# second flag would REPLACE ctx rather than add to it.
+OVERRIDES=("ctx=$CTX")
+[[ -n "${SIEVE_EVICTORS:-}" ]]        && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
+[[ -n "${SIEVE_CORNER_POLICIES:-}" ]] && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
+echo "overrides: ${OVERRIDES[*]}"
 srun python h0_measurement/run_h0.py \
      --model "$MODEL" \
      --out-dir "$OUT_DIR" \
-     --override ctx="$CTX"
+     --override "${OVERRIDES[@]}"

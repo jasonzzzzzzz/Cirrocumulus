@@ -7,7 +7,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-1                  # one task per model; override for a subset
 #SBATCH --cpus-per-task=32
-#SBATCH --time=02:30:00
+#SBATCH --mem=320G
+#SBATCH --time=03:30:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
 
@@ -22,6 +23,20 @@
 #   sbatch h0_measurement/submit_h0_large_models.slurm
 #   sbatch --array=0-0 h0_measurement/submit_h0_large_models.slurm llama33-70b
 #   SIEVE_CTX=32768 sbatch h0_measurement/submit_h0_large_models.slurm   # matched-ctx
+#
+# THE EVICTION CORNER (bugs/2_towards_real_evictor), same knobs as submit_h0.slurm:
+#   SIEVE_EVICTORS='oracle,last_step,accum' sbatch h0_measurement/submit_h0_large_models.slurm
+#   SIEVE_CORNER_POLICIES=frac              sbatch h0_measurement/submit_h0_large_models.slurm
+#
+# WHY --mem=320G. Host RAM, not VRAM. Two independent consumers:
+#   weights staged through host memory by device_map=auto  ~141 GB for the 70B
+#   lagged evictor state, n_layers*n_heads*ctx*28 B         ~19 GB at ctx 131072
+# The second is new (the corner grid keeps per-(layer,head) history) and is the
+# reason this header now names --mem at all: on the default corner set the 70B at
+# 128k needs ~19 GB that nothing previously asked for. The preflight below prints
+# the exact figure and refuses to start if the allocation cannot hold it.
+# SIEVE_EVICTORS='oracle,last_step,accum,recency' drops it to ~7 GB (`window`
+# alone is 17 of those 28 bytes); SIEVE_EVICTORS=oracle drops it to zero.
 #
 # WHY 4 GPUs (measured from each model's live config, at ctx 131072, bf16):
 #
@@ -118,6 +133,20 @@ if [[ -n "$SIEVE_CTX" && ! "$SIEVE_CTX" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+# Eviction-corner overrides (bugs/2_towards_real_evictor). NOT forwarded through
+# `sbatch --export`: that list is comma-separated, and SIEVE_EVICTORS='oracle,accum'
+# would be parsed as two assignments. The report reads the corner from the
+# parquet's own `evictors` / `corner_policies` columns instead.
+SIEVE_EVICTORS="${SIEVE_EVICTORS:-}"
+SIEVE_CORNER_POLICIES="${SIEVE_CORNER_POLICIES:-}"
+
+# run_h0.py's --override is nargs="*", so a second --override flag REPLACES the
+# first instead of adding to it. One flag, every k=v.
+OVERRIDES=()
+[[ -n "$SIEVE_CTX" ]]              && OVERRIDES+=("ctx=$SIEVE_CTX")
+[[ -n "$SIEVE_EVICTORS" ]]         && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
+[[ -n "$SIEVE_CORNER_POLICIES" ]]  && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
+
 VENV="${SIEVE_VENV:-$PROJECT_ROOT/.venv}"
 # HF_TOKEN is read from an untracked file, never hard-coded here.
 HF_TOKEN_FILE="${HF_TOKEN_FILE:-$PROJECT_ROOT/.hf_token}"
@@ -196,7 +225,7 @@ fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model}"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
@@ -249,7 +278,9 @@ fi
 # 4-GPU queue. --gpus-per-node=0 and the small cpu/mem values undo the header.
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}";
-    echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}"; } \
+    echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}";
+    echo "evictors: ${SIEVE_EVICTORS:-none (models.yaml defaults)}";
+    echo "corner policies: ${SIEVE_CORNER_POLICIES:-none (models.yaml defaults)}"; } \
     > "${OUT_DIR}/RUN_INFO.txt"
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
@@ -280,6 +311,8 @@ python h0_measurement/prefetch.py -m "$MODEL"
 python - "$MODEL" <<'PY'
 import os, sys, yaml, torch
 from transformers import AutoConfig
+sys.path.insert(0, os.getcwd())
+from sievelib import evict
 cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
 d = cfg["defaults"]; m = next(x for x in cfg["models"] if x["tag"] == sys.argv[1])
 ctx = int(os.environ.get("SIEVE_CTX") or m.get("ctx", d["ctx"]))
@@ -294,12 +327,35 @@ if have < kv_gb * 1.15:
     sys.exit(f"ERROR: {have:.0f} GB VRAM across {n} GPU(s) cannot even hold the "
              f"{kv_gb:.0f} GB KV cache for {sys.argv[1]} at ctx {ctx}, before "
              f"weights. Raise --gpus-per-node.")
+
+# HOST RAM for the lagged eviction state (bugs/2_towards_real_evictor). It is
+# per (layer, head) and linear in ctx, so it is largest exactly where this script
+# runs. Same failure mode as the VRAM check: fail before the load, not 20 minutes
+# into it -- an OOM-kill here loses the whole allocation with no parquet.
+cs = evict.CornerSpec.from_cfg({**d, **m,
+     **({"evictors": os.environ["SIEVE_EVICTORS"]}
+        if os.environ.get("SIEVE_EVICTORS") else {}),
+     **({"corner_policies": os.environ["SIEVE_CORNER_POLICIES"]}
+        if os.environ.get("SIEVE_CORNER_POLICIES") else {})})
+slot = evict.state_bytes_per_slot(cs)
+ev_gb = c.num_hidden_layers * c.num_attention_heads * ctx * slot / 1e9
+mem_mb = int(os.environ.get("SLURM_MEM_PER_NODE") or 0)
+print(f"  corners={list(cs.evictors)}  lagged state={ev_gb:.1f} GB host RAM "
+      f"({slot} B per layer-head-token)")
+if mem_mb and ev_gb * 1e9 > 0.25 * mem_mb * 1e6:
+    sys.exit(f"ERROR: the lagged evictor state needs {ev_gb:.1f} GB of host RAM, "
+             f"more than a quarter of the {mem_mb/1024:.0f} GB allocated, and the "
+             f"weights need the rest. Raise --mem, or shrink the corner set: "
+             f"SIEVE_EVICTORS='oracle,last_step,accum,recency' drops `window` "
+             f"(17 of {slot} B/slot), SIEVE_EVICTORS=oracle drops all of it.")
 PY
 
-# ${SIEVE_CTX:+...} appends the override only when SIEVE_CTX is set, so the
-# unset case is byte-identical to the pre-bug-3 invocation.
-srun python h0_measurement/run_h0.py \
-     --model "$MODEL" \
-     --out-dir "$OUT_DIR" \
-     ${SIEVE_CTX:+--override ctx=$SIEVE_CTX}
+# One --override carrying every k=v (see the OVERRIDES note above). With no
+# knobs set the invocation is byte-identical to the pre-bug-2/3 one.
+RUN_ARGS=(--model "$MODEL" --out-dir "$OUT_DIR")
+if (( ${#OVERRIDES[@]} )); then
+  RUN_ARGS+=(--override "${OVERRIDES[@]}")
+  echo "overrides: ${OVERRIDES[*]}"
+fi
+srun python h0_measurement/run_h0.py "${RUN_ARGS[@]}"
 

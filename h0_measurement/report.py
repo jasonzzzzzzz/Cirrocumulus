@@ -535,11 +535,20 @@ def page_phase(pdf, ph, gates=None):
         ax[0].annotate(f"{m}\n{c//1024}k  {b:.0f}%", (x, y), fontsize=6.5,
                        xytext=(6, 4), textcoords="offset points",
                        color="#12414f" if ok else "#9b2c3a")
-    # The sharp boundary is unconstrained anywhere between the 39% and 75% points,
-    # so it is hatched rather than drawn as a line we cannot support.
-    ax[0].axhspan(39, 75, color="#c2334d", alpha=.10, hatch="//", zorder=0)
-    ax[0].text(min(xs), 57, " sharp boundary unconstrained\n (no data between "
-               "39% and 75%)", fontsize=6.5, color="#9b2c3a", va="center")
+    # Hatch only where the sharp boundary is actually unconstrained: the widest
+    # gap between consecutive dead-2 values in the mid-range, and only if it is
+    # wide enough to matter. The original hard-coded 39-75% band described the
+    # first six-point campaign; the ctx sweeps have since filled it, so a fixed
+    # hatch would misrepresent whatever subset of runs this report was given.
+    ys_mid = sorted(y for y in ys if 15 <= y <= 85)
+    if len(ys_mid) >= 2:
+        gaps = [(b - a, a, b) for a, b in zip(ys_mid, ys_mid[1:])]
+        w, lo, hi = max(gaps)
+        if w > 12:
+            ax[0].axhspan(lo, hi, color="#c2334d", alpha=.10, hatch="//", zorder=0)
+            ax[0].text(min(xs), (lo + hi) / 2, f" sharp boundary unconstrained\n "
+                       f"(no data between {lo:.0f}% and {hi:.0f}%)",
+                       fontsize=6.5, color="#9b2c3a", va="center")
     ax[0].set_xlabel("ladder width (bits) — diffuse edge")
     ax[0].set_ylabel("dead 2-bit tier: heads with $\\sigma^2_2 > c_0$  (%)")
     fig.colorbar(sc, ax=ax[0], label="% heads in band")

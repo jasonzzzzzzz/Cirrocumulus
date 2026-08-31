@@ -601,3 +601,46 @@ holds at 4x the context.
    observed retrieval and ~400x above uniform, so it is likely about right — but
    set `MIN_HEADS` from the measured count of heads above it, then flip
    `ENFORCE_HEAD_LEVEL`.
+
+## Post-fix campaign results (jobs 19960861 + 19960863) — the conclusion inverts
+
+First fully valid campaign: real PG-19 text, fixed probe, gate passing on all six
+models (task-level 6/6 on three; head-level on the rest). The bug's fingerprint
+and its removal are visible in every column:
+
+| model | band% old→new | top1 old→new | φ% old→new | dead-2% old→new | verdict |
+|---|---|---|---|---|---|
+| mistral-7b 32k | 84.5 → **41.4** | .005 → .417 | 34.5 → 4.6 | 2.6 → 20.1 | **GO** |
+| qwen15-moe 32k | 68.8 → **20.8** | .017 → .336 | 26.5 → 2.0 | 7.0 → 36.1 | NARROW |
+| llama33-70b 128k | (synth only) → **18.0** | — → .149 | — → 4.0 | — → 41.5 | NARROW |
+| llama31-8b 128k | 69.1 → **12.8** | .017 → .407 | 20.7 → 1.0 | 13.5 → 53.8 | STOP |
+| qwen3-8b 40k | 54.3 → **5.6** | .015 → .181 | 16.6 → 1.1 | 39.1 → 59.8 | STOP |
+| qwen3-30b 128k | 14.1 → **4.1** | .119 → .463 | 2.0 → 0.5 | 75.0 → 73.4 | STOP |
+
+**Why every band fraction fell.** The misaligned mask smeared attention across
+keys the model never meant to attend to, so heads *looked* diffuse (top1 ≈ 0.01,
+φ ≈ 20–35%) and sat mid-band, where allocation beats both corners. On the true
+cache, heads concentrate hard on real content (top1 0.15–0.46, φ 0.5–4.6%), the
+eviction corner catches up (median gain-vs-eviction 1.00–1.75x, vs 25–37x over
+uniform), and the interior loses most of its territory. The old in-band mass was
+largely an artifact of the bug. Retrieval heads exist for the first time, exactly
+as `why.md` predicted: needle mass 0.69–0.95 in the top heads, 34–188 heads
+≥ 0.05 per model.
+
+The dead-2-tier ↔ band anticorrelation survives, now monotone over six points
+(20.1→41.4, 36.1→20.8, 41.5→18.0, 53.8→12.8, 59.8→5.6, 73.4→4.1), so the phase
+axis holds on valid data. But the headline moved: only mistral-7b at 32k is GO,
+and the sharp/evict side owns most models. Note band% still confounds ctx with
+architecture (32k rows sit above 128k rows) — the ctx-sweep campaign (bug 3) is
+what separates them.
+
+**One residual defect found and fixed: the task gate truncated correct answers.**
+Every task-level "miss" in this campaign was a right answer cut off at the first
+digit — `' The access code mentioned above is 6…'` with 66224 the code — because
+n_decode=8 measured steps double as the answer budget and the wordy answer style
+spends ~8 tokens on preamble. `run_h0.py` now continues greedy decode for
+`task_decode_extra` (default 16) unmeasured, row-free tokens before judging.
+`MIN_MASS = 0.05` / `MIN_HEADS = 8` are now calibrated from this campaign
+(weakest model: 34 heads ≥ 0.05; retrieval heads at 0.7–0.95 vs uniform 1.3e-4)
+and `ENFORCE_HEAD_LEVEL = True`, which is what correctly rescued qwen15-moe from
+its truncation-induced 2/6.

@@ -428,6 +428,21 @@ def main():
                             rows.append(rec)
                     del K, V, s_all, shat_all
                     torch.cuda.empty_cache()
+            # Task-gate decode extension. n_decode is a MEASUREMENT parameter (how
+            # many steps get metrics rows) and stays untouched -- but 8 tokens is
+            # not enough to judge retrieval: job19960861/863 showed every task
+            # "miss" was a CORRECT answer truncated at the first digit, because
+            # "The access code mentioned above is 66224." is ~12 tokens and the
+            # wordy answer styles spend the whole budget on the preamble. Continue
+            # greedy decode with the probe off; these tokens produce no rows.
+            if fam == "niah" and meta.get("needle_code"):
+                for _ in range(int(c.get("task_decode_extra", 16))):
+                    with torch.no_grad():
+                        out = model(cur, past_key_values=past, use_cache=True)
+                    past = out.past_key_values
+                    cur = out.logits[:, -1:].argmax(-1)
+                    gen_ids.append(int(cur.reshape(-1)[0].item()))
+                    del out
             del past; gc.collect(); torch.cuda.empty_cache()
 
             # Task-level validity: behavioural ground truth. If the model emits the

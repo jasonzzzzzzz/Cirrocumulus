@@ -33,25 +33,35 @@ Two checks matched to the phenomenon, either of which is sufficient:
      attention mass landing on the needle span exceeds `min_mass`. This is a max,
      not a median, so a small retrieval-head population is enough to register.
 
-CALIBRATION STATUS -- READ BEFORE TIGHTENING
---------------------------------------------
-`MIN_MASS` and `MIN_HEADS` below are NOT yet calibrated against measured data, so
-they are advisory by default (`ENFORCE_HEAD_LEVEL = False`). Enforcing an
-uncalibrated attention threshold is precisely the mistake that produced the
-retired gate: a plausible-looking number vetoing a good run. Run
-`run_h0.py --validity-only`, read the reported max / p99 / counts, and only then
-set these and flip the switch. The task-level check needs no calibration -- the
-model either emitted the code or it did not -- so it is enforced from the start.
+CALIBRATION (jobs 19960861 + 19960863, post probe-fix, PG-19, six models)
+-------------------------------------------------------------------------
+Measured per-head median needle mass, 17-token needle, uniform = 1.3e-4 at 131k:
+
+    model                max     p99    heads >= 0.05
+    mistral-7b          0.947   0.692        142
+    qwen3-8b            0.950   0.703        176
+    llama31-8b          0.857   0.264         56
+    qwen3-30b-2507      0.929   0.518        188
+    llama33-70b         0.693   0.048         51
+    qwen15-moe-a2.7b    0.924   0.392         34   <- weakest retriever
+
+Real retrieval heads sit at 0.7-0.95 -- three orders of magnitude above uniform.
+MIN_MASS = 0.05 is ~400x uniform and ~14x below the weakest observed max;
+MIN_HEADS = 8 keeps a 4x margin under the weakest model's 34 qualifying heads.
+So the head-level check is now ENFORCED: either check passing suffices.
+
+The task-level check is the preferred basis but can read falsely low when
+n_decode is small -- a wordy answer style ("The access code mentioned above
+is ...") is ~8 tokens of preamble, so an 8-token decode truncates a CORRECT
+answer at the first digit. run_h0.py therefore extends the decode by
+`task_decode_extra` (default 16) unmeasured tokens before judging.
 """
 from __future__ import annotations
 import torch
 
-# Uniform attention over a ~20-token needle in a 131k context is 1.5e-4, so
-# MIN_MASS = 0.05 is ~300x uniform. Plausible for a real retrieval head; not yet
-# measured. See CALIBRATION STATUS.
-MIN_MASS = 0.05
-MIN_HEADS = 4
-ENFORCE_HEAD_LEVEL = False   # flip only after calibrating MIN_MASS from real data
+MIN_MASS = 0.05              # ~400x uniform, ~14x under the weakest observed max
+MIN_HEADS = 8                # weakest model measured: 34 heads >= MIN_MASS
+ENFORCE_HEAD_LEVEL = True    # calibrated above; either check now suffices
 MIN_TASK_FRAC = 0.5          # fraction of niah prompts that must retrieve
 
 

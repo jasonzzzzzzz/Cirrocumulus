@@ -1,0 +1,40 @@
+  llama31-8b                128k  band  12.8%  routed 1.25x  -> STOP
+  llama33-70b               128k  band  18.0%  routed 1.34x  -> NARROW
+  mistral-7b                 32k  band  41.4%  routed 1.82x  -> GO
+  qwen15-moe-a2.7b           32k  band  20.8%  routed 1.39x  -> NARROW
+  qwen3-30b-a3b-2507        128k  band   4.1%  routed 1.11x  -> STOP
+  qwen3-8b                   40k  band   5.6%  routed 1.13x  -> STOP
+
+model                        band%      routed        tau          top1        phi%     ladder      dead2%
+----------------------------------------------------------------------------------------------------------
+mistral-7b              84.5->41.4  4.06->1.82 1.94->2.21  0.005->0.417   34.5->4.6 2.68->3.22   2.6->20.1
+llama31-8b              69.1->12.8  2.49->1.25 2.85->2.96  0.017->0.407   20.7->1.0 4.06->4.27  13.5->53.8
+qwen15-moe-a2.7b        68.8->20.8  2.58->1.39 3.04->3.05  0.017->0.336   26.5->2.0 4.29->4.42   7.0->36.1
+qwen3-8b                 54.3->5.6  1.94->1.13 3.15->3.21  0.015->0.181   16.6->1.1 4.42->4.65  39.1->59.8
+qwen3-30b-a3b-2507       14.1->4.1  1.27->1.11 3.15->2.90  0.119->0.463    2.0->0.5 4.55->4.20  75.0->73.4
+llama33-70b                   18.0        1.34       3.34         0.149         4.0       4.84        41.5
+
+llama31-8b           retrieved 6/6  mass: max 0.857 p99 0.264  heads>=0.05: 56  >=0.01: 174
+llama33-70b          retrieved 3/4  mass: max 0.693 p99 0.048  heads>=0.05: 51  >=0.01: 146
+mistral-7b           retrieved 6/6  mass: max 0.947 p99 0.692  heads>=0.05: 142  >=0.01: 287
+qwen15-moe-a2.7b     retrieved 2/6  mass: max 0.924 p99 0.392  heads>=0.05: 34  >=0.01: 81
+qwen3-30b-a3b-2507   retrieved 2/4  mass: max 0.929 p99 0.518  heads>=0.05: 188  >=0.01: 375
+qwen3-8b             retrieved 6/6  mass: max 0.950 p99 0.703  heads>=0.05: 176  >=0.01: 336
+
+
+mechanism: gain vs each corner @3b (per-head medians)
+  llama31-8b           vs uniform     33.6x   vs eviction   1.03x   evict_frac3   52%
+  llama33-70b          vs uniform     36.9x   vs eviction   1.04x   evict_frac3   54%
+  mistral-7b           vs uniform     25.4x   vs eviction   1.75x   evict_frac3   48%
+  qwen15-moe-a2.7b     vs uniform     30.4x   vs eviction   1.05x   evict_frac3   52%
+  qwen3-30b-a3b-2507   vs uniform     29.2x   vs eviction   1.00x   evict_frac3   54%
+  qwen3-8b             vs uniform     29.9x   vs eviction   1.00x   evict_frac3   53%
+
+failed-prompt generations (weak model vs degenerate?):
+  qwen15-moe-a2.7b     p1 MISS: ' The access code for vault 35'
+  qwen15-moe-a2.7b     p2 MISS: ' The access code for vault 25'
+  qwen15-moe-a2.7b     p4 MISS: ' The access code for vault 56'
+  qwen15-moe-a2.7b     p5 MISS: ' The access code for vault 97'
+  qwen3-30b-a3b-2507   p0 MISS: ' The access code mentioned above is 6'
+  qwen3-30b-a3b-2507   p2 MISS: ' The access code mentioned above is 3'
+  llama33-70b          p1 MISS: ' The access code mentioned above is 434'

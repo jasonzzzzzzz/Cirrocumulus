@@ -1,0 +1,61 @@
+=== CTX SWEEPS (fixed model, ctx varies) ===
+
+llama31-8b:
+      ctx  band%  routed  dead2%   phi%   top1  gainE3  hits h>=.05  job
+    4,096   46.3    1.93    14.4   2.57  0.653    1.85   6/6    132  job19960531
+    8,192   39.3    1.78    18.9   1.81  0.646    1.68   6/6     79  job19960531
+   16,384   33.0    1.65    23.4   1.52  0.638    1.41   6/6     67  job19960531
+   32,768   25.0    1.49    26.5   0.85  0.622    1.19   6/6     61  job19959944
+   65,536   17.5    1.33    30.3   0.58  0.606    1.07   6/6     44  job19960531
+  131,072   12.5    1.25    53.9   0.96  0.407    1.03   6/6     57  job19960531
+
+qwen3-30b-a3b-2507:
+      ctx  band%  routed  dead2%   phi%   top1  gainE3  hits h>=.05  job
+    8,192   10.3    1.25    60.6   1.05  0.511    1.06   2/4    296  job19960567
+   16,384    7.8    1.21    63.4   1.06  0.482    1.04   2/4    248  job19960567
+   32,768    6.2    1.17    65.9   0.77  0.480    1.03   0/4    215  job19960567
+  131,072    4.1    1.11    73.4   0.52  0.463    1.00   2/4    188  job19960863
+
+=== MATCHED CTX (all 6 models, same ctx) ===
+
+ctx 8,192:
+  llama33-70b          band  79.1%  routed  3.06x  dead2   5.8%  phi  0.42%  hits 4/4  h05 134
+  mistral-7b           band  51.3%  routed  2.07x  dead2   9.3%  phi  5.13%  hits 6/6  h05 193
+  llama31-8b           band  39.3%  routed  1.78x  dead2  18.8%  phi  1.82%  hits 6/6  h05 79
+  qwen15-moe-a2.7b     band  29.4%  routed  1.59x  dead2  24.3%  phi  2.29%  hits 0/6  h05 67
+  qwen3-30b-a3b-2507   band  10.1%  routed  1.25x  dead2  60.5%  phi  1.03%  hits 2/4  h05 298
+  qwen3-8b             band   9.1%  routed  1.22x  dead2  47.9%  phi  1.48%  hits 6/6  h05 257
+
+ctx 32,768:
+  llama33-70b          band  58.5%  routed  2.29x  dead2   9.2%  phi  0.18%  hits 4/4  h05 95
+  mistral-7b           band  41.5%  routed  1.82x  dead2  20.1%  phi  4.61%  hits 6/6  h05 142
+  llama31-8b           band  25.0%  routed  1.49x  dead2  26.5%  phi  0.85%  hits 6/6  h05 61
+  qwen15-moe-a2.7b     band  20.1%  routed  1.39x  dead2  37.1%  phi  1.99%  hits 2/6  h05 34
+  qwen3-30b-a3b-2507   band   6.4%  routed  1.17x  dead2  65.8%  phi  0.75%  hits 0/4  h05 213
+  qwen3-8b             band   6.1%  routed  1.13x  dead2  57.5%  phi  0.94%  hits 6/6  h05 204
+
+consistency, llama31-8b @131k twice: ['job19960531: 12.5%', 'job19960861: 12.8%']
+consistency, qwen3-30b @32k twice:  ['job19960567: 6.2%', 'job19960027: 6.4%']
+
+
+wrote h0_measurement/reports/h0_report_ctx_pooled.pdf
+  llama31-8b                  4k  band  46.3%  routed 1.93x  -> GO
+  llama31-8b                  8k  band  39.4%  routed 1.78x  -> GO
+  llama31-8b                 16k  band  33.0%  routed 1.65x  -> NARROW
+  llama31-8b                 32k  band  25.6%  routed 1.49x  -> NARROW
+  llama31-8b                 64k  band  17.5%  routed 1.33x  -> NARROW
+  llama31-8b                128k  band  12.7%  routed 1.25x  -> STOP
+  llama33-70b                 8k  band  79.1%  routed 3.06x  -> GO
+  llama33-70b                32k  band  58.5%  routed 2.29x  -> GO
+  llama33-70b               128k  band  18.0%  routed 1.34x  -> NARROW
+  mistral-7b                  8k  band  51.3%  routed 2.07x  -> GO
+  mistral-7b                 32k  band  41.2%  routed 1.82x  -> GO
+  qwen15-moe-a2.7b            8k  band  29.4%  routed 1.59x  -> NARROW
+  qwen15-moe-a2.7b           32k  band  20.1%  routed 1.39x  -> NARROW
+  qwen3-30b-a3b-2507          8k  band  10.2%  routed 1.25x  -> STOP
+  qwen3-30b-a3b-2507         16k  band   7.8%  routed 1.21x  -> STOP
+  qwen3-30b-a3b-2507         32k  band   6.4%  routed 1.17x  -> STOP
+  qwen3-30b-a3b-2507        128k  band   4.1%  routed 1.11x  -> STOP
+  qwen3-8b                    8k  band   9.1%  routed 1.22x  -> STOP
+  qwen3-8b                   32k  band   6.1%  routed 1.13x  -> STOP
+  qwen3-8b                   40k  band   5.6%  routed 1.13x  -> STOP

@@ -529,7 +529,7 @@ def test_validity_gate():
                 for h in range(nh):
                     rows.append(dict(prompt=p, layer=l, head=h,
                                      needle_hit=p < round(n_prompts * hit_frac),
-                                     needle_mass=mass_hi if (l * nh + h) % 5 == 0
+                                     needle_mass=mass_hi if (l * nh + h) % 4 == 0
                                      else 1e-4))
         return pd.DataFrame(rows)
 
@@ -541,13 +541,16 @@ def test_validity_gate():
     check("failure names the real reason, not a ladder delta",
           "retrieved the code in only" in r["reason"], f"({r['reason']})")
 
-    # [REGRESSION] MIN_MASS is uncalibrated, so head-level evidence must not
-    # silently pass a run on its own -- that is how the retired gate got shipped.
+    # Head-level is CALIBRATED (jobs 19960861/863: retrieval heads at 0.7-0.95
+    # mass, weakest model 34 heads >= 0.05) and therefore enforced: a model whose
+    # heads find the needle passes even when the decoded answer was truncated
+    # before the code -- the qwen15-moe false-negative case.
     r = V.summarize(frame(0.0, 0.4))
-    check("[REGRESSION] head-level alone is advisory, not enforced",
+    check("heads on the needle pass despite a truncated task read",
+          r["passed"] and r["basis"] == "head_level", f"(basis={r['basis']})")
+    r = V.summarize(frame(0.0, 0.4), enforce_head=False)
+    check("...and enforce_head=False demotes that to advisory",
           "advisory" in r["basis"], f"(basis={r['basis']})")
-    r = V.summarize(frame(0.0, 0.4), enforce_head=True)
-    check("...but enforceable once calibrated", r["basis"] == "head_level")
 
     # [REGRESSION] the retired statistic must never gate again.
     rg = V.retired_ladder_gate(4.06, 4.05, 0.52)

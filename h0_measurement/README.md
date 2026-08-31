@@ -291,7 +291,7 @@ Kept deliberately short since there is no VCS here.
   crossover, and `eff_frac = n95/L` each plotted against ctx, drawn whenever a
   model appears at ≥ 2 ctx values and skipped otherwise, so single-ctx reports
   are unchanged. The sink-excluded φ piece of bug 3 is deliberately NOT in this
-  round; see `bugs/3_context_sweep_and_reports/plan.md`.
+  round; see `bugs/3_context_sweep_and_reports/plan.md`. Results are in `h0_measurement/reports/h0_report_ctx_pooled.pdf`. 
 
 - **Validity gate replaced (bug 1, round two).** The niah-vs-cont ladder gate was
   unpassable by construction — the ladder is a bulk second moment and a needle is

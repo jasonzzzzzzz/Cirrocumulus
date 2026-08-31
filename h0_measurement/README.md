@@ -378,6 +378,66 @@ report does not need it: every parquet row carries `evictors` and
 `corner_policies`, and `report.py` names the corner on each verdict line from
 those. `RUN_INFO.txt` records them too.
 
+### Which corner did THIS parquet use?
+
+Three places record it, in increasing authority.
+
+**1. The `.json` sidecar beside every parquet — always written, authoritative.**
+One per result file, written by the task that produced it, so it records what was
+actually resolved and run (not what the submitter asked for):
+
+```bash
+$ ls h0_measurement/results/job861234/
+h0_llama31-8b_131072.parquet   h0_llama31-8b_131072.json   RUN_INFO.txt
+
+$ python -c "import json;print(json.load(open('h0_measurement/results/job861234/h0_llama31-8b_131072.json'))['corner'])"
+{'evictors': ['oracle','last_step','accum','window','recency'],
+ 'practical': ['last_step','accum','window','recency'], 'policies': ['frac','abs'],
+ 'kappa': 4.0, 'floor': 256, 'kstar': True, 'kstar_tol': 0.1,
+ 'state_bytes_per_layer_head_token': 28, 'tag': 'or-la-ac-wi-re_fa'}
+```
+
+The sidecar also carries the full merged config (`budgets`, `bit_list`,
+`quant_every`, `corpus_sha`, …), so a result is reproducible from its own output.
+
+**2. `RUN_INFO.txt` — per array, now resolved rather than echoed.** It used to
+print `evictors: none (models.yaml defaults)`, which does not say what those
+defaults *were*. It now records the knob **and** the effective corner per model:
+
+```
+evictors knob: unset
+corner policies knob: unset
+
+effective corner per model (authoritative copy: the .json beside each parquet)
+  qwen3-8b               ctx=40960   or-la-ac-wi-re_fa
+                         evictors=oracle,last_step,accum,window,recency  policies=frac,abs  kappa=4 floor=256  kstar_tol=0.1
+```
+
+**3. The filename — opt-in, off by default.** Set `corner_in_filename: true`
+(models.yaml or `--override`) to put the fingerprint in the name. Enable it when
+one results dir holds several corner configurations: without it, two configs of
+the same model at the same ctx produce the **same filename** and collide.
+
+```bash
+python h0_measurement/run_h0.py --model qwen3-8b --out-dir results/sweep \
+       --override corner_in_filename=true
+# -> h0_qwen3-8b_40960__or-la-ac-wi-re_fa.parquet   (+ the matching .json)
+
+SIEVE_EVICTORS='oracle,accum' \
+  sbatch h0_measurement/submit_h0.slurm      # add corner_in_filename to models.yaml
+                                             # defaults to tag a whole campaign
+```
+
+Tag grammar: two letters per evictor, one per policy, then only the parameters
+that actually applied — `or-la-ac-wi-re_fa`, `or-ac_f`, `or-ac_fa_k8_f512`,
+`..._noks` when K* is off. It disambiguates; it does not reconstruct (use the
+sidecar for that). Off by default because turning it on changes every filename.
+
+Everything is also on **every row** of the parquet — `evictors`,
+`corner_policies`, `corner_kappa`, `corner_floor`, `kstar_tol` — which is what
+`report.py` reads; it never consults RUN_INFO, models.yaml, or the environment.
+Pool two runs with different settings and it warns rather than majority-voting.
+
 ### Resources: the corner costs host RAM
 
 The lagged evictor state is **host** RAM, per (layer, head), linear in ctx:

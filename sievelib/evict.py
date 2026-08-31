@@ -319,6 +319,55 @@ def corner_tokens(policy: str, B: float, L: int, maxb: int,
     raise ValueError(f"unknown corner policy {policy!r}; use 'frac' or 'abs'")
 
 
+def corner_tag(corner: "CornerSpec") -> str:
+    """Short filesystem-safe fingerprint of a corner configuration.
+
+    For putting the corner INTO the parquet filename, so a results directory
+    holding several corner configurations is readable at `ls` rather than only
+    after opening each file. Two-letter evictor prefixes, one-letter policies,
+    and only the parameters that actually applied:
+
+        oracle,last_step,accum,window,recency + frac,abs   -> or-la-ac-wi-re_fa
+        oracle,accum + frac                                -> or-ac_f
+        ... with corner_kappa=8                            -> or-ac_fa_k8
+
+    Deliberately lossy -- it disambiguates, it does not reconstruct. The full
+    effective config is written to the sidecar JSON beside the parquet.
+    """
+    ev = "-".join(lab[:2] for lab in labels(corner.evictors)) or "none"
+    pol = "".join(p[0] for p in corner.policies)
+    tag = f"{ev}_{pol}"
+    if "abs" in corner.policies:
+        d = CornerSpec()
+        if float(corner.kappa) != float(d.kappa):
+            tag += f"_k{corner.kappa:g}"
+        if int(corner.floor) != int(d.floor):
+            tag += f"_f{int(corner.floor)}"
+    if not corner.kstar:
+        tag += "_noks"
+    return tag
+
+
+def config_record(corner: "CornerSpec") -> dict:
+    """The FULL effective corner configuration, for the sidecar JSON.
+
+    Unlike `corner_tag` this is lossless: everything needed to reproduce the
+    corner columns, including the parameters that only matter for one policy.
+    """
+    return {"evictors": list(corner.evictors),
+            "evictor_labels": labels(corner.evictors),
+            "oracle": corner.oracle_label,
+            "practical": list(corner.practical),
+            "policies": list(corner.policies),
+            "kappa": corner.kappa if "abs" in corner.policies else None,
+            "floor": corner.floor if "abs" in corner.policies else None,
+            "kstar": corner.kstar,
+            "kstar_points": corner.kstar_points if corner.kstar else None,
+            "kstar_tol": corner.kstar_tol if corner.kstar else None,
+            "state_bytes_per_layer_head_token": state_bytes_per_slot(corner),
+            "tag": corner_tag(corner)}
+
+
 def state_bytes_per_slot(corner: "CornerSpec") -> int:
     """Host RAM the lagged evictor state costs per (layer, head, cache position).
 

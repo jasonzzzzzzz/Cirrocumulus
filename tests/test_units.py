@@ -430,6 +430,45 @@ def test_e1_budget_policy():
           f"(K*={mx['kstar3']} = {100*mx['kstar_frac3']:.1f}% of budget)")
 
 
+def test_corner_provenance():
+    print("\n[provenance] the corner config must be recoverable from the output")
+    d = evict.CornerSpec()
+    check("default tag is stable and filesystem-safe",
+          evict.corner_tag(d) == "or-la-ac-wi-re_fa", f"({evict.corner_tag(d)})")
+    check("tag tracks the evictor set",
+          evict.corner_tag(evict.CornerSpec.from_cfg(
+              {"evictors": ["oracle", "accum"], "corner_policies": ["frac"]}))
+          == "or-ac_f")
+    check("tag records kappa/floor ONLY when abs actually runs",
+          evict.corner_tag(evict.CornerSpec.from_cfg(
+              {"evictors": ["oracle", "accum"], "corner_policies": ["frac"],
+               "corner_kappa": 8})) == "or-ac_f"
+          and evict.corner_tag(evict.CornerSpec.from_cfg(
+              {"evictors": ["oracle", "accum"], "corner_policies": ["frac", "abs"],
+               "corner_kappa": 8, "corner_floor": 512})) == "or-ac_fa_k8_f512")
+    check("tag records a disabled K*",
+          evict.corner_tag(evict.CornerSpec.from_cfg({"kstar": False})).endswith("_noks"))
+    check("distinct configs get distinct tags",
+          len({evict.corner_tag(evict.CornerSpec.from_cfg(c)) for c in (
+              {}, {"corner_policies": ["frac"]}, {"evictors": ["oracle"]},
+              {"corner_policies": ["frac", "abs"], "corner_kappa": 8},
+              {"kstar": False})}) == 5)
+
+    rec = evict.config_record(evict.CornerSpec.from_cfg(
+        {"evictors": ["oracle", "accum"], "corner_policies": ["frac", "abs"],
+         "corner_kappa": 8, "corner_floor": 512}))
+    check("config_record is lossless enough to rebuild the corner",
+          rec["policies"] == ["frac", "abs"] and rec["kappa"] == 8.0
+          and rec["floor"] == 512 and rec["practical"] == ["accum"]
+          and rec["oracle"] == "oracle" and rec["tag"] == "or-ac_fa_k8_f512")
+    check("config_record nulls parameters that did not apply",
+          evict.config_record(evict.CornerSpec.from_cfg(
+              {"corner_policies": ["frac"], "kstar": False}))["kappa"] is None)
+    import json
+    json.dumps(rec)          # must survive the sidecar round-trip
+    check("config_record is JSON-serialisable", True)
+
+
 def test_corner_columns():
     print("\n[E1+E2] the corner grid reaches the output frame")
     torch.manual_seed(0)
@@ -817,7 +856,7 @@ if __name__ == "__main__":
               test_chunked_prefill, test_monotone_error, test_units_regression,
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
               test_end_to_end, test_p0_alignment, test_e2_registry,
-              test_e1_budget_policy, test_corner_columns,
+              test_e1_budget_policy, test_corner_columns, test_corner_provenance,
               test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
               test_needle_span, test_validity_gate):

@@ -26,6 +26,13 @@
 #   kstar         : the policy-free slack diagnostic. Smallest kept-token count
 #                   within kstar_tol of the full-budget corner. Nearly free --
 #                   it rides the same cumulative pass.
+#   corner_in_filename : put the corner fingerprint INTO the parquet name, e.g.
+#                   h0_qwen3-8b_40960__or-la-ac-wi-re_fa.parquet. Off by default
+#                   (it changes every filename). Turn it on when one results dir
+#                   holds several corner configurations -- without it, two configs
+#                   of the same model at the same ctx collide on one filename.
+#                   The full effective config is ALWAYS written to a .json sidecar
+#                   beside each parquet regardless of this setting.
 defaults:
   ctx: 131072
   n_prompts: 6
@@ -66,6 +73,7 @@ defaults:
   corner_kappa: 4.0
   corner_floor: 256
   kstar: true
+  corner_in_filename: false
 models:
 - tag: qwen3-1.7b
   id: Qwen/Qwen3-1.7B

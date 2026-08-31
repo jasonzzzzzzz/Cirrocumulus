@@ -249,6 +249,17 @@ def main():
               + ("   (none: no stateful evictor configured)" if not slot else
                  "   (drop `window` first if the host runs out)"), flush=True)
 
+    # The corner's own PARAMETERS, stamped into every row. Without these the abs
+    # policy is not reproducible from its own output: corner_tokens<B>_abs at
+    # kappa=8 looks identical in kind to kappa=4 and is silently incomparable.
+    # NaN where the setting did not apply, so a column is never present but
+    # meaningless (a frac-only run has no kappa; a validity run has neither).
+    _abs_on = "abs" in ev_policies
+    _kstar_on = bool(corner.kstar and ev_labels and corner.oracle_label)
+    ev_kappa = float(corner.kappa) if _abs_on else float("nan")
+    ev_floor = float(corner.floor) if _abs_on else float("nan")
+    ev_ktol = float(corner.kstar_tol) if _kstar_on else float("nan")
+
     P.install()
     tok = AutoTokenizer.from_pretrained(c["id"], trust_remote_code=True)
     # A cache holding only weights (from_pretrained on the MODEL never fetches
@@ -473,6 +484,9 @@ def main():
                                        norm_correct=norm_correct,
                                        evictors=",".join(ev_labels),
                                        corner_policies=",".join(ev_policies),
+                                       corner_kappa=ev_kappa,
+                                       corner_floor=ev_floor,
+                                       kstar_tol=ev_ktol,
                                        corpus_source=meta["source"],
                                        corpus_doc=meta["doc"] or "",
                                        corpus_offset=meta["offset"] or 0,
@@ -523,9 +537,37 @@ def main():
     df["needle_hit"] = [bool(hits.get(k, False)) for k in key]
     df["generated"] = [gens.get(k, "")[:60] for k in key]
     kind = "validity" if args.validity_only else "h0"
-    out = os.path.join(args.out_dir, f"{kind}_{c['tag']}_{c['ctx']}.parquet")
+    # `corner_in_filename: true` (models.yaml or --override) puts the corner
+    # fingerprint INTO the parquet name, so a results dir holding more than one
+    # corner configuration is legible at `ls` and two configs of the same model
+    # at the same ctx stop colliding on one filename. OFF by default: enabling it
+    # changes every filename, and existing globs/manifests assume today's shape.
+    stem = f"{kind}_{c['tag']}_{c['ctx']}"
+    if not args.validity_only and bool(c.get("corner_in_filename", False)):
+        stem += f"__{evict.corner_tag(corner)}"
+    out = os.path.join(args.out_dir, f"{stem}.parquet")
     df.to_parquet(out)
+    # Sidecar with the FULL effective configuration, always, one per parquet.
+    # This is the authoritative per-result provenance: RUN_INFO.txt records what
+    # the submitter asked for (and is written once per array, by task 0), while
+    # this records what this task actually resolved and ran.
+    side = os.path.join(args.out_dir, f"{stem}.json")
+    with open(side, "w") as fh:
+        json.dump({"parquet": os.path.basename(out),
+                   "model": c["tag"], "model_id": c["id"], "ctx": int(c["ctx"]),
+                   "kind": kind, "rows": int(len(df)),
+                   "corner": (evict.config_record(corner)
+                              if not args.validity_only else None),
+                   "budgets": list(budgets), "bit_list": list(bit_list),
+                   "maxb": int(maxb), "quant_every": int(c.get("quant_every", 1)),
+                   "n_prompts": int(c["n_prompts"]), "n_decode": int(c["n_decode"]),
+                   "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
+                   "corpus_sha": pf.get("corpus_sha"),
+                   "config": {k: v for k, v in c.items()}}, fh, indent=1, default=str)
     print(f"\nwrote {out}  ({len(df):,} rows, {time.time()-t0:.0f}s)")
+    print(f"wrote {side}  (effective config"
+          + (f", corner {evict.corner_tag(corner)}" if not args.validity_only else "")
+          + ")")
 
     if hits:
         n_hit, n_tot = sum(hits.values()), len(hits)

@@ -101,6 +101,26 @@ def band_series(g, B=3):
     return s, kind
 
 
+def cfg_value(src, col):
+    """A CONFIG column's value, or a `mixed(...)` marker.
+
+    `evictors` / `corner_policies` / `corner_kappa` describe the run, so within
+    one run they are constant. Pooling two RUN_IDs that used different corner
+    settings is legitimate (the README documents globbing several results dirs),
+    but taking a mode over them would silently describe the whole PDF by whichever
+    run contributed more rows. Say `mixed` instead and let the reader split.
+
+    NOT for `best_evictor<B>`: which evictor wins is a per-head OUTCOME and is
+    expected to vary, so a mode there is the right summary.
+    """
+    if col not in src:
+        return ""
+    vals = sorted({str(v) for v in src[col].dropna()} - {"", "nan"})
+    if not vals:
+        return ""
+    return vals[0] if len(vals) == 1 else "mixed(" + " | ".join(vals) + ")"
+
+
 def corner_label(g, B=3, raw=None):
     """Name the corner the verdict keyed off, for the VERDICT line.
 
@@ -117,11 +137,8 @@ def corner_label(g, B=3, raw=None):
         vc = src[f"best_evictor{B}"].dropna()
         if len(vc):
             who = str(vc.mode().iloc[0])
-    pol = ""
-    if "corner_policies" in src:
-        pv = src["corner_policies"].dropna()
-        if len(pv):
-            pol = "/" + str(pv.mode().iloc[0]).split(",")[0]
+    pol = cfg_value(src, "corner_policies")
+    pol = ("/" + (pol if pol.startswith("mixed") else pol.split(",")[0])) if pol else ""
     bound = ""
     if f"oracle_evict_advantage{B}" in g:
         oa = g[f"oracle_evict_advantage{B}"].dropna()
@@ -331,10 +348,17 @@ def page_summary(pdf, df, ph, gates):
         bits = sorted((c for c in g.columns if c.startswith("corner_bits_used3_")),
                       key=lambda c: (not c.endswith("_frac"), c))
         if bits:
+            # `abs` is only reproducible with kappa/floor, so print them beside it.
+            ab = ""
+            if rsub is not None and "corner_kappa" in rsub:
+                k = cfg_value(rsub, "corner_kappa")
+                fl = cfg_value(rsub, "corner_floor")
+                if k:
+                    ab = f"   [abs = min(frac, max({k}*n95, {fl}))]"
             txt.append("    CORNER SPEND @3b  " + "   ".join(
                 f"{c[len('corner_bits_used3_'):]}: {g[c].median():.2f} b/tok "
                 f"({g['corner_tokens3_' + c[len('corner_bits_used3_'):]].median():,.0f} tok)"
-                for c in bits if 'corner_tokens3_' + c[len('corner_bits_used3_'):] in g))
+                for c in bits if 'corner_tokens3_' + c[len('corner_bits_used3_'):] in g) + ab)
         if "kstar3" in g:
             ks = g["kstar3"].dropna()
             extra = (f"   = {g['kstar_over_n953'].median():.1f}x n95"
@@ -742,6 +766,17 @@ def main():
               f"{0 if val is None else len(val):,} rows")
     ph = per_head(raw)
     gates = family_gate(raw, val)
+    # Pooling results dirs is a documented workflow, but pooling runs that used
+    # DIFFERENT corner settings makes the corner columns non-comparable -- the
+    # abs cells especially, which depend on kappa/floor. Say so once, loudly,
+    # rather than letting a mode() describe the whole PDF by the bigger run.
+    for col in ("evictors", "corner_policies", "corner_kappa", "corner_floor"):
+        v = cfg_value(raw, col)
+        if v.startswith("mixed"):
+            print(f"WARNING: the inputs pool runs with different {col}: {v}\n"
+                  f"         corner columns are NOT comparable across them; "
+                  f"split the globs or filter on `{col}` before reading the "
+                  f"corner panels.")
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with PdfPages(args.out) as pdf:
         page_summary(pdf, raw, ph, gates)

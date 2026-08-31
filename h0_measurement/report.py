@@ -359,7 +359,7 @@ def page_summary(pdf, df, ph, gates):
                 f"{c[len('corner_bits_used3_'):]}: {g[c].median():.2f} b/tok "
                 f"({g['corner_tokens3_' + c[len('corner_bits_used3_'):]].median():,.0f} tok)"
                 for c in bits if 'corner_tokens3_' + c[len('corner_bits_used3_'):] in g) + ab)
-        if "kstar3" in g:
+        if "kstar3" in g and "kstar_frac3" in g and g["kstar3"].notna().any():
             ks = g["kstar3"].dropna()
             extra = (f"   = {g['kstar_over_n953'].median():.1f}x n95"
                      if "kstar_over_n953" in g else "")
@@ -376,12 +376,24 @@ def page_summary(pdf, df, ph, gates):
         txt.append(f"    top-1 weight   median {g['top1'].median():.4f}   "
                    f"95% mass in {g['n95'].median():.0f} tokens "
                    f"({100*g['eff_frac'].median():.1f}% of ctx)")
+        # Build from whichever columns EXIST. `gain_u<B>` is written for every
+        # measured budget, but the eviction columns are not: a run configured
+        # without the oracle corner, or one whose bit_list lacks maxb, emits
+        # gain_u<B> and no gain_e<B>. Guarding on gain_u alone and then indexing
+        # gain_e/gain_best/evict_frac is what produced
+        # `KeyError: 'gain_e2'` in logs/h0_report_19984014.err.
         for B in (2, 3):
-            if f"gain_u{B}" in g:
-                txt.append(f"    B={B}b  vs uniform {g[f'gain_u{B}'].median():6.1f}x"
-                           f"   vs eviction {g[f'gain_e{B}'].median():6.1f}x"
-                           f"   vs BEST corner {g[f'gain_best{B}'].median():6.1f}x"
-                           f"   evicts {100*g[f'evict_frac{B}'].median():.0f}%")
+            if f"gain_u{B}" not in g:
+                continue
+            parts = [f"    B={B}b  vs uniform {g[f'gain_u{B}'].median():6.1f}x"]
+            for col, lab in ((f"gain_e{B}", "vs eviction"),
+                             (f"gain_practical{B}", "vs practical"),
+                             (f"gain_best{B}", "vs BEST corner")):
+                if col in g and g[col].notna().any():
+                    parts.append(f"   {lab} {g[col].median():6.1f}x")
+            if f"evict_frac{B}" in g and g[f"evict_frac{B}"].notna().any():
+                parts.append(f"   evicts {100*g[f'evict_frac{B}'].median():.0f}%")
+            txt.append("".join(parts))
         if "alpha2" in g:
             txt.append(f"    quantizer alpha @2b {g['alpha2'].median():.3f} "
                        f"(1.0 = no temperature distortion);  spearman@2b "

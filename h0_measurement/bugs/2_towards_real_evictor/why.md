@@ -1,4 +1,28 @@
-
+> **HISTORICAL — read `report.md` for what the data actually said.**
+>
+> This file is the original rationale for the bug, kept as the record of the
+> reasoning that motivated the work. Three of its claims were tested and are
+> **wrong**; they are corrected in `plan.md` ("The two places the plan was wrong")
+> and `report.md`:
+>
+> 1. **"Provably monotone … band fractions can only rise."** False per head. The
+>    `oracle` is an oracle only w.r.t. the first-order proxy `w²=(a·‖v−o‖)²`,
+>    while the reported error is exact recomputation. A practical corner beats the
+>    oracle on **15.9% of head-rows**. The direction holds only in aggregate — do
+>    not use it as a bug detector.
+> 2. **"The deflation is strongest exactly for the sharp models."** Backwards. The
+>    oracle's advantage is largest on **diffuse** heads:
+>    `spearman(oracle_advantage, n₉₅)` is positive in **24 of 24 runs**. On a sharp
+>    head the heavy hitter is stable across steps, so lagged attention tracks it
+>    perfectly.
+> 3. **"qwen3-30B … 99% of out-of-band heads were out because oracle eviction was
+>    near-lossless."** The mechanism was real but the prediction of where the lift
+>    would land was not: qwen3-30B gained +13.8 to +23.5 points, *less* than the
+>    diffuse models, precisely because its corner was already near-optimal.
+>
+> What survived: the core argument that an oracle corner is not a baseline any
+> deployable system can field, and that fixing it was the highest-value change.
+> Every STOP verdict disappeared.
 
 Its bias is systematically against your hypothesis: every in-band fraction is deflated because the eviction corner is an oracle no deployable system has, and the deflation is strongest exactly for the sharp models the current table says STOP. The headline your own docs promise (alloc.py) simply does not exist in the data. It ranks below P1 only because a fixed practical corner measured on filler is still uninterpretable.
 

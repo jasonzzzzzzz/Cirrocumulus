@@ -1,12 +1,21 @@
-# Fix: an honest eviction corner (P0 + E2 + E1)
+# Fix: an honest eviction corner
 
-Reconciled against the LIVE tree (probe fix, validity gate, `--validity-only`,
-needle columns). The drafts in this directory predate all of that and were used
-as reference only; nothing was copied wholesale.
+Four defects, one code change set. **Results are in `report.md`; this file is the
+engineering record — what broke, what changed, and how to reproduce it.**
 
-**Scope: P0, E2, E1. E2b (the practical-INTERIOR cell) is NOT implemented** — the
-interior still waterfills on oracle sensitivity. The plumbing it needs
-(`practical_scores`) is in place, so it is an additive change later.
+| # | defect | effect if unfixed |
+|---|---|---|
+| **P0** | the lagged score was never computed (an off-by-one guard rejected every step) | the practical corner had **never run**, in any campaign |
+| **E2** | the eviction corner ranked by an *oracle* score no deployable system has | every band fraction deflated by 6–29 points |
+| **E1** | the corner's budget was a fixed fraction of L, untested against head support | the "corner wins on slack" hypothesis was unmeasurable |
+| **P1** | `min` over the practical corners collapsed onto the weakest one on step 0 | band inflated by ~29 points; the ctx curve came out **non-monotone** |
+
+P0/E2/E1 were planned (`plan.md`). **P1 was discovered by the fix itself** — it
+only becomes reachable once more than one practical evictor exists.
+
+**Out of scope: E2b, the practical-INTERIOR cell.** The interior still waterfills
+on oracle sensitivity, so the comparison remains asymmetric in the interior's
+favour. The plumbing it needs (`practical_scores`) is in place; see `plan.md`.
 
 ---
 
@@ -73,6 +82,37 @@ measured support, with `corner_bits_used` recording what it declined to spend.
 Plus the diagnostic that needs no policy choice: **K\***, the smallest kept-token
 count within `kstar_tol` of the full-budget corner.
 
+### P1 — a `min` over corners with different availability
+
+The verdict corner is `min` over the configured practical evictors, so the
+baseline is as strong as any deployable system could make it. But the evictors do
+not all become available at the same time: `recency` scores from position alone
+and needs no history, while `accum` and `window` need a prior decode step. **On
+step 0 the `min` therefore collapses onto the one corner that is always available,
+which is also the weakest.** With `quant_every: 4, n_decode: 8` the quant steps are
+0 and 4, so half of every campaign's rows compared the interior against
+StreamingLLM alone.
+
+The guard is one condition — emit the aggregate only when every configured evictor
+scored:
+
+```python
+_complete = bool(scores) and (set(corner.practical).issubset(scores)
+                              or set(scores) == {"practical"})
+if _complete:
+    ...                       # err_practical, gain_best_practical, best_evictor, ...
+```
+
+Otherwise the columns are absent (NaN), so any `median`/`dropna` drops the row by
+itself. Per-evictor cells still record whatever *did* score.
+
+`report.py.drop_partial_corners()` applies the same rule to parquets written
+before the guard, keyed on `n_practical` against the `evictors` provenance column.
+
+**The generalisable lesson:** a baseline defined as a minimum over several methods
+silently becomes the weakest of them wherever the others are undefined. Any
+`min`/`max` over a set with differing availability needs a completeness guard.
+
 ### The trick that made E1 affordable
 
 An eviction corner keeps the top-K by some ranking, so walking K walks a **nested**
@@ -88,14 +128,16 @@ would have been ~17 `exact_error` calls per head per budget instead of ~5.
 
 ## 2. Files changed
 
-| File | Change |
-|---|---|
-| `sievelib/evict.py` | **new** — registry, alignment, `corner_tokens`, `CornerSpec` |
-| `sievelib/alloc.py` | `evict_error_curve`, `_kstar_grid`, `exact_error(...,o)`, corner grid + K* in `quant_metrics`, `head_metrics` plumbing |
-| `h0_measurement/run_h0.py` | `prev_a` → evictor packs; `CornerSpec` resolved pre-GPU; provenance columns |
-| `h0_measurement/models.yaml` | `evictors`, `corner_policies`, `corner_kappa`, `corner_floor`, `kstar` + docs |
-| `h0_measurement/report.py` | verdict keys off the practical corner and names it; corner grid, spend and K\* panels; legacy fallback |
-| `tests/test_units.py` | 4 new tests, 40 checks |
+| file | change | defect |
+|---|---|---|
+| `sievelib/evict.py` | **new** — evictor registry, cache-position alignment, `corner_tokens`, `CornerSpec`, `state_bytes_per_slot` | P0, E2, E1 |
+| `sievelib/alloc.py` | `evict_error_curve`, `_kstar_grid`, `exact_error(..., o)`, the (evictor × policy) grid and K\* in `quant_metrics`, `head_metrics` plumbing | E2, E1 |
+| `sievelib/alloc.py` | completeness guard on the practical aggregate | **P1** |
+| `h0_measurement/run_h0.py` | `prev_a` → evictor packs; `CornerSpec` resolved before the GPU is held; provenance columns; sidecar JSON | P0, E2 |
+| `h0_measurement/models.yaml` | `evictors`, `corner_policies`, `corner_kappa`, `corner_floor`, `kstar`, `corner_in_filename` + docs | E2, E1 |
+| `h0_measurement/report.py` | verdict keys off the practical corner and names it; corner grid / spend / K\* panels; `drop_partial_corners`; legacy fallback | E2, E1, **P1** |
+| `h0_measurement/make_fig_phase.py` | plots both corners; applies the P1 filter | E2, P1 |
+| `tests/test_units.py` | 7 tests, 60 checks | all |
 
 ---
 
@@ -199,152 +241,174 @@ practical columns, and labels which corner it used.
 
 ---
 
-## 4. What to expect
+## 4. Results, caveats, and cost
 
-**Correction to the plan's acceptance criterion.** The plan states
-`gain_best_practical ≥ gain_best` is "provably monotone" and that "any cell that
-falls indicates a bug". **That is not true per head, and the criterion must not be
-used as a bug detector.** `oracle` is an oracle only with respect to the
-first-order proxy `w² = (a·‖v−o‖)²`, while the reported error is exact
-recomputation — alloc.py keeps those strictly separate by design. Ranking by the
-proxy is not the argmin of the exact error, so a differently-ranked corner can
-land on a better kept set.
+**See `report.md`.** It carries the completed 24-configuration campaign: the
+before/after table, the context sweep, the mechanism findings, and the system
+design rules that follow from them.
 
-Measured on a real qwen3-1.7b run (ctx 2048, 1,344 head-rows): a practical corner
-beats the oracle on **15.9% of rows**, by up to 4×. Per evictor: `accum` 12.2%,
-`last_step` 12.0%, `window` 9.3%, `recency` 7.0%. The oracle corner even loses to
-*uniform* on 0.1% of rows, by the same mechanism.
+Two things belong here rather than there, because they are properties of the
+*measurement* rather than of the models:
 
-**The direction holds decisively in aggregate**, which is the claim to make:
+**The band fraction is a fragile statistic.** The oracle is only 1.02–1.41×
+stronger in error terms, yet demoting the corner moves the band 6–29 points. The
+per-head gain distribution is dense at the 2× threshold, so small changes in the
+denominator reclassify many heads. Quote error ratios when you want a robust
+number; quote the band when you want the decision.
 
-| | oracle corner | practical corner |
-|---|---|---|
-| heads in band @3b | 2.5% | **32.6%** |
-| median `err_practical / err_evict` | — | 1.19 |
+**`gain_best_practical ≥ gain_best` is NOT a per-head theorem.** `plan.md`
+asserted it was "provably monotone" and that any falling cell indicates a bug.
+That is false and must not be used as a bug detector. `oracle` is an oracle only
+with respect to the *first-order proxy* `w² = (a·‖v−o‖)²`, while the reported error
+is exact recomputation — `alloc.py` keeps those strictly separate by design.
+Ranking by the proxy is not the argmin of the exact error, so a differently-ranked
+corner can land on a better kept set. Measured on a real run: a practical corner
+beats the oracle on **15.9% of head-rows**. The direction holds decisively in
+aggregate, which is the claim to make. **Compare distributions, not individual
+heads.**
 
-I removed the two test assertions that encoded the false per-head claim (they had
-passed only because one synthetic draw happened to align) and replaced them with
-formula checks. **Compare distributions, not individual heads.**
+Two caveats that affect how a campaign should be configured:
 
-Largest movement expected on sharp models (`qwen3-*`) and 128k rows, where oracle
-eviction was near-lossless. Watch `llama31-8b@128k` (12.5%) and `qwen3-30b`
-(4–10%) against the 15% STOP line.
-
-**frac vs abs: no assumed sign, and the sign is decided by K\*.** A constructed
-sharp head (τ=4.0, L=16384, n95=180, random Gaussian V) has `abs` spending 8.6×
-fewer bits *and* landing more accurate (2.64e-2 vs 2.82e-2). That construction is
-what the regression test pins, and its point is narrow but real: **corner error is
-not monotone in K**, so nothing may assume a bigger keep-set is a stronger corner.
-
-**Do not read it as "abs beats frac".** On the real qwen3-1.7b run at ctx 2048 the
-direction is the opposite and uniform — `abs` (floor-bound at 256 tok) is *worse*
-than `frac` (718 tok) on 83% of heads for the oracle corner, 93–96% for the
-practical ones:
-
-| corner | frac err | abs err | abs/frac | abs wins |
-|---|---|---|---|---|
-| oracle | 1.52e-2 | 2.01e-2 | 1.09× | 17.0% |
-| last_step | 1.87e-2 | 2.87e-2 | 1.29× | 6.8% |
-| accum | 1.83e-2 | 2.86e-2 | 1.29× | 6.6% |
-
-The rule that reconciles them: `abs` ties `frac` when it keeps at least **K\***
-tokens, and loses when it keeps fewer. At ctx 2048 K\* is 100% of the budget for
-the median head — the corner needs everything it is given, so there is no slack to
-harvest and cutting to 256 simply truncates. Exactly 36.2% of heads have
-K\* < 50% of budget, and exactly 36.2% have `abs` ≥ K\*: the same heads.
-
-So E1's claim is **regime-dependent, and 2k is the wrong regime to test it in**.
-The budget grows linearly in L while `n95` grows as L^0.63–0.92, so K\*/budget
-should fall with context — that is the thing the 128k rerun measures, and it is
-still unmeasured. Treat "the corner wins on slack" as a hypothesis with a sharp
-diagnostic attached, not as a result.
-
-Two honest caveats for the writeup:
-
-1. **`accum` accumulates from decode, not prefill** — the probe only captures
-   decode queries (`q_len == 1`). Deployed H2O sees the prefill too, so ours is
-   *weaker* than the real thing, which biases gains **up**. At `n_decode ≤ 8`
-   treat it as a floor on the practical corner's strength.
-2. **`quant_every` thins the comparison.** Practical columns need `shat`, and
-   `do_quant = step % quant_every == 0`, so step 0 is always a quant step and step
-   0 never has lagged history — with the defaults (`n_decode: 8`, `quant_every: 4`)
-   the quant steps are 0 and 4, and half the quant rows carry only `recency`.
-   Filter on `n_practical`, or raise `quant_every`. I did **not** change the
-   parity to `(step+1) % quant_every`, which would put both quant steps on real
-   history, because it silently re-bases every existing metric — a one-line change
-   at `run_h0.py:372` if you want it, but that is a re-baseline decision, not mine.
+1. **`accum` accumulates from decode, not prefill.** The probe only captures
+   decode queries (`q_len == 1`), so our H2O is weaker than a deployed one, which
+   biases gains **up**. At `n_decode ≤ 8` treat it as a floor on the practical
+   corner's strength.
+2. **`quant_every` interacts with P1.** The guard makes step-0 rows *safe* (they
+   are dropped) but they are still wasted — half the quant rows of a
+   `quant_every: 4, n_decode: 8` campaign produce no verdict. Either accept the
+   waste, or change the parity so step 0 is not a quant step. We did **not** change
+   `do_quant = step % quant_every == 0` (`run_h0.py:372`): it silently re-bases
+   every existing metric, which is a decision for whoever owns the comparison to
+   prior campaigns.
 
 ### Cost
 
-Per (head, budget): ~5 cumulative passes with the default 5 corners, versus 4
-`exact_error` calls before — the curve trick absorbs the policy axis and the K*
-ladder almost entirely. CPU state per (layer, head) is `ctx × (4·n_bufs + 1)`
-bytes per evictor (`last_step` 1, `accum` 1, `window` its `window`, `recency` 0):
+**Compute — measured, not estimated.** `quant_metrics` at L=8192 over four
+budgets, median of five warmed runs:
 
-| config | bytes / (layer, head, position) | llama33-70b @ 128k |
+| corners | time | vs 1 |
 |---|---|---|
-| old (`prev_a`) | 4 | 2.7 GB |
-| `last_step,accum,recency` | 11 | 7.4 GB |
-| default (adds `window`) | 28 | 18.8 GB |
+| `oracle` | 46.8 ms | ×1.00 |
+| `oracle,accum` | 52.2 ms | ×1.11 |
+| `oracle,accum,window` | 55.2 ms | ×1.18 |
+| `oracle,accum,window,recency` | 55.4 ms | ×1.18 |
 
-Freed at each prompt boundary. Drop `window` first if RAM is tight.
+One `evict_error_curve` pass is **0.6 ms** against a ~47 ms base dominated by
+waterfill, the two baseline `exact_error` calls, and `noise_model`. **All three
+practical evictors cost ~18% of a task**, and the frac/abs policy axis rides the
+same pass and is free — `alloc.py` loops over evictors, not policies. That is why
+splitting a campaign on the corner axis is a mistake: it re-runs the prefill, the
+decode, and the whole 7-width `quantize_keys` sweep to save ~6% per job.
+
+**Host RAM.** The lagged state is per (layer, head) and linear in ctx:
+`n_layers × n_heads × ctx × slot`, where `slot = Σ (4·n_bufs + 1)` per stateful
+evictor — `accum` and `last_step` 5 B, `window` 17 B, `recency` 1 B, `oracle` 0 B.
+
+| corner set | slot | llama31-8b @128k | llama33-70b @128k |
+|---|---|---|---|
+| old (`prev_a`) | 4 B | 0.5 GB | 2.7 GB |
+| `oracle,accum,recency` | 6 B | 0.8 GB | 4.0 GB |
+| campaign default (`+window`) | 23 B | 3.1 GB | 15.4 GB |
+| models.yaml default (`+last_step`) | 28 B | 3.8 GB | 18.8 GB |
+
+Freed at each prompt boundary. Drop `window` first if the host runs short — it is
+17 of those bytes. `evict.state_bytes_per_slot()` is the single source of truth,
+used by `run_h0.py`'s banner and the SLURM preflights.
 
 ---
 
-## 5. Verification
+## 5. Reproducing this
 
-Run with the project venv (`.venv/bin/python`), not the bare login-node python.
+**Use the project venv** (`.venv/bin/python`) — the bare login-node interpreter has
+no torch/pandas, and the failure looks like a missing module rather than a missing
+venv.
 
-`tests/test_units.py` gains 4 tests / 40 checks; the full suite passes (run in two
-halves — the login node's CPU rlimit kills a single full run):
+### Unit tests
 
-- **`test_p0_alignment`** — [REGRESSION] scores on the step after the first (the
-  exact bug); sliding-window front-roll; unmodelled length jump resets rather than
-  mis-aligns; new token outranks all history.
-- **`test_e2_registry`** — accum sums / last_step forgets / window pools / recency
-  ranks sinks then newest; paper-name aliases; oracle is a corner not a stateful
-  evictor; **oracle stays configurable and on by default**, and a run may drop it;
-  bad names, options, policies and config strings all rejected loudly.
-- **`test_e1_budget_policy`** — frac/abs/floor/fallback arithmetic; abs never
-  exceeds frac; `evict_error_curve == exact_error` at every K (1.2e-14);
-  [REGRESSION] abs is cheaper *and* more accurate on a sharp head; K* detects the
-  slack.
-- **`test_corner_columns`** — every (evictor, policy) cell present; legacy oracle
-  columns bit-for-bit; verdict columns; verdict takes the strongest practical
-  corner; both `gain_best*` formulas; mis-aligned and `oracle`-labelled scores
-  rejected; oracle-only run still produces the legacy corner.
-
-Beyond unit tests:
-
-- Drove `run_h0.py`'s per-head loop against synthetic tensors in **both** cache
-  modes (growing and fixed-length/sliding) with the shipped default config: all
-  four practical evictors score from step 1, `recency` from step 0, monotonicity
-  holds on every step.
-- Ran **report.py end-to-end** on a synthetic parquet with the new columns and on
-  a legacy one without them. Both produce a PDF; the new schema keys the verdict
-  off the practical corner and the legacy schema falls back to the oracle, each
-  labelled. Corner grid, spend, K\* and the corner-naming VERDICT line all render.
-
-**A real model, end to end.** `qwen3-1.7b` at ctx 2048 on CPU, real PG-19
-haystack, ~15 s — the full probe path (L1 drop-in PASS, L2 capture 2.9e-06 PASS,
-needle 66224 RETRIEVED, GQA 16H/kv=8):
-
-```
-rows 1344 | corners: oracle,last_step,accum,window,recency
-practical evictors scored per row: {4: 896, 1: 448}    # step 0 = recency only
-gain_best_practical3 null frac: 0.000                  # <- the bug, gone
-band   oracle 2.5%  ->  practical 32.6%
-winning corner: {'last_step': 527, 'recency': 495, 'accum': 233, 'window': 89}
-corner spend  frac 3.00 b/tok (718 tok)   abs 1.07 b/tok (256 tok)
-oracle_evict_advantage3  accum 1.09x  last_step 1.09x  window 1.32x  recency 2.88x
+```bash
+.venv/bin/python tests/test_units.py
 ```
 
-No evictor dominates — the winner varies per head, which is exactly why the
-verdict takes the min over the configured set and why the per-evictor columns are
-kept. `K*` is 100% of budget here, as expected at ctx 2048: E1's slack only exists
-at long context.
+The login node enforces a CPU-time rlimit that kills a single full run (exit 152,
+no summary). Split it — the corner tests alone are:
 
-**Still not verified: a GPU run, a sliding-window model, and long context.** The
-alignment path's roll-left branch is exercised only by synthetic stand-ins, and no
-128k run was made. Start the campaign with a debug-tier run and confirm
-`gain_best_practical3` is non-null before committing array hours.
+```bash
+.venv/bin/python -c "
+import sys; sys.argv=['x']
+import tests.test_units as T
+for t in (T.test_p0_alignment, T.test_e2_registry, T.test_e1_budget_policy,
+          T.test_corner_columns, T.test_corner_provenance,
+          T.test_report_survives_missing_corner_columns,
+          T.test_partial_corner_is_withheld): t()
+print('FAILS:', T.fails)"
+```
+
+**7 tests, 60 checks, 0 failures:**
+
+| test | checks | pins |
+|---|---|---|
+| `test_p0_alignment` | 7 | scores on the step after the first (the P0 bug); sliding-window front-roll; unmodelled length jump resets rather than mis-aligns; a new token outranks all history |
+| `test_e2_registry` | 14 | each evictor's scoring rule; paper-name aliases; oracle is a corner not a stateful evictor; oracle stays configurable and on by default; bad names/options/policies rejected |
+| `test_e1_budget_policy` | 9 | frac/abs/floor arithmetic; `evict_error_curve == exact_error` at every K (1.2e-14); corner error is **not** monotone in K; K\* detects slack |
+| `test_corner_columns` | 11 | every (evictor, policy) cell present; legacy oracle columns bit-for-bit; verdict takes the strongest practical corner; mis-aligned scores rejected |
+| `test_corner_provenance` | 8 | the corner tag is stable, filesystem-safe, and records only parameters that applied; `config_record` is lossless and JSON-serialisable |
+| `test_report_survives_missing_corner_columns` | 4 | report.py does not assume `gain_u` implies `gain_e` (the `KeyError: 'gain_e2'` crash) |
+| `test_partial_corner_is_withheld` | 7 | **P1** — a partial corner withholds the verdict aggregate; report.py repairs older parquets |
+
+### End-to-end, on a real model, in about 15 seconds
+
+`qwen3-1.7b` is the debug tier and is corpus-exempt, so this runs on CPU with no
+GPU allocation:
+
+```bash
+export HF_HOME=$PWD/.hf_cache H0_CORPUS=$PWD/.h0_corpus/pg19
+.venv/bin/python h0_measurement/run_h0.py --model qwen3-1.7b --skip-external-check \
+    --out-dir /tmp/smoke --override ctx=2048 n_prompts=1 n_decode=4 quant_every=1 \
+    'families=["niah"]' 'bit_list=[3,8]' 'budgets=[3]' dtype=float32 chunk=1024 \
+    device_map=cpu
+```
+
+Then confirm the practical corner actually populated — this is the check that
+would have caught P0 immediately:
+
+```bash
+.venv/bin/python - <<'PY'
+import glob, pandas as pd
+q = pd.concat([pd.read_parquet(f) for f in glob.glob("/tmp/smoke/h0_*.parquet")])
+q = q[q.quantized]
+print("corners:", q.evictors.iloc[0])
+print("practical scored per row:", q.n_practical.value_counts().to_dict())
+print("gain_best_practical3 null frac: %.3f" % q.gain_best_practical3.isna().mean())
+print("band  oracle %.1f%%  ->  practical %.1f%%"
+      % (100*(q.gain_best3 >= 2).mean(), 100*(q.gain_best_practical3 >= 2).mean()))
+PY
+```
+
+`null frac 1.000` means no practical corner ran — that is P0. A null frac equal to
+the step-0 share means P1's guard is doing its job.
+
+### Regenerating the figure
+
+```bash
+.venv/bin/python h0_measurement/make_fig_phase.py \
+    "h0_measurement/results/job20014005/*.parquet" \
+    "h0_measurement/results/job20013992/*.parquet" ... \
+    -o docs/fig5_phase.png
+```
+
+Pass the ctx-sweep run **first**: `collect()` de-duplicates on (model, ctx) keeping
+the first match, so leading with the sweep makes the swept model's points come
+from one run.
+
+---
+
+## 6. What is not covered
+
+- **E2b — the practical interior.** The interior still allocates on oracle
+  sensitivity `w² = (a·‖v−o‖)²`, so only the corner has been demoted. The fully
+  symmetric cell would waterfill on the lagged `(pa·‖v−ō‖)²`, with `ō = pa @ V`
+  computable from cache. `practical_scores` is the plumbing it needs.
+- **GQA head coupling.** Heads sharing a KV head cannot be given independent
+  rates; the corner grid treats every query head independently.
+- **End-task accuracy.** Everything here is attention-output error under exact
+  recomputation. Nothing in this bug touches RULER/AIME.

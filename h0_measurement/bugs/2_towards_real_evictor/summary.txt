@@ -1,0 +1,67 @@
+=== RANGES over the complete 24 configurations ===
+  oracle advantage                 1.02 – 1.41
+  spearman(oracle_adv, n95)        0.19 – 0.68
+  spearman(oracle_adv, ladder)     -0.72 – 0.46
+  spearman(gain, ladder)           -0.77 – -0.41
+  spearman(gain, n95)              -0.02 – 0.71
+  K*/budget                        1.00 – 1.00
+  K*/n95                           5.78 – 214.71
+  gain vs uniform                  20.30 – 37.16
+  gain vs practical                1.07 – 4.81
+  interior evict_frac              0.40 – 0.54
+  evict_frac in-band               0.40 – 0.49
+  routed gain                      1.38 – 4.40
+  oracle_adv sharpest q            1.00 – 1.33
+  oracle_adv diffuse q             1.10 – 1.72
+
+  spearman(oadv,n95) POSITIVE in 24/24 runs
+  spearman(gain,ladder) NEGATIVE in 24/24 runs
+  K*/budget == 100% in 24/24 runs
+  diffuse quartile oadv > sharp quartile in 24/24
+
+  evictor win share: {'accum': '74-93%', 'window': '6-22%', 'recency': '1-12%'}
+
+  n95 in-band vs out-of-band ratio: 0.4 - 22.7 x
+
+=== K*/n95 per model ===
+                     min    max
+model                          
+llama31-8b          15.4   40.4
+llama33-70b          8.6  214.7
+mistral-7b           5.8    7.2
+qwen15-moe-a2.7b     9.2   14.1
+qwen3-30b-a3b-2507  17.9   27.2
+qwen3-8b            11.7   19.0
+
+=== n95(in-band)/n95(out-of-band) -- the routing signal ===
+             model    ctx  band   n95_in  n95_out  ratio  sp_gain_lad  sp_gain_n95
+        llama31-8b   8192 67.09   347.00    30.00  11.57        -0.62         0.48
+        llama31-8b  16384 58.01   648.25    85.75   7.56        -0.68         0.48
+        llama31-8b  32768 46.19  1169.50    80.00  14.62        -0.76         0.58
+        llama31-8b  65536 34.18  2056.00   143.00  14.38        -0.77         0.58
+        llama31-8b 131072 28.81  5233.50   649.50   8.06        -0.75         0.60
+       llama33-70b   8192 92.62    41.50    28.00   1.48        -0.41         0.02
+       llama33-70b  16384 86.00    41.00    93.50   0.44        -0.51        -0.02
+       llama33-70b  32768 75.43    61.25   100.00   0.61        -0.57         0.07
+       llama33-70b  65536 61.91    81.75   159.00   0.51        -0.63         0.06
+       llama33-70b 131072 24.96 10931.75  4010.00   2.73        -0.72         0.27
+        mistral-7b   8192 76.27   652.50    87.00   7.50        -0.47         0.49
+        mistral-7b  16384 66.21  1393.25   136.75  10.19        -0.53         0.56
+        mistral-7b  32768 65.92  2851.00   356.00   8.01        -0.55         0.56
+  qwen15-moe-a2.7b   8192 54.95   567.00    29.00  19.55        -0.61         0.63
+  qwen15-moe-a2.7b  16384 45.31  1148.50   109.75  10.46        -0.61         0.61
+  qwen15-moe-a2.7b  32768 36.98  2192.50   149.75  14.64        -0.70         0.71
+qwen3-30b-a3b-2507   8192 33.92   488.50    37.00  13.20        -0.45         0.54
+qwen3-30b-a3b-2507  16384 30.27  1060.50    70.00  15.15        -0.51         0.55
+qwen3-30b-a3b-2507  32768 23.63  2092.50   118.50  17.66        -0.50         0.54
+qwen3-30b-a3b-2507  65536 24.35  4277.50   257.75  16.60        -0.63         0.55
+qwen3-30b-a3b-2507 131072 18.55  9601.00   422.50  22.72        -0.74         0.55
+          qwen3-8b   8192 40.36   604.00    66.50   9.08        -0.58         0.56
+          qwen3-8b  16384 28.73  1028.50   122.00   8.43        -0.67         0.54
+          qwen3-8b  32768 26.56  1513.50   185.50   8.16        -0.76         0.58
+
+  inverted (ratio<1):
+      model   ctx  band  n95_in  n95_out  ratio
+llama33-70b 16384 86.00   41.00     93.5   0.44
+llama33-70b 32768 75.43   61.25    100.0   0.61
+llama33-70b 65536 61.91   81.75    159.0   0.51

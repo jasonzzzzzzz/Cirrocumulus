@@ -1,138 +1,107 @@
-# Plan: an honest eviction corner (E1 + E2, one rerun)
+# Plan: an honest eviction corner — **EXECUTED**
 
-Two defects in the eviction corner, one campaign to fix both. They are the same
-experiment because they are the same baseline: E2 fixes WHO the corner is
-(an oracle no deployable system has), E1 fixes HOW MUCH it is given (a budget
-that grows linearly in L while head support grows as L^0.63–0.92). Both biases
-currently point the same way — they flatter the corner, hardest at long context
-and on sharp heads — so every 128k STOP verdict rests on a baseline that is
-doubly too strong. Fixing them can only raise band fractions (both changes are
-provably monotone), which is why this runs before any systems work: it decides
-whether the 128k story is real.
+> **Status: complete.** The work landed, the campaign ran (24 configurations, six
+> models, 8k–128k), and the outcomes are in `report.md`. This file is kept as the
+> record of what was planned and **how the plan differed from what the data
+> said** — two of its predictions were wrong, and that is the useful part.
+>
+> - `fix.md` — the engineering record: what changed, the interface, how to reproduce.
+> - `report.md` — the results, the mechanism findings, and the design rules.
 
-## Contexts
+---
 
-Live tree (authoritative — it has moved past the drafts below: needle/validity
-columns, task_decode_extra, the probe mask fix):
+## What was planned, and what happened
 
-- ../../run_h0.py                — decode loop, prev_a maintenance, the off-by-one
-- ../../../sievelib/alloc.py     — quant_metrics: corner construction, budgets, waterfill
-- ../../report.py                — gain_best_practical/oracle_evict_advantage columns (printed, never populated)
-- ../../models.yaml              — per-model config; new keys land here
-- ../../bugs/3_context_sweep_and_reports/findings.md — the n95 ~ L^p measurements E1 rests on
+| item | plan | outcome |
+|---|---|---|
+| **P0** unbreak `practical_score` | prerequisite for everything | **done** — the guard `pa.numel() >= sh.numel()` was false on essentially every step, so the practical corner had never run in any campaign |
+| **E2** pluggable evictors, oracle kept | widen the band where the oracle flattered itself | **done, and it is what rescued the paper** — every STOP verdict disappeared, band +6 to +29 points across all 24 cells |
+| **E1** fractional vs absolute-support budget | "decides whether the 128k story is real" | **done, result NEGATIVE** — see below |
+| **E2b** the practical *interior* | deferred at plan time | **still deferred**, and still the honest gap |
 
-Drafts staged in THIS directory (`evict.py`, `run_h0.py`, `alloc.py`, `fix.md`,
-`test_units.py`): reference implementations from the earlier analysis. Reconcile
-against the live tree rather than copying — they predate the probe fix and the
-validity gate, and any rerun must include both.
+---
 
-## P0 — unbreak `practical_score` (prerequisite for everything)
+## The two places the plan was wrong
 
-`prev_a` from step t has one fewer entry than step t+1's logits, so the guard
-`pa.numel() >= sh.numel()` in run_h0.py almost always fails and silently falls
-back to None: the practical corner has NEVER run, in any campaign. Fix: pad the
-newest position (+inf — every real evictor keeps the newest token by recency)
-instead of requiring equal length. Edge cases, handled deliberately:
+Both are worth reading before trusting a similar argument again.
 
-- sliding-window models: `fin` holds length constant while the oldest position
-  drops — pad at the end, truncate at the front;
-- `quant_every` is already fine (prev_a updates every step, so quant steps see a
-  1-step-lagged score).
+### 1. "This is provably monotone" — it is not
 
-~15 lines + a unit test asserting the score populates from step 1 onward.
+The plan's acceptance criterion said:
 
-## E2 — pluggable evictors, oracle kept as one of them
+> gain_best_practical = min(e_uniform, e_practical)/e_wf ≥ gain_best, since a
+> lagged-attention evictor can only be worse than the oracle. […] Any cell that
+> falls indicates a bug.
 
-The oracle stays: gain-vs-oracle is a valid lower bound, and
-`oracle_evict_advantage` (how much H2O/SnapKV-style scoring loses to the oracle,
-per head, at scale) is a publishable number on its own — expect it largest on
-sharp heads, where a lagged score that misses one heavy-hitter is catastrophic.
-What changes is which corner the VERDICT keys off: GO/STOP must be measured
-against the best corner a deployable system could field, with the oracle
-reported alongside as the bound (why.md Q0).
+**That is false per head, and must not be used as a bug detector.** The `oracle`
+corner is an oracle only with respect to the *first-order proxy*
+`w² = (a·‖v−o‖)²`, while the reported error is exact recomputation — `alloc.py`
+keeps those strictly separate by design. Ranking by the proxy is not the argmin of
+the exact error, so a differently-ranked corner can land on a better kept set.
+Measured: a practical corner beats the oracle on **15.9% of head-rows**, and the
+oracle even loses to *uniform* on 0.1%.
 
-Registry in a new `sievelib/evict.py` — one score-maintenance rule per evictor,
-selected per run:
+The direction holds decisively in aggregate, which is the claim to make. Two test
+assertions encoding the false per-head claim were removed; they had passed only
+because one synthetic draw happened to align.
 
-| name         | score                                             | anchors        |
-|--------------|---------------------------------------------------|----------------|
-| `oracle`     | current-step a·‖v−o‖ (status quo)                 | upper bound    |
-| `last_step`  | prev_a (P0 makes this real)                       | TOVA           |
-| `accum`      | running sum of attention received                 | H2O            |
-| `window`     | max-pool of prev_a over last W steps              | SnapKV         |
-| `recency`    | position only: sinks + newest                     | StreamingLLM (floor) |
+### 2. The budget was not the mis-specification — the *scoring rule* was
 
-Config: `evictors: [oracle, last_step, accum]` in models.yaml defaults,
-overridable per run (`--override evictors='["oracle","accum"]'`). Adding an
-evictor = one entry in the registry (a `(state, a_t) -> state` update and a
-`state -> score` read), nothing else. Columns come out per evictor:
-`gain_e{B}_{name}`, and the verdict uses
-`gain_best{B} = min(e_uniform, min over practical evictors) / e_wf`.
+The plan argued that eviction's fixed-fraction budget (`B·L/maxb`, linear in L)
+hands the corner steadily more slack than any head can use, and that this
+"plausibly accounts for its apparent dominance at 128k".
 
-## E1 — the budget axis: fractional vs absolute-support
+**Tested and refuted.** K\* — the smallest keep-count landing within 10% of the
+full-budget corner's error — is **100% of the budget in 24 of 24 runs**, 8k
+through 128k. The corner needs every token it is given; there is no slack. The
+proposed `abs` policy at κ=4 is not a cheaper corner but a broken one, costing
+1.9–7.4× the error.
 
-findings.md measured n95 ∝ L^0.63 (llama31-8b) to L^0.92, against a corner
-budget of B·L/maxb tokens — linear in L. At B=3 the corner holds 15.8× a head's
-support at 4k and 70.8× at 64k. The corner may be winning at 128k on slack, not
-on merit. Two deliverables, both cheap once the corner is pluggable:
+The artifact was E2's, not E1's: the corner's *scoring rule* was an oracle. Fixing
+that removed every STOP verdict; fixing the budget would have removed none.
 
-1. **Budget policy as a config axis**, parallel to the evictor axis:
-   - `fractional` — keep B·L/maxb tokens (status quo; the literature's definition);
-   - `absolute` — keep min(B·L/maxb, max(κ·n95_head, floor)) tokens at maxb.
-     κ=4, floor=256 to start; n95 comes from the same pass. This corner spends
-     FEWER bits than the budget allows — record `corner_bits_used{B}` so the
-     comparison is explicit, not smuggled.
-2. **The diagnostic that needs no policy choice**: e_evict as a function of
-   kept-token count K, per head — report K*(head) = smallest K within 10% of the
-   full-budget corner. If K* ≪ B·L/maxb at 128k (predicted), the slack is
-   measured directly and the mis-specification claim in the proposal (§2)
-   has its number.
+**E1 was still worth running.** Its diagnostic returned a better finding than its
+hypothesis: **K\*/n₉₅ spans 37×** across the model set (5.8 for mistral-7b to 214.7
+for llama33-70b) and is *not* ordered by support. That is the number that says a
+per-head keep-count cannot be a global constant.
 
-Note for the paper, not this fix: the real design implication is cross-head —
-bits the absolute corner does NOT spend on sharp heads are exactly what the
-router should reinvest in interior heads. That is a SIEVE feature, not a
-baseline fix; keep it out of this rerun.
+### A third thing the plan asserted, also backwards
 
-## E2b — the fully honest cell (promoted from "defer": same rerun, ~20 lines)
+`why.md` (and the plan's framing) expected the oracle's advantage to be largest on
+**sharp** heads — "a lagged score that misses one heavy-hitter is catastrophic".
+The data says the opposite in **24 of 24 runs**: `spearman(oracle_advantage, n₉₅)`
+is positive everywhere (+0.19 to +0.68), and the diffuse quartile shows a larger
+advantage than the sharp quartile in every run. On a sharp head the heavy hitter
+is *stable across steps*, so lagged attention identifies it perfectly.
 
-After E2 the comparison is still asymmetric: the interior waterfills on oracle
-sensitivity while only the corner is practical. Add the practical-interior
-column per why.md Q2: build w2p from the lagged score (ō = pa @ V is computable
-from cache), waterfill on w2p, evaluate on true logits — decision lagged,
-evaluation honest, same asymmetry a deployed system faces. Columns `gain_pp{B}`,
-`in_band_pp{B}`. Rank the corner both by raw pa (literature-faithful) and by w2p
-(isolates whether the edge is mixed-precision shape vs score information). If
-the interior's edge survives with both sides practical, that is the strongest GO
-this framework can produce.
+---
 
-## Rerun + reporting
+## What the plan did not anticipate: P1
 
-- One campaign over the 20-point grid (matched 8k/32k sixes + both sweeps),
-  post probe-fix, validity gate on. Extra cost per head/budget is one
-  `exact_error` per (evictor, policy) cell — small next to quantize_keys.
-- report.py: populate the existing practical columns; per-evictor
-  `oracle_evict_advantage`; a corner-comparison panel (oracle vs each practical,
-  fractional vs absolute) on the phase axis. Keep dead-2 as the phase variable —
-  it is defined by sig2 vs the DERIVED c0=1 and does not move with the corner;
-  what moves is the band, so the (dead2 → band) curve should shift up while the
-  axis itself stays put. That is itself a check.
-- Verdict line names its corner: `-> GO  (vs accum/absolute; oracle bound 1.31x)`.
+Adding a second practical evictor made a latent defect reachable. The verdict
+corner is `min` over the practical evictors, but they do not become available at
+the same time — `recency` needs no history, `accum` and `window` do. On decode
+step 0 the `min` collapsed onto the weakest corner, inflating the band by ~29
+points on average and turning the band-vs-context curve **non-monotone**.
 
-## Expectations / acceptance
+Found because an earlier campaign that happened to lack `recency` disagreed by 29
+points and agreed with the filtered data to 0.5. Fixed with a completeness guard;
+see `fix.md` §1 (P1).
 
-- Monotone: every band fraction rises or holds vs the v7 table (min over MORE
-  and weaker corners can only shrink e_corner's advantage... i.e.
-  gain_best_practical ≥ gain_best). Any cell that falls indicates a bug.
-- Largest movement: sharp models (qwen3-*) and 128k rows. Watch specifically
-  whether llama31-8b@128k (12.5%, STOP) and qwen3-30b (4–10%, STOP) cross 15%.
-- The scientific outcome is symmetric and both branches are publishable:
-  128k STOPs melt under an honest corner → the systems claim is intact and the
-  field's baseline definition takes the blame; they survive → the band genuinely
-  ends near 32–64k and the paper narrows honestly (proposal §9.1).
+---
 
-## Effort
+## Still open
 
-P0 half a day (with test). E2 registry + plumbing 1–1.5 days. E1 policies +
-K* diagnostic 1 day. E2b ~20 lines inside E2's edit. Rerun: same GPU budget as
-the v7 campaign (the grid is the cost; new columns are marginal). Report: half
-a day. Total ≈ 4 days wall, one campaign.
+**E2b — the practical interior.** After E2 the comparison is still asymmetric: the
+interior waterfills on oracle sensitivity while only the corner has been demoted.
+The symmetric cell builds `w2p` from the lagged score (`ō = pa @ V`, computable
+from cache), waterfills on `w2p`, and evaluates on true logits — decision lagged,
+evaluation honest, the same asymmetry a deployed system faces. `practical_scores`
+is the plumbing it needs. **If the interior's edge survives with both sides
+practical, that is the strongest GO this framework can produce.**
+
+Everything else the plan listed under "Rerun + reporting" has shipped: report.py
+populates the practical columns, prints the per-evictor `oracle_evict_advantage`,
+draws the corner grid and K\* panels, and names its corner on the verdict line.
+`dead-2` remains the phase variable and did not move with the corner change
+(ρ = −0.983 oracle → −0.953 practical), which was the check the plan asked for.

@@ -7,7 +7,7 @@ report.py -- multi-page PDF report from any number of result files.
 Model-agnostic: every panel is driven by whatever tags appear in the data.
 """
 from __future__ import annotations
-import argparse, glob, os, sys, textwrap
+import argparse, glob, os, re, sys, textwrap
 import numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sievelib import validity as VAL
@@ -73,6 +73,37 @@ def _render_summary_pages(pdf, title, blocks):
         fig.text(.05, .93, "\n".join(page), va="top", family="monospace",
                  fontsize=SUMMARY_FONTSIZE)
         pdf.savefig(fig); plt.close(fig)
+
+
+def drop_partial_corners(df):
+    """Blank the practical-corner aggregate on rows where only SOME evictors scored.
+
+    On the first decode step the lagged evictors have no history, but `recency`
+    needs none -- so `min` over the practical corners collapses onto the one that
+    is always available and happens to be the weakest, and gain_best_practical
+    measures the interior against StreamingLLM alone. alloc.py now withholds these
+    columns in that case; this repairs parquets written BEFORE that fix, keyed on
+    n_practical against the count in the `evictors` provenance column.
+
+    Measured on job2001*: without this the band fraction reads 29 points too high
+    on average (up to +49) and the band-vs-ctx curve bends back UP at 128k. With
+    it, the campaign agrees to 0.5 pts with an independent campaign that never had
+    the bug (round 1, accum-only, where nothing scored at step 0).
+    """
+    if "n_practical" not in df or "evictors" not in df:
+        return df, 0
+    exp = (df["evictors"].fillna("").astype(str)
+           .apply(lambda s: len([x for x in s.split(",") if x and x != "oracle"])))
+    bad = df["n_practical"].fillna(0).lt(exp) & exp.gt(0)
+    if not bool(bad.any()):
+        return df, 0
+    df = df.copy()
+    cols = [c for c in df.columns
+            if re.match(r"^(err_practical|gain_practical|gain_best_practical|"
+                        r"in_band_practical|oracle_evict_advantage)\d+$", c)
+            or re.match(r"^best_evictor\d+$", c)]
+    df.loc[bad, cols] = np.nan
+    return df, int(bad.sum())
 
 
 def per_head(df):
@@ -776,6 +807,12 @@ def main():
     if vfiles:
         print(f"validity probes: {len(vfiles)} file(s), "
               f"{0 if val is None else len(val):,} rows")
+    raw, n_partial = drop_partial_corners(raw)
+    if n_partial:
+        print(f"note: blanked the practical-corner aggregate on {n_partial:,} row(s) "
+              f"where only SOME evictors had scored (first decode step: only "
+              f"`recency` needs no history). Those rows would have measured the "
+              f"interior against the weakest corner alone.")
     ph = per_head(raw)
     gates = family_gate(raw, val)
     # Pooling results dirs is a documented workflow, but pooling runs that used

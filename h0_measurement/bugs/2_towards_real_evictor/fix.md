@@ -230,20 +230,34 @@ Largest movement expected on sharp models (`qwen3-*`) and 128k rows, where oracl
 eviction was near-lossless. Watch `llama31-8b@128k` (12.5%) and `qwen3-30b`
 (4–10%) against the 15% STOP line.
 
-**One finding already, from the E1 implementation.** On a sharp synthetic head
-(τ=4.0, L=16384, n95=180) the `abs` corner spends **8.6× fewer bits** than `frac`
-(0.35 vs 3.00 b/tok) and is *also more accurate* (2.64e-2 vs 2.82e-2), with
-**K\* = 9.3% of the corner's budget**. Corner error is **not monotone in K**: every
-kept token is quantized at `maxb`, so extending the keep-set down the tail adds
-low-weight tokens carrying quantization noise and the renormalised softmax comes
-out worse.
+**frac vs abs: no assumed sign, and the sign is decided by K\*.** A constructed
+sharp head (τ=4.0, L=16384, n95=180, random Gaussian V) has `abs` spending 8.6×
+fewer bits *and* landing more accurate (2.64e-2 vs 2.82e-2). That construction is
+what the regression test pins, and its point is narrow but real: **corner error is
+not monotone in K**, so nothing may assume a bigger keep-set is a stronger corner.
 
-That is stronger than the plan's framing. E1 anticipated "the corner has slack";
-the measurement says the fractional budget is *actively counterproductive* on
-sharp heads. It also means **the frac/abs comparison has no assumed sign** — I
-removed a test assertion of mine that claimed `abs` is never stronger, which had
-passed only by luck on one random draw. Both cells are reported; neither is
-assumed to dominate.
+**Do not read it as "abs beats frac".** On the real qwen3-1.7b run at ctx 2048 the
+direction is the opposite and uniform — `abs` (floor-bound at 256 tok) is *worse*
+than `frac` (718 tok) on 83% of heads for the oracle corner, 93–96% for the
+practical ones:
+
+| corner | frac err | abs err | abs/frac | abs wins |
+|---|---|---|---|---|
+| oracle | 1.52e-2 | 2.01e-2 | 1.09× | 17.0% |
+| last_step | 1.87e-2 | 2.87e-2 | 1.29× | 6.8% |
+| accum | 1.83e-2 | 2.86e-2 | 1.29× | 6.6% |
+
+The rule that reconciles them: `abs` ties `frac` when it keeps at least **K\***
+tokens, and loses when it keeps fewer. At ctx 2048 K\* is 100% of the budget for
+the median head — the corner needs everything it is given, so there is no slack to
+harvest and cutting to 256 simply truncates. Exactly 36.2% of heads have
+K\* < 50% of budget, and exactly 36.2% have `abs` ≥ K\*: the same heads.
+
+So E1's claim is **regime-dependent, and 2k is the wrong regime to test it in**.
+The budget grows linearly in L while `n95` grows as L^0.63–0.92, so K\*/budget
+should fall with context — that is the thing the 128k rerun measures, and it is
+still unmeasured. Treat "the corner wins on slack" as a hypothesis with a sharp
+diagnostic attached, not as a result.
 
 Two honest caveats for the writeup:
 

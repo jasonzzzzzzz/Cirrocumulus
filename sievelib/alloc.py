@@ -352,7 +352,21 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         # `min` picks the lowest error, i.e. the hardest competitor -- the
         # conservative direction, so an in-band verdict cannot be dismissed as
         # having been measured against a weak evictor.
-        if scores:
+        #
+        # ONLY when EVERY configured evictor scored. On the first decode step the
+        # lagged evictors have no history, but `recency` needs none -- so the min
+        # would collapse onto the one corner that is always available and happens
+        # to be the weakest, and `gain_best_practical` would measure the interior
+        # against StreamingLLM alone. Measured cost of not doing this: the band
+        # fraction came out 29 points too high on average (up to +49), and the
+        # band-vs-ctx curve turned NON-MONOTONE, bending back up at 128k.
+        # A campaign without `recency` never saw it, because then nothing scored
+        # at step 0 and these columns were absent -- which is why round 1
+        # (accum-only) agrees with round 2 filtered to 0.5 pts and with round 2
+        # unfiltered to 29. NaN here, so a median/dropna excludes the row.
+        _complete = bool(scores) and (set(corner.practical).issubset(scores)
+                                      or set(scores) == {"practical"})
+        if _complete:
             e_best, who = None, ""
             for nm in scores:
                 e_p = out[f"err_e{B}_{nm}_{pol0}"]

@@ -1,0 +1,182 @@
+
+model	ctx	accum(H2O)/frac	accum/abs	window(SnapKV)/frac	window/abs	oracle+accum+window / frac+abs
+llama31-8b	8192	job19982911	job19982912	job19982915	job19982916	—
+mistral-7b	8192	job19982911	job19982912	job19982915	job19982916	—
+qwen15-moe-a2.7b	8192	job19982911	job19982912	job19982915	job19982916	—
+qwen3-8b	8192	job19982911	job19982912	job19982915	job19982916	—
+llama33-70b	8192	job19982975	job19982981	job19982984	job19982985	—
+qwen3-30b-a3b-2507	8192	job19982975	job19982981	job19982984	job19982985	—
+llama31-8b	32768	job19982919	job19982921	job19982924	job19982925	—
+mistral-7b	32768	job19982919	job19982921	job19982924	job19982925	—
+qwen15-moe-a2.7b	32768	job19982919	job19982921	job19982924	job19982925	—
+qwen3-8b	32768	job19982919	job19982921	job19982924	job19982925	—
+llama33-70b	32768	job19982986	job19982987	job19982990	job19982991	—
+qwen3-30b-a3b-2507	32768	job19982986	job19982987	job19982990	job19982991	—
+qwen3-30b-a3b-2507	131072	—	—	—	—	job19983483 (+ job19983220, duplicate)
+50 parquets, 6/6 models × 2 ctx × 4 cells complete, plus 128K. All non-synthetic, all niah retrieved (6/6 or 4/4).
+
+ the strongest deployable corner in the data:
+
+model	ctx	band (oracle)	band (practical)	Δ	verdict
+llama31-8b	8K	39.3%	68.7%	+29.4	GO → GO
+llama33-70b	8K	79.1%	92.7%	+13.6	GO → GO
+mistral-7b	8K	51.3%	76.2%	+24.9	GO → GO
+qwen15-moe	8K	29.4%	55.7%	+26.3	NARROW → GO
+qwen3-30b	8K	10.1%	34.9%	+24.8	STOP → NARROW
+qwen3-8b	8K	9.1%	40.0%	+30.9	STOP → GO
+llama31-8b	32K	25.0%	45.3%	+20.3	NARROW → GO
+llama33-70b	32K	58.5%	75.5%	+17.1	GO → GO
+mistral-7b	32K	41.5%	66.3%	+24.8	GO → GO
+qwen15-moe	32K	20.1%	36.7%	+16.7	NARROW → GO
+qwen3-30b	32K	6.4%	24.3%	+17.9	STOP → NARROW
+qwen3-8b	32K	6.1%	26.8%	+20.7	STOP → NARROW
+qwen3-30b	128K	4.1%	19.3%	+15.2	STOP → NARROW
+Every STOP is gone. 13/13 cells rise, +13.6 to +30.9 points. Seven verdicts flip.
+
+A strong validation: job19983483's own oracle column reads 4.1% / median 1.00× at 128K — exactly matching the independent pre-fix job19960863 (4.1% / 1.00×). The oracle path is untouched by the fix, so the movement is entirely the corner demotion.
+
+=== older campaigns: which have ORACLE (gain_best3) vs PRACTICAL columns? ===
+  job19959944    oracle=Y practical=n  ctx=['32768']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job19959945    oracle=Y practical=n  ctx=['8192']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job19960025    oracle=Y practical=n  ctx=['8192']  n=2  ['llama33-70b', 'qwen3-30b-a3b-2507']
+  job19960027    oracle=Y practical=n  ctx=['32768']  n=2  ['llama33-70b', 'qwen3-30b-a3b-2507']
+  job19960531    oracle=Y practical=n  ctx=['131072', '16384', '32768', '4096', '65536', '8192']  n=6  ['llama31-8b']
+  job19960567    oracle=Y practical=n  ctx=['16384', '32768', '8192']  n=3  ['qwen3-30b-a3b-2507']
+  job19960861    oracle=Y practical=n  ctx=['131072', '32768', '40960']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job19960863    oracle=Y practical=n  ctx=['131072']  n=2  ['llama33-70b', 'qwen3-30b-a3b-2507']
+  job847127      oracle=Y practical=n  ctx=['131072', '32768', '40960']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job847130      oracle=Y practical=n  ctx=['131072']  n=2  ['llama33-70b', 'qwen3-30b-a3b-2507']
+  job852849      oracle=Y practical=n  ctx=['131072', '32768', '40960']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job852851      oracle=Y practical=n  ctx=['131072']  n=1  ['qwen3-30b-a3b-2507']
+  job852956      oracle=Y practical=n  ctx=['131072', '32768', '40960']  n=4  ['llama31-8b', 'mistral-7b', 'qwen15-moe-a2.7b', 'qwen3-8b']
+  job852957      oracle=Y practical=n  ctx=['131072']  n=2  ['llama33-70b', 'qwen3-30b-a3b-2507']
+  job861239      oracle=Y practical=Y  ctx=['32768']  n=2  ['mistral-7b', 'qwen15-moe-a2.7b']
+  job861240      oracle=Y practical=n  ctx=['131072']  n=1  ['qwen3-30b-a3b-2507']
+
+=== validity gate: niah needle retrieval per run (must pass, else UNKNOWN) ===
+  job19982911/h0_qwen3-8b_8192.parquet             niah 6/6 retrieved   synthetic=False
+  job19982919/h0_llama31-8b_32768.parquet          niah 6/6 retrieved   synthetic=False
+  job19982975/h0_llama33-70b_8192.parquet          niah 4/4 retrieved   synthetic=False
+  job19983483/h0_qwen3-30b-a3b-2507_131072.parqu   niah 4/4 retrieved   synthetic=False
+
+=== is the oracle's advantage bigger on SHARP or DIFFUSE heads? ===
+   why.md claimed: 'the deflation is strongest exactly for the SHARP models'
+
+   accum   spearman(oracle_adv, n95)=+0.509   spearman(oracle_adv, tau)=-0.699
+   window  spearman(oracle_adv, n95)=+0.507   spearman(oracle_adv, tau)=-0.706
+
+   SHARPEST quartile (n95<=60)          oracle_adv(accum)  1.00x   band   0.3% ->   5.9%
+   MIDDLE half                          oracle_adv(accum)  1.04x   band   0.1% ->   7.5%
+   MOST DIFFUSE quartile (n95>=3109)    oracle_adv(accum)  1.44x   band  15.9% ->  56.2%
+
+=== matched 128K PRE-FIX baseline ===
+   job19960863: qwen3-30b @128k PRE-FIX band   4.1%  med 1.00x  n95 600
+   job861240: qwen3-30b @128k PRE-FIX band   4.1%  med 1.00x  n95 564
+   job852957: qwen3-30b @128k PRE-FIX band  14.2%  med 1.05x  n95 3796
+   job19983483: qwen3-30b @128k POST-FIX band  19.3%  med 1.07x  (its own oracle: 4.1%)
+
+---------------
+
+=== job19983220  (1536 heads, 36864 quant rows) ===
+  band  ORACLE   4.0%  ->  PRACTICAL  19.1%   (+15.0 pts)
+  median gain   vs oracle 1.00x   vs practical 1.06x
+  best_evictor: {'accum': 0.758, 'window': 0.242}
+  oracle_evict_advantage3 median 1.05x  (per-evictor: accum 1.05x, window 1.23x)
+  corner err @3b (median): accum_abs=0.0395, accum_frac=0.0120, oracle_abs=0.0250, oracle_frac=0.0095, window_abs=0.0559, window_frac=0.0149
+  corner spend: frac 3.00 b/tok (45,226 tok)   abs 0.16 b/tok (2,411 tok)
+  n95 median 603   eff_frac 0.500%
+  K* median 45,220 tok = 100.0% of budget  = 28.4x n95
+  heads with K* < 50% of budget: 39.1%
+
+=== job19983483  (1536 heads, 36864 quant rows) ===
+  band  ORACLE   4.1%  ->  PRACTICAL  19.3%   (+15.2 pts)
+  median gain   vs oracle 1.00x   vs practical 1.07x
+  best_evictor: {'accum': 0.757, 'window': 0.243}
+  oracle_evict_advantage3 median 1.05x  (per-evictor: accum 1.05x, window 1.24x)
+  corner err @3b (median): accum_abs=0.0397, accum_frac=0.0121, oracle_abs=0.0248, oracle_frac=0.0096, window_abs=0.0563, window_frac=0.0149
+  corner spend: frac 3.00 b/tok (45,226 tok)   abs 0.16 b/tok (2,412 tok)
+  n95 median 603   eff_frac 0.500%
+  K* median 45,221 tok = 100.0% of budget  = 27.9x n95
+  heads with K* < 50% of budget: 38.7%
+
+---------------
+
+qwen3-30b-a3b-2507 @131072, 1536 heads
+
+oracle_evict_advantage3 (how much accum/window lose to the oracle):
+   accum    p25 1.00  med 1.05  p75 1.34  p90 1.75  max 17.70
+   window   p25 1.00  med 1.24  p75 2.12  p90 2.97  max 50.64
+
+K*/n95 -- what kappa the `abs` policy WOULD need to match frac:
+   p25 9.9  med 27.9  p75 95.4  p90 459.1   (configured kappa = 4.0)
+
+K*/budget distribution (E1's slack):
+   heads with K* <=  10% of budget:   6.9%
+   heads with K* <=  25% of budget:  17.4%
+   heads with K* <=  50% of budget:  38.7%
+   heads with K* <=  75% of budget:  41.6%
+   heads with K* <= 100% of budget: 100.0%
+
+which heads flip into band when the corner is demoted oracle->practical?
+   flipped 233 heads (15.2%); already in band 63 (4.1%)
+   flipped heads: oracle_adv median 1.78x vs 1.05x overall;  n95 med 6080 vs 603
+
+band fraction if the verdict used each corner alone:
+   oracle                               4.1%
+   practical(best of accum,window)     19.3%
+   accum/frac only                     23.0%
+   window/frac only                    36.2%
+
+
+---------------
+
+
+=== BAND FRACTION (%% heads with gain over best PRACTICAL corner >= 2x @3b) ===
+cell                      accum/abs  accum/frac  window/abs  window/frac  Δ frac→abs (accum)  Δ frac→abs (window)
+model              ctx                                                                                           
+llama31-8b         8192        98.6        68.7        98.8         79.4                30.0                 19.4
+                   32768       99.0        45.3        99.6         61.1                53.7                 38.5
+llama33-70b        8192        98.7        92.7        98.7         96.5                 6.0                  2.1
+                   32768       98.8        75.5        98.8         85.0                23.3                 13.9
+mistral-7b         8192        97.8        76.2        98.2         86.7                21.6                 11.5
+                   32768       97.8        66.3        98.0         79.0                31.4                 19.0
+qwen15-moe-a2.7b   8192        94.0        55.7        95.6         67.2                38.3                 28.4
+                   32768       95.3        36.7        95.8         52.6                58.6                 43.2
+qwen3-30b-a3b-2507 8192        79.8        34.9        89.1         53.3                44.9                 35.8
+                   32768       84.2        24.3        91.6         43.0                60.0                 48.6
+qwen3-8b           8192        89.7        40.0        95.5         65.9                49.7                 29.6
+                   32768       89.7        26.8        95.5         44.4                62.8                 51.1
+
+=== corner ERROR at 3b (median per-head err_e3_<ev>_<pol>); lower = stronger corner ===
+
+  -- accum --
+                            frac     abs  abs/frac
+model              ctx                            
+llama31-8b         8192   0.0221  0.0572    2.5849
+                   32768  0.0133  0.0501    3.7680
+llama33-70b        8192   0.0475  0.1196    2.5203
+                   32768  0.0214  0.1224    5.7190
+mistral-7b         8192   0.0296  0.0568    1.9209
+                   32768  0.0221  0.0495    2.2383
+qwen15-moe-a2.7b   8192   0.0174  0.0479    2.7542
+                   32768  0.0105  0.0509    4.8407
+qwen3-30b-a3b-2507 8192   0.0166  0.0364    2.1914
+                   32768  0.0139  0.0379    2.7324
+qwen3-8b           8192   0.0157  0.0381    2.4294
+                   32768  0.0107  0.0382    3.5746
+
+  -- window --
+                            frac     abs  abs/frac
+model              ctx                            
+llama31-8b         8192   0.0341  0.0825    2.4166
+                   32768  0.0182  0.0737    4.0482
+llama33-70b        8192   0.0680  0.1651    2.4263
+                   32768  0.0300  0.1639    5.4654
+mistral-7b         8192   0.0482  0.0880    1.8261
+                   32768  0.0349  0.0754    2.1592
+qwen15-moe-a2.7b   8192   0.0334  0.0798    2.3924
+                   32768  0.0153  0.0786    5.1482
+qwen3-30b-a3b-2507 8192   0.0237  0.0523    2.2116
+                   32768  0.0187  0.0534    2.8557
+qwen3-8b           8192   0.0269  0.0648    2.4119
+                   32768  0.0148  0.0619    4.1919

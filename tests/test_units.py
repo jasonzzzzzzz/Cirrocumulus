@@ -469,6 +469,115 @@ def test_corner_provenance():
     check("config_record is JSON-serialisable", True)
 
 
+def test_report_survives_missing_corner_columns():
+    print("\n[REGRESSION] report.py must not assume gain_u implies gain_e")
+    # logs/h0_report_19984014.err: `KeyError: 'gain_e2'`. page_summary guarded on
+    # gain_u<B> and then indexed gain_e<B>/gain_best<B>/evict_frac<B>. Those are
+    # NOT written together: a run configured without the `oracle` corner (or one
+    # whose bit_list lacks maxb) emits gain_u<B> and no gain_e<B>, and the whole
+    # report died after the array had already spent its GPU hours.
+    import pandas as pd
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
+    import report as R
+
+    torch.manual_seed(0)
+    L, d = 512, 32
+    Rr = quant.random_rotation(d, "cpu", seed=0)
+    cs = evict.CornerSpec(evictors=("accum",))       # no oracle, and no scores
+    rows = []
+    for layer in range(2):
+        for h in range(3):
+            K = torch.randn(L, d); q = torch.randn(d)
+            V = torch.randn(L, d) / math.sqrt(d)
+            sc = 2.5 / (K @ q / math.sqrt(d)).std()
+            s = (K @ q / math.sqrt(d)) * sc
+            shat = {b: (quant.quantize_keys(K, b, Rr) @ q / math.sqrt(d)) * sc
+                    for b in (2, 3, 8)}
+            r = head_metrics(s, shat, V, budgets=(2, 3), maxb=8,
+                             practical_scores={}, corner=cs)
+            for fam in ("niah", "qa", "cont"):
+                rr = dict(r)
+                rr.update(model="m", ctx=512, layer=layer, head=h, prompt=0,
+                          family=fam, synthetic=False, quantized=True)
+                rows.append(rr)
+    raw = pd.DataFrame(rows)
+    check("the shape that crashed is still producible",
+          "gain_u2" in raw.columns and "gain_e2" not in raw.columns)
+
+    ph = R.per_head(raw)
+    cap = []
+    orig = R._render_summary_pages
+    R._render_summary_pages = lambda pdf, t, blocks: cap.extend(
+        b for blk in blocks for b in blk)
+    try:
+        R.page_summary(None, raw, ph, R.family_gate(raw, None))
+        ok = True
+    except KeyError as e:
+        ok = False
+        print(f"      raised KeyError({e})")
+    finally:
+        R._render_summary_pages = orig
+    check("[REGRESSION] page_summary survives a frame with no eviction columns", ok)
+    check("it still reports what IS present (uniform, evict_frac)",
+          any("vs uniform" in l for l in cap))
+    check("and omits what is absent rather than guessing",
+          not any("vs eviction" in l for l in cap))
+
+
+def test_partial_corner_is_withheld():
+    print("\n[REGRESSION] a PARTIAL practical corner must not become the verdict")
+    # On decode step 0 the lagged evictors have no history but `recency` needs
+    # none, so min-over-corners collapses onto the weakest corner and
+    # gain_best_practical silently measures the interior against StreamingLLM.
+    # Measured cost on job2001*: band fraction +29 pts on average (up to +49),
+    # and the band-vs-ctx curve bent back UP at 128k. A campaign without
+    # `recency` never saw it (nothing scored at step 0), which is why round 1
+    # agrees with filtered round 2 to 0.5 pts and with unfiltered round 2 to 29.
+    torch.manual_seed(0)
+    L, d = 2048, 32
+    K = torch.randn(L, d); q = torch.randn(d)
+    Rr = quant.random_rotation(d, "cpu", seed=0)
+    V = torch.randn(L, d) / math.sqrt(d)
+    sc = 2.5 / (K @ q / math.sqrt(d)).std(); s = (K @ q / math.sqrt(d)) * sc
+    shat = {b: (quant.quantize_keys(K, b, Rr) @ q / math.sqrt(d)) * sc
+            for b in (2, 3, 8)}
+    cs = evict.CornerSpec(evictors=("oracle", "accum", "recency"))
+    rec = torch.arange(L, dtype=torch.float64)
+    lag = torch.softmax(s * 0.9, -1)
+
+    partial = quant_metrics(s, shat, V, budgets=(3,), maxb=8, corner=cs,
+                            practical_scores={"recency": rec})     # step 0
+    full = quant_metrics(s, shat, V, budgets=(3,), maxb=8, corner=cs,
+                         practical_scores={"recency": rec, "accum": lag})
+    check("[REGRESSION] partial corner withholds the verdict aggregate",
+          "gain_best_practical3" not in partial and "best_evictor3" not in partial)
+    check("per-evictor cells are still recorded for what DID score",
+          "err_e3_recency_frac" in partial and "err_e3_oracle_frac" in partial)
+    check("a complete corner still produces the aggregate",
+          "gain_best_practical3" in full and "best_evictor3" in full)
+    check("the withheld row would have been WEAKER (that is the bug)",
+          full["err_practical3"] <= partial["err_e3_recency_frac"] + 1e-12)
+
+    # report.py repairs parquets written before the alloc.py guard.
+    import pandas as pd
+    sys.path.insert(0, os.path.join(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))), "h0_measurement"))
+    import report as R
+    df = pd.DataFrame({
+        "evictors": ["oracle,accum,recency"] * 4,
+        "n_practical": [1, 2, 1, 2],
+        "gain_best_practical3": [99.0, 3.0, 99.0, 3.0],
+        "best_evictor3": ["recency", "accum", "recency", "accum"],
+        "oracle_evict_advantage3": [50.0, 1.2, 50.0, 1.2]})
+    out, n = R.drop_partial_corners(df)
+    check("report.py blanks the partial rows in an old parquet", n == 2)
+    check("and keeps the complete ones",
+          out.gain_best_practical3.dropna().tolist() == [3.0, 3.0])
+    clean, n2 = R.drop_partial_corners(out.assign(n_practical=[2, 2, 2, 2]))
+    check("no-op when every row is complete", n2 == 0)
+
+
 def test_corner_columns():
     print("\n[E1+E2] the corner grid reaches the output frame")
     torch.manual_seed(0)
@@ -857,6 +966,7 @@ if __name__ == "__main__":
               test_bias_regression, test_waterfill_budget, test_exact_error_guards,
               test_end_to_end, test_p0_alignment, test_e2_registry,
               test_e1_budget_policy, test_corner_columns, test_corner_provenance,
+              test_report_survives_missing_corner_columns, test_partial_corner_is_withheld,
               test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
               test_needle_span, test_validity_gate):

@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-2                  # one task per CTX VALUE; match your ctx list
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=96G
+# #SBATCH --mem=96G
 #SBATCH --time=01:30:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
@@ -221,10 +221,35 @@ fi
 # --gpus-per-node=4 for a large model -- the report is pure CPU).
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "model: ${MODEL}"; echo "ctx sweep: ${CTXS[*]}";
-    echo "evictors: ${SIEVE_EVICTORS:-none (models.yaml defaults)}";
-    echo "corner policies: ${SIEVE_CORNER_POLICIES:-none (models.yaml defaults)}";
-    echo "array job: ${SLURM_ARRAY_JOB_ID}"; } \
-    > "${OUT_DIR}/RUN_INFO.txt"
+    echo "evictors knob: ${SIEVE_EVICTORS:-unset}";
+    echo "corner policies knob: ${SIEVE_CORNER_POLICIES:-unset}";
+    echo "array job: ${SLURM_ARRAY_JOB_ID}";
+    echo;
+    # The knobs above are what was ASKED for; unset does not say what the
+    # defaults were. Record the EFFECTIVE corner, which is the same at every ctx
+    # (only the token COUNTS it implies move with L).
+    python - "$MODEL" "${CTXS[@]}" <<'PY'
+import os, sys, yaml
+sys.path.insert(0, os.getcwd())
+from sievelib import evict
+cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
+ov = {}
+if os.environ.get("SIEVE_EVICTORS"):
+    ov["evictors"] = os.environ["SIEVE_EVICTORS"]
+if os.environ.get("SIEVE_CORNER_POLICIES"):
+    ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
+m = next((x for x in cfg["models"] if x["tag"] == sys.argv[1]), None) or {}
+cs = evict.CornerSpec.from_cfg({**cfg["defaults"], **m, **ov})
+print("effective corner (authoritative copy: the .json beside each parquet)")
+print(f"  {evict.corner_tag(cs)}")
+print(f"  evictors={','.join(evict.labels(cs.evictors))}"
+      f"  policies={','.join(cs.policies)}"
+      + (f"  kappa={cs.kappa:g} floor={cs.floor}" if "abs" in cs.policies else "")
+      + (f"  kstar_tol={cs.kstar_tol:g}" if cs.kstar else "  kstar=off"))
+print(f"  lagged state = n_layers*n_heads*ctx*"
+      f"{evict.state_bytes_per_slot(cs)} B  (largest at ctx {max(int(x) for x in sys.argv[2:])})")
+PY
+  } > "${OUT_DIR}/RUN_INFO.txt" 2>&1
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
     --job-name=sieve-h0-ctxsweep-report \

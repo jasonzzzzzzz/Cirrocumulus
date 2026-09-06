@@ -98,12 +98,14 @@ fi
 # (bugs/2_towards_real_evictor). Unset = the models.yaml defaults. Validated by
 # run_h0.py itself, which rejects a bad name before the tokenizer loads.
 #
-# Deliberately NOT forwarded through `sbatch --export` to the report stage: that
-# value list is COMMA-separated (the same reason SIEVE_MODELS is colon-encoded),
-# and the natural spelling here -- SIEVE_EVICTORS='oracle,accum' -- would be
-# parsed as two separate variable assignments. The report does not need them:
-# run_h0.py stamps `evictors` and `corner_policies` into every parquet row, and
-# report.py names the corner on each verdict line from those columns.
+# Deliberately NOT LISTED in the report stage's `--export=` below. That value
+# list is COMMA-separated (the same reason SIEVE_MODELS is colon-encoded), so
+# spelling out SIEVE_EVICTORS='oracle,accum' there would be parsed as two
+# separate variable assignments. They still reach the report job through the
+# leading `ALL`, which propagates the environment wholesale without re-parsing
+# it -- the report simply has no use for them: run_h0.py stamps `evictors` and
+# `corner_policies` into every parquet row, and report.py names the corner on
+# each verdict line from those columns.
 SIEVE_EVICTORS="${SIEVE_EVICTORS:-}"
 SIEVE_CORNER_POLICIES="${SIEVE_CORNER_POLICIES:-}"
 
@@ -244,9 +246,36 @@ fi
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}";
     echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}";
-    echo "evictors: ${SIEVE_EVICTORS:-none (models.yaml defaults)}";
-    echo "corner policies: ${SIEVE_CORNER_POLICIES:-none (models.yaml defaults)}"; } \
-    > "${OUT_DIR}/RUN_INFO.txt"
+    echo "evictors knob: ${SIEVE_EVICTORS:-unset}";
+    echo "corner policies knob: ${SIEVE_CORNER_POLICIES:-unset}";
+    echo;
+    # The knobs above are what was ASKED for; unset does not say what the
+    # defaults were, and models.yaml can change afterwards. Resolve and record
+    # the EFFECTIVE corner per model, so this file stays readable on its own.
+    python - "${MODELS[@]}" <<'PY'
+import os, sys, yaml
+sys.path.insert(0, os.getcwd())
+from sievelib import evict
+cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
+ov = {}
+if os.environ.get("SIEVE_EVICTORS"):
+    ov["evictors"] = os.environ["SIEVE_EVICTORS"]
+if os.environ.get("SIEVE_CORNER_POLICIES"):
+    ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
+print("effective corner per model (authoritative copy: the .json beside each parquet)")
+for tag in sys.argv[1:]:
+    m = next((x for x in cfg["models"] if x["tag"] == tag), None)
+    if m is None:
+        print(f"  {tag:22s} UNKNOWN TAG"); continue
+    cs = evict.CornerSpec.from_cfg({**cfg["defaults"], **m, **ov})
+    ctx = os.environ.get("SIEVE_CTX") or m.get("ctx", cfg["defaults"]["ctx"])
+    print(f"  {tag:22s} ctx={ctx:<7} {evict.corner_tag(cs)}")
+    print(f"  {'':22s} evictors={','.join(evict.labels(cs.evictors))}"
+          f"  policies={','.join(cs.policies)}"
+          + (f"  kappa={cs.kappa:g} floor={cs.floor}" if "abs" in cs.policies else "")
+          + (f"  kstar_tol={cs.kstar_tol:g}" if cs.kstar else "  kstar=off"))
+PY
+  } > "${OUT_DIR}/RUN_INFO.txt" 2>&1
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
     --job-name=sieve-h0-report \

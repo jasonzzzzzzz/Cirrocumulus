@@ -1,0 +1,267 @@
+model	registry cap	8192	16384	32768	65536	131072
+llama31-8b	131072	job20013992 · job20014005	job20013997 · job20014005	job20014000 · job20014005	job20014002 · job20014005	job20014005
+llama33-70b	131072	job20014007	job20014008	job20014011	job20014013	—
+qwen3-30b-a3b-2507	131072	job20014007	job20014008	job20014011	job20014013	—
+qwen3-8b	40960	job20013992	job20013997	job20014000	cap	cap
+mistral-7b	32768	job20013992	job20013997	job20014000	cap	cap
+qwen15-moe-a2.7b	32768	job20013992	job20013997	job20014000	cap	cap
+cap = above the model's native RoPE limit; run_h0 correctly rejects it. That's why job20014002 contains only llama31-8b — the other three main-tier models were rejected at 65536, as designed.
+
+Missing: llama33-70b @131072 (OPP 5 — never submitted) and qwen3-30b-a3b-2507 @131072 in this corner set (only exists in job19983483, which lacks recency). Duplicates: llama31-8b appears in both the per-ctx jobs and the sweep (job20014005) — I deduped to the sweep copy.
+
+
+model	ctx	oracle	practical	Δ pts	verdict
+llama31-8b	8K→128K	43.8 → 13.6	67.1 → 28.8	+23.3 … +15.2	GO → STOP→NARROW @128K
+llama33-70b	8K→65K	82.1 → 49.0	92.6 → 61.9	+10.6 … +13.0	=GO throughout
+mistral-7b	8K→32K	53.6 → 45.9	76.3 → 65.9	+22.7 … +20.0	=GO
+qwen15-moe	8K→32K	31.0 → 21.9	55.0 → 37.0	+24.0 … +15.1	NARROW→GO
+qwen3-30b	8K→65K	10.4 → 6.3	33.9 → 24.4	+23.5 … +18.0	STOP→NARROW
+qwen3-8b	8K→32K	11.5 → 6.4	40.4 → 26.6	+28.9 … +20.1	STOP→NARROW/GO
+Cross-check: the in-run oracle column reproduces the independent pre-fix campaigns (job19959944/45, job19960025/27) to within 0.26–4.49 points across all 12 overlapping cells. The pipeline is consistent; the movement is entirely the corner demotion.
+
+Every STOP is gone (+10.6 to +28.9 pts), but nothing is a runaway — this is a credible NARROW/GO picture, not the 85–98% the contaminated numbers suggested.
+
+========================
+
+=== ROUND 1 (accum only, NO recency) vs ROUND 2 raw and clean ===
+             model   ctx  R1_accum_frac  band_pr_ALL  band_pr_CLEAN  |R1 - R2clean|  |R1 - R2raw|
+        llama31-8b  8192          68.65        85.45          67.09            1.56         16.80
+       llama33-70b  8192          92.66        98.18          92.62            0.04          5.53
+        mistral-7b  8192          76.17        94.43          76.27            0.10         18.26
+  qwen15-moe-a2.7b  8192          55.73        82.55          54.95            0.78         26.82
+qwen3-30b-a3b-2507  8192          34.90        67.77          33.92            0.98         32.88
+          qwen3-8b  8192          40.02        82.29          40.36            0.35         42.27
+        llama31-8b 32768          45.31        76.86          46.19            0.88         31.54
+       llama33-70b 32768          75.51        92.50          75.43            0.08         16.99
+        mistral-7b 32768          66.31        91.11          65.92            0.39         24.80
+  qwen15-moe-a2.7b 32768          36.72        74.48          36.98            0.26         37.76
+qwen3-30b-a3b-2507 32768          24.28        65.23          23.63            0.65         40.95
+          qwen3-8b 32768          26.82        75.78          26.56            0.26         48.96
+
+  mean |R1 - R2 clean| = 0.53 pts
+  mean |R1 - R2 raw|   = 28.63 pts
+
+
+=======================
+
+Three findings
+(a) E1's slack hypothesis is dead. K*/budget = 100.0% for every model at every ctx, 8K→128K. The corner genuinely needs its whole fractional budget everywhere. This was one ambiguous data point before; now it's 23 runs across 6 models. The "corner wins on slack" framing should be retired.
+
+(b) κ=4 is wrong, and no single κ can work. K*/n95 ranges 6.5 (mistral) to 233 (llama33-70b) — a 36× spread across models, and it grows with ctx. With κ=4, abs saves 1.7–62× the bits but costs 1.9–7.4× the error. A global constant can't span that; K* itself is the per-head answer.
+
+(c) The diffuse-head finding replicates everywhere. spearman(oracle_adv, n95) is positive in all 23 runs (+0.23 to +0.71); sharp quartile ~1.0–1.28×, diffuse quartile ~1.31–1.73×. why.md's "deflation is strongest for sharp models" is backwards — confirmed at scale, not just at 128K.
+
+Bonus: accum (H2O) wins 78–93% of heads; window 6–17%, recency 1–5%. The min over three corners is barely stronger than H2O alone, so the verdict is robust to the evictor set.
+
+======================
+
+=== CROSS-CHECK: in-run oracle vs INDEPENDENT pre-fix campaign (8K/32K) ===
+             model   ctx  band_oracle  band_or_CLEAN    Δ
+        mistral-7b  8192        51.27          53.61 2.34
+  qwen15-moe-a2.7b  8192        29.43          30.99 1.56
+          qwen3-8b  8192         9.11          11.46 2.34
+        mistral-7b 32768        41.50          45.90 4.39
+  qwen15-moe-a2.7b 32768        20.05          21.88 1.82
+          qwen3-8b 32768         6.08           6.42 0.35
+        llama31-8b 32768        25.00          26.56 1.56
+        llama31-8b  8192        39.26          43.75 4.49
+       llama33-70b  8192        79.08          82.07 2.99
+qwen3-30b-a3b-2507  8192        10.09          10.42 0.33
+       llama33-70b 32768        58.46          61.35 2.89
+qwen3-30b-a3b-2507 32768         6.38           6.64 0.26
+
+=== HEADLINE (clean rows only): bug-2 fix, paired in one frame ===
+             model    ctx  band_or_CLEAN  band_pr_CLEAN  oadv_CLEAN  Δ pts      verdict
+        llama31-8b   8192          43.75          67.09        1.41  23.34          =GO
+        llama31-8b  16384          35.64          58.01        1.35  22.36          =GO
+        llama31-8b  32768          26.56          46.19        1.27  19.63   NARROW->GO
+        llama31-8b  65536          18.07          34.18        1.16  16.11      =NARROW
+        llama31-8b 131072          13.57          28.81        1.12  15.23 STOP->NARROW
+       llama33-70b   8192          82.07          92.62        1.29  10.55          =GO
+       llama33-70b  16384          74.43          86.00        1.23  11.56          =GO
+       llama33-70b  32768          61.35          75.43        1.22  14.08          =GO
+       llama33-70b  65536          48.96          61.91        1.16  12.95          =GO
+        mistral-7b   8192          53.61          76.27        1.39  22.66          =GO
+        mistral-7b  16384          47.07          66.21        1.31  19.14          =GO
+        mistral-7b  32768          45.90          65.92        1.34  20.02          =GO
+  qwen15-moe-a2.7b   8192          30.99          54.95        1.36  23.96   NARROW->GO
+  qwen15-moe-a2.7b  16384          25.52          45.31        1.27  19.79   NARROW->GO
+  qwen15-moe-a2.7b  32768          21.88          36.98        1.13  15.10   NARROW->GO
+qwen3-30b-a3b-2507   8192          10.42          33.92        1.25  23.50 STOP->NARROW
+qwen3-30b-a3b-2507  16384           8.59          30.27        1.21  21.68 STOP->NARROW
+qwen3-30b-a3b-2507  32768           6.64          23.63        1.15  16.99 STOP->NARROW
+qwen3-30b-a3b-2507  65536           6.32          24.35        1.14  18.03 STOP->NARROW
+          qwen3-8b   8192          11.46          40.36        1.33  28.91     STOP->GO
+          qwen3-8b  16384           7.47          28.73        1.16  21.27 STOP->NARROW
+          qwen3-8b  32768           6.42          26.56        1.11  20.14 STOP->NARROW
+
+=== E1: K* / budget (oracle-based, UNAFFECTED by the step-0 issue) ===
+ctx                 8192    16384   32768   65536   131072
+model                                                     
+llama31-8b           100.0   100.0   100.0   100.0   100.0
+llama33-70b          100.0   100.0   100.0   100.0     NaN
+mistral-7b           100.0   100.0   100.0     NaN     NaN
+qwen15-moe-a2.7b     100.0   100.0   100.0     NaN     NaN
+qwen3-30b-a3b-2507   100.0   100.0   100.0   100.0     NaN
+qwen3-8b             100.0   100.0   100.0     NaN     NaN
+
+
+
+=== E1 frac vs abs (accum corner): error penalty and bit saving ===
+             model    ctx  corner_tokens3_frac  corner_tokens3_abs  corner_bits_used3_frac  corner_bits_used3_abs  abs/frac  spend_ratio  kstar_over_n953
+        llama31-8b   8192               2832.5               477.0                     3.0                   0.51      2.59         5.93            19.86
+        llama31-8b  16384               5659.0               792.0                     3.0                   0.42      3.16         7.15            22.90
+        llama31-8b  32768              11311.0               965.0                     3.0                   0.26      3.77        11.72            37.64
+        llama31-8b  65536              22616.5              1174.0                     3.0                   0.16      4.75        19.27            53.04
+        llama31-8b 131072              45226.0              4033.0                     3.0                   0.27      5.16        11.21            33.94
+       llama33-70b   8192               2832.5               256.0                     3.0                   0.27      2.56        11.05           108.85
+       llama33-70b  16384               5659.0               256.0                     3.0                   0.14      3.67        22.08           152.76
+       llama33-70b  32768              11311.0               256.0                     3.0                   0.07      5.73        44.16           209.78
+       llama33-70b  65536              22616.5               362.0                     3.0                   0.05      7.44        62.46           233.24
+        mistral-7b   8192               2833.0              1672.0                     3.0                   1.77      1.91         1.69             6.53
+        mistral-7b  16384               5659.0              2653.0                     3.0                   1.41      2.24         2.13             8.09
+        mistral-7b  32768              11311.5              5697.0                     3.0                   1.51      2.25         1.99             7.49
+  qwen15-moe-a2.7b   8192               2832.0               596.0                     3.0                   0.63      2.76         4.75            14.21
+  qwen15-moe-a2.7b  16384               5658.5              1461.0                     3.0                   0.77      3.45         3.88            12.84
+  qwen15-moe-a2.7b  32768              11311.0              2470.0                     3.0                   0.65      4.84         4.58            13.50
+qwen3-30b-a3b-2507   8192               2832.0               306.0                     3.0                   0.32      2.14         9.25            18.97
+qwen3-30b-a3b-2507  16384               5658.5               562.0                     3.0                   0.30      2.45        10.07            19.61
+qwen3-30b-a3b-2507  32768              11311.0              1034.0                     3.0                   0.27      2.72        10.94            24.52
+qwen3-30b-a3b-2507  65536              22615.5              1968.0                     3.0                   0.26      2.91        11.49            24.58
+          qwen3-8b   8192               2832.0               428.0                     3.0                   0.45      2.41         6.63            14.68
+          qwen3-8b  16384               5658.5               617.0                     3.0                   0.33      3.01         9.17            18.71
+          qwen3-8b  32768              11311.0              1022.0                     3.0                   0.27      3.54        11.07            20.85
+
+
+
+
+=== ROUTING SIGNAL: spearman(feature, gain over practical corner) ===
+             model    ctx  sp_n95  sp_tau  sp_eff_frac  sp_entropy  sp_top1  sp_ladder_bits
+        llama31-8b   8192   0.479  -0.622        0.479       0.101    0.155          -0.623
+        llama31-8b  16384   0.479  -0.678        0.479       0.063    0.214          -0.681
+        llama31-8b  32768   0.576  -0.749        0.575       0.172    0.164          -0.757
+        llama31-8b  65536   0.577  -0.767        0.577       0.196    0.133          -0.770
+        llama31-8b 131072   0.596  -0.749        0.596       0.205    0.162          -0.752
+       llama33-70b   8192   0.024  -0.402        0.023      -0.057    0.089          -0.411
+       llama33-70b  16384  -0.021  -0.508       -0.021      -0.131    0.178          -0.509
+       llama33-70b  32768   0.072  -0.576        0.072      -0.055    0.128          -0.573
+       llama33-70b  65536   0.057  -0.637        0.056      -0.090    0.178          -0.630
+        mistral-7b   8192   0.489  -0.462        0.489       0.144    0.129          -0.467
+        mistral-7b  16384   0.562  -0.528        0.562       0.217    0.093          -0.531
+        mistral-7b  32768   0.561  -0.547        0.561       0.233    0.083          -0.551
+  qwen15-moe-a2.7b   8192   0.632  -0.608        0.632       0.401    0.010          -0.607
+  qwen15-moe-a2.7b  16384   0.615  -0.604        0.615       0.424   -0.073          -0.606
+  qwen15-moe-a2.7b  32768   0.708  -0.698        0.708       0.489   -0.141          -0.700
+qwen3-30b-a3b-2507   8192   0.544  -0.452        0.544       0.266    0.039          -0.455
+qwen3-30b-a3b-2507  16384   0.548  -0.508        0.548       0.305    0.006          -0.513
+qwen3-30b-a3b-2507  32768   0.540  -0.492        0.540       0.322   -0.009          -0.504
+qwen3-30b-a3b-2507  65536   0.553  -0.621        0.553       0.369   -0.033          -0.628
+          qwen3-8b   8192   0.557  -0.571        0.557       0.339   -0.126          -0.581
+          qwen3-8b  16384   0.540  -0.667        0.540       0.326   -0.131          -0.673
+          qwen3-8b  32768   0.576  -0.750        0.576       0.395   -0.193          -0.756
+
+=== in-band vs out-of-band head profile ===
+             model    ctx  band  n95_in  n95_out  tau_in  tau_out
+        llama31-8b   8192 67.09  347.00    30.00    1.93     2.39
+        llama31-8b  16384 58.01  648.25    85.75    2.02     2.54
+        llama31-8b  32768 46.19 1169.50    80.00    2.15     2.73
+
+
+MASTER TABLE (clean rows, n_practical==3)
+             model    ctx  band_or_CLEAN  band_pr_CLEAN  oadv_CLEAN     n95  kstar_over_n953  gain_u3  evict_frac3  win_accum
+        llama31-8b   8192          43.75          67.09        1.41  118.50            19.86    25.72         0.47       0.45
+        llama31-8b  16384          35.64          58.01        1.35  197.75            22.90    27.47         0.48       0.44
+        llama31-8b  32768          26.56          46.19        1.27  241.25            37.64    29.64         0.49       0.44
+        llama31-8b  65536          18.07          34.18        1.16  290.50            53.04    32.38         0.51       0.42
+        llama31-8b 131072          13.57          28.81        1.12 1008.25            33.94    33.55         0.52       0.42
+       llama33-70b   8192          82.07          92.62        1.29   24.50           108.85    21.49         0.40       0.46
+       llama33-70b  16384          74.43          86.00        1.23   37.00           152.76    24.79         0.42       0.46
+       llama33-70b  32768          61.35          75.43        1.22   49.00           209.78    30.39         0.45       0.46
+       llama33-70b  65536          48.96          61.91        1.16   88.25           233.24    33.95         0.46       0.46
+        mistral-7b   8192          53.61          76.27        1.39  418.00             6.53    23.22         0.45       0.46
+        mistral-7b  16384          47.07          66.21        1.31  663.25             8.09    24.39         0.46       0.45
+        mistral-7b  32768          45.90          65.92        1.34 1424.25             7.49    25.56         0.48       0.45
+  qwen15-moe-a2.7b   8192          30.99          54.95        1.36  149.00            14.21    26.53         0.49       0.42
+  qwen15-moe-a2.7b  16384          25.52          45.31        1.27  365.25            12.84    28.85         0.50       0.41
+  qwen15-moe-a2.7b  32768          21.88          36.98        1.13  617.50            13.50    30.49         0.52       0.39
+qwen3-30b-a3b-2507   8192          10.42          33.92        1.25   74.25            18.97    26.05         0.51       0.42
+qwen3-30b-a3b-2507  16384           8.59          30.27        1.21  140.00            19.61    27.08         0.51       0.42
+qwen3-30b-a3b-2507  32768           6.64          23.63        1.15  258.50            24.52    27.38         0.52       0.41
+qwen3-30b-a3b-2507  65536           6.32          24.35        1.14  492.00            24.58    27.93         0.53       0.40
+          qwen3-8b   8192          11.46          40.36        1.33  107.00            14.68    26.76         0.51       0.43
+          qwen3-8b  16384           7.47          28.73        1.16  154.25            18.71    28.16         0.52       0.42
+          qwen3-8b  32768           6.42          26.56        1.11  255.50            20.85    29.43         0.53       0.40
+
+MATCHED 32k slice:
+             model  band_or_CLEAN  band_pr_CLEAN  oadv_CLEAN     n95  kstar_over_n953
+        llama31-8b          26.56          46.19        1.27  241.25            37.64
+       llama33-70b          61.35          75.43        1.22   49.00           209.78
+        mistral-7b          45.90          65.92        1.34 1424.25             7.49
+  qwen15-moe-a2.7b          21.88          36.98        1.13  617.50            13.50
+qwen3-30b-a3b-2507           6.64          23.63        1.15  258.50            24.52
+          qwen3-8b           6.42          26.56        1.11  255.50            20.85
+
+  K*/n95 at 32k: min 7.5 max 209.8  -> 28x spread
+  K*/n95 across whole sweep: min 6.5 max 233.2  -> 36x
+
+  band Δ (practical - oracle): min +10.5 max +28.9 pts
+
+
+  accum      5 B per layer-head-token
+  window     17 B per layer-head-token
+  recency    1 B per layer-head-token
+  last_step  5 B per layer-head-token
+corrected
+
+             model    ctx  mean_bits3  evict_frac3  evict_frac3_in  gain_u3  gain_pr3  oadv  routed  p90
+        llama31-8b   8192         3.0         0.47            0.45    25.21      3.07  1.41    2.81 6.10
+        llama31-8b  16384         3.0         0.48            0.46    26.67      2.56  1.35    2.47 5.96
+---
+  mean_bits3       min    3.00   max    3.00
+  evict_frac3      min    0.40   max    0.53
+  evict_frac3_in   min    0.40   max    0.49
+  gain_u3          min   20.30   max   34.24
+  gain_pr3         min    1.15   max    4.81
+  oadv             min    1.11   max    1.41
+  routed           min    1.51   max    4.40
+  p90              min    3.20   max    7.60
+
+
+
+  [1]+  Done                    OUT=$S/phase.csv timeout 3000 .venv/bin/python $S/phase.py > $S/phase.log 2>&1
+             model    ctx  dead2  dead1  tau  ladder  eff  band_or  band_pr  alpha2  lin
+        mistral-7b   8192   9.28  97.17 1.98    2.89 5.54    53.61    76.27    0.94 1.25
+  qwen15-moe-a2.7b   8192  24.22  94.53 2.41    3.50 1.97    30.99    54.95    0.94 1.09
+          qwen3-8b   8192  47.87 100.00 2.57    3.74 1.41    11.46    40.36    0.94 1.09
+        mistral-7b  16384  12.94  97.27 2.13    3.11 4.39    47.07    66.21    0.94 1.19
+  qwen15-moe-a2.7b  16384  32.68  95.05 2.66    3.87 2.42    25.52    45.31    0.94 1.01
+          qwen3-8b  16384  52.30 100.00 2.74    3.98 1.02     7.47    28.73    0.94 1.03
+        mistral-7b  32768  20.12  97.56 2.22    3.23 4.72    45.90    65.92    0.94 1.14
+  qwen15-moe-a2.7b  32768  36.20  95.57 3.07    4.42 2.05    21.88    36.98    0.94 0.96
+          qwen3-8b  32768  57.47 100.00 3.05    4.43 0.85     6.42    26.56    0.94 0.99
+        llama31-8b 131072  54.05  99.12 2.94    4.24 0.84    13.57    28.81    0.94 0.87
+        llama31-8b  16384  23.39  98.83 2.24    3.25 1.31    35.64    58.01    0.94 1.06
+        llama31-8b  32768  26.17  98.97 2.41    3.48 0.80    26.56    46.19    0.94 0.98
+        llama31-8b  65536  30.27  99.02 2.68    3.87 0.48    18.07    34.18    0.94 0.90
+        llama31-8b   8192  18.95  98.93 2.10    3.04 1.57    43.75    67.09    0.94 1.13
+       llama33-70b   8192   5.91  97.21 1.53    2.24 0.32    82.07    92.62    0.94 1.34
+qwen3-30b-a3b-2507   8192  60.71  99.93 2.19    3.18 0.98    10.42    33.92    0.94 1.10
+       llama33-70b  16384   8.18  97.90 1.67    2.44 0.25    74.43    86.00    0.94 1.17
+qwen3-30b-a3b-2507  16384  63.28  99.93 2.30    3.34 0.93     8.59    30.27    0.94 1.07
+       llama33-70b  32768   9.24  98.11 1.92    2.80 0.16    61.35    75.43    0.94 0.96
+qwen3-30b-a3b-2507  32768  65.95 100.00 2.38    3.44 0.86     6.64    23.63    0.94 1.06
+       llama33-70b  65536  11.67  98.41 2.04    2.98 0.15    48.96    61.91    0.94 0.86
+qwen3-30b-a3b-2507  65536  69.14 100.00 2.52    3.65 0.82     6.32    24.35    0.94 1.03
+
+=== PHASE-AXIS CORRELATIONS (n=22 configurations) ===
+  spearman(dead2  , band_ORACLE)    = -0.977
+  spearman(dead2  , band_PRACTICAL) = -0.964
+  spearman(tau    , band_ORACLE)    = -0.764
+  spearman(tau    , band_PRACTICAL) = -0.783
+  spearman(ladder , band_ORACLE)    = -0.770
+  spearman(ladder , band_PRACTICAL) = -0.785
+  spearman(eff    , band_ORACLE)    = -0.046
+  spearman(eff    , band_PRACTICAL) = +0.047
+
+  alpha2 range: 0.941-0.944
+  lin_ratio3 range: 0.86-1.34

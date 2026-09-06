@@ -9,6 +9,26 @@ large, and not what the median head does. `report.py` prints
 `heads in band` (gain over the best corner ≥ 2×) and `routed gain`; below 15% is
 STOP, above 35% is GO.
 
+**Which corner matters.** Until bug 2 the eviction corner was an *oracle* — it
+ranked tokens by the current step's true sensitivity, which needs the very
+attention weights eviction exists to avoid computing. It is now a real evictor
+(H2O / SnapKV / StreamingLLM on lagged attention), with the oracle reported beside
+it as a bound. Every verdict line names the corner it used: `[practical]` or
+`[oracle]`. See `bugs/2_towards_real_evictor/`.
+
+### Current campaign status
+
+**Complete.** 24 (model, context) configurations, six architectures, 8k–128k, all
+four corners and both budget policies in every cell. Results:
+`bugs/2_towards_real_evictor/report.md`. Headline:
+
+| | |
+|---|---|
+| verdicts | **14 GO, 10 NARROW, 0 STOP** |
+| band vs the oracle corner → vs a real evictor | **+6 to +29 points**, all 24 cells |
+| context slope | **−3.7 to −15.9** band-points per ctx doubling |
+| phase axis (dead-2 tier fraction) | ρ = **−0.953** practical, −0.983 oracle |
+| 128k row | llama31-8b 28.8%, llama33-70b 25.0%, qwen3-30b 18.6% |
 
 ---
 
@@ -481,25 +501,36 @@ sbatch --gpus-per-node=4 --cpus-per-task=32 --mem=320G --time=03:30:00 --array=0
 - **`n_decode` must be ≥ 2.** Lagged evictors have no history on step 0, so only
   `recency` scores there. `--validate-only` sets `n_decode=1` and produces no
   lagged columns — that is a probe check, not a measurement.
-- **`quant_every` thins the comparison.** Practical columns only exist on
-  quantization steps, and `do_quant = step % quant_every == 0` makes step 0 always
-  a quant step — the one step with no history. With the defaults (`n_decode: 8`,
-  `quant_every: 4`) the quant steps are 0 and 4, so half the quant rows carry only
-  `recency`. Filter on `n_practical`, or run `--override quant_every=2`.
+- **`quant_every` wastes half the quant rows, but no longer corrupts them.**
+  `do_quant = step % quant_every == 0` makes step 0 always a quant step — the one
+  step with no lagged history. With the defaults (`n_decode: 8`, `quant_every: 4`)
+  the quant steps are 0 and 4, so half of them cannot form a complete practical
+  corner. `alloc.py` now **withholds** the verdict aggregate on those rows rather
+  than letting `min` collapse onto whichever evictor needs no history; they drop
+  out of every median by themselves. They are still wasted GPU time — run
+  `--override quant_every=2` if you want more usable rows per prompt.
+  <br>*Why this matters:* before the guard, those rows compared the interior
+  against StreamingLLM alone, inflating the band by **~29 points** and turning the
+  band-vs-context curve non-monotone. `report.py` repairs older parquets
+  automatically and prints how many rows it blanked.
 - **`accum` accumulates from decode, not prefill** (the probe only captures decode
   queries), so it is weaker than a deployed H2O and biases gains *up*. Raise
   `n_decode` when it is the headline.
-- **RAM.** Each evictor holds `ctx × (4·n_bufs + 1)` bytes per (layer, head);
-  `window` holds `window` times what the others do. On llama33-70b @ 128k the
-  default set is ~18.8 GB of host RAM. Drop `window` first:
-  `--override evictors=oracle,last_step,accum,recency`.
+- **RAM.** Each evictor holds `ctx × (4·n_bufs + 1)` bytes per (layer, head) —
+  `accum`/`last_step` 5 B, `window` 17 B, `recency` 1 B, `oracle` 0 B. On
+  llama33-70b @ 128k the models.yaml default set is **18.8 GB** of host RAM.
+  `window` is 17 of those bytes, so drop it first:
+  `--override evictors=oracle,accum,recency` → 4.0 GB.
+  `evict.state_bytes_per_slot()` is the single source of truth; `run_h0.py` prints
+  the figure at startup and the large/sweep SLURM scripts refuse to start if
+  `--mem` cannot hold it.
 - **`gain_best_practical ≥ gain_best` is NOT a per-head theorem.** `oracle` is an
   oracle only w.r.t. the first-order proxy `w² = (a·‖v−o‖)²`; the reported error
   is exact recomputation, and the proxy ranking is not the argmin of the exact
-  error. On the real qwen3-1.7b run above a practical corner beat the oracle on
-  **15.9% of head-rows**, by up to 4×. The direction holds in *aggregate* (median
-  `err_practical/err_evict` = 1.19, band 2.5% → 32.6%) — so compare distributions,
-  and do not treat a single falling head as a bug.
+  error. Measured: a practical corner beats the oracle on **15.9% of head-rows**.
+  The direction holds decisively in aggregate (band +6 to +29 points in all 24
+  configurations of the completed campaign) — so compare distributions, and do not
+  treat a single falling head as a bug.
 
 ## Matched context & ctx sweep (bug 3)
 
@@ -695,6 +726,25 @@ model entry overrides it; `--override` overrides both.
 ## Version notes
 
 Kept deliberately short since there is no VCS here.
+
+- **Honest eviction corner (bug 2).** The eviction corner was an *oracle*: it
+  ranked by the current step's true sensitivity `a·‖v−o‖`, which needs the very
+  attention weights eviction exists to avoid computing, so every band fraction the
+  project had reported was measured against a baseline nothing can build. New
+  `sievelib/evict.py` adds a pluggable evictor registry — `oracle` (bound),
+  `accum` (H2O), `window` (SnapKV), `recency` (StreamingLLM), `last_step` (TOVA) —
+  with cache-position alignment handled once for all of them; that alignment is
+  the actual fix for a guard in `run_h0.py` that had been rejecting the lagged
+  score on essentially every step, so **the practical corner had never run in any
+  campaign**. `alloc.py` gains the (evictor × policy) corner grid and `K*`, both
+  made affordable by `evict_error_curve`, which computes the whole keep-count
+  curve in one cumulative pass (exact to 1.2e-14 against `exact_error`).
+  `report.py` keys the verdict off the practical corner and names it. Outcome:
+  every STOP verdict disappeared and the phase axis was unmoved. A second defect
+  found during the same work — a `min`-over-corners baseline collapsing onto its
+  weakest member on the first decode step — is documented in
+  `bugs/2_towards_real_evictor/fix.md` (P1); it inflated the band by ~29 points
+  and made the context curve non-monotone until guarded.
 
 - **Matched ctx + ctx sweep (bug 3).** The two Recommendation bullets below are
   now runnable: `SIEVE_CTX` in both campaign scripts pins every model to one

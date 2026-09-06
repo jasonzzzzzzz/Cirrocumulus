@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEVE — the pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,500;0,6..72,600;1,6..72,300&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root{
+    --abyss:#0a1f2b; --deep:#12414f; --water:#1d6f80; --shallow:#4ea8b8;
+    --line:#e0a838; --coral:#c2334d; --moss:#1f6b52; --plum:#7c3aed; --clay:#a8611f;
+    --paper:#fbfaf7; --paper-2:#f1efe9; --ink:#12212a; --ink-2:#4a5b64; --rule:#ddd8cd;
+    --disp:"Newsreader",Georgia,serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.68;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:830px;margin:0 auto;padding:0 1.15rem}
+
+  .hero{background:var(--abyss);color:#eaf3f5;padding:3.4rem 0 0}
+  .kicker{font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--line);margin:0 0 1.1rem}
+  .hero h1{font-family:var(--disp);font-weight:500;font-size:clamp(2rem,5.2vw,3rem);line-height:1.07;letter-spacing:-.015em;margin:0 0 1rem}
+  .hero h1 em{font-style:italic;font-weight:300;color:var(--line)}
+  .hero .deck{font-family:var(--disp);font-weight:300;font-size:clamp(1.02rem,2.2vw,1.24rem);line-height:1.5;color:#bcd4da;max-width:38em;margin:0 0 2.1rem}
+  .heroart{margin:0;padding:0 0 1.6rem}
+  .heroart svg{width:100%;height:auto;display:block}
+  .heroart figcaption{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;color:#7fa3ac;margin-top:.7rem;line-height:1.6}
+
+  section{padding:2.9rem 0 0}
+  .waterline{height:2px;background:linear-gradient(90deg,var(--line) 0%,var(--line) 22%,var(--rule) 22%);margin:0}
+  h2{font-family:var(--disp);font-weight:600;font-size:1.62rem;letter-spacing:-.01em;line-height:1.2;margin:0 0 .3rem}
+  .h2note{font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--water);margin:0 0 1.1rem}
+  p{margin:0 0 1.05rem}
+  ul,ol{margin:0 0 1.05rem;padding-left:1.3rem}
+  li{margin-bottom:.5rem}
+  strong{font-weight:650}
+  code{font-family:var(--mono);font-size:.85em;background:var(--paper-2);padding:.08rem .32rem;border-radius:3px}
+
+  .abstract{font-family:var(--disp);font-size:1.12rem;font-weight:300;line-height:1.62;border-left:3px solid var(--line);padding:.15rem 0 .15rem 1.3rem;margin:0 0 1.2rem}
+  .pull{font-family:var(--disp);font-style:italic;font-weight:300;font-size:1.3rem;line-height:1.4;color:var(--deep);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:1.15rem 0;margin:1.9rem 0}
+
+  .correction{background:var(--paper-2);border-radius:7px;padding:1.1rem 1.3rem;margin:1.6rem 0;font-size:.94rem}
+  .correction .tagline{font-family:var(--mono);font-size:.67rem;letter-spacing:.15em;text-transform:uppercase;color:var(--coral);display:block;margin-bottom:.45rem}
+  .correction.good .tagline{color:var(--moss)}
+
+  figure.plot{margin:1.6rem 0}
+  figure.plot img{width:100%;border:1px solid var(--rule);border-radius:6px;display:block}
+  figure.plot figcaption{font-size:.86rem;color:var(--ink-2);margin-top:.55rem;line-height:1.5}
+
+  table{width:100%;border-collapse:collapse;margin:1.3rem 0;font-size:.89rem}
+  th,td{border-bottom:1px solid var(--rule);padding:.55rem .5rem;text-align:left;vertical-align:top}
+  th{font-family:var(--mono);font-size:.67rem;letter-spacing:.09em;text-transform:uppercase;color:var(--water);font-weight:500;border-bottom:1.5px solid var(--water)}
+  td.n{font-family:var(--mono);white-space:nowrap}
+  tr.band{background:#eaf5f0} tr.band td:first-child{box-shadow:inset 3px 0 0 var(--moss)}
+  tr.out{background:#fdf0f2} tr.out td:first-child{box-shadow:inset 3px 0 0 var(--coral)}
+
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:1rem;margin:1.4rem 0}
+  .ph{border-radius:7px;padding:1rem 1.1rem;background:var(--paper-2)}
+  .ph .nm{font-family:var(--mono);font-size:.67rem;letter-spacing:.13em;text-transform:uppercase;margin-bottom:.4rem}
+  .ph .rng{font-family:var(--disp);font-size:1.5rem;font-weight:600;line-height:1;margin-bottom:.4rem}
+  .ph .tx{font-size:.86rem;color:var(--ink-2);line-height:1.45}
+  .ph.u{background:#fdf3e7} .ph.u .nm,.ph.u .rng{color:var(--clay)}
+  .ph.a{background:#eaf5f0} .ph.a .nm,.ph.a .rng{color:var(--moss)}
+  .ph.e{background:#f3eefe} .ph.e .nm,.ph.e .rng{color:var(--plum)}
+
+  .claims{list-style:none;padding:0;counter-reset:c}
+  .claims li{counter-increment:c;position:relative;padding-left:2.6rem;margin-bottom:1.05rem}
+  .claims li::before{content:"C" counter(c);position:absolute;left:0;top:.12rem;font-family:var(--mono);font-size:.72rem;color:var(--line);background:var(--abyss);padding:.16rem .4rem;border-radius:3px;letter-spacing:.04em}
+  .st{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;margin-left:.4rem;padding:.1rem .38rem;border-radius:3px;white-space:nowrap}
+  .st.ok{background:#dff0e6;color:#1f6b52}
+  .st.open{background:var(--paper-2);color:var(--ink-2)}
+  .st.rev{background:#fdeff1;color:#9b2c3a}
+
+  .ben{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:1rem;margin:1.3rem 0}
+  .ben div{background:var(--paper-2);border-radius:7px;padding:1rem 1.1rem}
+  .ben .fig{font-family:var(--disp);font-size:1.85rem;font-weight:600;color:var(--deep);line-height:1;margin-bottom:.35rem}
+  .ben .cap{font-size:.85rem;color:var(--ink-2);line-height:1.45}
+
+  footer{background:var(--abyss);color:#9fbfc7;margin-top:3.2rem;padding:2rem 0;font-size:.86rem}
+  footer .wrap{line-height:1.6}
+
+  @media(max-width:620px){
+    .hero{padding-top:2.3rem}
+    .pull{font-size:1.1rem} .abstract{font-size:1.02rem}
+    table{font-size:.79rem} th,td{padding:.45rem .3rem}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="kicker">ICLR 2027 · project pitch · v3 · measured on 6 production models</p>
+    <h1>KV cache compression has a<br><em>phase diagram</em>. Nobody drew it.</h1>
+    <p class="deck">Quantize every token evenly, or throw most of them away — the field has argued between these for three years. They are corner solutions to one rate-allocation problem, each optimal in its own regime. We derive the boundaries, measure them on 10,240 attention heads, and occupy the middle.</p>
+
+    <figure class="heroart">
+      <svg viewBox="0 0 880 250" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Reverse water-filling diagram: token sensitivity bars crossing a water level; the portion above the line is the bit allocation, fully submerged tokens are evicted.">
+        <defs>
+          <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4ea8b8"/><stop offset="100%" stop-color="#12414f"/>
+          </linearGradient>
+        </defs>
+        <g id="bars"></g>
+        <line x1="8" y1="176" x2="872" y2="176" stroke="#e0a838" stroke-width="2"/>
+        <text x="872" y="169" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="#e0a838">water level &#955; &#8212; set by the bit budget</text>
+        <text x="8" y="24" font-family="IBM Plex Mono, monospace" font-size="10" fill="#7fa3ac">bits allocated to key i &#8212; b* = log&#8322;a&#7522; + c</text>
+        <text x="8" y="243" font-family="IBM Plex Mono, monospace" font-size="10" fill="#7fa3ac">tokens, sorted by attention mass &#8594;</text>
+        <text x="694" y="205" font-family="IBM Plex Mono, monospace" font-size="10" fill="#c2334d">submerged = evicted</text>
+      </svg>
+      <figcaption>Pour a fixed bit budget into a vessel whose floor is each token's attention mass. What rises above the line is that token's precision; what stays under is dropped. Eviction is not a rival technique — it is this equation below the waterline. How much of the vessel sits above the line is what decides which of the three methods you should be running.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Abstract</h2>
+  <p class="h2note">what the paper says</p>
+  <p class="abstract">Serving long-context LLMs is bounded by the KV cache, and every method that shrinks it — quantization or token eviction — minimizes key reconstruction error. We show this is the wrong distortion measure. Posed against <em>attention-output</em> error, KV compression becomes a rate-allocation problem whose solution is reverse water-filling: the optimal budget for a token is linear in the log of its attention weight, and eviction emerges as the zero-rate case of the same equation. This yields a <strong>phase diagram</strong>: uniform quantization, per-token allocation and eviction are each optimal over a distinct range of attention concentration, with boundaries derived from the same cost comparison. We measure the diagram on 10,240 heads across six production models at 32k–128k context. It classifies every model correctly with no fitted parameters; the interior wins on 38% of all heads and up to 85% of a given model, and the two boundary predictions — ladder width \(\tau/\ln2\) and low-tier extinction — hold to within 3.4% and are directly observed.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>The problem</h2>
+  <p class="h2note">why the field is stuck</p>
+
+  <p>At 128k+ context the KV cache dominates memory and decode bandwidth. Two families attack it, they disagree, and both are right — in different places, which nobody had established:</p>
+
+  <table>
+    <thead><tr><th style="width:23%">Family</th><th style="width:18%">Allocates</th><th>How it fails</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Eviction</strong><br><span style="color:#4a5b64">H2O, SnapKV</span></td><td class="n">{0, 16} bits</td><td>Drops tokens a future query will need. Missing one critical key produces sharp error spikes in long-output reasoning.</td></tr>
+      <tr><td><strong>Quantization</strong><br><span style="color:#4a5b64">KIVI, QJL, TurboQuant</span></td><td class="n">{b, b} bits</td><td>Aggressive variants lose up to 20 points on AIME25 and ~30% relative on 256k retrieval, and pay 10–68% latency for dequantization. FP8 beats all of them on the Pareto frontier.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Both fix the allocation <em>a priori</em>, then optimize a proxy objective — how faithfully a key is reproduced — that attention never evaluates.</p>
+
+  <p class="pull">Attention does not consume keys. It consumes \(o=\sum_i a_i v_i\). A key carrying 0.4 of the mass and a key carrying \(10^{-6}\) are not equally worth storing, and no reconstruction metric can tell them apart.</p>
+
+  <p>Swap the distortion measure and the answer is classical. With \(\operatorname{Var}(\delta_i)=\tau^2c_b\) and \(\partial o/\partial s_i = a_i(v_i-o)\), minimizing \(\mathbb{E}\|\Delta o\|^2\) under \(\sum_i b_i\le B\) is reverse water-filling:</p>
+
+  $$b_i^\star=\log_2 a_i + c\,,\qquad b_i^\star = 0 \ \text{ below the water level.}$$
+
+  <p>Dropping a set and renormalizing costs exactly \(\sum_{i\in E}a_i^2\|o_R-v_i\|^2\), so eviction's cost constant is <strong>\(c_0=1\), derived</strong>. For the first time eviction and quantization are the same quantity on the same axis — and comparing \(\tau^2c_b\) against that 1 is what produces the phase diagram.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>The phase diagram</h2>
+  <p class="h2note">derived, then measured on 10,240 heads</p>
+
+  <figure class="plot">
+    <img src="fig5_phase.png" alt="Phase diagram of band fraction against effective support; ladder width validation; tau scatter">
+    <figcaption><em>Left:</em> six production models separate perfectly into three phases by effective support \(\varphi = n_{95}/L\), the fraction of context carrying 95% of the attention mass. <em>Centre:</em> the closed-form ladder-width prediction \(\tau/\ln2\) against measurement — every model on the diagonal, worst error 3.4%. <em>Right:</em> the same outcome against logit spread \(\tau\), which separates nothing.</figcaption>
+  </figure>
+
+  <div class="phases">
+    <div class="ph u"><div class="nm">diffuse</div><div class="rng">φ &gt; 0.5</div>
+      <div class="tx"><strong>Uniform is optimal.</strong> Nearly every token matters; the ladder is too narrow to differ from a flat allocation. llama3.3-70B: gain over uniform just <strong>1.1×</strong>.</div></div>
+    <div class="ph a"><div class="nm">the interior</div><div class="rng">0.1 – 0.5</div>
+      <div class="tx"><strong>Allocation wins.</strong> Four of six models live here, with 46–85% of heads in band and 1.8–4.2× lower output error than the better corner at matched bits.</div></div>
+    <div class="ph e"><div class="nm">sharp</div><div class="rng">φ &lt; 0.1</div>
+      <div class="tx"><strong>Eviction is optimal.</strong> Low tiers cost more than dropping the token, the ladder loses rungs, and two rungs <em>is</em> an evictor. qwen3-30B: gain over eviction <strong>1.1×</strong>.</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>model</th><th class="n">ctx</th><th class="n">heads</th><th class="n">φ</th><th class="n">ladder</th><th class="n">in band</th><th class="n">routed</th><th>phase</th></tr></thead>
+    <tbody>
+      <tr class="band"><td>mistral-7b</td><td class="n">32k</td><td class="n">1,024</td><td class="n">39.0%</td><td class="n">3.09 b</td><td class="n"><strong>84.7%</strong></td><td class="n">4.15&#215;</td><td style="color:#1f6b52">interior</td></tr>
+      <tr class="band"><td>qwen1.5-MoE</td><td class="n">32k</td><td class="n">384</td><td class="n">37.3%</td><td class="n">4.28 b</td><td class="n"><strong>62.0%</strong></td><td class="n">2.38&#215;</td><td style="color:#1f6b52">interior</td></tr>
+      <tr class="band"><td>llama3.1-8B</td><td class="n">128k</td><td class="n">1,024</td><td class="n">35.2%</td><td class="n">3.32 b</td><td class="n"><strong>60.4%</strong></td><td class="n">2.23&#215;</td><td style="color:#1f6b52">interior</td></tr>
+      <tr class="band"><td>qwen3-8B</td><td class="n">40k</td><td class="n">1,152</td><td class="n">25.2%</td><td class="n">4.50 b</td><td class="n">45.9%</td><td class="n">1.77&#215;</td><td style="color:#1f6b52">interior</td></tr>
+      <tr class="out"><td>llama3.3-70B</td><td class="n">128k</td><td class="n">5,120</td><td class="n">65.1%</td><td class="n">1.96 b</td><td class="n">28.4%</td><td class="n">1.53&#215;</td><td style="color:#a8611f">diffuse</td></tr>
+      <tr class="out"><td>qwen3-30B-A3B</td><td class="n">128k</td><td class="n">1,536</td><td class="n">2.6%</td><td class="n">4.41 b</td><td class="n">14.8%</td><td class="n">1.29&#215;</td><td style="color:#7c3aed">sharp</td></tr>
+    </tbody>
+  </table>
+
+  <p>The two failures fail for <em>opposite</em> reasons, and the theory names both in advance. llama3.3-70B is too diffuse: its ladder is 1.96 bits wide and uniform is already almost right. qwen3-30B is too sharp: <strong>77% of its heads have a dead 2-bit tier</strong> — the low rungs cost more than eviction — so the optimum degenerates to two tiers, and two tiers is an evictor. Against 1%, 3%, 5% and 8% dead-tier fractions for the models in the band, that single number is the cleanest diagnostic in the dataset.</p>
+
+  <div class="correction">
+    <span class="tagline">a prediction we got wrong, and what it taught us</span>
+    Our simulation predicted the gain would peak at \(\tau\approx1.25\) and vanish by \(\tau\approx2\). Measurement says otherwise: the model nearest that optimum is second-worst, and four models in the supposedly dead zone return 46–85%. Worse, \(\tau\) has no discriminating power at all at the sharp end — qwen3-30B and qwen1.5-MoE differ by 0.02 in \(\tau\) and by a factor of four in outcome. <strong>The cause is that Gaussian-logit simulation locks \(\varphi\) to \(\tau\); real attention logits are heavy-tailed and the two decouple.</strong> qwen3-30B has an ordinary \(\tau=3.05\) alongside a top-1 weight of 0.20. This is a methodological finding in its own right, and it is why H0 had to be run on real models rather than argued from a generative model of attention.
+  </div>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>What it buys</h2>
+  <p class="h2note">measured by exact recomputation, never predicted</p>
+
+  <div class="ben">
+    <div><div class="fig">1.8–4.2&#215;</div><div class="cap">lower attention-output error than the <em>better</em> of both corners, at matched total bits, on models in the interior phase</div></div>
+    <div><div class="fig">38%</div><div class="cap">of all heads measured sit in the band; 53% on the median model, 85% at best</div></div>
+    <div><div class="fig">3.4%</div><div class="cap">worst-case error of the closed-form ladder-width prediction \(\tau/\ln2\) across six models</div></div>
+    <div><div class="fig">1.0&#215;</div><div class="cap">the floor: outside the band the router hands the head to the corner that owns it, so the method declines rather than loses</div></div>
+  </div>
+
+  <p><strong>The router is the product.</strong> A model is a mixture of phases, so the compressor's job is to identify each head's phase from a one-pass offline calibration and apply the locally optimal scheme. That is a deployable artifact independent of whether our ladder is the best possible interior code — and it is something practitioners can use on day one, since the calibration is the same forward-pass hook that produced this data.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>Novel claims</h2>
+  <p class="h2note">each falsifiable; five now tested on production models</p>
+
+  <ol class="claims">
+    <li><strong>The objective is wrong.</strong> KV compression should minimize attention-output distortion, not key reconstruction distortion. Everything follows from this substitution. <span class="st open">theory</span></li>
+    <li><strong>KV compression has three phases</strong>, selected by effective support \(\varphi=n_{95}/L\): uniform above 0.5, allocation between 0.1 and 0.5, eviction below 0.1. Six models classify correctly with no fitted parameters. <span class="st ok">measured</span></li>
+    <li><strong>Both boundaries follow from one equation.</strong> Ladder collapse at the diffuse end, low-tier extinction at the sharp end — each from comparing \(\tau^2c_b\) with the derived eviction cost \(c_0=1\). <span class="st ok">measured</span></li>
+    <li><strong>Optimal precision is logarithmic in attention mass</strong>, \(b_i^\star=\log_2 a_i+c\), with ladder width exactly \(\tau/\ln2\) bits — confirmed to within 3.4% on every model. <span class="st ok">measured</span></li>
+    <li><strong>Eviction is quantization at zero rate.</strong> \(c_0=1\) is derived, not posited; H2O and KIVI become corner solutions to one program. <span class="st ok">confirmed</span></li>
+    <li><strong>The value term is decorative.</strong> The \(\|v_i-o\|\) factor leaves the ladder unchanged on all six models, so allocation needs only attention weights and never touches the value cache. We built this as an ablation against our own design and it simplified the method. <span class="st ok">measured</span></li>
+    <li><strong>Unbiased quantizers make bad indices.</strong> QJL's variance penalty pushes its 1-bit tier above the cost of eviction and its 2-bit tier off the convex envelope, costing about two rungs of ladder at every \(\tau\) — an independent explanation for the deployed backend deleting it. <span class="st ok">confirmed</span></li>
+    <li><strong>Analytic models of attention mislead here.</strong> Gaussian logits lock \(\varphi\) to \(\tau\) and produce a qualitatively wrong regime map. Real logits are heavy-tailed and the statistics decouple. <span class="st rev">predicted wrong, then explained</span></li>
+  </ol>
+
+  <p class="pull">A framework that only reorganizes known results gets scored as a survey. This one predicted a number to 3.4% on six production models, predicted where it would stop working on both sides, and was wrong about the variable that indexes the boundary — which is how we found the right one.</p>
+</div></section>
+
+<div class="waterline"></div>
+
+<section><div class="wrap">
+  <h2>What is not yet settled</h2>
+  <p class="h2note">stated plainly, because reviewers will find these</p>
+
+  <ul>
+    <li><strong>Context length is confounded with model identity.</strong> The three 128k runs are the three lowest band fractions. If the band narrows with context, the method works best where the KV cache is least painful. A single-model sweep from 8k to 128k settles it in a day and runs next.</li>
+    <li><strong>The two largest models are the two worst.</strong> The failures have opposite mechanisms, which argues against a simple scale effect, but with six models it is not resolved.</li>
+    <li><strong>2-bit scores do not rank within the head region.</strong> Spearman \(\rho\) is 0.47–0.56 against a 0.9 threshold, so the coarse pass can separate head from tail but not order the head. The base layer moves to 3 bits.</li>
+    <li><strong>The linearized cost overstates the gain by up to 4.9×.</strong> It remains the correct allocation rule and is not a usable predictor of the benefit. Every number here is measured.</li>
+    <li><strong>The eviction corner is an oracle</strong> ranking by true sensitivity — stronger than any deployable evictor. Replacing it with a lagged-attention evictor can only widen the band.</li>
+    <li><strong>Output error is not end-task accuracy.</strong> 2× lower output error has to survive translation to RULER and AIME at matched bandwidth before the systems claim means anything.</li>
+  </ul>
+
+  <p>Roughly six weeks to a submission-grade result: context sweep and practical evictor (3 days), 3-bit base layer and nested-coding overhead (10 days), GQA union cost (1 week), then the kernel and the iso-budget ablation on hardware (4 weeks) — with a kill gate at every stage.</p>
+</div></section>
+
+<footer><div class="wrap">
+  H0 measured 2026-08-27 on H100s (jobs 847127 / 847130): six models, 10,240 heads, 32k–128k context, three prompt families. Gains computed by exact recomputation with real TurboQuant<sub>mse</sub> quantized keys against the better of the two corners at matched total bits; none is predicted from the linearized cost. Deployment claims — the omission of QJL, the meaning of norm correction, accuracy and throughput against FP8 and BF16 — come from the vLLM project's May 2026 study and the merged attention-backend implementation. Companion documents: full proposal (v6), H0 measurement package, simulation code.
+</div></footer>
+
+<script>
+(function(){
+  var bits=[8,8,7.6,7.2,7,6.7,6.4,6.1,5.9,5.6,5.4,5.2,5,4.8,4.6,4.4,4.2,4.05,3.9,3.75,3.6,3.45,3.3,3.15,3,2.85,2.7,2.5,2.35,2.2,2,1.8,1.6,1.4,1.15,.9,.6,.3,-.35,-.9,-1.5,-2.2];
+  var n=bits.length, x0=14, w=(872-14)/n, base=176, unit=18.2, floor=214;
+  var g=document.getElementById('bars'), ns='http://www.w3.org/2000/svg';
+  bits.forEach(function(b,i){
+    var x=x0+i*w, bw=w*0.72, top=base-b*unit, sTop=Math.max(base,top);
+    var r1=document.createElementNS(ns,'rect');
+    r1.setAttribute('x',x); r1.setAttribute('y',sTop); r1.setAttribute('width',bw);
+    r1.setAttribute('height',Math.max(0,floor-sTop));
+    r1.setAttribute('fill', b>0 ? '#193b48' : '#4a2530');
+    r1.setAttribute('rx','1.5'); g.appendChild(r1);
+    if(b>0){
+      var r2=document.createElementNS(ns,'rect');
+      r2.setAttribute('x',x); r2.setAttribute('y',top); r2.setAttribute('width',bw);
+      r2.setAttribute('height',base-top); r2.setAttribute('fill','url(#wg)');
+      r2.setAttribute('rx','1.5'); g.appendChild(r2);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+wrote docs/fig5_phase.png  (20 points)
+  Spearman(dead2, band) = -0.964
+  Spearman(phi,   band) = +0.263
+  ladder worst error    = 1.43%

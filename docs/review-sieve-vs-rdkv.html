@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SIEVE Referee Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    --ground:#f2f5f6; --surface:#ffffff; --surface-2:#e9eef0;
+    --ink:#101a1e; --ink-2:#4a5d63; --ink-3:#72868c;
+    --rule:#d3dcde; --rule-strong:#adbbbe;
+    --accent:#0e6a73; --accent-soft:#dceced;
+    --crit:#a02b3b; --crit-soft:#f8e3e6;
+    --warn:#8a5a10; --warn-soft:#f7edda;
+    --ok:#1c6249; --ok-soft:#dcefe6;
+
+    --disp:"Spectral",Georgia,"Times New Roman",serif;
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+    --measure:68ch;
+    --rail:7.5rem;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0c1417; --surface:#111d21; --surface-2:#182629;
+      --ink:#dfeaec; --ink-2:#a0b4b9; --ink-3:#7b9096;
+      --rule:#23353a; --rule-strong:#384d52;
+      --accent:#54b8c1; --accent-soft:#123138;
+      --crit:#e98d97; --crit-soft:#38181e;
+      --warn:#d9a856; --warn-soft:#32260f;
+      --ok:#6dc5a2; --ok-soft:#122e24;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0c1417; --surface:#111d21; --surface-2:#182629;
+    --ink:#dfeaec; --ink-2:#a0b4b9; --ink-3:#7b9096;
+    --rule:#23353a; --rule-strong:#384d52;
+    --accent:#54b8c1; --accent-soft:#123138;
+    --crit:#e98d97; --crit-soft:#38181e;
+    --warn:#d9a856; --warn-soft:#32260f;
+    --ok:#6dc5a2; --ok-soft:#122e24;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1120px;margin:0 auto;padding:0 1.5rem 6rem}
+
+  /* ---------- masthead ---------- */
+  .mast{padding:3.5rem 0 0;border-bottom:1px solid var(--rule)}
+  .mast .eyebrow{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 1.15rem;display:flex;flex-wrap:wrap;gap:.35rem .9rem;align-items:baseline;
+  }
+  .mast .eyebrow span:not(:last-child)::after{content:"";}
+  .mast h1{
+    font-family:var(--disp);font-weight:700;font-size:clamp(2.1rem,5.4vw,3.15rem);
+    line-height:1.06;letter-spacing:-.018em;margin:0 0 .9rem;text-wrap:balance;max-width:18ch;
+  }
+  .mast .deck{
+    font-family:var(--disp);font-weight:400;font-size:clamp(1.05rem,2.1vw,1.28rem);
+    line-height:1.5;color:var(--ink-2);max-width:52ch;margin:0 0 2.2rem;
+  }
+  .docket{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:0;border-top:1px solid var(--rule);
+  }
+  .docket div{padding:.95rem 1.1rem .95rem 0;border-right:1px solid var(--rule)}
+  .docket div:last-child{border-right:0}
+  .docket dt{
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-3);margin:0 0 .3rem;
+  }
+  .docket dd{margin:0;font-size:.9rem;line-height:1.45;color:var(--ink)}
+
+  /* ---------- section scaffold ---------- */
+  section{
+    display:grid;grid-template-columns:var(--rail) minmax(0,1fr);
+    gap:0 2.5rem;padding:3.2rem 0 0;border-top:1px solid var(--rule);
+  }
+  section:first-of-type{border-top:0}
+  .rail{position:sticky;top:1.5rem;align-self:start;padding-top:.4rem}
+  .rail .num{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;color:var(--accent);
+    display:block;margin-bottom:.4rem;
+  }
+  .rail .tag{
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);line-height:1.5;display:block;
+  }
+  .body{min-width:0;max-width:var(--measure)}
+  .body.wide{max-width:none}
+
+  h2{
+    font-family:var(--disp);font-weight:600;font-size:1.62rem;line-height:1.2;
+    letter-spacing:-.012em;margin:0 0 1.1rem;text-wrap:balance;
+  }
+  h3{
+    font-family:var(--sans);font-weight:600;font-size:1rem;line-height:1.4;
+    margin:2rem 0 .5rem;letter-spacing:-.005em;
+  }
+  p{margin:0 0 1.05rem}
+  ul,ol{margin:0 0 1.05rem;padding-left:1.25rem}
+  li{margin-bottom:.6rem}
+  strong{font-weight:600;color:var(--ink)}
+  em{font-style:italic}
+  a{color:var(--accent)}
+  code{
+    font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+    padding:.08rem .34rem;border-radius:3px;
+  }
+
+  .lede{font-size:1.06rem;line-height:1.58}
+
+  /* ---------- verdict ---------- */
+  .verdict{
+    background:var(--surface);border:1px solid var(--rule-strong);border-radius:4px;
+    padding:1.5rem 1.6rem;margin:0 0 1.4rem;
+  }
+  .verdict .stamp{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--crit);margin:0 0 .7rem;display:block;
+  }
+  .verdict p:last-child{margin-bottom:0}
+
+  .odds{
+    display:flex;flex-wrap:wrap;gap:0;margin:1.4rem 0 0;
+    border:1px solid var(--rule);border-radius:4px;overflow:hidden;background:var(--surface);
+  }
+  .odds div{flex:1 1 170px;padding:1rem 1.15rem;border-right:1px solid var(--rule)}
+  .odds div:last-child{border-right:0}
+  .odds .k{
+    font-family:var(--mono);font-size:.65rem;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-3);margin:0 0 .35rem;
+  }
+  .odds .v{
+    font-family:var(--disp);font-size:1.72rem;font-weight:600;line-height:1;
+    font-variant-numeric:tabular-nums;margin:0 0 .3rem;
+  }
+  .odds .v.down{color:var(--crit)}
+  .odds .v.up{color:var(--ok)}
+  .odds .n{font-size:.82rem;color:var(--ink-2);line-height:1.42}
+
+  /* ---------- tables ---------- */
+  .scroll{overflow-x:auto;margin:1.3rem 0 1.4rem;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+  table{width:100%;border-collapse:collapse;font-size:.89rem;min-width:560px}
+  th,td{padding:.7rem .9rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+  thead th{
+    font-family:var(--mono);font-size:.65rem;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:500;background:var(--surface-2);white-space:nowrap;
+  }
+  tbody tr:last-child td{border-bottom:0}
+  td.n,th.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.n.down{color:var(--crit)} td.n.up{color:var(--ok)}
+  .rowlabel{font-weight:600}
+
+  /* ---------- ledger ---------- */
+  .ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.1rem;margin:1.3rem 0 1.4rem}
+  .col{border:1px solid var(--rule);border-radius:4px;background:var(--surface);padding:1.15rem 1.25rem 1.3rem}
+  .col.theirs{border-top:3px solid var(--crit)}
+  .col.ours{border-top:3px solid var(--ok)}
+  .col h4{
+    font-family:var(--mono);font-size:.67rem;letter-spacing:.13em;text-transform:uppercase;
+    margin:0 0 .85rem;font-weight:500;
+  }
+  .col.theirs h4{color:var(--crit)} .col.ours h4{color:var(--ok)}
+  .col ul{list-style:none;padding:0;margin:0}
+  .col li{
+    padding:.65rem 0;border-bottom:1px solid var(--rule);font-size:.9rem;line-height:1.5;margin:0;
+  }
+  .col li:last-child{border-bottom:0;padding-bottom:0}
+  .col li b{display:block;font-weight:600;margin-bottom:.12rem}
+  .col li span{color:var(--ink-2)}
+
+  /* ---------- findings ---------- */
+  .find{
+    border:1px solid var(--rule);border-left:3px solid var(--sev,var(--rule-strong));
+    border-radius:0 4px 4px 0;background:var(--surface);padding:1.2rem 1.35rem;margin:0 0 1.05rem;
+  }
+  .find.blocking{--sev:var(--crit)}
+  .find.reposition{--sev:var(--warn)}
+  .find.opportunity{--sev:var(--accent)}
+  .find .head{display:flex;flex-wrap:wrap;gap:.6rem;align-items:baseline;margin-bottom:.55rem}
+  .chip{
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;
+    padding:.2rem .45rem;border-radius:3px;white-space:nowrap;
+  }
+  .find.blocking .chip{background:var(--crit-soft);color:var(--crit)}
+  .find.reposition .chip{background:var(--warn-soft);color:var(--warn)}
+  .find.opportunity .chip{background:var(--accent-soft);color:var(--accent)}
+  .find .head b{font-size:1rem;font-weight:600;line-height:1.35}
+  .find p:last-child{margin-bottom:0}
+  .find .fix{
+    margin-top:.85rem;padding-top:.8rem;border-top:1px solid var(--rule);
+    font-size:.9rem;color:var(--ink-2);
+  }
+  .find .fix b{
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-3);display:block;margin-bottom:.25rem;font-weight:500;
+  }
+
+  /* ---------- moves ---------- */
+  .move{display:grid;grid-template-columns:2.4rem minmax(0,1fr);gap:0 1rem;padding:1.25rem 0;border-bottom:1px solid var(--rule)}
+  .move:last-of-type{border-bottom:0}
+  .move .idx{
+    font-family:var(--mono);font-size:.78rem;color:var(--accent);padding-top:.24rem;
+    font-variant-numeric:tabular-nums;
+  }
+  .move h3{margin:0 0 .45rem}
+  .move p{margin:0 0 .6rem;font-size:.95rem}
+  .move p:last-child{margin-bottom:0}
+  .cost{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--ink-3);
+    display:inline-block;margin-top:.35rem;
+  }
+
+  /* ---------- data strip ---------- */
+  .strip{
+    display:flex;gap:0;margin:1.2rem 0 1.3rem;border:1px solid var(--rule);border-radius:4px;
+    overflow-x:auto;background:var(--surface);
+  }
+  .strip div{
+    flex:1 0 auto;min-width:78px;padding:.75rem .8rem;border-right:1px solid var(--rule);text-align:center;
+  }
+  .strip div:last-child{border-right:0}
+  .strip .x{font-family:var(--mono);font-size:.68rem;color:var(--ink-3);letter-spacing:.06em;margin-bottom:.28rem}
+  .strip .y{font-family:var(--mono);font-size:1.02rem;font-variant-numeric:tabular-nums;line-height:1}
+  .strip div.peak .y{color:var(--ok)}
+  .strip div.tail .y{color:var(--crit)}
+  .stripcap{font-size:.84rem;color:var(--ink-2);margin:-.6rem 0 1.3rem;line-height:1.5}
+
+  /* ---------- manuscript ---------- */
+  .ms{
+    background:var(--surface-2);border-radius:4px;padding:1.5rem 1.7rem;margin:1.2rem 0 1.4rem;
+    font-family:var(--disp);font-size:1.02rem;line-height:1.66;
+  }
+  .ms .slug{
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 .9rem;display:block;
+  }
+  .ms p{margin:0 0 .95rem}
+  .ms p:last-child{margin-bottom:0}
+  .ms strong{font-weight:600}
+
+  ol.contrib{list-style:none;counter-reset:cn;padding:0;margin:1.2rem 0 1.3rem}
+  ol.contrib li{
+    counter-increment:cn;position:relative;padding:0 0 1rem 2.5rem;margin:0 0 1rem;
+    border-bottom:1px solid var(--rule);
+  }
+  ol.contrib li:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+  ol.contrib li::before{
+    content:"C" counter(cn);position:absolute;left:0;top:.15rem;
+    font-family:var(--mono);font-size:.68rem;color:var(--accent);
+    background:var(--accent-soft);padding:.16rem .38rem;border-radius:3px;letter-spacing:.05em;
+  }
+  ol.contrib b{display:block;margin-bottom:.2rem}
+  .demoted{
+    font-size:.9rem;color:var(--ink-2);background:var(--surface);border:1px solid var(--rule);
+    border-radius:4px;padding:1rem 1.2rem;
+  }
+  .demoted b{
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-3);display:block;margin-bottom:.4rem;font-weight:500;
+  }
+
+  footer{
+    margin-top:3.5rem;padding-top:1.4rem;border-top:1px solid var(--rule);
+    font-size:.85rem;color:var(--ink-3);line-height:1.6;max-width:var(--measure);
+  }
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  @media (max-width:820px){
+    section{grid-template-columns:1fr;gap:0}
+    .rail{position:static;display:flex;gap:.9rem;align-items:baseline;margin-bottom:.9rem;padding-top:0}
+    .rail .num{margin:0}
+    .body{max-width:none}
+    .docket div{border-right:0;border-bottom:1px solid var(--rule)}
+    .docket div:last-child{border-bottom:0}
+  }
+</style>
+<style>img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="mast">
+    <p class="eyebrow">
+      <span>Referee report</span><span>·</span><span>Internal</span><span>·</span><span>1 Sep 2026</span>
+    </p>
+    <h1>SIEVE, read against RDKV</h1>
+    <p class="deck">The v8 draft is a much stronger paper than v6. It is also scored in a world where <em>RDKV</em> does not exist — and neither document cites it. Here is the recalibration, the three things that will get the paper killed, and the rewrite that gets the novelty back.</p>
+
+    <dl class="docket">
+      <div>
+        <dt>Under review</dt>
+        <dd>proposal v8 · pitch v4<br>H0: 22 configs, 39,424 heads</dd>
+      </div>
+      <div>
+        <dt>Prior art in question</dt>
+        <dd>RDKV, arXiv 2605.08317<br>8 May 2026 · ETH Zürich + Tsinghua</dd>
+      </div>
+      <div>
+        <dt>Also crowding</dt>
+        <dd>HqeKV (ACL RR Jan 2026)<br>ARKV · Zhang et&nbsp;al. 2024</dd>
+      </div>
+      <div>
+        <dt>Gap to deadline</dt>
+        <dd>~4.5 months from RDKV<br>Outside any concurrency grace</dd>
+      </div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 1</span>
+      <span class="tag">Verdict</span>
+    </div>
+    <div class="body">
+      <h2>The self-score of 8.5 is computed against the wrong baseline</h2>
+
+      <div class="verdict">
+        <span class="stamp">Bottom line</span>
+        <p>RDKV published your framing — output distortion as the objective, reverse water-filling as the solution, eviction recovered as the zero-rate endpoint. Their Theorem 3.3 even uses the words <em>phase transition</em> for the water level. Proposal contributions&nbsp;#1 and&nbsp;#2, and pitch claims C1 and C2, are prior art and must be deleted as contributions.</p>
+        <p style="margin-bottom:0">What RDKV does <strong>not</strong> have, and cannot get from its experimental design, is an order parameter: they have the transition, you have the variable that says which side of it a head is on. That is a real paper. It is not the paper either document currently claims to be.</p>
+      </div>
+
+      <div class="odds">
+        <div>
+          <p class="k">Novelty</p>
+          <p class="v down">6.5–7.0</p>
+          <p class="n">Your v8 says 8.5. Two of ten contributions are taken outright; the regime analysis is genuinely new but is characterization, not mechanism.</p>
+        </div>
+        <div>
+          <p class="k">Acceptance, as written</p>
+          <p class="v down">40–55%</p>
+          <p class="n">Your v8 says 60–72%. Ceiling set by “characterization paper, no system,” plus the circularity exposure in §3.</p>
+        </div>
+        <div>
+          <p class="k">Acceptance, rewritten</p>
+          <p class="v up">50–60%</p>
+          <p class="n">With the §5 repositioning, the τ/ln2 demotion, RDKV run as an experiment, and one end-task pair.</p>
+        </div>
+      </div>
+
+      <h3>Full rescore</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Criterion</th><th class="n">Your v8</th><th class="n">Mine</th><th>Why the gap</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="rowlabel">Novelty</td><td class="n">8.5</td><td class="n down">6.5–7.0</td>
+              <td>Contributions #1 and #2 are RDKV’s. The dead-tier regime variable and context-as-phase-variable are genuinely unclaimed and carry the score on their own.</td>
+            </tr>
+            <tr>
+              <td class="rowlabel">Theoretical rigor</td><td class="n">7.5</td><td class="n down">6.0</td>
+              <td>The τ/ln2 headline is an algebraic identity (§3a). What remains — c₀=1 derived, the dead-tier boundary — is sound but thin beside RDKV’s weak-duality bound.</td>
+            </tr>
+            <tr>
+              <td class="rowlabel">Empirical relevance</td><td class="n">8.0</td><td class="n">7.5</td>
+              <td>39,424 heads over five octaves is real and RDKV has nothing like it. Still no end-task, no kernel, and 128k rests on one model.</td>
+            </tr>
+            <tr>
+              <td class="rowlabel">Positioning</td><td class="n">8.0</td><td class="n down">5.5 → 8.0</td>
+              <td>5.5 as written, because the framing is scooped and RDKV is uncited. 8.0 after §5, which converts them from your obituary into your subject matter.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:.9rem;color:var(--ink-2)">A reviewer who knows RDKV will read contribution&nbsp;#1 — “the objective is wrong” — conclude you do not know the literature, and discount everything after it. That single line is the most expensive sentence in the draft.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 2</span>
+      <span class="tag">The ledger</span>
+    </div>
+    <div class="body wide">
+      <h2>What they own, what you own</h2>
+      <p style="max-width:var(--measure)">The v8 revision bought you three results that are unclaimed by RDKV <em>and</em> unclaimable from its experimental design. It also left two claims standing that are no longer yours.</p>
+
+      <div class="ledger">
+        <div class="col theirs">
+          <h4>RDKV owns — delete as contributions</h4>
+          <ul>
+            <li><b>Output distortion as the objective</b><span>Their abstract, sentence for sentence. Also anticipated by CriticalKV, OBCache and CAOTE on the scoring side.</span></li>
+            <li><b>Eviction is quantization at zero rate</b><span>Thm 3.3: units below the water level receive b*=0. Budget is “the only control knob” navigating one curve.</span></li>
+            <li><b>The allocation itself</b><span>b*=⌈log₂(ln2·wσ/λ)⌉₊ — the same result as your b*=log₂aᵢ+c, reached by a different derivation.</span></li>
+            <li><b>The systems half</b><span>TriZone packed decode, dequant fused into the kernel, 4.5× decode speedup, 1.9× peak memory at 128k, LongBench/RULER/InfiniteBench.</span></li>
+          </ul>
+        </div>
+        <div class="col ours">
+          <h4>Still yours — this is the paper</h4>
+          <ul>
+            <li><b>The dead-tier fraction as an order parameter</b><span>Derived from τ²c_b vs c₀=1, contains no L, ρ=−0.96 over 22 configs. RDKV names the transition and never asks which side a head is on.</span></li>
+            <li><b>Context length is a phase variable, acting through τ</b><span>Nobody in this literature has said it. And RDKV’s own tables show it — see below.</span></li>
+            <li><b>K*/n₉₅ spans 36×, not ordered by support</b><span>A direct attack on the B_total = nL convention shared by RDKV, SnapKV, AdaKV and PyramidKV. The negative E1 result strengthens this.</span></li>
+            <li><b>Scoring is solved; allocation is not</b><span>Oracle beats deployable H2O by only 1.11–1.41×, concentrated on heads the router sends to the interior anyway.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Their RULER table already contains your context decay</h3>
+      <p style="max-width:var(--measure)">RDKV’s advantage over its best eviction baseline, by sequence length (Table 2, 11-task RULER average, LLaMA-3.1-8B):</p>
+      <div class="strip">
+        <div><p class="x">4k</p><p class="y">+6.6</p></div>
+        <div><p class="x">8k</p><p class="y">+12.2</p></div>
+        <div class="peak"><p class="x">16k</p><p class="y">+14.2</p></div>
+        <div><p class="x">32k</p><p class="y">+12.3</p></div>
+        <div class="tail"><p class="x">64k</p><p class="y">+5.5</p></div>
+        <div class="tail"><p class="x">128k</p><p class="y">+4.1</p></div>
+      </div>
+      <p class="stripcap">The joint allocator’s edge over eviction collapses 3× between 32k and 128k — in their numbers, unexplained, and matching your −10 band-points per doubling. The 4k point is ceiling-confounded (B<sub>total</sub>=2048L is near the full cache) and must be caveated. Digitize this yourself before citing it.</p>
+
+      <p style="max-width:var(--measure)">Their ablation is the second gift. Table 4: a tri-state <code>{0,4,16}</code> scheme lands within <strong>0.5 points</strong> of full mixed-precision allocation at 128L and <strong>0.2</strong> at 512L. Their own data says the interior is nearly worthless on LLaMA-3.1-8B at those budgets, and their framework contains nothing that can say why. Yours does — and can say, in one forward pass, when that number would be 5 instead of 0.5.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 3</span>
+      <span class="tag">Blocking</span>
+    </div>
+    <div class="body">
+      <h2>Three things in the draft that will get you killed</h2>
+
+      <div class="find blocking">
+        <div class="head"><span class="chip">Blocking · a</span><b>τ/ln2 is a tautology, and you call it your strongest evidence</b></div>
+        <p><code>ladder_bits = std_i(log₂(aᵢ·wᵢ))</code>, and <code>log₂ aᵢ = sᵢ/ln2 − log₂Z</code>, so <code>std(log₂ a) = τ/ln2</code> <strong>exactly</strong>. The value term you separately measured to be decorative (≤0.035 bits) is the only thing standing between prediction and identity. Your 1.5% worst-case error is the size of a term you have already told the reader is negligible. The right panel of Fig 5 plots x against x. This has survived from v5 through v8, and one sharp reviewer ends the paper’s credibility with it in two sentences.</p>
+        <div class="fix"><b>Fix</b>Demote to an appendix consistency check. Promote the number you buried in §3 instead: <strong>predicted/measured gain now runs 0.80–1.35</strong>. That is a first-principles cost model predicting a measured output-error ratio within ±35% across 22 configurations — a real forward prediction of the same theory, and your best number.</div>
+      </div>
+
+      <div class="find blocking">
+        <div class="head"><span class="chip">Blocking · b</span><b>Contribution #6 is false about the field</b></div>
+        <p>“The field’s eviction baselines are oracles.” H2O, SnapKV, AdaKV, StreamingLLM and RDKV all score on observed attention. The oracle corner was <em>your</em> bug, not theirs, and a reviewer will say so in one line. The defensible version is more interesting anyway, and connects straight to RDKV’s own stated limitation:</p>
+        <div class="fix"><b>Replacement claim</b>Scores computed from the full uncompressed prefill attention matrix — RDKV, CAOTE, CriticalKV — are available once, at prefill, and unavailable during decode. Methods that freeze the allocation after prefill never pay for this; methods that re-budget during decode do. We measure the price: 1.11–1.41× in error, concentrated on diffuse heads.</div>
+      </div>
+
+      <div class="find blocking">
+        <div class="head"><span class="chip">Blocking · c</span><b>The two documents contradict each other, and the pitch is stale</b></div>
+        <p>The pitch still ships the refuted budget mis-specification as claim C6 “new, testable”; still lists “the eviction corner is an oracle” under <em>What is not yet settled</em>; still says “at 128k only llama3.3-70B holds NARROW; everything else is STOP.” Its header says 22 configs / 39,424 heads while its abstract says 20 / 33,920. C9 quotes the 70B at 79%/59% where both tables say 82.1/61.4 (oracle) or 92.6/75.4 (practical). Fig 5 in the proposal is captioned as pending regeneration.</p>
+        <div class="fix"><b>And cut the confession</b>“We replace our results table entirely, for the second time” plus five named defects invites the reviewer to assume there is a sixth. Rigor is proven by the validity gates you now run, not by the length of the archaeology. Keep the gates in the main text; move the bisects to an appendix.</div>
+      </div>
+
+      <div class="find reposition">
+        <div class="head"><span class="chip">Reposition</span><b>Stop making a fragile statistic the y-axis</b></div>
+        <p>Your §6 already concedes that “the band fraction is a fragile statistic; the error ratios are the robust ones.” Then replot Fig 5-left with <strong>median routed gain</strong> on y, band fraction demoted to a secondary panel. That deletes the threshold-fragility objection and the unstable “+10.6 to +28.9 points” framing in one move. Also report the correlation partialled on model identity — 22 configs nested in 6 models are not 22 independent points, and a reviewer will say so.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 4</span>
+      <span class="tag">Design<br>moves</span>
+    </div>
+    <div class="body">
+      <h2>Five ways to be better than RDKV, ranked</h2>
+
+      <div class="move">
+        <p class="idx">01</p>
+        <div>
+          <h3>Make RDKV the experiment, and predict its ablation</h3>
+          <p>Highest leverage, roughly a day of implementation. Reimplement their allocator inside the H0 harness — attention-sum weights plus Lagrangian knapsack; Algorithm 1 is one page — run it per head across your 22 configs, and show its bit-width histogram collapses to two tiers exactly where your dead-tier fraction says it must.</p>
+          <p>A theory that predicts the size of the published SOTA’s own ablation gap is not a scooped paper.</p>
+          <p class="cost">~1 day · converts the scoop into a foundation</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <p class="idx">02</p>
+        <div>
+          <h3>Harvest the context decay from their RULER table</h3>
+          <p>Plot their +12.3 → +4.1 collapse against your band curve. You get end-task corroboration of your central claim without running a single end-task experiment. Caveat the 4k ceiling effect explicitly, and digitize the table yourself rather than quoting this report.</p>
+          <p class="cost">~half a day · borrowed end-task evidence</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <p class="idx">03</p>
+        <div>
+          <h3>Ship the thing their Limitations section says they can’t</h3>
+          <p>RDKV: <em>“compresses the KV cache once after prefill and does not re-evaluate during decoding… Future work: streaming re-budgeting.”</em> Your cascade plus lagged score <em>is</em> that — and you now have the motivation nobody else has: <strong>τ rises monotonically with L, so an allocation calibrated at prefill is provably mis-specified by the end of a long generation.</strong> A mechanism-backed reason to re-budget, not a hand-wave.</p>
+          <p class="cost">weeks · your strongest route from characterization to method</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <p class="idx">04</p>
+        <div>
+          <h3>K*-derived per-head budget allocation</h3>
+          <p>AdaKV allocates budget across heads by attention concentration. Your K* result says concentration is the wrong signal — the 70B has the smallest n₉₅ in the study and the largest tail dependence, a 36× spread that n₉₅ does not order. K* is computable in one cumulative pass over ranked tokens. Replacing AdaKV’s budget rule with a K*-derived one and measuring on LongBench is a small, self-contained win against a named baseline, orthogonal to whether the interior pays.</p>
+          <p class="cost">~1 week · a second, independent contribution</p>
+        </div>
+      </div>
+
+      <div class="move">
+        <p class="idx">05</p>
+        <div>
+          <h3>Scope the K-channel axis, or lose points for missing it</h3>
+          <p>RDKV does per-token V <em>and</em> per-channel K (ThinK-style rank-one weights, their Prop 3.2). You do per-token K only. Either extend the phase analysis to the channel axis — does the channel-side ladder have its own dead tiers? — or state in §1 that you study the token axis and that the channel axis is orthogonal and composable. Silence reads as an oversight.</p>
+          <p class="cost">a sentence, or a week · either is fine; silence is not</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 5</span>
+      <span class="tag">Rewrite</span>
+    </div>
+    <div class="body">
+      <h2>Motivation and contributions, redrafted</h2>
+
+      <p>The current thesis paragraph — “every method minimizes reconstruction distortion; posed against output distortion it becomes rate allocation with eviction as the zero-rate case” — is, sentence for sentence, RDKV’s abstract. Concede it in the first paragraph and pivot. Replacement copy:</p>
+
+      <div class="ms">
+        <span class="slug">Draft — opening</span>
+        <p>Three recent systems — RDKV, HqeKV and ARKV — independently converge on the same formulation: KV cache compression is one rate-allocation problem in which eviction is the zero-rate end of a single curve. We take that formulation as established. What none of them establishes is <strong>when the interior of the curve is worth having.</strong> RDKV’s own ablation answers this accidentally and unfavourably: on LLaMA-3.1-8B a three-tier scheme lands within 0.5 points of its full mixed-precision allocator, and its advantage over eviction baselines on RULER collapses from 12.3 points at 32k to 4.1 at 128k. Neither observation is explained there, and neither can be, because the framework contains no variable that distinguishes a head where allocation pays from one where it degenerates into eviction.</p>
+        <p>We derive that variable from the same cost comparison that generates the allocation. A tier at <em>b</em> bits is worth buying only while τ²c_b &lt; c₀ = 1; the fraction of heads whose low tiers have gone extinct predicts the measured advantage at ρ = −0.96 across 22 model×context configurations, 39,424 heads, six architectures and five octaves of context. It contains no <em>L</em> — and that matters, because <strong>context length turns out to be the steepest axis in the study.</strong> τ rises monotonically with <em>L</em> in all six models, extinguishing rungs from the bottom, and the interior’s advantage decays 3.5–10.3 points per context doubling. The joint-allocation literature is being validated at 4k–32k, and the mechanism it depends on is fading at the lengths that motivate it.</p>
+      </div>
+
+      <p>That framing does four things at once: it cites the scoop, makes it the premise, uses the scooper’s own numbers as your motivating evidence, and states a claim no one else can make. It is also a more interesting paper than “our method wins.”</p>
+
+      <h3>Ten contributions become four</h3>
+      <p>Reviewers read four. Everything below the line becomes a <em>Findings and negative results</em> subsection.</p>
+
+      <ol class="contrib">
+        <li>
+          <b>A regime variable, derived not fitted, that predicts when joint allocation beats its own corners.</b>
+          Dead-tier fraction, ρ = −0.96 over 22 configurations; invariant to a 10–29 point shift in its target when the eviction corner is redefined. <em>Your current #3, unchanged — it is the paper.</em>
+        </li>
+        <li>
+          <b>Context length is a phase variable, acting through τ.</b>
+          One model traverses the diagram on <em>L</em> alone; per-model verdicts are ill-posed, which invalidates how this literature — ours included — reports results. The decay is visible and unexplained in the published state of the art’s own tables.
+        </li>
+        <li>
+          <b>A cost model that predicts measured output-error gain to within 0.80–1.35×, and a router that reads each head’s phase from one calibration pass.</b>
+          The calibration extrapolates across deployment context because the variable is <em>L</em>-free. Replaces the circular τ/ln2 claim with the real prediction, and folds §5’s router in.
+        </li>
+        <li>
+          <b>Two measured facts that redirect system design.</b>
+          Scoring is solved and allocation is not — the oracle beats deployable H2O by only 1.11–1.41×, concentrated on heads the router sends to the interior anyway. And tail dependence is architectural: K*/n₉₅ spans 36× and is not ordered by support, so no fixed-fraction or fixed-κ budget can serve a model set.
+        </li>
+      </ol>
+
+      <div class="demoted">
+        <b>Demote to appendix or findings section</b>
+        The value term, the QJL dead zone, the φ retraction, the Gaussian-simulation result, the defect record, the 1-bit tier. Two demotions worth naming explicitly: <strong>#5 (τ/ln2 to 1.4%)</strong> goes to an appendix consistency check for the reason in §3a, and <strong>#6 (oracle baselines)</strong> gets rewritten per §3b and folded into C4. These are good results; they are not headline slots, and ten contributions reads as a lab notebook.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rail">
+      <span class="num">§ 6</span>
+      <span class="tag">Binding<br>constraint</span>
+    </div>
+    <div class="body">
+      <h2>The one experiment you still owe</h2>
+      <p>Your own “ways this dies” list has it right at #3, and it is the binding constraint. With RDKV on the table showing LongBench, RULER and InfiniteBench plus a 4.5× decode speedup, a pure output-error paper draws <em>why should I believe this matters</em>.</p>
+
+      <div class="find opportunity">
+        <div class="head"><span class="chip">Cheapest decisive test</span><b>Router-on vs router-off, two models, matched budget</b></div>
+        <p>Pick your highest dead-tier and lowest dead-tier model. Run RDKV-style allocation with the router enabled and disabled at matched budget on RULER. Show the router recovers accuracy exactly where the diagram predicts the allocator degenerates. One model pair, a few days.</p>
+        <div class="fix"><b>What it buys</b>It converts the paper from characterization to characterization-plus-actionable — the difference between a reviewer saying “interesting map” and “I would run this.”</div>
+      </div>
+
+      <p>Net: with the RDKV repositioning, the four-contribution rewrite, the τ/ln2 demotion, the RDKV-as-experiment figure and one end-task pair, you land at <strong>50–60%</strong> — roughly where your v8 self-score sits, but for reasons that survive contact with a reviewer who has read the prior work.</p>
+    </div>
+  </section>
+
+  <footer>
+    Prepared against <code>docs/proposal-sieve-v5.1-h0v2.html</code> (v8), <code>docs/pitch-sieve-v5.1-h0v2.html</code> (v4), <code>docs/RDKV-2026.pdf</code> (28pp, incl. appendices A–L), and <code>h0_measurement/reports/analysis_from_fable.md</code>. RDKV figures quoted here are read from its Tables 2 and 4 and should be re-derived from the source before they appear in a submission. Scores are one reviewer’s calibration, not a decision.
+  </footer>
+
+</div>
+</body>
+</html>

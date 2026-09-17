@@ -216,6 +216,56 @@ class Accum(Evictor):
         return self._bufs[0]
 
 
+@register("lag")
+class Lag(Evictor):
+    """Attention from EXACTLY `k` decode steps ago -- a pure staleness probe.
+
+    Not a published evictor and not meant as one. It exists for R3's staleness
+    sweep: the design question SIEVE actually faces is not "lagged vs
+    clairvoyant" but "how fast does an allocation decay after the step it was
+    computed at". `last_step` answers k=1 only; a real system that allocates
+    once at prefill and decodes 2,000 tokens is operating at k=2000.
+
+    Sweeping k therefore prices the two candidate architectures directly:
+      k=1 flat vs k=large   ->  allocate once, never re-budget (cheapest)
+      error rising in k     ->  re-budgeting during decode is mandatory, and
+                                the slope says how often
+    Note `ready()` needs k steps of history, so a run must decode far enough
+    past the first quant step for the deepest k to score -- otherwise the
+    completeness guard in alloc.py withholds the row, by design.
+
+    Options:  k (steps of lag, default 1)
+    Memory:   k position-space vectors per (layer, head), like `window`.
+    """
+    n_bufs = 1
+
+    def __init__(self, k: int = 1, **kw):
+        k = int(k)
+        if k < 1:
+            raise ValueError(f"lag k must be >= 1, got {k}")
+        self.k = k
+        super().__init__(**kw)
+
+    def reset(self):
+        super().reset()
+        self._ring: list = []
+
+    def ready(self) -> bool:
+        return len(self._ring) >= self.k
+
+    def _accum(self, a, fin):
+        v = torch.zeros(self._Lc, dtype=torch.float32)
+        v[fin] = a
+        self._ring.append(v)
+        if len(self._ring) > self.k:
+            self._ring.pop(0)
+        # `_raw` reads buffer 0, so publish the k-steps-ago vector there.
+        self._bufs[0].copy_(self._ring[0])
+
+    def _raw(self):
+        return self._bufs[0]
+
+
 @register("window")
 class Window(Evictor):
     """Attention over the last `window` steps, max-pooled over neighbouring

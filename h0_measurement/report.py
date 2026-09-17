@@ -408,6 +408,50 @@ def page_summary(pdf, df, ph, gates):
                     d = 100*float((gp >= BAND_MIN).mean()) - 100*frac
                     txt.append(f"      {'':<12s}     vs corner-only-demoted: "
                                f"{d:+.1f} pts  <- the price of a fair interior")
+                # THE DESIGNER'S NUMBER. A router calibrated on the ORACLE gain
+                # sends a head to the interior whenever gain_best >= 2x. If the
+                # honest gain for that same head is < 2x, the router has routed
+                # a head that will not pay for itself once deployed. That rate
+                # is the cost of calibrating the threshold on the wrong column,
+                # and it is what a practitioner has to get right.
+                if "gain_best3" in g:
+                    pair = g[["gain_best3", c]].dropna()
+                    if len(pair):
+                        over = float(((pair["gain_best3"] >= BAND_MIN)
+                                      & (pair[c] < BAND_MIN)).mean())
+                        under = float(((pair["gain_best3"] < BAND_MIN)
+                                       & (pair[c] >= BAND_MIN)).mean())
+                        txt.append(f"      {'':<12s}     ROUTER MISCALIBRATION: "
+                                   f"{100*over:.1f}% of heads routed to the "
+                                   f"interior would not pay for themselves "
+                                   f"({100*under:.1f}% the reverse)")
+
+        # R3 staleness sweep: `lag:k=N` evictors are a pure probe of how fast an
+        # allocation decays after the step it was computed at. k=1 is what a
+        # per-step re-budgeter sees; large k is what "allocate once at prefill and
+        # never revisit" sees. A FLAT curve means the cheap architecture is fine;
+        # a rising one prices re-budgeting. Read per-lag, not from the aggregate:
+        # each lag scores from step k onward, so the completeness guard blanks the
+        # aggregate on early steps while the per-lag columns stay valid.
+        lags = {}
+        for cc in g.columns:
+            m = re.match(r"^interior_lag_cost3_lag(\d+)$", cc)
+            if m and g[cc].notna().any():
+                lags[int(m.group(1))] = cc
+        if len(lags) >= 2:
+            txt.append("    STALENESS OF THE ALLOCATION   (error relative to "
+                       "allocating on the current step)")
+            row = "      lag k steps  " + "".join(f"{k:>9d}" for k in sorted(lags))
+            txt.append(row)
+            txt.append("      cost ratio   " + "".join(
+                f"{g[lags[k]].median():8.2f}x" for k in sorted(lags)))
+            ks = sorted(lags)
+            rise = g[lags[ks[-1]]].median() / max(g[lags[ks[0]]].median(), 1e-12)
+            txt.append(f"      -> {rise:.2f}x more error from k={ks[0]} to "
+                       f"k={ks[-1]}: "
+                       + ("allocate ONCE, no re-budgeting needed"
+                          if rise < 1.10 else
+                          "re-budgeting during decode is load-bearing"))
 
         # E1: what each budget policy actually spent, and the slack diagnostic.
         bits = sorted((c for c in g.columns if c.startswith("corner_bits_used3_")),

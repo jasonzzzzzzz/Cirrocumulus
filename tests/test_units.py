@@ -1022,6 +1022,28 @@ def test_practical_interior():
     check("[REGRESSION] unconfigured interior score raises, not silently empty",
           raised)
 
+    # THE STALENESS PROBE. `lag:k=N` returns the attention from exactly N steps
+    # ago, which is what prices the real design choice: allocate once at prefill
+    # (large k) vs re-budget during decode (k=1). k=1 must reduce to last_step.
+    L2 = 8
+    ev1 = EV.make("lag:k=1")[1]
+    ev3 = EV.make("lag:k=3")[1]
+    ls = EV.make("last_step")[1]
+    fin2 = torch.ones(L2, dtype=torch.bool)
+    seen1, seen3, seenls = [], [], []
+    for t in range(6):
+        av = torch.full((L2,), float(t) + 1.0)
+        for ev, acc in ((ev1, seen1), (ev3, seen3), (ls, seenls)):
+            sc = ev.score(fin2)
+            acc.append(None if sc is None else float(sc[0].item()))
+            ev.observe(av, fin2)
+    check("lag:k=1 reproduces last_step exactly", seen1 == seenls,
+          f"({seen1} vs {seenls})")
+    check("lag:k=3 returns the attention from 3 steps ago",
+          seen3[3:] == [1.0, 2.0, 3.0], f"({seen3})")
+    check("a lag deeper than the history scores None, so the row is withheld",
+          seen3[:3] == [None, None, None])
+
     # Disabling it restores the pre-R3 output exactly.
     m0 = quant_metrics(s, shat, V, budgets=(3,), maxb=8,
                        practical_scores={"accum": pa},

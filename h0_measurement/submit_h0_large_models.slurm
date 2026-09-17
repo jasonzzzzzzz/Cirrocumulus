@@ -153,6 +153,24 @@ OVERRIDES=()
 [[ -n "$SIEVE_CTX" ]]              && OVERRIDES+=("ctx=$SIEVE_CTX")
 [[ -n "$SIEVE_EVICTORS" ]]         && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
 [[ -n "$SIEVE_CORNER_POLICIES" ]]  && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
+# DECODE-SHAPE knobs, same integer-validated contract as SIEVE_CTX.
+# n_decode / quant_every exist for R3's staleness sweep: a `lag:k=N` score only
+# scores from step N onward, so the default (n_decode 8, quant_every 4 -> quant
+# steps 0 and 4) can never measure lag8. n_prompts / rot_seed exist for R7: two
+# independent samples of a cell need a different seed or a different prompt
+# count, and bugs/2/report.md 7 flagged that neither was reachable from SIEVE_*.
+for _v in SIEVE_N_DECODE SIEVE_QUANT_EVERY SIEVE_N_PROMPTS SIEVE_ROT_SEED; do
+  _x="${!_v:-}"
+  if [[ -n "$_x" && ! "$_x" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: $_v must be a non-negative integer, got '$_x'" >&2
+    exit 1
+  fi
+done
+[[ -n "${SIEVE_N_DECODE:-}" ]]    && OVERRIDES+=("n_decode=$SIEVE_N_DECODE")
+[[ -n "${SIEVE_QUANT_EVERY:-}" ]] && OVERRIDES+=("quant_every=$SIEVE_QUANT_EVERY")
+[[ -n "${SIEVE_N_PROMPTS:-}" ]]   && OVERRIDES+=("n_prompts=$SIEVE_N_PROMPTS")
+[[ -n "${SIEVE_ROT_SEED:-}" ]]    && OVERRIDES+=("rot_seed=$SIEVE_ROT_SEED")
+
 if [[ -n "$SIEVE_INTERIOR_SCORES" ]]; then
   if [[ "$SIEVE_INTERIOR_SCORES" == "none" ]]; then
     OVERRIDES+=("interior_scores=[]")

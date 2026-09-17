@@ -196,6 +196,24 @@ def sensitivity_metrics(s: torch.Tensor, V: torch.Tensor, n_sink: int = 4) -> di
     order = torch.argsort(sd, descending=True)
     out["tau_nosink"] = (float(sd[order[n_sink:]].std().item())
                          if L > n_sink + 64 else float("nan"))
+    # THE LADDER IS NOT A PREDICTION -- READ THIS BEFORE QUOTING IT.
+    #
+    #   log2 a_i = s_i/ln2 - log2 Z        (Z = sum_j exp(s_j), a constant in i)
+    #   => std_i(log2 a_i) = std_i(s_i)/ln2 = tau/ln2   IDENTICALLY.
+    #
+    # So `ladder_bits_a_only` equals tau/ln2 as algebra, not as a measurement:
+    # verified to 8e-16 relative error per head across all 24 configurations of
+    # the E1/E2 campaign, and pinned by tests/test_units.py::test_ladder_identity.
+    # Plotting one against the other plots x against x.
+    #
+    # `ladder_bits` adds the value term ||v_i - o|| and is therefore the only one
+    # of the two with any empirical content -- but that content is small by our
+    # own measurement (<=0.035 bits; the two ladders agree to 0.4-1.2%), so
+    # "ladder ~ tau/ln2 to ~1%" is a statement about how negligible the value
+    # term is, which we already report separately.
+    #
+    # The theory's real forward prediction is `lin_ratio{B}` in quant_metrics:
+    # the linearized cost model against the exactly-recomputed gain. Quote that.
     pos = sens[sens > 0]
     out["ladder_bits"] = (float(torch.log2(pos).std().item())
                           if pos.numel() > 64 else float("nan"))

@@ -960,6 +960,42 @@ def test_validity_gate():
           not R.family_gate(syn)[("m", 32768)]["passed"])
 
 
+def test_ladder_identity():
+    print("\n[REGRESSION] ladder_bits_a_only IS tau/ln2 -- it is not a prediction")
+    import math
+    LN2 = math.log(2)
+
+    # [REGRESSION] The proposal called "ladder width = tau/ln2, confirmed to 1.4%"
+    # its strongest single piece of evidence, and Fig 5-right plotted the two
+    # against each other. But log2 a_i = s_i/ln2 - log2 Z with Z constant in i,
+    # so std_i(log2 a_i) = std_i(s_i)/ln2 exactly. This test exists so nobody can
+    # re-promote an algebraic identity to an empirical result: if it ever starts
+    # FAILING, the identity has been broken by a code change; if it passes, the
+    # quantity has no forward-predictive content on its own.
+    worst = 0.0
+    for L, tau in ((4096, 1.9), (32768, 2.4), (131072, 3.3)):
+        torch.manual_seed(L)
+        s = torch.randn(L, dtype=torch.float64) * tau
+        m = sensitivity_metrics(s, torch.randn(L, 8, dtype=torch.float64))
+        worst = max(worst, abs(m["ladder_bits_a_only"] - m["tau"] / LN2)
+                    / (m["tau"] / LN2))
+    check("ladder_bits_a_only == tau/ln2 to float precision", worst < 1e-12,
+          f"(max rel err {worst:.2e} -- an identity, so an appendix check only)")
+
+    # The value term is the ONLY empirical content in the full ladder, and we
+    # measure it to be small. Both halves of that sentence have to stay true
+    # together, or the "~1% agreement" claim is quietly doing real work again.
+    torch.manual_seed(0)
+    s = torch.randn(16384, dtype=torch.float64) * 2.4
+    V = torch.randn(16384, 16, dtype=torch.float64)
+    m = sensitivity_metrics(s, V)
+    gap = abs(m["ladder_bits"] - m["ladder_bits_a_only"])
+    check("the value term is the full ladder's only empirical content",
+          gap > 0, f"(shifts the ladder by {gap:.4f} b)")
+    check("...and it is small, so tau/ln2 'agreement' measures a negligible term",
+          gap < 0.20, f"({gap:.4f} b; measured <=0.035 b on real heads)")
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
@@ -969,7 +1005,7 @@ if __name__ == "__main__":
               test_report_survives_missing_corner_columns, test_partial_corner_is_withheld,
               test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
-              test_needle_span, test_validity_gate):
+              test_needle_span, test_validity_gate, test_ladder_identity):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

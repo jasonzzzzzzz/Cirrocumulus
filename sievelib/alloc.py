@@ -301,6 +301,29 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         out[f"spearman_top_b{b}"] = float(
             (rt @ rh / (rt.norm() * rh.norm()).clamp_min(1e-12)).item())
 
+    # R3 / E2b -- the LAGGED SENSITIVITY, for a practical interior.
+    #
+    # w2 = (a*||v-o||)^2 uses the CURRENT step's attention `a`, which is the
+    # oracle information the corner demotion took away. The deployable analogue
+    # rebuilds the same functional from a lagged score: normalise it to a
+    # distribution `ap`, form the lagged output `op = ap @ V` -- computable from
+    # the KV cache alone, nothing from the current query -- and take
+    # w2p = (ap*||v-op||)^2. The allocation DECISION is then lagged while the
+    # reported error stays exact recomputation against the true logits, which is
+    # precisely the asymmetry a deployed system faces.
+    w2p: dict[str, torch.Tensor] = {}
+    for nm in corner.interior_scores:
+        ps = scores.get(nm)
+        if ps is None:
+            continue
+        ap = ps.double().clamp_min(0)
+        tot = float(ap.sum().item())
+        if not (tot > 0) or not math.isfinite(tot):
+            continue                  # a flat/degenerate score cannot allocate
+        ap = ap / tot
+        op = ap @ Vd
+        w2p[nm] = (ap * (Vd - op).norm(dim=-1)) ** 2
+
     # Corner rankings. The oracle is a CONFIGURED corner like any other (listed
     # by default); it is the only one that sees the current step.
     orc = corner.oracle_label
@@ -309,6 +332,11 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         rank[orc] = torch.argsort(w2, descending=True)
     for nm, ps in scores.items():
         rank[nm] = torch.argsort(ps.double(), descending=True)
+    # Corner ranked by the lagged SENSITIVITY rather than raw lagged attention:
+    # apples-to-apples with the w2p interior (see CornerSpec.interior_rank_corner).
+    if corner.interior_rank_corner:
+        for nm, wp in w2p.items():
+            rank[f"{nm}_w2p"] = torch.argsort(wp, descending=True)
     have_maxb = int(maxb) in shat
     out["n_practical"] = len(scores)
 
@@ -328,6 +356,18 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
             float((w2 * cv[torch.full_like(bw, int(B))]).sum().item())
             / max(float((w2 * cv[bw]).sum().item()), 1e-300))
         out[f"lin_ratio{B}"] = pred / max(out[f"gain_u{B}"], 1e-12)
+        # R3 / E2b: the practical interior. One waterfill + one exact_error per
+        # (budget, score). `err_wf_pp` is strictly >= err_wf by construction --
+        # the lagged allocator is choosing from strictly less information -- so
+        # the gap between them prices what the interior pays for being honest.
+        for nm, wp in w2p.items():
+            bwp = waterfill(wp, sig2, float(B), maxb)
+            e_wf_pp = exact_error(s, shat, V, bwp, o)
+            out[f"err_wf_pp{B}_{nm}"] = e_wf_pp
+            out[f"interior_lag_cost{B}_{nm}"] = e_wf_pp / max(e_wf, 1e-12)
+            out[f"evict_frac_pp{B}_{nm}"] = float((bwp == 0).double().mean().item())
+            out[f"gain_u_pp{B}_{nm}"] = e_un / max(e_wf_pp, 1e-12)
+
         if not have_maxb or not rank:
             continue                      # no top tier -> no eviction corner
 
@@ -400,6 +440,25 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
             out[f"best_evictor{B}"] = who
             if e_ev is not None:
                 out[f"oracle_evict_advantage{B}"] = e_best / max(e_ev, 1e-12)
+
+            # THE SYMMETRIC CELL: both sides decide from lagged information.
+            # This is the only comparison in the study that a reviewer cannot
+            # attribute to information asymmetry, so it is the honest headline.
+            # `_pp` = practical interior AND practical corner.
+            for nm, wp in w2p.items():
+                e_wf_pp = out[f"err_wf_pp{B}_{nm}"]
+                # Corner ranked the literature's way (raw lagged attention)...
+                out[f"gain_pp{B}_{nm}"] = min(e_un, e_best) / max(e_wf_pp, 1e-12)
+                out[f"in_band_pp{B}_{nm}"] = float(
+                    out[f"gain_pp{B}_{nm}"] >= BAND_MIN)
+                # ...and ranked by the same w2p the interior used, which removes
+                # the last scrap of asymmetry in the OTHER direction.
+                k = f"err_e{B}_{nm}_w2p_{pol0}"
+                if k in out:
+                    e_sym = min(e_best, out[k])
+                    out[f"gain_pp_sym{B}_{nm}"] = min(e_un, e_sym) / max(e_wf_pp, 1e-12)
+                    out[f"in_band_pp_sym{B}_{nm}"] = float(
+                        out[f"gain_pp_sym{B}_{nm}"] >= BAND_MIN)
 
         # E1's policy-free diagnostic: the smallest kept-token count that gets
         # within kstar_tol of the FULL-budget corner. K* << B*L/maxb means the

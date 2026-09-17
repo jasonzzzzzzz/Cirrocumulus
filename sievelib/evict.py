@@ -403,6 +403,25 @@ class CornerSpec:
     kstar_points: int = 12      # geometric grid resolution
     kstar_tol: float = 0.10     # "within 10% of the full-budget corner"
 
+    # R3 / E2b -- THE SYMMETRIC CELL.
+    # Demoting the corner to lagged attention left the comparison asymmetric:
+    # the interior still water-fills on the CURRENT step's sensitivity
+    # w2 = (a*||v-o||)^2, which is exactly the oracle information we just took
+    # away from the corner. `interior_scores` names the lagged score(s) to ALSO
+    # run the allocator on, so both sides decide from the same information.
+    # Empty tuple = skip (the pre-R3 behaviour, oracle interior only).
+    #
+    # Default is `accum` alone rather than every evictor: it wins 74-93% of
+    # corners, so it is the score a deployable system would actually carry, and
+    # each extra entry costs one waterfill + one exact_error per (head, budget).
+    interior_scores: tuple = ("accum",)
+    # Rank the corner by the practical SENSITIVITY w2p as well as by the raw
+    # lagged attention. Raw pa is literature-faithful (H2O/SnapKV rank on
+    # attention); w2p is apples-to-apples with a w2p interior, and the gap
+    # between them isolates how much of the interior's edge is mixed-precision
+    # SHAPE rather than score information the corner lacks.
+    interior_rank_corner: bool = True
+
     @property
     def oracle_label(self) -> str | None:
         """Label the oracle corner is reported under, or None if this run did
@@ -437,7 +456,34 @@ class CornerSpec:
                    floor=int(c.get("corner_floor", cls.floor)),
                    kstar=bool(c.get("kstar", cls.kstar)),
                    kstar_points=int(c.get("kstar_points", cls.kstar_points)),
-                   kstar_tol=float(c.get("kstar_tol", cls.kstar_tol)))
+                   kstar_tol=float(c.get("kstar_tol", cls.kstar_tol)),
+                   interior_scores=_parse_interior(c, cls, specs),
+                   interior_rank_corner=bool(c.get("interior_rank_corner",
+                                                   cls.interior_rank_corner)))
+
+
+def _parse_interior(c: dict, cls, specs) -> tuple:
+    """R3: which lagged score(s) the ALLOCATOR also runs on.
+
+    Validated against the evictors this run actually configures, because an
+    interior score with no matching evictor would silently produce nothing --
+    exactly the class of silent-empty-column bug that hid the practical corner
+    for three campaigns (bugs/2 P0).
+    """
+    v = c.get("interior_scores", cls.interior_scores)
+    if v is None or v is False:
+        return ()
+    if isinstance(v, str):
+        v = [x.strip() for x in v.split(",") if x.strip()]
+    want = tuple(v)
+    have = tuple(lab for lab, ev in (make(sp) for sp in specs) if ev is not None)
+    bad = [x for x in want if x not in have]
+    if bad:
+        raise ValueError(
+            f"interior_scores {bad} are not practical evictors in this run "
+            f"(configured: {list(have)}). The allocator can only use a score "
+            f"the run actually computes.")
+    return want
 
 
 # --------------------------------------------------------------- construction

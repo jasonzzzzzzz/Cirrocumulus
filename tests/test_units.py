@@ -960,6 +960,79 @@ def test_validity_gate():
           not R.family_gate(syn)[("m", 32768)]["passed"])
 
 
+def test_practical_interior():
+    print("\n[R3/E2b] the symmetric cell: lagged interior vs lagged corner")
+    from sievelib import evict as EV
+    torch.manual_seed(0)
+    L, d = 2048, 32
+    K = torch.randn(L, d, dtype=torch.float64)
+    q = torch.randn(d, dtype=torch.float64)
+    V = torch.randn(L, d, dtype=torch.float64)
+    R = quant.random_rotation(d, "cpu", seed=0).double()
+    sc = 2.2 / (K @ q / math.sqrt(d)).std()
+    s = (K @ q / math.sqrt(d)) * sc
+    shat = {b: (quant.quantize_keys(K.float(), b, R.float()).double() @ q
+                / math.sqrt(d)) * sc for b in (1, 2, 3, 4, 8)}
+    # A LAGGED score: last step's attention. Correlated with the current step
+    # but not equal to it -- which is the whole point.
+    a_true = torch.softmax(s, -1)
+    pa = torch.softmax(s + 0.6 * torch.randn(L, dtype=torch.float64), -1)
+
+    spec = EV.CornerSpec(evictors=("oracle", "accum"), policies=("frac",),
+                         kstar=False, interior_scores=("accum",))
+    m = quant_metrics(s, shat, V, budgets=(3,), maxb=8,
+                      practical_scores={"accum": pa}, corner=spec)
+
+    need = {"err_wf_pp3_accum", "gain_pp3_accum", "in_band_pp3_accum",
+            "interior_lag_cost3_accum", "gain_pp_sym3_accum"}
+    check("symmetric-cell columns are emitted", need <= set(m),
+          f"(missing {sorted(need - set(m))})" if not need <= set(m) else "")
+
+    # The lagged allocator chooses from strictly less information than the
+    # oracle allocator, so it cannot do better. This is a per-head guarantee
+    # (unlike the corner monotonicity claim, which is only aggregate -- see
+    # bugs/2/plan.md) because BOTH allocations are scored by the same exact
+    # recomputation and the oracle one is the argmin of the proxy it optimises.
+    check("lagged interior is never better than the oracle interior",
+          m["err_wf_pp3_accum"] >= m["err_wf3"] - 1e-12,
+          f"(lag cost {m['interior_lag_cost3_accum']:.3f}x)")
+    check("...and the penalty is reported, not hidden",
+          m["interior_lag_cost3_accum"] >= 1.0 - 1e-12)
+
+    # [REGRESSION] The asymmetry this whole cell exists to remove: the symmetric
+    # gain must be <= the half-demoted one, because demoting the interior can
+    # only cost the interior. If this ever inverts, the w2p path is not actually
+    # being used for the allocation.
+    check("[REGRESSION] symmetric gain <= corner-only-demoted gain",
+          m["gain_pp3_accum"] <= m["gain_best_practical3"] + 1e-9,
+          f"({m['gain_pp3_accum']:.3f} vs {m['gain_best_practical3']:.3f})")
+
+    # w2p-ranked corner must exist and be a real, different ranking.
+    check("corner ranked by w2p is reported alongside raw-attention ranking",
+          "err_e3_accum_w2p_frac" in m and "err_e3_accum_frac" in m)
+
+    # An interior score naming a non-configured evictor must fail loudly, not
+    # silently emit nothing -- the bug class that hid the practical corner.
+    raised = False
+    try:
+        EV.CornerSpec.from_cfg({"evictors": ["oracle", "accum"],
+                                "interior_scores": ["window"]})
+    except ValueError:
+        raised = True
+    check("[REGRESSION] unconfigured interior score raises, not silently empty",
+          raised)
+
+    # Disabling it restores the pre-R3 output exactly.
+    m0 = quant_metrics(s, shat, V, budgets=(3,), maxb=8,
+                       practical_scores={"accum": pa},
+                       corner=EV.CornerSpec(evictors=("oracle", "accum"),
+                                            policies=("frac",), kstar=False,
+                                            interior_scores=()))
+    check("interior_scores=() leaves the legacy columns untouched",
+          not any(k.endswith("_pp3_accum") or "_pp" in k for k in m0)
+          and abs(m0["gain_best3"] - m["gain_best3"]) < 1e-12)
+
+
 def test_ladder_identity():
     print("\n[REGRESSION] ladder_bits_a_only IS tau/ln2 -- it is not a prediction")
     import math
@@ -1005,7 +1078,8 @@ if __name__ == "__main__":
               test_report_survives_missing_corner_columns, test_partial_corner_is_withheld,
               test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
-              test_needle_span, test_validity_gate, test_ladder_identity):
+              test_needle_span, test_validity_gate, test_ladder_identity,
+              test_practical_interior):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

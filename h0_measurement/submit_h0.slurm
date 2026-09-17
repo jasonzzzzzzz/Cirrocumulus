@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --array=0-3                  # one task per model; override for a subset
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=96G
+##SBATCH --mem=96G
 #SBATCH --time=01:15:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=jzzzzzzz23@foxmail.com
@@ -108,6 +108,11 @@ fi
 # each verdict line from those columns.
 SIEVE_EVICTORS="${SIEVE_EVICTORS:-}"
 SIEVE_CORNER_POLICIES="${SIEVE_CORNER_POLICIES:-}"
+# SIEVE_INTERIOR_SCORES: R3/E2b. Which lagged score(s) the ALLOCATOR also runs
+# on, so the interior and the corner decide from the same information. Must name
+# practical evictors this run configures -- run_h0.py rejects anything else
+# before the tokenizer loads. `none` disables (oracle interior only, pre-R3).
+SIEVE_INTERIOR_SCORES="${SIEVE_INTERIOR_SCORES:-}"
 
 # run_h0.py's --override takes nargs="*", so a SECOND --override flag REPLACES
 # the first rather than adding to it -- ctx would be silently dropped. Collect
@@ -116,6 +121,13 @@ OVERRIDES=()
 [[ -n "$SIEVE_CTX" ]]              && OVERRIDES+=("ctx=$SIEVE_CTX")
 [[ -n "$SIEVE_EVICTORS" ]]         && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
 [[ -n "$SIEVE_CORNER_POLICIES" ]]  && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
+if [[ -n "$SIEVE_INTERIOR_SCORES" ]]; then
+  if [[ "$SIEVE_INTERIOR_SCORES" == "none" ]]; then
+    OVERRIDES+=("interior_scores=[]")
+  else
+    OVERRIDES+=("interior_scores=$SIEVE_INTERIOR_SCORES")
+  fi
+fi
 
 VENV="${SIEVE_VENV:-$PROJECT_ROOT/.venv}"
 # HF_TOKEN is read from an untracked file, never hard-coded here.

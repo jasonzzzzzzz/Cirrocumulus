@@ -375,6 +375,40 @@ def page_summary(pdf, df, ph, gates):
                 ka = f"oracle_evict_advantage3_{nm}"
                 row += (f"     {g[ka].median():9.2f}x" if ka in g else "")
                 txt.append(row)
+        # R3 / E2b: THE SYMMETRIC CELL. Everything above demotes only the corner;
+        # these rows demote the interior too, so both sides allocate from lagged
+        # information. This is the only comparison in the study immune to the
+        # "your interior had oracle information" objection, so it is printed
+        # last and loudest.
+        pp = sorted(c for c in g.columns if c.startswith("gain_pp3_"))
+        if pp:
+            txt.append("    SYMMETRIC CELL @3b   (interior ALSO allocates on a "
+                       "lagged score -- no information asymmetry)")
+            for c in pp:
+                nm = c[len("gain_pp3_"):]
+                gp = g[c].dropna()
+                if not len(gp):
+                    continue
+                row = (f"      interior on {nm:<10s} "
+                       f"{100*float((gp >= BAND_MIN).mean()):5.1f}% in band   "
+                       f"median {gp.median():.2f}x")
+                kc = f"interior_lag_cost3_{nm}"
+                if kc in g:
+                    row += f"   (allocator pays {g[kc].median():.2f}x for the lag)"
+                txt.append(row)
+                ks = f"gain_pp_sym3_{nm}"
+                if ks in g:
+                    gs = g[ks].dropna()
+                    if len(gs):
+                        txt.append(f"      {'':<12s}     + corner also ranked by "
+                                   f"the same w2p: "
+                                   f"{100*float((gs >= BAND_MIN).mean()):5.1f}% "
+                                   f"in band, median {gs.median():.2f}x")
+                if "gain_best_practical3" in g:
+                    d = 100*float((gp >= BAND_MIN).mean()) - 100*frac
+                    txt.append(f"      {'':<12s}     vs corner-only-demoted: "
+                               f"{d:+.1f} pts  <- the price of a fair interior")
+
         # E1: what each budget policy actually spent, and the slack diagnostic.
         bits = sorted((c for c in g.columns if c.startswith("corner_bits_used3_")),
                       key=lambda c: (not c.endswith("_frac"), c))

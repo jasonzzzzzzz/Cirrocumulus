@@ -73,6 +73,13 @@ defaults:
   corner_kappa: 4.0
   corner_floor: 256
   kstar: true
+  # R3 / E2b: the lagged score the ALLOCATOR also runs on, so the interior and
+  # the corner decide from the same information. `accum` (H2O) wins 74-93% of
+  # corners, so it is the score a deployable system would carry. Each entry
+  # costs one waterfill + one exact_error per (head, budget); [] disables.
+  interior_scores:
+  - accum
+  interior_rank_corner: true
   corner_in_filename: false
 models:
 - tag: qwen3-1.7b

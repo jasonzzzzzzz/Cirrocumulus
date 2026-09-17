@@ -321,6 +321,15 @@ PY
 OVERRIDES=("ctx=$CTX")
 [[ -n "${SIEVE_EVICTORS:-}" ]]        && OVERRIDES+=("evictors=$SIEVE_EVICTORS")
 [[ -n "${SIEVE_CORNER_POLICIES:-}" ]] && OVERRIDES+=("corner_policies=$SIEVE_CORNER_POLICIES")
+# SIEVE_INTERIOR_SCORES: R3/E2b -- the lagged score(s) the ALLOCATOR also runs
+# on, so interior and corner decide from the same information. `none` disables.
+if [[ -n "${SIEVE_INTERIOR_SCORES:-}" ]]; then
+  if [[ "$SIEVE_INTERIOR_SCORES" == "none" ]]; then
+    OVERRIDES+=("interior_scores=[]")
+  else
+    OVERRIDES+=("interior_scores=$SIEVE_INTERIOR_SCORES")
+  fi
+fi
 echo "overrides: ${OVERRIDES[*]}"
 srun python h0_measurement/run_h0.py \
      --model "$MODEL" \

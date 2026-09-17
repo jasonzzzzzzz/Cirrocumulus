@@ -346,3 +346,50 @@ one claim that is currently indefensible — do them before writing anything els
 And R3 is the highest-value experiment left: it is the last place our own
 comparison is asymmetric, we have just made a public point of exactly that kind of
 asymmetry, and both of its outcomes are publishable.
+
+
+# Dependency Graph
+
+0-GPU, done ──► R1 R2 ✓
+                    │
+   ┌────────────────┴──────────── ONE CAMPAIGN ──────────────┐
+   │  R3 symmetric cell   (new columns)                      │
+   │  R4 96k + RoPE headroom   (new ctx points)              │  ← batch these
+   │  R6 pin boundary 12k/24k/48k  (new ctx points)          │
+   │  R7 seeds  (plumbing 0-GPU, then +2 seeds)              │
+   └──────────────────┬──────────────────────────────────────┘
+                      │
+     R5 phase drift ──┤  (independent: needs quant_every=1, n_decode=32)
+                      ▼
+              R8 router on/off on RULER   ← not blocked, but WASTEFUL before R3
+                      │
+     R9 K*-budget ────┤  (fully orthogonal — run any time, insurance policy)
+                      ▼
+       R10 tier set → R11 nesting → R12 GQA → R14 kernel
+
+
+you don't need R3 before R4, R6, R7. You need them in the same campaign. All four are "run the grid with more points and more columns." Sequencing them means paying the 128k prefill three times. My script.sh §3 already folds the ctx sweep into R3's submission for exactly this reason; adding 96k and qwen3-30b@192k completes R4 at near-zero marginal cost.
+
+R5 is genuinely separate — it needs a different decode config (32 steps, every step quantized), so it can't ride the same jobs. Run it in parallel.
+
+Tier 2: R8 depends on R3, R9 doesn't. R8 isn't blocked — the diagram it tests is already established and survived the corner change. But it would produce an end-task number for an interior you're about to redefine. If R3 shows the interior needs current-query information, the thing the router routes to becomes a cascade, and R8 would have measured the wrong method. R9 is orthogonal to all of it: it's about the corner's budget, not the interior.
+
+# What each item determines
+
+Motivation / the red flag → R4, then R8. R4 is the one that decides whether your most striking finding is real. The 64k→128k acceleration is simultaneously the paper's best result and its "way this dies #1." If the collapse tracks fraction of RoPE window consumed rather than absolute L — and the current data hints that way, since the two models at their exact cap collapse while the one with 2× headroom barely moves — then "the mechanism fades exactly where you need it" becomes a claim about models run at their limit. R8 determines whether the motivation is load-bearing at all: every number in the paper is an output-error ratio.
+
+Design section → R3, R5, R9, R10, R11, R12. R3 sets the shape (static offline allocation vs decode-time re-budgeting). R5 sets the timing (does one calibration pass survive a long generation). R9 sets the budget rule. R10 sets the tier set. R11 decides whether the nested storage layout is viable at all. R12 sets the granularity — and it's the sleeper: if the G=8 union costs more than ~3× single-head, per-head rates aren't realizable for five of your six models, and per-head routing is the design.
+
+One experiment / one figure → R4, R6, R7, R8, R9. Self-contained additions that each refine a number or add a panel without reshaping the argument.
+
+# Is the design explored, or still exploring?
+
+Still exploring — and not close to settled on the parts that matter most.
+
+Settled: the objective (output distortion), the allocation rule b* = log₂aᵢ + c, eviction as tier 0 inside the allocator (the water-filler chooses to evict 40–54% on its own), and "scoring is solved, allocation is not" (oracle beats H2O by only 1.02–1.41×).
+
+Open, and each can still change the architecture: granularity (R12), timing (R3, R5), budget rule (R9), tier set (R10), storage viability (R11).
+
+The sharpest evidence that you're still exploring: three of the six design rules in report.md §6 came from experiments whose hypotheses were wrong. E1's budget mis-specification was refuted. The oracle advantage turned out to be on diffuse heads, not sharp — backwards from the stated reasoning, in 24/24 runs. "Provably monotone" was false per head. The design rules are currently being discovered by experiments rather than confirmed by them, which is the signature of exploration, not consolidation.
+
+That's not a problem — but it does mean R8 (end-task) is premature until R3 and R5 fix the shape and timing, and it argues for R9 early as insurance, since it stands as a contribution regardless of how the interior question lands.

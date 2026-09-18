@@ -131,29 +131,41 @@ from score information the corner lacks).
   which is exactly the motivation for the cascade's cheap first pass, and turns
   C4 into a claim about *when to re-budget* rather than *how to score*.
 
-### R4 · The 64k→128k step: mechanism or RoPE artifact? `[SELL]` C1, C2
-**~1 day · the most interesting open question in the study**
+### R4 · The 64k→128k step: mechanism or RoPE artifact? `[SELL]` C1, C2 — **PLUMBED, ready to submit**
+**~1 day of GPU · the most interesting open question in the study**
 
-Every model that reaches 128k drops sharply there — llama33-70b −36.9, qwen3-30b
-−5.7, llama31-8b −5.4 — with τ and n₉₅ both jumping (70B: n₉₅ 117 → 4,854, τ 2.06
-→ 3.31). Two explanations with very different consequences for C2:
+Every model that reaches 128k drops sharply there (llama33-70b −36.9, qwen3-30b
+−5.7, llama31-8b −5.4) with τ and n₉₅ both jumping. Two readings fit the existing
+data **equally well** and they are not the same claim: the decay is a property of
+attention (C2 stands, the reach really ends near 64k), or part of the slope is an
+artifact of measuring models at their trained limit (C2 must be restated).
 
-- **genuine attention regime change** → the decay accelerates past 128k, and the
-  method's reach narrows honestly but the mechanism is confirmed;
-- **RoPE behaviour near the trained limit** → part of the steep slope is an
-  artifact of running models at their cap, and C2's slope needs restating.
+The confound is structural: the two models that dropped are **at** their RoPE cap
+(131,072 of 131,072); the one with 2× headroom (qwen3-30b-a3b-2507, 131,072 of
+262,144) dropped least. Pushing that model to 192k/256k moves rope_frac
+0.50 → 1.00 while absolute L moves 128k → 256k, and the two hypotheses then make
+**opposite within-model predictions** about where its steepest drop falls.
 
-There is already a hint worth chasing: the two models at **exactly** their RoPE
-cap (llama31-8b and llama33-70b, both 131072) show the drops, while
-qwen3-30b-a3b-2507 — native window **262144**, so 128k is half of it — shows the
-smallest. Test directly:
-- add **96k** for the llama pair, which brackets the step from below;
-- push qwen3-30b-a3b-2507 to **192k**, using headroom it actually has.
+**Landed (0 GPU):**
+- `models.yaml` — `native_ctx` per model, the README ctx audit made
+  machine-readable and verified against every live config.
+- the ctx guard — now caps `SIEVE_CTX` at `native_ctx`, not at the default `ctx`.
+  It previously refused 192k for qwen3-30b-a3b-2507 on the stated grounds that
+  "the registry values are native RoPE limits" — true for six of eight models and
+  **false for the only one this experiment needs**. Past the window is still
+  refused; past the default now prints a headroom note.
+- `run_h0.py` — stamps `native_ctx`, `rope_frac`, `rope_type` per row, read from
+  the live config and cross-checked against the registry. Without `rope_frac` in
+  the parquet the question cannot be asked after the fact.
+- `report.py` — `page_rope` plots each model against **both** x-axes and prints
+  where each model's own steepest per-octave drop falls.
+- `tests/test_units.py::test_rope_window` — 10 checks, pins the headroom.
+- corpus capacity verified: 22/40 books clear 256k, against n_prompts 2–3.
 
-If the collapse tracks *fraction of the RoPE window consumed* rather than absolute
-L, that is a new finding and it reframes our own limit. Note `run_h0` refuses
-contexts above the native cap by design — the qwen3 extension works within it, so
-consult the guard rather than bypassing it.
+**To submit:** `bugs/4_rope_limit_or_mechanism/script.sh` (four groups, with the
+decision table written before the run). The cheap control is qwen3-1.7b, which has
+5× headroom.
+
 
 ### R5 · Phase drift across decode steps `[SELL]` C4
 **~1 day · cheap, and it does double duty**

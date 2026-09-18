@@ -71,15 +71,23 @@ defaults:
   norm_correct: true
   rot_seed: 0
   maxb: 8
+  # LEAN BY DEFAULT since R3. The five-corner set cost 28 B per
+  # (layer, head, token) of host RAM -- 18.8 GB for llama33-70b at 128k -- and
+  # bugs/2/report.md 6.4 measured `window` and `recency` winning only 6-22% and
+  # 1-12% of heads for 18 of those 28 bytes. `accum` (H2O) wins 74-93%, so the
+  # min-over-corners verdict is barely weaker without them. Dropping them takes
+  # the state to 5 B/slot (3.4 GB for the 70B) and is what pays for R3's extra
+  # interior allocation -- the five-corner default plus that interior is what
+  # overran --time and lost qwen3-8b from the R3 campaign.
+  # Put them back explicitly (SIEVE_EVICTORS) if a run needs the full grid.
   evictors:
   - oracle
-  - last_step
   - accum
-  - window
-  - recency
+  # `abs` was E1's hypothesis and E1 REFUTED it: K* is 100% of the budget in
+  # 24/24 runs, and kappa=4 costs 1.9-7.4x the error. Keeping it as a default
+  # spends columns and reader attention on a policy the project has retired.
   corner_policies:
   - frac
-  - abs
   corner_kappa: 4.0
   corner_floor: 256
   kstar: true

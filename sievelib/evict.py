@@ -155,14 +155,37 @@ class Evictor:
         self._Lc = Lc
 
     # ---------------------------------------------------------------- public
-    def score(self, fin: torch.Tensor) -> torch.Tensor | None:
+    def score(self, fin: torch.Tensor, rank_bump: bool = True) -> torch.Tensor | None:
         """Score over the fin positions, ordered like logits[fin]. None = no
-        usable history yet (first decode step of a prompt)."""
+        usable history yet (first decode step of a prompt).
+
+        `rank_bump` controls the "never evict a token at birth" rule, which
+        rewrites freshly-appended positions to max+1 so they sort first.
+
+        THAT RULE IS ORDINAL ONLY, AND IT MUST NOT REACH THE ALLOCATOR.
+        A corner consumes this tensor as a RANKING, where max+1 just means
+        "first". The R3 interior consumes it as a MAGNITUDE: it normalises the
+        tensor into a distribution and forms w2p = (ap*||v-op||)^2. There the
+        "+1" is in units of accumulated attention (the buffer sums to ~1 per
+        observed step), so a handful of fresh tokens absorb 20-33% of the total
+        mass -- measured, and WORSE on concentrated heads (33% sharp vs 20%
+        diffuse) because `mx` is larger there. That is an ordinal convention
+        masquerading as a sensitivity, and it biases hardest on exactly the
+        high-gain heads the interior exists to serve.
+
+        So: rank_bump=True for corners (the deployed policy -- do not evict a
+        token you have never observed), rank_bump=False for the interior, which
+        needs the honest accumulated magnitude. A deployed allocator would still
+        floor new tokens at high precision, but that is a separate, explicit
+        policy rather than an artifact of a tie-break.
+        """
         fin = self._prep(fin)
         self._align(fin)
         if not self.ready():
             return None
         s = self._raw()[fin].double().clone()
+        if not rank_bump:
+            return s
         fr = self._fresh[fin]
         if bool(fr.any()):
             seen = s[~fr]
@@ -328,7 +351,10 @@ class Recency(Evictor):
     def _accum(self, a, fin):
         pass
 
-    def score(self, fin):
+    def score(self, fin, rank_bump: bool = True):
+        # Positional, so there is no magnitude to be honest about: `recency` is
+        # ordinal by construction and must never be used as an interior score.
+        # The signature matches the base class so callers need no special case.
         fin = self._prep(fin)
         self._align(fin)
         L = int(fin.sum().item())
@@ -445,8 +471,11 @@ class CornerSpec:
     -- they are the same shipped configuration, and a drift between them would
     make every RAM/cost figure wrong depending on which one the caller hit.
     """
-    evictors: tuple = (ORACLE, "last_step", "accum", "window", "recency")
-    policies: tuple = ("frac", "abs")
+    # Kept identical to `defaults:` in h0_measurement/models.yaml -- see the note
+    # there. Lean since R3: window/recency cost 18 of 28 B/slot for 6-22% and
+    # 1-12% of head wins, and `abs` was refuted by E1.
+    evictors: tuple = (ORACLE, "accum")
+    policies: tuple = ("frac",)
     kappa: float = 4.0          # abs policy: keep kappa * n95 tokens ...
     floor: int = 256            # ... but never fewer than this
     kstar: bool = True          # the K* slack diagnostic
@@ -520,6 +549,7 @@ def _parse_interior(c: dict, cls, specs) -> tuple:
     exactly the class of silent-empty-column bug that hid the practical corner
     for three campaigns (bugs/2 P0).
     """
+    explicit = "interior_scores" in c
     v = c.get("interior_scores", cls.interior_scores)
     if v is None or v is False:
         return ()
@@ -528,11 +558,27 @@ def _parse_interior(c: dict, cls, specs) -> tuple:
     want = tuple(v)
     have = tuple(lab for lab, ev in (make(sp) for sp in specs) if ev is not None)
     bad = [x for x in want if x not in have]
+    # An EXPLICIT request for a score this run does not compute is an error --
+    # that is the silent-empty-column class that hid the practical corner for
+    # three campaigns. But the class DEFAULT naming `accum` must degrade
+    # gracefully, or `SIEVE_EVICTORS=oracle` (documented as the way to reproduce
+    # the pre-corner cost) would fail on a default it never asked for.
+    if bad and not explicit:
+        return tuple(x for x in want if x in have)
     if bad:
         raise ValueError(
             f"interior_scores {bad} are not practical evictors in this run "
             f"(configured: {list(have)}). The allocator can only use a score "
             f"the run actually computes.")
+    # `recency` is a position index, not an attention magnitude. Normalising it
+    # into a distribution would make the allocator spend bits by position, which
+    # is not a lagged estimate of anything.
+    ordinal = [x for x in want if x.startswith("recency")]
+    if ordinal:
+        raise ValueError(
+            f"interior_scores {ordinal} are ORDINAL scores (position only). The "
+            f"interior normalises its score into a distribution, so it needs an "
+            f"attention magnitude -- use accum / last_step / window / lag.")
     return want
 
 

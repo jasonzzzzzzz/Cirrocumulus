@@ -34,6 +34,8 @@ import torch
 from . import evict as _EV
 
 
+_WARNED_RANKED_INTERIOR = False   # one-shot guard, see quant_metrics/interior_raw
+
 BAND_MIN = 2.0   # a head is "in the productive band" if the interior beats the
                  # best corner by at least this factor; below it, routing to the
                  # corner is the right engineering call and SIEVE adds nothing.
@@ -235,7 +237,8 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
                   budgets=(1, 2, 3, 4), maxb: int = 8,
                   practical_scores: dict[str, torch.Tensor] | None = None,
                   n95: float | None = None, corner=None,
-                  practical_score: torch.Tensor | None = None) -> dict:
+                  practical_score: torch.Tensor | None = None,
+                  interior_raw: dict[str, torch.Tensor] | None = None) -> dict:
     """EXPENSIVE: needs quantized logits at every bit-width in `shat`.
 
     The eviction corner is built on TWO axes (see sievelib/evict.py):
@@ -260,6 +263,7 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     `practical_score` (singular tensor) is the pre-registry spelling, kept so
     older callers and tests still work; it is labelled "practical".
     """
+    global _WARNED_RANKED_INTERIOR
     L = s.numel()
     if L < 128 or not shat:
         return {}
@@ -311,9 +315,25 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     # w2p = (ap*||v-op||)^2. The allocation DECISION is then lagged while the
     # reported error stays exact recomputation against the true logits, which is
     # precisely the asymmetry a deployed system faces.
+    # `interior_raw` carries the same scores WITHOUT score()'s ordinal
+    # "never evict at birth" bump. The bump is correct for a corner (it is a
+    # ranking) and wrong here (this is a magnitude): normalised, it hands a
+    # handful of fresh positions 20-33% of the distribution, worst on the
+    # concentrated heads the interior cares about. Fall back to the ranked score
+    # only for old callers, and say so, because the fallback is biased.
+    raw = dict(interior_raw or {})
     w2p: dict[str, torch.Tensor] = {}
     for nm in corner.interior_scores:
-        ps = scores.get(nm)
+        ps = raw.get(nm)
+        if ps is None:
+            ps = scores.get(nm)
+            if ps is not None and not _WARNED_RANKED_INTERIOR:
+                _WARNED_RANKED_INTERIOR = True
+                import warnings
+                warnings.warn(
+                    f"interior score {nm!r} came from the RANKED tensor; the "
+                    f"freshness bump inflates w2p. Pass interior_raw=.",
+                    RuntimeWarning, stacklevel=2)
         if ps is None:
             continue
         ap = ps.double().clamp_min(0)
@@ -476,11 +496,13 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
 
 
 def head_metrics(s, shat, V, budgets=(1, 2, 3, 4), maxb=8, n_sink=4,
-                 practical_scores=None, corner=None, practical_score=None) -> dict:
+                 practical_scores=None, corner=None, practical_score=None,
+                 interior_raw=None) -> dict:
     m = sensitivity_metrics(s, V, n_sink)
     if m and shat:
         m.update(quant_metrics(s, shat, V, budgets, maxb,
                                practical_scores=practical_scores,
+                               interior_raw=interior_raw,
                                n95=m.get("n95"), corner=corner,
                                practical_score=practical_score))
     return m

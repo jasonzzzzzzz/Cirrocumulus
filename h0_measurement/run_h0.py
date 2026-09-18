@@ -479,15 +479,27 @@ def main():
                             if pack is None:
                                 pack = evs[(li, h)] = evict.make_many(
                                     corner.evictors)
-                            scores = {}
+                            scores, raw_scores = {}, {}
                             for lab, ev in pack.items():
                                 v_ = ev.score(finc)
                                 if v_ is not None:
                                     scores[lab] = v_.to(sh.device)
+                                # The interior needs the MAGNITUDE, not the
+                                # ranking: score()'s "never evict at birth" rule
+                                # rewrites fresh positions to max+1, which is
+                                # ordinal for a corner but absorbs 20-33% of the
+                                # normalised mass when the allocator treats it as
+                                # a distribution -- and worst on concentrated
+                                # heads. See Evictor.score's docstring.
+                                if lab in corner.interior_scores:
+                                    r_ = ev.score(finc, rank_bump=False)
+                                    if r_ is not None:
+                                        raw_scores[lab] = r_.to(sh.device)
                             rec = head_metrics(
                                 sh, {b: v[h][fin] for b, v in shat_all.items()},
                                 Vh, budgets=budgets, maxb=maxb,
-                                practical_scores=scores, corner=corner)
+                                practical_scores=scores, corner=corner,
+                                interior_raw=raw_scores)
                             a_cpu = a_h.float().cpu()
                             for ev in pack.values():
                                 ev.observe(a_cpu, finc)

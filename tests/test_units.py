@@ -433,12 +433,15 @@ def test_e1_budget_policy():
 def test_corner_provenance():
     print("\n[provenance] the corner config must be recoverable from the output")
     d = evict.CornerSpec()
+    # The default went lean in R3 (oracle+accum, frac only): window/recency cost
+    # 18 of 28 B/slot for 6-22% and 1-12% of head wins, and `abs` was refuted by
+    # E1. This asserts the tag tracks that, and that the yaml agrees.
     check("default tag is stable and filesystem-safe",
-          evict.corner_tag(d) == "or-la-ac-wi-re_fa", f"({evict.corner_tag(d)})")
+          evict.corner_tag(d) == "or-ac_f", f"({evict.corner_tag(d)})")
     check("tag tracks the evictor set",
           evict.corner_tag(evict.CornerSpec.from_cfg(
-              {"evictors": ["oracle", "accum"], "corner_policies": ["frac"]}))
-          == "or-ac_f")
+              {"evictors": ["oracle", "accum", "window", "recency"],
+               "corner_policies": ["frac", "abs"]})) == "or-ac-wi-re_fa")
     check("tag records kappa/floor ONLY when abs actually runs",
           evict.corner_tag(evict.CornerSpec.from_cfg(
               {"evictors": ["oracle", "accum"], "corner_policies": ["frac"],
@@ -448,11 +451,20 @@ def test_corner_provenance():
                "corner_kappa": 8, "corner_floor": 512})) == "or-ac_fa_k8_f512")
     check("tag records a disabled K*",
           evict.corner_tag(evict.CornerSpec.from_cfg({"kstar": False})).endswith("_noks"))
+    # Genuinely distinct configs only. `{}` and `{"corner_policies": ["frac"]}`
+    # used to differ; since the default went frac-only they are the SAME config
+    # and must share a tag -- listing both here would assert a collision is a bug
+    # when it is the correct answer.
     check("distinct configs get distinct tags",
           len({evict.corner_tag(evict.CornerSpec.from_cfg(c)) for c in (
-              {}, {"corner_policies": ["frac"]}, {"evictors": ["oracle"]},
+              {}, {"evictors": ["oracle"]},
+              {"evictors": ["oracle", "accum", "window"]},
               {"corner_policies": ["frac", "abs"], "corner_kappa": 8},
               {"kstar": False})}) == 5)
+    check("...and identical configs still collide, by design",
+          evict.corner_tag(evict.CornerSpec.from_cfg({}))
+          == evict.corner_tag(evict.CornerSpec.from_cfg(
+              {"corner_policies": ["frac"]})))
 
     rec = evict.config_record(evict.CornerSpec.from_cfg(
         {"evictors": ["oracle", "accum"], "corner_policies": ["frac", "abs"],
@@ -1029,6 +1041,44 @@ def test_practical_interior():
         raised = True
     check("[REGRESSION] unconfigured interior score raises, not silently empty",
           raised)
+
+    # [REGRESSION] score()'s "never evict at birth" rule is ORDINAL. If it reaches
+    # the allocator it stops being a tie-break and becomes a sensitivity: the
+    # normalised tensor hands a handful of fresh positions 20-33% of the total
+    # mass, and MORE on concentrated heads (mx is bigger there) -- i.e. it biases
+    # hardest on exactly the high-gain heads R3 is measuring. The job92* campaign
+    # was run with this bug, so its per-head lag-cost/gain correlation is
+    # confounded and must be re-measured.
+    evb = EV.make("accum")[1]
+    Lb = 512
+    finb = torch.ones(Lb, dtype=torch.bool)
+    for _ in range(3):
+        evb.score(finb)
+        evb.observe(torch.softmax(torch.randn(Lb, dtype=torch.float64), -1).float(), finb)
+    finb2 = torch.ones(Lb + 1, dtype=torch.bool)          # one fresh position
+    ranked = evb.score(finb2, rank_bump=True)
+    honest = evb.score(finb2, rank_bump=False)
+    fresh = torch.zeros(Lb + 1, dtype=torch.bool); fresh[Lb:] = True
+    share = lambda v: float((v.clamp_min(0) / v.clamp_min(0).sum())[fresh].sum())
+    check("[REGRESSION] rank_bump=False removes the freshness bump",
+          float(honest[fresh].max()) < float(ranked[fresh].max()),
+          f"(ranked {float(ranked[fresh].max()):.3f} -> honest "
+          f"{float(honest[fresh].max()):.2e})")
+    check("[REGRESSION] and it is not a rounding detail: mass share collapses",
+          share(honest) < 0.01 < share(ranked),
+          f"(ranked {100*share(ranked):.1f}% of the distribution -> "
+          f"honest {100*share(honest):.3f}%)")
+    check("ranking is unchanged for the corner (fresh still sorts first)",
+          int(torch.argmax(ranked)) >= Lb)
+
+    # `recency` is positional, so normalising it would allocate bits by position.
+    raised = False
+    try:
+        EV.CornerSpec.from_cfg({"evictors": ["oracle", "accum", "recency"],
+                                "interior_scores": ["recency"]})
+    except ValueError:
+        raised = True
+    check("[REGRESSION] an ORDINAL score is refused as an interior score", raised)
 
     # THE STALENESS PROBE. `lag:k=N` returns the attention from exactly N steps
     # ago, which is what prices the real design choice: allocate once at prefill

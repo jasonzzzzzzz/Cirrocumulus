@@ -5,4 +5,11 @@ __pycache__/
 .locks/
 .venv/
 .hf_token
-
+./latex/main.bbl
+./latex/main.fdb_latexmk
+./latex/main.fls
+./latex/main.log
+./latex/main.out
+./latex/main.aux
+./latex/main.blg
+./latex/main.fls

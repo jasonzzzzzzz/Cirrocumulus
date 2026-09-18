@@ -1,0 +1,139 @@
+\begin{thebibliography}{20}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Cai et~al.(2024)Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu,
+  and Xiao]{cai2024pyramidkv}
+Zefan Cai, Yichi Zhang, Bofei Gao, Yuliang Liu, Tianyu Liu, Keming Lu, Wayne
+  Xiong, Yue Dong, Baobao Chang, Junjie Hu, and Wen Xiao.
+\newblock {PyramidKV}: Dynamic {KV} cache compression based on pyramidal
+  information funneling.
+\newblock \emph{arXiv preprint arXiv:2406.02069}, 2024.
+
+\bibitem[Cover \& Thomas(2006)Cover and Thomas]{cover2006elements}
+Thomas~M. Cover and Joy~A. Thomas.
+\newblock \emph{Elements of Information Theory}.
+\newblock Wiley, 2nd edition, 2006.
+
+\bibitem[Equitz \& Cover(1991)Equitz and Cover]{equitz1991successive}
+William H.~R. Equitz and Thomas~M. Cover.
+\newblock Successive refinement of information.
+\newblock \emph{IEEE Transactions on Information Theory}, 37\penalty0
+  (2):\penalty0 269--275, 1991.
+
+\bibitem[Feng et~al.(2024)Feng, Lv, Cao, Xie, and Zhou]{feng2024adakv}
+Yuan Feng, Junlin Lv, Yukun Cao, Xike Xie, and S.~Kevin Zhou.
+\newblock {Ada-KV}: Optimizing {KV} cache eviction by adaptive budget
+  allocation for efficient {LLM} inference.
+\newblock \emph{arXiv preprint arXiv:2407.11550}, 2024.
+
+\bibitem[Grattafiori et~al.(2024)]{grattafiori2024llama3}
+Aaron Grattafiori et~al.
+\newblock The {Llama} 3 herd of models.
+\newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
+
+\bibitem[He et~al.(2024)He, Zhang, Wu, Liu, Zhou, and Zhuang]{he2024zipcache}
+Yefei He, Luoming Zhang, Weijia Wu, Jing Liu, Hong Zhou, and Bohan Zhuang.
+\newblock {ZipCache}: Accurate and efficient {KV} cache quantization with
+  salient token identification.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem[Hooper et~al.(2024)Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer,
+  and Gholami]{hooper2024kvquant}
+Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael~W. Mahoney,
+  Yakun~Sophia Shao, Kurt Keutzer, and Amir Gholami.
+\newblock {KVQuant}: Towards 10 million context length {LLM} inference with
+  {KV} cache quantization.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem[Hsieh et~al.(2024)Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and
+  Ginsburg]{hsieh2024ruler}
+Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shantanu Acharya, Dima Rekesh, Fei
+  Jia, and Boris Ginsburg.
+\newblock {RULER}: What's the real context size of your long-context language
+  models?
+\newblock In \emph{Conference on Language Modeling}, 2024.
+
+\bibitem[Jiang et~al.(2023)]{jiang2023mistral}
+Albert~Q. Jiang et~al.
+\newblock {Mistral} {7B}.
+\newblock \emph{arXiv preprint arXiv:2310.06825}, 2023.
+
+\bibitem[Li et~al.(2024)Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis,
+  and Chen]{li2024snapkv}
+Yuhong Li, Yingbing Huang, Bowen Yang, Bharat Venkitesh, Acyr Locatelli,
+  Hanchen Ye, Tianle Cai, Patrick Lewis, and Deming Chen.
+\newblock {SnapKV}: {LLM} knows what you are looking for before generation.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem[Liu et~al.(2023)Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and
+  Shrivastava]{liu2023scissorhands}
+Zichang Liu, Aditya Desai, Fangshuo Liao, Weitao Wang, Victor Xie, Zhaozhuo Xu,
+  Anastasios Kyrillidis, and Anshumali Shrivastava.
+\newblock Scissorhands: Exploiting the persistence of importance hypothesis for
+  {LLM} {KV} cache compression at test time.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2023.
+
+\bibitem[Liu et~al.(2024)Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen, and
+  Hu]{liu2024kivi}
+Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir
+  Braverman, Beidi Chen, and Xia Hu.
+\newblock {KIVI}: A tuning-free asymmetric 2bit quantization for {KV} cache.
+\newblock In \emph{International Conference on Machine Learning}, 2024.
+
+\bibitem[Lloyd(1982)]{lloyd1982least}
+Stuart Lloyd.
+\newblock Least squares quantization in {PCM}.
+\newblock \emph{IEEE Transactions on Information Theory}, 28\penalty0
+  (2):\penalty0 129--137, 1982.
+
+\bibitem[Rae et~al.(2020)Rae, Potapenko, Jayakumar, and Lillicrap]{rae2020pg19}
+Jack~W. Rae, Anna Potapenko, Siddhant~M. Jayakumar, and Timothy~P. Lillicrap.
+\newblock Compressive transformers for long-range sequence modelling.
+\newblock In \emph{International Conference on Learning Representations}, 2020.
+
+\bibitem[Xiao et~al.(2024)Xiao, Tian, Chen, Han, and
+  Lewis]{xiao2024streamingllm}
+Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis.
+\newblock Efficient streaming language models with attention sinks.
+\newblock In \emph{International Conference on Learning Representations}, 2024.
+
+\bibitem[Yang et~al.(2025)]{yang2025qwen3}
+An~Yang et~al.
+\newblock {Qwen3} technical report.
+\newblock \emph{arXiv preprint arXiv:2505.09388}, 2025.
+
+\bibitem[Yang et~al.(2024)Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and
+  Lee]{yang2024mikv}
+June~Yong Yang, Byeongwook Kim, Jeongin Bae, Beomseok Kwon, Gunho Park, Eunho
+  Yang, Se~Jung Kwon, and Dongsoo Lee.
+\newblock No token left behind: Reliable {KV} cache compression via
+  importance-aware mixed precision quantization.
+\newblock \emph{arXiv preprint arXiv:2402.18096}, 2024.
+
+\bibitem[Zandieh et~al.(2024)Zandieh, Daliri, and Han]{zandieh2024qjl}
+Amir Zandieh, Majid Daliri, and Insu Han.
+\newblock {QJL}: 1-bit quantized {JL} transform for {KV} cache quantization
+  with zero overhead.
+\newblock \emph{arXiv preprint arXiv:2406.03482}, 2024.
+
+\bibitem[Zandieh et~al.(2025)Zandieh, Daliri, Hadian, and
+  Mirrokni]{zandieh2025turboquant}
+Amir Zandieh, Majid Daliri, Majid Hadian, and Vahab Mirrokni.
+\newblock {TurboQuant}: Online vector quantization with near-optimal distortion
+  rate.
+\newblock \emph{arXiv preprint arXiv:2504.19874}, 2025.
+
+\bibitem[Zhang et~al.(2023)Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian,
+  R{\'e}, Barrett, Wang, and Chen]{zhang2023h2o}
+Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai,
+  Zhao Song, Yuandong Tian, Christopher R{\'e}, Clark Barrett, Zhangyang Wang,
+  and Beidi Chen.
+\newblock {H2O}: Heavy-hitter oracle for efficient generative inference of
+  large language models.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2023.
+
+\end{thebibliography}

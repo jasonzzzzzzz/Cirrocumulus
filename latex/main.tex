@@ -1,0 +1,163 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2026_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage[colorlinks=true,linkcolor=black!70!blue,citecolor=black!70!blue,urlcolor=black!70!blue]{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+% ---------------------------------------------------------------------------
+% Draft markers. Every \tbd{} anchors an experiment or paragraph that is still
+% being explored; the [Rn] tags map to ROADMAP_withRDKV.md / h0_measurement/ROADMAP.md.
+% Delete the macro bodies (or grep "TBD") before submission.
+% ---------------------------------------------------------------------------
+\definecolor{tbdcol}{HTML}{C0561B}
+\newcommand{\tbd}[1]{{\color{tbdcol}\textbf{TBD}~#1}}
+\newcommand{\sieve}{\textsc{Sieve}}
+
+\title{Evict, Quantize, or Allocate?\\A Phase Diagram for KV-Cache Compression}
+
+\author{Anonymous authors \\ Paper under double-blind review}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+KV-cache compression has split into two literatures: \emph{quantization} keeps every token at reduced precision, \emph{eviction} keeps few tokens at full precision. We show they are two corners of one rate-allocation problem. Posed against the distortion of the attention \emph{output} rather than of the keys, the optimum is reverse water-filling, $b_i^\star=\log_2 a_i+c$, and eviction is its zero-rate tier at a cost $c_0{=}1$ that is derived rather than tuned. The same cost comparison yields a regime variable: the fraction of heads whose 2-bit tier is already costlier than eviction ($\tau^2c_2>c_0$). Across 10{,}240 heads of six LLMs at 8k--128k context, measured by exact recomputation, this \emph{dead-tier fraction} orders the gain of allocation over the best corner at Spearman $\rho=-0.96$ ($-1.00$ within every model), contains no context length, and correctly anticipated a held-out collapse at 128k. Context length turns out to be a phase variable: a single model crosses from the allocation-dominated to the eviction-dominated regime as $L$ grows, so ``method X beats Y on model M'' is ill-posed without a stated $L$. We turn the map into \sieve{}, a per-head router calibrated in one forward pass. \tbd{[R8]: end-task result, one sentence.}
+\end{abstract}
+
+% ===========================================================================
+\section{Introduction}
+% ===========================================================================
+
+At long context the KV cache, not the weights, bounds batch size and decode throughput. Two families of methods compete to shrink it. Quantizers~\citep{liu2024kivi,hooper2024kvquant,zandieh2024qjl,zandieh2025turboquant} store every token at 2--4 bits; evictors~\citep{zhang2023h2o,liu2023scissorhands,li2024snapkv,xiao2024streamingllm} store a subset of tokens at full precision and drop the rest. Each reports wins over the other, and practitioners pick by leaderboard.
+
+\textbf{These are not competing ideas; they are the endpoints of one.} Attention does not consume keys, it consumes $o=\sum_i a_iv_i$. Once the objective is the error in $o$, the question ``how many bits should token $i$ receive?'' has a closed-form answer that ranges over $\{0,\dots,b_{\max}\}$. Uniform quantization is the answer when every token gets the same width; eviction is the answer when only $0$ and $b_{\max}$ survive. Neither family is right or wrong in general. The useful question is \emph{when} each one is optimal, and whether that can be read off the model before deploying anything.
+
+\textbf{Our answer is a phase diagram (Fig.~\ref{fig:teaser}).} The optimal bit profile has three shapes (Fig.~\ref{fig:teaser}a): flat when attention is diffuse, a staircase (the \emph{productive band}, where mixed precision beats both corners), and keep/evict when attention is sharp. The boundary between the last two is not an empirical threshold. It follows from the same inequality that produces the allocation: a precision tier is worth buying only while its logit noise $\tau^2c_b$ costs less than evicting the token ($c_0=1$). The fraction of heads for which the 2-bit tier fails this test is our order parameter, and Fig.~\ref{fig:teaser}b shows 24 measured configurations collapsing onto it.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig1_teaser.pdf}
+  \vspace{-6mm}
+  \caption{\textbf{(a)} Optimal bit-widths from reverse water-filling at a 3-bit average budget (synthetic Gaussian logits, measured cost constants). As logit spread $\tau$ grows the profile goes from near-uniform to a ladder to keep/evict. \textbf{(b)} \emph{Measured}: routed gain of allocation over the better of uniform quantization and eviction, per (model, context); marker size grows with context and arrows mark the last doubling. One derived variable orders all 24 points ($\rho=-0.96$), and every model moves right as context grows. \textbf{(c)} \emph{Projected, not measured} (\tbd{[R8]}): the end-task picture the phase diagram predicts, with the largest gain at short-to-mid context, shrinking toward eviction at 128k.}
+  \label{fig:teaser}
+  \vspace{-4mm}
+\end{figure}
+
+\textbf{Contributions.}
+\begin{enumerate}[leftmargin=*,itemsep=1pt,topsep=1pt]
+  \item \textbf{One objective for both literatures} (\S\ref{sec:framework}). Under output distortion, eviction is the zero-rate tier of a water-filling allocator with a derived cost $c_0=1$, and the optimal rule $b_i^\star=\log_2a_i+c$ reads only attention weights.
+  \item \textbf{A derived order parameter} (\S\ref{sec:results}). The dead-tier fraction predicts where allocation pays across six architectures and five octaves of context ($\rho=-0.96$ pooled, $-1.00$ within each model). It contains no $L$, holds when the eviction baseline is redefined, and passed a held-out test.
+  \item \textbf{Context length is a phase variable.} $\tau$ rises monotonically with $L$ in every model. Rising $\tau$ kills precision tiers from the bottom, so one model crosses regimes as context grows and a per-model verdict is ill-posed.
+  \item \textbf{\sieve{}, a router built from the map} (\S\ref{sec:sieve}). One calibration pass assigns each head to uniform, ladder, or eviction. It rests on a cost model that forward-predicts measured gains to within $0.79$--$1.34\times$, and on measured design facts (Table~\ref{tab:facts}).
+\end{enumerate}
+
+% ===========================================================================
+\section{One objective: eviction is quantization at zero rate}
+\label{sec:framework}
+% ===========================================================================
+
+\textbf{Output distortion.} For query $q$ and keys $k_i$, let $s_i=q^\top k_i/\sqrt d$, $a=\mathrm{softmax}(s)$, $o=\sum_ia_iv_i$. Storing $k_i$ at $b_i$ bits perturbs the logit by $\delta_i$ with $\mathrm{Var}(\delta_i)=\tau^2c_{b_i}$. Here $\tau$ is the head's logit spread and $c_b$ the quantizer's relative distortion; we use the variance because softmax is shift-invariant, so bias costs nothing. Since $\partial o/\partial s_i=a_i(v_i-o)$, to first order
+\begin{equation}
+  \mathbb{E}\|\Delta o\|^2 \;\approx\; \textstyle\sum_i a_i^2\,\|v_i-o\|^2\,\tau^2c_{b_i}.
+  \label{eq:dist}
+\end{equation}
+Evicting a set $E$ and renormalizing costs $\sum_{i\in E}a_i^2\|v_i-o\|^2$ to the same order. That is Eq.~\ref{eq:dist} with $\tau^2c_0=1$, so eviction is a bit-width like any other and \textbf{its cost constant is derived, not chosen}.
+
+\textbf{Reverse water-filling.} Minimizing Eq.~\ref{eq:dist} subject to $\sum_ib_i\le BL$ is a classical rate-allocation problem~\citep{cover2006elements}. The Lagrangian separates per token, and with $c_b\propto 4^{-b}$ its solution above the water level is $b_i^\star=\log_2a_i+\log_2\|v_i-o\|+c$, with $b_i^\star=0$ (eviction) below it. We measure the value term at $\le0.035$ bits everywhere in our data, so in practice
+\begin{equation}
+  b_i^\star=\log_2 a_i + c ,
+  \label{eq:rule}
+\end{equation}
+which reads attention weights only and never touches the value cache.
+
+\textbf{Tier extinction and the order parameter.} A tier $b$ lies on the lower convex envelope of the cost curve only if storing a token at $b$ bits beats dropping it: $\tau^2c_b<c_0=1$. When $\tau^2c_b>1$ the tier is \emph{dead}, meaning no token should ever be stored at $b$ bits. This one inequality produces both edges of the band. At the \emph{sharp} end, rising $\tau$ kills rungs from the bottom until only $\{0,b_{\max}\}$ remain, and a two-tier allocation \emph{is} eviction. At the \emph{diffuse} end, the ladder's spread, $\mathrm{std}_i(\log_2a_i)=\tau/\ln2$, drops below about one rung and the allocation coincides with uniform. We define the \textbf{dead-tier fraction} $D_2$ of a (model, context) configuration as the share of heads with $\tau^2c_2>1$. It uses one calibration pass, has no free parameter, and contains no $L$.
+
+% ===========================================================================
+\section{Measuring the phase diagram}
+\label{sec:results}
+% ===========================================================================
+
+\textbf{Setup.} We use six models: Llama-3.1-8B and Llama-3.3-70B~\citep{grattafiori2024llama3}, Mistral-7B~\citep{jiang2023mistral}, Qwen1.5-MoE-A2.7B, Qwen3-8B, and Qwen3-30B-A3B~\citep{yang2025qwen3}. Each runs at every power-of-two context from 8k up to its native window, giving 24 configurations and 46k head measurements. Prompts are PG-19 haystacks~\citep{rae2020pg19} with an embedded needle. Every configuration passes an input-validity gate (real text; needle retrieved on every prompt). Keys are quantized with TurboQuant$_\text{mse}$~\citep{zandieh2025turboquant} (random rotation plus Lloyd--Max~\citep{lloyd1982least}), and every reported error is an \emph{exact recomputation} of $o$ with the real quantized keys. Eq.~\ref{eq:dist} only chooses bit-widths and is never used to score them. At a matched budget of $B{=}3$ bits/token we compare the water-filling allocation against two corners: uniform $B$-bit quantization, and eviction keeping $BL/8$ tokens at 8 bits, ranked by H2O accumulated attention (SnapKV/StreamingLLM rankings win $\le$22\% of heads). A head's \emph{gain} is the best corner's error divided by the allocation's error. A head is \emph{in band} if its gain is at least $2\times$, and \emph{routed gain} is the geometric mean of $\max(\text{gain},1)$, which is what a per-head router can realize. Our primary comparison is \emph{symmetric}: allocation and corner score tokens with the same information. \tbd{[R3]: a fully deployable symmetric cell (both sides on lagged attention) agrees with this one to within 5 band-points on 4 configurations; the re-run with the fixed instrumentation is in flight. Add seeds and error bars on the 128k cells [R7].}
+
+\textbf{Finding 1: the dead-tier fraction is the order parameter.} Across 24 configurations $D_2$ orders routed gain at Spearman $\rho=-0.963$ (Fig.~\ref{fig:teaser}b). Configurations nested in six models are not independent points, so we also partial out model identity, which leaves $\rho=-0.944$; within \emph{every} model the relationship is perfectly monotone ($\rho=-1.00$). The obvious alternatives do worse. Logit spread $\tau$ alone gives $-0.76$ pooled, because it does not know where the tiers fall relative to $c_0$. Normalized effective support $n_{95}/L$, a natural ``concentration'' index, gives $+0.00$, because dividing by $L$ confounds architecture with the context at which it was measured. The order parameter also survives a change of target: replacing the corner's ranking by a deployable H2O score moves band fractions by 6--29 points yet leaves $\rho=-0.941$. Finally, it passed a held-out test. The boundary was fit without Llama-3.3-70B at 128k, and at that point $D_2$ jumps from 11.7\% to 41.5\% and the band falls from 47.5\% to 18.1\%, as the fitted relation predicts (Fig.~\ref{fig:results}a, circled).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig2_results.pdf}
+  \vspace{-6mm}
+  \caption{\textbf{(a)} Share of heads where allocation beats the best corner by $\geq2\times$, versus context (colours as Fig.~\ref{fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf{(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times$. \textbf{(c)} \emph{Projected, not measured} (\tbd{[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle.}
+  \label{fig:results}
+  \vspace{-4mm}
+\end{figure}
+
+\textbf{Finding 2: context length is a phase variable.} Within every model $\tau$ rises monotonically with $L$ (rank correlation $1.00$ in 6/6). Rising $\tau$ pushes $\tau^2c_b$ past $c_0$ for successively higher rungs, the ladder is eaten from the bottom, and the optimum degenerates toward eviction. In absolute terms allocation keeps improving over uniform with context ($26\times\to34\times$ on Llama-3.1-8B); what changes is that the eviction corner catches up. Llama-3.3-70B is the most allocation-friendly model in the study at 8k--64k (78.6\% of heads in band at 8k) and among the least at 128k (Fig.~\ref{fig:results}a). \emph{Architecture rankings are not stable across context}, so a single verdict per model, the way this literature reports results, is not well defined. The same corner can also be reached for a different reason. Qwen3 models sit at 60--73\% dead tiers at \emph{every} length because of sink-dominated attention, which is architectural, whereas Llama-3.1-8B reaches the same corner by traversal. \tbd{[R4]: attention or RoPE limit? The collapsing Llamas sit at their trained window; Qwen3-30B, at 50\% of its window, drops least. Planned: 96k Llamas; Qwen3-30B at 192k/256k.}
+
+\textbf{Finding 3: the cost model predicts forward.} The constant $\tau/\ln2$ ladder width is an algebraic identity, not evidence. The real test of Eq.~\ref{eq:dist} is whether it predicts \emph{measured} error ratios. It does: per-configuration median predicted/measured gain lies in $[0.79,1.34]$ across all 24 configurations (Fig.~\ref{fig:results}b), for a quantity that spans $20$--$37\times$ and was free to be wrong by an order of magnitude.
+
+% ===========================================================================
+\section{From map to method: \sieve{}}
+\label{sec:sieve}
+% ===========================================================================
+
+\begin{table}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\caption{Measured facts (24 configurations) and the design decision each one forces.}
+\label{tab:facts}
+\footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Measurement} & \textbf{Consequence for \sieve{}} \\
+\midrule
+Water-filling evicts 40--54\% of tokens by itself at $B{=}3$ & Eviction is tier~0 \emph{inside} the allocator \\
+1-bit tier dead in 95--100\% of heads & Never offer 1 bit \\
+Allocation beats uniform 3-bit by 20--37$\times$ & The baseline to beat is eviction, not uniform \\
+Oracle token ranking beats H2O by only 1.02--1.41$\times$ & Scoring is solved; the value is in \emph{allocation} \\
+$K^\star/n_{95}$ spans 5.8--215, not ordered by support $n_{95}$ & No global keep-count constant; derive per head \\
+Ladder width vs.\ realized gain: $\rho\in[-0.77,-0.41]$ in 24/24 & Cheap per-head routing signal, no quantization \\
+\bottomrule
+\end{tabular}
+\vspace{-2mm}
+\end{table}
+
+Any single policy is wrong for some heads at some context, so \sieve{} routes per head and per deployment length.
+
+\textbf{Offline calibration (one forward pass).} For each head, measure $\tau$ and the per-tier distortion $c_b$, which gives the set of live tiers and the ladder width. Route each head to \emph{uniform} when its ladder is narrower than about one rung, to \emph{eviction} (H2O) when the tiers below $b_{\max}$ are extinct, and to the \emph{water-filling ladder} otherwise. The ladder's tier set is read off the convex envelope: tier 0 included, 1-bit excluded. Because $\tau$ is monotone in $L$ and $D_2$ is $L$-free, a head is re-phased for a new deployment length by re-evaluating the same inequality, with no new measurement. \tbd{[R6]: pin the boundary as an interval ($D_2\in[40,60]\%$).}
+
+\textbf{Decode.} Band heads run a cascade. A 3-bit base pass over all tokens yields $\hat a$; Eq.~\ref{eq:rule} allocates $b_i^\star=\log_2\hat a_i+c$; successively refinable codes~\citep{equitz1991successive} add $+1/+2/+2$ bits on shrinking sets; the tail is evicted. \tbd{[R3/R5]: re-budgeting cadence. Preliminary: stale scores cost in-band heads $1.4$--$1.6\times$ but out-of-band heads only $1.00$--$1.03\times$, so decode-time re-budgeting may be load-bearing.} \tbd{[R11/R12/R14]: nested-code overhead vs.\ monolithic 8-bit (kill at ${\sim}10\%$); GQA union cost; kernel TPOT vs.\ dense FP8 at 128k.}
+
+\textbf{End-task validation.} \tbd{[R8]:} Router on versus off on RULER~\citep{hsieh2024ruler}, at matched bits, on the highest- and lowest-$D_2$ models (Qwen3-30B-A3B; Llama-3.3-70B at $\le$64k). The falsifiable prediction (Fig.~\ref{fig:results}c) is that the router recovers accuracy \emph{exactly where the diagram says the allocator degenerates}, and that the end-task gap shrinks with context as in Fig.~\ref{fig:teaser}c. \tbd{[R9]: $K^\star$-derived per-head budgets vs.\ \citet{feng2024adakv,cai2024pyramidkv} on LongBench (stands alone).}
+
+% ===========================================================================
+\section{Related work and outlook}
+% ===========================================================================
+
+\textbf{KV quantization} ranges from per-channel/per-token integer schemes~\citep{liu2024kivi,hooper2024kvquant} to rotation-based and sketching quantizers~\citep{zandieh2025turboquant,zandieh2024qjl}. \textbf{Mixed precision}~\citep{yang2024mikv,he2024zipcache} gives salient tokens heuristic higher tiers. \textbf{Eviction} scores tokens by accumulated or windowed attention~\citep{zhang2023h2o,li2024snapkv,liu2023scissorhands}, keeps sinks~\citep{xiao2024streamingllm}, or reallocates budget across layers and heads~\citep{cai2024pyramidkv,feng2024adakv}. Each optimizes \emph{within} a family; we derive the boundary \emph{between} families. Tier extinction also explains why QJL's unbiased 1-bit tier is never worth offering: it costs more than eviction. We study the \emph{token} axis of the key cache; per-channel key treatment is orthogonal and composes with ours. \tbd{[R15]: related-work sweep (last 12 months) for concurrent output-distortion and rate-allocation formulations; position against them explicitly.}
+
+\textbf{Limitations.} Every number here is an output-error ratio; whether a 1.3--3$\times$ routed gain survives to end-task accuracy and throughput is the main open question (\tbd{[R8], [R14]}), and reach beyond 128k hinges on [R4]. The diagram does not depend on either: it says where to spend bits before deployment.
+
+\bibliography{sieve}
+\bibliographystyle{iclr2026_conference}
+
+\appendix
+\section{Appendix (planned)}
+\tbd{A.1 Measurement integrity: the validity gates (real-corpus enforcement, needle retrieval, probe/chunking equivalence) and the defects they catch.
+A.2 The $\tau/\ln2$ ladder identity as a consistency check; the 2-bit quantizer acts as a universal logit temperature ($\alpha=0.941$--$0.944$).
+A.3 Findings and negative results: why $\tau$ and $n_{95}/L$ fail as regime variables; the refuted absolute-support eviction budget; H2 (2-bit score ranking, $\rho=0.52$--$0.77$) and the move to a 3-bit base layer; Gaussian-logit simulation as a qualitatively wrong regime map.
+A.4 Per-model tables at every context.}
+
+\end{document}

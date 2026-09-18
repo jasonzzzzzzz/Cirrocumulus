@@ -1,0 +1,46 @@
+This is BibTeX, Version 0.99d (TeX Live 2021 Gentoo Linux)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: iclr2026_conference.bst
+Database file #1: sieve.bib
+You've used 20 entries,
+            2773 wiz_defined-function locations,
+            679 strings with 8798 characters,
+and the built_in function-call counts, 11100 in all, are:
+= -- 846
+> -- 1027
+< -- 6
++ -- 344
+- -- 324
+* -- 970
+:= -- 1802
+add.period$ -- 60
+call.type$ -- 20
+change.case$ -- 165
+chr.to.int$ -- 20
+cite$ -- 40
+duplicate$ -- 433
+empty$ -- 727
+format.name$ -- 351
+if$ -- 2239
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 21
+newline$ -- 108
+num.names$ -- 80
+pop$ -- 366
+preamble$ -- 1
+purify$ -- 145
+quote$ -- 0
+skip$ -- 355
+stack$ -- 0
+substring$ -- 90
+swap$ -- 29
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 215
+warning$ -- 0
+while$ -- 64
+width$ -- 0
+write$ -- 250

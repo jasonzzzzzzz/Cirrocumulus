@@ -1,0 +1,76 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{liu2024kivi,hooper2024kvquant,zandieh2024qjl,zandieh2025turboquant}
+\citation{zhang2023h2o,liu2023scissorhands,li2024snapkv,xiao2024streamingllm}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\citation{cover2006elements}
+\citation{grattafiori2024llama3}
+\citation{jiang2023mistral}
+\citation{yang2025qwen3}
+\citation{rae2020pg19}
+\citation{zandieh2025turboquant}
+\citation{lloyd1982least}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {(a)} Optimal bit-widths from reverse water-filling at a 3-bit average budget (synthetic Gaussian logits, measured cost constants). As logit spread $\tau $ grows the profile goes from near-uniform to a ladder to keep/evict. \textbf  {(b)} \emph  {Measured}: routed gain of allocation over the better of uniform quantization and eviction, per (model, context); marker size grows with context and arrows mark the last doubling. One derived variable orders all 24 points ($\rho =-0.96$), and every model moves right as context grows. \textbf  {(c)} \emph  {Projected, not measured} ({\color  {tbdcol}\textbf  {TBD}\nobreakspace  {}[R8]}): the end-task picture the phase diagram predicts, with the largest gain at short-to-mid context, shrinking toward eviction at 128k.}}{2}{figure.1}\protected@file@percent }
+\newlabel{fig:teaser}{{1}{2}{\textbf {(a)} Optimal bit-widths from reverse water-filling at a 3-bit average budget (synthetic Gaussian logits, measured cost constants). As logit spread $\tau $ grows the profile goes from near-uniform to a ladder to keep/evict. \textbf {(b)} \emph {Measured}: routed gain of allocation over the better of uniform quantization and eviction, per (model, context); marker size grows with context and arrows mark the last doubling. One derived variable orders all 24 points ($\rho =-0.96$), and every model moves right as context grows. \textbf {(c)} \emph {Projected, not measured} (\tbd {[R8]}): the end-task picture the phase diagram predicts, with the largest gain at short-to-mid context, shrinking toward eviction at 128k}{figure.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}One objective: eviction is quantization at zero rate}{2}{section.2}\protected@file@percent }
+\newlabel{sec:framework}{{2}{2}{One objective: eviction is quantization at zero rate}{section.2}{}}
+\newlabel{eq:dist}{{1}{2}{One objective: eviction is quantization at zero rate}{equation.2.1}{}}
+\newlabel{eq:rule}{{2}{2}{One objective: eviction is quantization at zero rate}{equation.2.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Measuring the phase diagram}{2}{section.3}\protected@file@percent }
+\newlabel{sec:results}{{3}{2}{Measuring the phase diagram}{section.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.\nobreakspace  {}\ref  {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf  {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf  {(c)} \emph  {Projected, not measured} ({\color  {tbdcol}\textbf  {TBD}\nobreakspace  {}[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle.}}{3}{figure.2}\protected@file@percent }
+\newlabel{fig:results}{{2}{3}{\textbf {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.~\ref {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf {(c)} \emph {Projected, not measured} (\tbd {[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle}{figure.2}{}}
+\citation{equitz1991successive}
+\citation{hsieh2024ruler}
+\citation{feng2024adakv,cai2024pyramidkv}
+\citation{liu2024kivi,hooper2024kvquant}
+\citation{zandieh2025turboquant,zandieh2024qjl}
+\citation{yang2024mikv,he2024zipcache}
+\citation{zhang2023h2o,li2024snapkv,liu2023scissorhands}
+\citation{xiao2024streamingllm}
+\citation{cai2024pyramidkv,feng2024adakv}
+\bibdata{sieve}
+\bibcite{cai2024pyramidkv}{{1}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Measured facts (24 configurations) and the design decision each one forces.}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:facts}{{1}{4}{Measured facts (24 configurations) and the design decision each one forces}{table.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}From map to method: \textsc  {Sieve}{}}{4}{section.4}\protected@file@percent }
+\newlabel{sec:sieve}{{4}{4}{From map to method: \sieve {}}{section.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}\protected@file@percent }
+\bibcite{cover2006elements}{{2}{2006}{{Cover \& Thomas}}{{Cover and Thomas}}}
+\bibcite{equitz1991successive}{{3}{1991}{{Equitz \& Cover}}{{Equitz and Cover}}}
+\bibcite{feng2024adakv}{{4}{2024}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
+\bibcite{grattafiori2024llama3}{{5}{2024}{{Grattafiori et~al.}}{{}}}
+\bibcite{he2024zipcache}{{6}{2024}{{He et~al.}}{{He, Zhang, Wu, Liu, Zhou, and Zhuang}}}
+\bibcite{hooper2024kvquant}{{7}{2024}{{Hooper et~al.}}{{Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer, and Gholami}}}
+\bibcite{hsieh2024ruler}{{8}{2024}{{Hsieh et~al.}}{{Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and Ginsburg}}}
+\bibcite{jiang2023mistral}{{9}{2023}{{Jiang et~al.}}{{}}}
+\bibcite{li2024snapkv}{{10}{2024}{{Li et~al.}}{{Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis, and Chen}}}
+\bibcite{liu2023scissorhands}{{11}{2023}{{Liu et~al.}}{{Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and Shrivastava}}}
+\bibcite{liu2024kivi}{{12}{2024}{{Liu et~al.}}{{Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen, and Hu}}}
+\bibcite{lloyd1982least}{{13}{1982}{{Lloyd}}{{}}}
+\bibcite{rae2020pg19}{{14}{2020}{{Rae et~al.}}{{Rae, Potapenko, Jayakumar, and Lillicrap}}}
+\bibcite{xiao2024streamingllm}{{15}{2024}{{Xiao et~al.}}{{Xiao, Tian, Chen, Han, and Lewis}}}
+\bibcite{yang2025qwen3}{{16}{2025}{{Yang et~al.}}{{}}}
+\bibcite{yang2024mikv}{{17}{2024}{{Yang et~al.}}{{Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and Lee}}}
+\bibcite{zandieh2024qjl}{{18}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
+\bibcite{zandieh2025turboquant}{{19}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
+\bibcite{zhang2023h2o}{{20}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
+\bibstyle{iclr2026_conference}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix (planned)}{6}{appendix.A}\protected@file@percent }
+\gdef \@abspage@last{6}

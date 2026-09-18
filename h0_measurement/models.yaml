@@ -7,6 +7,16 @@
 #   norm_correct  : vLLM's 'nc'. Set false to run the ablation -- it trades
 #                   shrinkage for variance, and M3 says that trade is wrong
 #                   for an index.
+#   native_ctx    : the model's TRUE RoPE window (max_position_embeddings),
+#                   read from each live config and verified against this file at
+#                   runtime. `ctx` is the DEFAULT this project measures at, which
+#                   is not the same thing: qwen3-30b-a3b-2507 declares ctx 131072
+#                   but its window is 262144, and qwen3-1.7b declares 8192 against
+#                   40960. The ctx guard in the submit scripts caps SIEVE_CTX at
+#                   native_ctx, not at ctx -- running past the window measures
+#                   untrained positions, but running past the DEFAULT is just a
+#                   longer measurement. R4 needs exactly that headroom
+#                   (ROADMAP.md: is the 64k->128k collapse a RoPE artifact?).
 #   evictors      : WHO the eviction corner is. Names from sievelib/evict.py:
 #                   oracle (current-step a*||v-o||, the UPPER BOUND -- keep it,
 #                   it is the bound gain_best/err_evict are defined against),
@@ -83,6 +93,7 @@ defaults:
   corner_in_filename: false
 models:
 - tag: qwen3-1.7b
+  native_ctx: 40960
   id: Qwen/Qwen3-1.7B
   tier: debug
   ctx: 8192
@@ -92,16 +103,19 @@ models:
   validate_with: Qwen/Qwen3-0.6B
   quant_every: 1
 - tag: qwen3-8b
+  native_ctx: 40960
   id: Qwen/Qwen3-8B
   tier: main
   ctx: 40960
   validate_with: Qwen/Qwen3-0.6B
 - tag: llama31-8b
+  native_ctx: 131072
   id: meta-llama/Llama-3.1-8B-Instruct
   tier: main
   ctx: 131072
   validate_with: meta-llama/Llama-3.2-1B-Instruct
 - tag: mistral-7b
+  native_ctx: 32768
   id: mistralai/Mistral-7B-Instruct-v0.3
   tier: main
   ctx: 32768
@@ -113,6 +127,7 @@ models:
 # normalises it to 0 and every layer_type is full_attention. Attention is dense and L
 # is the true context length, same as every other entry.
 - tag: qwen15-moe-a2.7b
+  native_ctx: 32768
   id: Qwen/Qwen1.5-MoE-A2.7B-Chat
   tier: main
   ctx: 32768
@@ -122,6 +137,7 @@ models:
 # NOTE: max_position_embeddings is 40960 with rope_scaling null. ctx 131072 runs
 # ~3x past trained positions with no YaRN; use the -2507 entry for real 128k.
 - tag: qwen3-30b-a3b
+  native_ctx: 40960
   id: Qwen/Qwen3-30B-A3B
   tier: large
   ctx: 40960
@@ -130,12 +146,14 @@ models:
 # Same MoE architecture, 262144 native context -- the only entry here that can
 # honestly be prefilled to 131072.
 - tag: qwen3-30b-a3b-2507
+  native_ctx: 262144
   id: Qwen/Qwen3-30B-A3B-Instruct-2507
   tier: large
   ctx: 131072
   n_prompts: 4
   validate_with: Qwen/Qwen3-0.6B
 - tag: llama33-70b
+  native_ctx: 131072
   id: meta-llama/Llama-3.3-70B-Instruct
   tier: large
   ctx: 131072

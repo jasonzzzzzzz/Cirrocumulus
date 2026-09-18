@@ -743,6 +743,85 @@ def page_ctx_slope(pdf, ph, gates=None):
     pdf.savefig(fig); plt.close(fig)
 
 
+def page_rope(pdf, ph, raw=None):
+    """R4: is the long-context collapse about ABSOLUTE L, or about how much of the
+    model's RoPE window is being consumed?
+
+    Every model that dropped sharply at 128k was AT its trained limit
+    (rope_frac = 1.0); the one model with 2x headroom dropped least. Those two
+    readings have very different consequences:
+
+      absolute-L   the decay continues past 128k -> the method's reach narrows
+                   honestly, and C2's slope is a property of attention.
+      rope_frac    part of the steep slope is an artifact of running models at
+                   their cap, and C2's slope must be restated.
+
+    The test is WITHIN model, not across: plot each model's curve against both
+    x-axes and see which one lines the models up. Cross-model comparison at
+    matched rope_frac is confounded by architecture (dead-2 differs 4x across the
+    set), so the diagnostic is where each model's OWN sharpest drop falls.
+    """
+    if "rope_frac" not in ph or not ph["rope_frac"].notna().any():
+        return
+    rows = []
+    for (m, cx), g in ph.groupby(["model", "ctx"]):
+        b_s, _ = band_series(g)
+        gb = g[band_col(g)[0]].dropna()
+        if not len(gb):
+            continue
+        rows.append(dict(model=m, ctx=int(cx),
+                         rope=float(g["rope_frac"].median()),
+                         native=int(g["native_ctx"].median())
+                         if "native_ctx" in g else 0,
+                         band=100 * float((gb >= BAND_MIN).mean()),
+                         routed=float(np.exp(np.log(np.maximum(gb, 1.0)).mean()))))
+    t = pd.DataFrame(rows)
+    if t.empty or t.groupby("model").size().max() < 3:
+        return                                  # need a curve, not two points
+
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.6))
+    fig.suptitle("R4 — absolute context length, or fraction of the RoPE window?",
+                 fontsize=13)
+    for x, axi, xl in ((("ctx"), ax[0], "context length (tokens)"),
+                       (("rope"), ax[1], "fraction of the RoPE window consumed")):
+        for m, g in t.groupby("model"):
+            g = g.sort_values(x)
+            axi.plot(g[x], g.routed, "o-", lw=2, label=m,
+                     color=_ROPE_COL.get(m, "#666"))
+        axi.set_xlabel(xl)
+        axi.set_ylabel("routed gain")
+        axi.grid(alpha=.22); axi.set_axisbelow(True)
+    ax[0].set_xscale("log", base=2)
+    ax[1].axvline(1.0, color="#c2334d", ls="--", lw=1.2)
+    ax[1].text(1.0, ax[1].get_ylim()[1], " trained limit", fontsize=7,
+               color="#c2334d", va="top", ha="left")
+    ax[0].legend(fontsize=6.6)
+    ax[0].set_title("if the curves align HERE, it is absolute L", fontsize=9)
+    ax[1].set_title("if they align HERE, it is the window", fontsize=9)
+    fig.tight_layout(rect=[0, 0, 1, .93])
+    pdf.savefig(fig); plt.close(fig)
+
+    # The decisive number, printed: where does each model's own sharpest drop sit?
+    print("\nR4 — steepest per-octave drop, and where it falls:")
+    for m, g in t.groupby("model"):
+        g = g.sort_values("ctx")
+        if len(g) < 3:
+            continue
+        d = g.routed.diff() / np.log2(g.ctx / g.ctx.shift())
+        i = d.idxmin()
+        print(f"  {m:22s} steepest at ctx {int(g.loc[i,'ctx']):>7,} "
+              f"(rope_frac {g.loc[i,'rope']:.2f}, window {int(g.loc[i,'native']):,})"
+              f"   {d.loc[i]:+.2f} routed-gain per octave")
+    print("  -> if every steepest drop sits at rope_frac ~ 1.0 regardless of the "
+          "absolute ctx,\n     the collapse is about the trained limit, not "
+          "about long context.")
+
+
+_ROPE_COL = {"llama31-8b": "#1d6f80", "llama33-70b": "#12414f",
+             "mistral-7b": "#1f6b52", "qwen15-moe-a2.7b": "#a8611f",
+             "qwen3-8b": "#7c3aed", "qwen3-30b-a3b-2507": "#c2334d"}
+
+
 def page_phase(pdf, ph, gates=None):
     """The phase diagram on DERIVED axes, replacing phi = n95/L.
 
@@ -912,6 +991,7 @@ def main():
         page_compare(pdf, ph, gates)
         page_ctx_slope(pdf, ph, gates)
         page_phase(pdf, ph, gates)
+        page_rope(pdf, ph, raw)
     ph.to_csv(args.out.replace(".pdf", "_per_head.csv"), index=False)
     print(f"wrote {args.out}")
     for (mdl, ctx), g in ph.groupby(["model", "ctx"]):

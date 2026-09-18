@@ -326,6 +326,30 @@ def main():
           f"d={getattr(cf,'head_dim', cf.hidden_size//cf.num_attention_heads)}",
           flush=True)
 
+    # R4: the RoPE window, and how much of it this run consumes. `ctx` alone
+    # cannot distinguish "long context" from "near the trained limit", and those
+    # have different consequences -- every model that dropped sharply at 128k was
+    # AT its cap, while the one with 2x headroom dropped least. rope_frac is the
+    # independent variable of that question, so it has to be in the parquet.
+    #
+    # Read from the LIVE config, not from models.yaml: the declared value is an
+    # audit that can drift, and a silent drift here would mis-label the axis.
+    # models.yaml is cross-checked against it and a mismatch is announced.
+    native_ctx = int(getattr(cf, "max_position_embeddings", 0) or 0)
+    declared = int(c.get("native_ctx", 0) or 0)
+    if declared and native_ctx and declared != native_ctx:
+        print(f"WARNING: models.yaml says native_ctx={declared:,} for {c['tag']} "
+              f"but the live config reports max_position_embeddings="
+              f"{native_ctx:,}. Using the live value; fix the registry.",
+              flush=True)
+    rope_frac = (int(c["ctx"]) / native_ctx) if native_ctx else float("nan")
+    _rs = getattr(cf, "rope_scaling", None) or {}
+    rope_type = str(_rs.get("rope_type", _rs.get("type", "default")))
+    print(f"     RoPE window {native_ctx:,} ({rope_type}); this run uses "
+          f"{100*rope_frac:.0f}% of it"
+          + ("  <- AT the trained limit" if rope_frac >= 0.999 else ""),
+          flush=True)
+
     head_dim = getattr(cf, "head_dim", cf.hidden_size // cf.num_attention_heads)
     R = quant.random_rotation(head_dim, dev, torch.float32, seed=c.get("rot_seed", 0))
     softcap = getattr(cf, "attn_logit_softcapping", None)
@@ -482,6 +506,9 @@ def main():
                                        head=h, model=c["tag"], ctx=int(c["ctx"]),
                                        synthetic=synth, quantized=do_quant,
                                        norm_correct=norm_correct,
+                                       native_ctx=native_ctx,
+                                       rope_frac=rope_frac,
+                                       rope_type=rope_type,
                                        evictors=",".join(ev_labels),
                                        corner_policies=",".join(ev_policies),
                                        corner_kappa=ev_kappa,

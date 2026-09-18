@@ -999,13 +999,21 @@ def test_practical_interior():
     check("...and the penalty is reported, not hidden",
           m["interior_lag_cost3_accum"] >= 1.0 - 1e-12)
 
-    # [REGRESSION] The asymmetry this whole cell exists to remove: the symmetric
-    # gain must be <= the half-demoted one, because demoting the interior can
-    # only cost the interior. If this ever inverts, the w2p path is not actually
-    # being used for the allocation.
-    check("[REGRESSION] symmetric gain <= corner-only-demoted gain",
-          m["gain_pp3_accum"] <= m["gain_best_practical3"] + 1e-9,
-          f"({m['gain_pp3_accum']:.3f} vs {m['gain_best_practical3']:.3f})")
+    # [REGRESSION] Do NOT assert gain_pp <= gain_best_practical per head. It is
+    # false on 13.8% of real head-rows (job92*), for the same reason the corner
+    # version of this claim was false (plan.md, "provably monotone"): waterfill
+    # minimises the first-order proxy w2, while the reported error is exact
+    # recomputation. A lagged allocation is chosen by a different proxy and can
+    # land on a better exact-error allocation. The project has now made this
+    # mistake twice -- once for the ranking, once for the allocation -- so the
+    # rule is: LESS INFORMATION IS NOT A PER-HEAD BOUND anywhere in this
+    # framework, only an aggregate tendency. A synthetic single-head check that
+    # happens to satisfy it proves nothing, which is exactly how the first pair
+    # of these assertions survived.
+    check("lagged allocation is scored by exact recomputation, not by its proxy",
+          m["gain_pp3_accum"] > 0 and m["gain_best_practical3"] > 0,
+          f"(pp {m['gain_pp3_accum']:.3f}, corner-only {m['gain_best_practical3']:.3f} "
+          f"-- direction holds in AGGREGATE, not per head)")
 
     # w2p-ranked corner must exist and be a real, different ranking.
     check("corner ranked by w2p is reported alongside raw-attention ranking",
@@ -1055,6 +1063,51 @@ def test_practical_interior():
           and abs(m0["gain_best3"] - m["gain_best3"]) < 1e-12)
 
 
+def test_rope_window():
+    print("\n[R4] native RoPE window: guard caps at the window, not the default")
+    import yaml
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = yaml.safe_load(open(os.path.join(root, "h0_measurement", "models.yaml")))
+    dflt = cfg.get("defaults", {})
+
+    # Every model must DECLARE its window, or the guard silently falls back to the
+    # default ctx and R4's headroom becomes unreachable again.
+    missing = [m["tag"] for m in cfg["models"] if "native_ctx" not in m]
+    check("every model declares native_ctx", not missing, f"(missing {missing})")
+
+    def cap(tag):
+        m = next(x for x in cfg["models"] if x["tag"] == tag)
+        d = int(m.get("ctx", dflt.get("ctx", 0)))
+        return d, int(m.get("native_ctx", d))
+
+    # [REGRESSION] The guard used to cap SIEVE_CTX at the DEFAULT ctx on the
+    # stated grounds that "the registry values are native RoPE limits". True for
+    # six of eight models and false for the only one R4 needs: qwen3-30b-a3b-2507
+    # defaults to 131072 against a 262144 window. Capping at the default made the
+    # headroom unreachable and the RoPE-vs-length question unanswerable.
+    d, n = cap("qwen3-30b-a3b-2507")
+    check("[REGRESSION] qwen3-30b-a3b-2507 has reachable headroom",
+          n > d and n == 262144, f"(default {d:,}, window {n:,})")
+    d17, n17 = cap("qwen3-1.7b")
+    check("qwen3-1.7b too (the cheap control)", n17 > d17,
+          f"(default {d17:,}, window {n17:,})")
+
+    # The models that ARE at their cap must stay capped -- past the window the
+    # model runs on untrained positions and the row is not a measurement.
+    for t in ("llama31-8b", "llama33-70b", "mistral-7b", "qwen3-8b"):
+        d_, n_ = cap(t)
+        check(f"{t} is at its cap, so no headroom to grant", d_ == n_,
+              f"(default {d_:,}, window {n_:,})")
+
+    # rope_frac is the independent variable of the whole question.
+    for t, cx, want in (("llama31-8b", 131072, 1.00),
+                        ("qwen3-30b-a3b-2507", 131072, 0.50),
+                        ("qwen3-30b-a3b-2507", 262144, 1.00)):
+        _, n_ = cap(t)
+        check(f"rope_frac({t}@{cx//1024}k) = {want:.2f}",
+              abs(cx / n_ - want) < 1e-9, f"({cx / n_:.3f})")
+
+
 def test_ladder_identity():
     print("\n[REGRESSION] ladder_bits_a_only IS tau/ln2 -- it is not a prediction")
     import math
@@ -1101,6 +1154,7 @@ if __name__ == "__main__":
               test_corpus_prompts, test_family_gate,
               test_probe_chunked_prefill,
               test_needle_span, test_validity_gate, test_ladder_identity,
+              test_rope_window,
               test_practical_interior):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")

@@ -274,11 +274,24 @@ if m is None:
              f"available: {' '.join(sorted(x['tag'] for x in cfg['models']))}")
 ctx = os.environ.get("SIEVE_CTX")
 if ctx:
-    cap = int(m.get("ctx", cfg.get("defaults", {}).get("ctx", 0)))
+    # Cap at the model's TRUE RoPE window, not at the ctx this project happens to
+    # default to. Those differ: qwen3-30b-a3b-2507 defaults to 131072 against a
+    # 262144 window, qwen3-1.7b to 8192 against 40960. Running past the WINDOW
+    # measures untrained positions and is refused; running past the DEFAULT is
+    # just a longer measurement, and R4 needs exactly that headroom to ask
+    # whether the 64k->128k collapse tracks absolute L or fraction-of-window.
+    dflt = int(m.get("ctx", cfg.get("defaults", {}).get("ctx", 0)))
+    cap = int(m.get("native_ctx", dflt))
     if int(ctx) > cap:
-        sys.exit(f"ERROR: SIEVE_CTX={ctx} exceeds {m['tag']}'s registry ctx {cap} "
-                 f"(a native limit, not advisory -- see README ctx audit). "
-                 f"Drop this model from the list or lower SIEVE_CTX.")
+        sys.exit(f"ERROR: SIEVE_CTX={ctx} exceeds {m['tag']}'s native RoPE window "
+                 f"{cap} (max_position_embeddings). Past it the model is running "
+                 f"on untrained positions, so the parquet would not be a "
+                 f"measurement of long-context attention. Lower SIEVE_CTX or "
+                 f"drop this model.")
+    if int(ctx) > dflt:
+        print(f"note: SIEVE_CTX={ctx} is above {m['tag']}'s default ctx {dflt} but "
+              f"within its {cap} window -- deliberate headroom (R4).",
+              file=sys.stderr)
 PY
 
 # Corpus precondition, FATAL. Both models here are tier large, which run_h0.py

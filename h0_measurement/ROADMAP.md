@@ -44,7 +44,7 @@ Everything else below is about finishing the project, not repairing it.
 | **C1** | **dead-tier fraction is an order parameter** — derived from τ²c_b vs c₀=1, contains no L | ρ=−0.95 over 24 configs; invariant to a 6–29 pt shift in its own target when the corner was redefined; predicted the 70B's 37-pt collapse at 128k out of sample | R2, R4, R6 |
 | **C2** | **context length is a phase variable, acting through τ** — per-model verdicts are ill-posed | one model traverses GO→NARROW→STOP on L alone; τ rises monotonically with L in 6/6; −3.7 to −15.9 band-pts per doubling | R3, R5, R6 |
 | **C3** | **the objective substitution and the allocation theorem** — output distortion, reverse water-filling, eviction as the zero-rate case with `c₀=1` derived | `lin_ratio3 = 0.80–1.35`; interior chooses to evict 40–54% of tokens on its own, so tier 0 is inside the allocator | R1, R3, R7 |
-| **C4** | **a router that reads each head's phase from one L-free calibration pass** | ladder width correlates with realised gain in 24/24 (−0.41 to −0.77); n₉₉₅ inverts on the 70B, so ladder is the only signal that works everywhere | R3, R7, R8 |
+| **C4** | **a router that reads each head's phase from one L-free calibration pass** | ladder width correlates with realised gain in 24/24 (−0.41 to −0.77); n₉₉₅ inverts on the 70B, so ladder is the only signal that works everywhere | R3, R5, R7, R8 |
 | **C5** | **two measured facts that redirect design** — scoring is solved (oracle beats deployable H2O by only 1.02–1.41×, on heads the router sends to the interior anyway); tail dependence is architectural (K*/n₉₅ spans 37×, not ordered by support) | 24/24 runs | R8, R9 |
 
 Tasks are tagged `[SELL]` where they defend or extend C1–C5, `[DEBT]` where they
@@ -167,21 +167,59 @@ decision table written before the run). The cheap control is qwen3-1.7b, which h
 5× headroom.
 
 
-### R5 · Phase drift across decode steps `[SELL]` C4
-**~1 day · cheap, and it does double duty**
+### R5 · Phase drift across decode steps `[SELL]` C4, C2 — **PLUMBED, ready to submit**
+**~1 day of GPU (pilot first) · cheap, and it does double duty**
 
 C4 claims "one offline calibration pass". Nobody has checked whether a head's
-phase *drifts* during a long generation. The `step` column exists, but
-`quant_every: 4` with `n_decode: 8` gives only steps 0 and 4 — far too coarse. One
-config at `quant_every=1, n_decode=32` settles it.
+phase — its route (interior vs baseline), dead tiers, τ — *drifts* during a long
+generation. Every campaign so far measured decode steps 0 and 4.
 
-Double duty, and this is the part that matters: τ rises monotonically with L, so
-an allocation calibrated at prefill is **provably mis-specified by the end of a
-long generation**. If drift is measurable, that is a mechanism-backed argument for
-re-budgeting during decode — which is the strongest route from "we have a map" to
-"we have a method". If drift is negligible, the one-pass calibration claim gets a
-number instead of an assumption. Either way we need it before claiming the router
-is cheap.
+Two mechanisms can move it, and the design separates them:
+- **content** — the query distribution changes as the generated text moves away
+  from the prompt; independent of L;
+- **length** — τ rises with L in 6/6 models, so generating G tokens should move τ
+  by slope × log₂(1+G/L). That is a *within-generation* test of C2, which has only
+  ever been measured *across* prompts of different length.
+
+**Corrected from the earlier version of this entry:**
+- *"One config at `quant_every=1, n_decode=32` settles it"* — it cannot. 32 tokens
+  grow a 128k cache by 0.02% and an 8k cache by 0.4%, so the length half is
+  unmeasurable at any ctx, and quantizing all 32 steps costs ~16× a campaign unit
+  for a 32-token window. The run now uses the **sparse schedule**
+  (`measure_steps`): decode to step 4,096 with the probe off in between and
+  quantize only 14 log-spaced steps.
+- *"provably mis-specified by the end of a long generation"* — not proved. The
+  τ–L slope is across prompts; whether it holds inside one generation is what R5
+  measures. If it does not, C2 must be restated as a statement about the context
+  a model is given, not about how long it has been running.
+- R5 is not R3's staleness sweep. `lag:k` (bug 2 §C) prices re-budgeting *inside*
+  a head over ≤8 steps, and R3-report.md already shows it goes stale fast (lag
+  cost 1.36–1.58× at k=1 on in-band heads). R5 asks whether the cheap per-head
+  *router* survives thousands of tokens.
+
+**Landed (0 GPU):**
+- `submit_h0*.slurm` — forward `SIEVE_MEASURE_STEPS / FAMILIES / DECODE_TEMPERATURE
+  / DECODE_TOP_P / DECODE_SEED / DECODE_BAN_EOS`. run_h0.py already read the
+  first five, but nothing forwarded them, so a sparse run could not be submitted.
+- `run_h0.py` — opt-in `decode_ban_eos` (min_new_tokens). With no chat template
+  an instruct model ends a continuation within a few hundred tokens and every
+  later row is post-EOS; `past_eos` could only flag those rows. Stamped per row.
+  Pinned by `test_units.py::test_ban_eos`.
+- `bugs/5_phase_drift_across_decode/drift.py` — the reader. `report.py` medians
+  over steps and averages drift away. Per step: route flip rate against its
+  noise floor, rank stability of gain, the regret of keeping the calibration
+  route, and predicted vs measured Δτ from the across-ctx slope.
+
+**Constraints the design has to respect:** `accum` cannot run sparse (it sums
+every step), so R5's corner and interior are `last_step` (TOVA), and a dense
+bridge run measures the accum→last_step substitution on the same rows. The
+interior must be set explicitly (`SIEVE_INTERIOR_SCORES=last_step`), because the
+`accum` default is silently dropped when accum is absent. There is no practical
+gain at step 0, so calibration is step 1.
+
+**To submit:** `bugs/5_phase_drift_across_decode/script.sh --pilot`, then `--run`
+(llama31-8b at 8k/32k/128k plus qwen3-30b at 32k; a dense accum/last_step bridge;
+a greedy control), with the decision table written before the run.
 
 ### R6 · Pin the sharp boundary `[SELL]` C1
 **~1–2 days**
@@ -371,7 +409,7 @@ asymmetry, and both of its outcomes are publishable.
    │  R7 seeds  (plumbing 0-GPU, then +2 seeds)              │
    └──────────────────┬──────────────────────────────────────┘
                       │
-     R5 phase drift ──┤  (independent: needs quant_every=1, n_decode=32)
+     R5 phase drift ──┤  (independent: sparse 4,096-step decode, last_step corner)
                       ▼
               R8 router on/off on RULER   ← not blocked, but WASTEFUL before R3
                       │
@@ -382,7 +420,7 @@ asymmetry, and both of its outcomes are publishable.
 
 you don't need R3 before R4, R6, R7. You need them in the same campaign. All four are "run the grid with more points and more columns." Sequencing them means paying the 128k prefill three times. My script.sh §3 already folds the ctx sweep into R3's submission for exactly this reason; adding 96k and qwen3-30b@192k completes R4 at near-zero marginal cost.
 
-R5 is genuinely separate — it needs a different decode config (32 steps, every step quantized), so it can't ride the same jobs. Run it in parallel.
+R5 is genuinely separate — it needs a different decode config (a sparse schedule to step 4,096, `cont` only, sampled, EOS banned, and `last_step` in place of `accum`, which cannot run sparse), so it can't ride the same jobs. Run it in parallel: `bugs/5_phase_drift_across_decode/script.sh`.
 
 Tier 2: R8 depends on R3, R9 doesn't. R8 isn't blocked — the diagram it tests is already established and survived the corner change. But it would produce an end-task number for an interior you're about to redefine. If R3 shows the interior needs current-query information, the thing the router routes to becomes a cascade, and R8 would have measured the wrong method. R9 is orthogonal to all of it: it's about the corner's budget, not the interior.
 

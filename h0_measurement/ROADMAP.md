@@ -167,7 +167,14 @@ decision table written before the run). The cheap control is qwen3-1.7b, which h
 5× headroom.
 
 
-### R5 · Phase drift across decode steps `[SELL]` C4, C2 — **PLUMBED, ready to submit**
+### R5 · Phase drift across decode steps `[SELL]` C4, C2 — **5 of 6 cells done; qwen3-30b @32k pending**
+
+> Status 2026-09-19: llama31-8b at 8k/32k/128k (sampled), the bridge and the
+> greedy control are done (job21406669–71, 73, 74). qwen3-30b @32k (job21406672)
+> died on the preflight `interior_scores` crash, now fixed; `script.sh --run`
+> submits only that cell. The fresh-token defect (bugs/2 R3-report §2) affects
+> only these runs' interior `lag` column, which `drift.py` blanks; the route,
+> band, τ and bridge columns are valid.
 **~1 day of GPU (pilot first) · cheap, and it does double duty**
 
 C4 claims "one offline calibration pass". Nobody has checked whether a head's

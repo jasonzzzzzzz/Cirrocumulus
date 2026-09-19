@@ -9,7 +9,9 @@ report.py cannot answer this: per_head() takes a median over EVERY row of a
 (model, ctx, layer, head), steps included, so a drift is averaged away before it
 is ever looked at. This keeps `step` as an axis.
 
-One block per (model, ctx, decode_temp). Per measured step:
+One block per (model, ctx, decode_temp, schedule, corner set) -- a sparse
+drift run and the dense bridge at the same (model, ctx, T) are different
+experiments and must never share a table. Per measured step:
 
   L, dlog2L     cache length, and how far the generation has grown it
   tau, ladder   median over heads; dtau is against the calibration step
@@ -28,7 +30,15 @@ out of the per-head median mid-table and reads as a phase change.
                 at t by the same 2x rule). Depends only on gain(t) and the two
                 routes: interior costs max(1, 1/g) against the better option,
                 baseline max(1, g); 1.0 wherever the route did not flip.
-  lag           median interior_lag_cost<B>_<score> on in-band heads (R3's toll)
+  lag           median interior_lag_cost<B>_<score> on in-band heads (R3's toll).
+                Shown ONLY for runs with the fresh-token fix ("interior_unseen_
+                policy": "floor_maxb" in the .json). Earlier runs gave the
+                token appended each step 0 bits -- evicted it -- and read 3-10x
+                here for that reason alone (bugs/2/R3-report.md section 2), so
+                their interior columns are blanked on load. The corner columns
+                this table routes on (gain_best_practical) were never affected:
+                last_step's only unseen token is the current one, which the
+                corner always protected.
   eos%          rows past the first EOS (excluded unless --keep-post-eos)
   d4            median distinct-4-gram fraction of the text so far (loop check)
 
@@ -47,18 +57,37 @@ last_step corner the sparse runs are forced onto compares with the campaign's
 accum corner -- median gain ratio and band% under each.
 """
 from __future__ import annotations
-import argparse, glob, math, re, sys
+import argparse, glob, json, math, os, re, sys
 import numpy as np
 import pandas as pd
 
 BAND_MIN = 2.0      # keep identical to report.py / alloc.py
 
 
+INTERIOR = re.compile(r"^(interior_lag_cost|gain_pp|in_band_pp|err_wf_pp|gain_u_pp|"
+                      r"evict_frac_pp|unseen_frac_pp)")
+
+
+def read_one(f):
+    """One parquet, with its interior columns blanked unless the run has the
+    fresh-token fix -- see `lag` in the module docstring."""
+    d = pd.read_parquet(f)
+    js = f[:-len(".parquet")] + ".json"
+    pol = json.load(open(js)).get("interior_unseen_policy") if os.path.exists(js) else None
+    if pol != "floor_maxb":
+        cols = [c for c in d.columns if INTERIOR.match(c)]
+        if cols:
+            d[cols] = np.nan
+            print(f"  note: {os.path.relpath(f)} predates the fresh-token fix -- "
+                  f"{len(cols)} interior columns blanked (lag shows '-')")
+    return d
+
+
 def load(patterns):
     files = sorted({f for p in patterns for f in glob.glob(p)})
     if not files:
         sys.exit(f"no parquet matched {patterns}")
-    df = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    df = pd.concat([read_one(f) for f in files], ignore_index=True)
     for c, v in (("decode_temp", 0.0), ("past_eos", False), ("decode_ban_eos", False),
                  ("gen_distinct4", np.nan), ("schedule", "dense")):
         if c not in df:
@@ -196,7 +225,9 @@ def bridge(g, B):
     """accum vs last_step corners at the same steps, same rows."""
     ca, cl = f"gain_e{B}_accum_frac", f"gain_e{B}_last_step_frac"
     cu = f"gain_u{B}"
-    if not all(c in g for c in (ca, cl, cu)):
+    # present AND populated: after concat, a sparse run carries the bridge's
+    # columns as all-NaN, which is not a bridge
+    if not all(c in g and g[c].notna().any() for c in (ca, cl, cu)):
         return
     print(f"  BRIDGE -- last_step (what a sparse run can field) vs accum (the "
           f"campaign's corner), per-head medians:")
@@ -234,10 +265,12 @@ def main():
     lagcols = sorted(c for c in df.columns
                      if re.match(rf"^interior_lag_cost{a.B}_", c))
     tables = []
-    for (mdl, ctx, T), g in df.groupby(["model", "ctx", "decode_temp"]):
-        ev = ",".join(sorted(g.evictors.astype(str).unique())) if "evictors" in g else "?"
+    if "evictors" not in df:
+        df = df.assign(evictors="?")
+    for (mdl, ctx, T, sched, ev), g in df.groupby(
+            ["model", "ctx", "decode_temp", "schedule", "evictors"]):
         n_eos = int(g.groupby("prompt")._eos.any().sum())
-        print(f"\n=== {mdl}  ctx {ctx:,}  T={T:g}  [{ev}]  "
+        print(f"\n=== {mdl}  ctx {ctx:,}  T={T:g}  {sched}  [{ev}]  "
               f"{g.prompt.nunique()} prompts, {n_eos} reached EOS"
               f"{' (EOS banned)' if bool(g.decode_ban_eos.any()) else ''} "
               f"{'(post-EOS rows kept)' if a.keep_post_eos else '(post-EOS rows dropped)'}")
@@ -245,7 +278,8 @@ def main():
         t = block(gg, a.B, a.calib, lagcols, g.groupby("step")._eos.mean())
         bridge(gg, a.B)
         if t is not None:
-            tables.append(t.assign(model=mdl, ctx=ctx, decode_temp=T))
+            tables.append(t.assign(model=mdl, ctx=ctx, decode_temp=T,
+                                   schedule=sched, evictors=ev))
 
     if not tables:
         return
@@ -256,7 +290,7 @@ def main():
     print("\nL-GROWTH TEST -- across-ctx slope at the calibration step vs the "
           "within-generation move at the last step")
     any_ = False
-    for (mdl, T), r in res.groupby(["model", "decode_temp"]):
+    for (mdl, T, sched, ev), r in res.groupby(["model", "decode_temp", "schedule", "evictors"]):
         c0 = r[r.dlog2L.abs() < 1e-9].drop_duplicates("ctx")
         if c0.ctx.nunique() < 2:
             continue

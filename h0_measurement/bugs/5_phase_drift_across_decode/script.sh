@@ -3,12 +3,27 @@
 # R5 -- does a head's PHASE drift across a long decode?   (ROADMAP.md tier 1;
 #       defends C4 "one L-free calibration pass", tests C2 inside a generation)
 #
-#     bash h0_measurement/bugs/5_phase_drift_across_decode/script.sh --pilot
 #     bash h0_measurement/bugs/5_phase_drift_across_decode/script.sh --run
 #
-# NOTHING RUNS WITHOUT A FLAG. Submit --pilot ALONE, read it (section P), then
-# --run. Layout follows bugs/2_towards_real_evictor/script.sh, which this
-# replaces for R5; bug 2's sections are not repeated here.
+# STATUS 2026-09-19 -- 5 of 6 cells DONE, one to go. --run is GUARDED: each
+# line submits only if its cell has no complete result with the same corner,
+# schedule and temperature under h0_measurement/results/job*/, so running it
+# now submits exactly ONE job (qwen3-30b @32k):
+#   A llama31-8b   8k  sampled   job21406669  done
+#   A llama31-8b  32k  sampled   job21406670  done
+#   A llama31-8b 128k  sampled   job21406671  done
+#   A qwen3-30b   32k  sampled   job21406672  EMPTY -- killed by bug 8 below
+#   B bridge       8k  dense     job21406673  done
+#   C llama31-8b   8k  greedy    job21406674  done
+# The pilot is no longer needed (the llama cells measured the schedule).
+#
+# Want valid INTERIOR columns too (the `lag` column of drift.py)? The five done
+# cells predate bug 7's fix; R5's decision columns do not need them. To re-run
+# every cell with the fix anyway:
+#     R5_NEED_INTERIOR=1 bash .../script.sh --run
+#
+# NOTHING RUNS WITHOUT --run (--pilot is retired, see STATUS). Layout follows
+# bugs/2_towards_real_evictor/script.sh; bug 2's sections are not repeated here.
 # =============================================================================
 #
 # THE QUESTION. C4 says a router reads each head's phase from ONE offline
@@ -73,6 +88,26 @@
 #      Calibration is step 1 (drift.py --calib 1); step 0 still carries tau,
 #      ladder, n95 and the dead tiers.
 #
+# FOUND AFTER THE FIRST RUN (fixed 2026-09-19):
+#   7. The lagged INTERIOR evicted the token appended each step
+#      (bugs/2_towards_real_evictor/R3-report.md section 2): with
+#      rank_bump=False an unseen position scored 0 and got 0 bits. Fixed by
+#      Evictor.unseen() + alloc.waterfill_floor (held at maxb, budget-matched);
+#      fixed runs stamp "interior_unseen_policy": "floor_maxb" in the .json.
+#      For R5 this touches ONLY the interior columns (interior_lag_cost*,
+#      gain_pp*), i.e. drift.py's `lag` column, which drift.py now blanks for
+#      pre-fix runs. The last_step CORNER was never affected -- its only unseen
+#      token is the current one, which score() always bumped -- so the route,
+#      band, tau, dead-tier, flip, regret and bridge columns of job2140666x/7x
+#      are valid and the done cells need no re-run.
+#   8. submit_h0_large_models.slurm's host-RAM preflight rebuilt the corner
+#      without SIEVE_INTERIOR_SCORES, so with evictors=oracle,last_step it hit the
+#      `accum` interior default and died:
+#        ValueError: interior_scores ['accum'] are not practical evictors in this
+#        run (configured: ['last_step'])
+#      That is why job21406672 (qwen3-30b @32k) is empty. Fixed in the preflight
+#      (and models.yaml no longer spells the default out).
+#
 # SUBMIT FROM trig-login01 (the GPU login node). From a CPU login node Slurm
 # rejects every line: "GPU resources requested from a CPU login node". And pass
 # NO --mem: Trillium refuses the flag outright ("--mem=... request is not
@@ -98,7 +133,7 @@ PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
 [[ -x "$PY" ]] || { echo "no venv python at $PY (set SIEVE_VENV)"; exit 1; }
 "$PY" -c "import sys;sys.path.insert(0,'tests');import test_units as T;\
 T.test_decode_plan();T.test_override_lists();T.test_rescore_is_idempotent();\
-T.test_ban_eos();T.test_practical_interior();\
+T.test_ban_eos();T.test_practical_interior();T.test_unseen_floor();\
 print('fails',T.fails);sys.exit(1 if T.fails else 0)" || { echo "unit tests failed -- not submitting"; exit 1; }
 
 # --- the configuration --------------------------------------------------------
@@ -117,6 +152,33 @@ R5=(SIEVE_EVICTORS=oracle,last_step SIEVE_CORNER_POLICIES=frac
     SIEVE_MEASURE_STEPS=$MS SIEVE_FAMILIES=cont
     SIEVE_DECODE_TEMPERATURE=0.7 SIEVE_DECODE_TOP_P=0.9 SIEVE_DECODE_SEED=0
     SIEVE_DECODE_BAN_EOS=1 SIEVE_NO_REPORT=1)
+
+# ---- re-run guard --------------------------------------------------------------
+# done_r5 MODEL CTX CORNER_TAG TEMPERATURE SCHEDULE -- a complete result for this
+# cell exists: PAR1 footer, a .json beside it, and the same corner tag,
+# decode_temperature and schedule. The temperature matters: A's 8k cell and C's
+# greedy control write the SAME filename with the same corner.
+# R5_NEED_INTERIOR=1 also requires the bug-7 fix marker.
+done_r5() {
+  local p js
+  for p in h0_measurement/results/job*/h0_"$1"_"$2".parquet; do
+    js="${p%.parquet}.json"
+    [[ -f "$p" && -f "$js" ]] || continue
+    [[ "$(tail -c4 "$p" | od -An -c | tr -d ' \n')" == "PAR1" ]] || continue
+    "$PY" - "$js" "$3" "$4" "$5" "${R5_NEED_INTERIOR:-0}" <<'PYG' || continue
+import json, sys
+j = json.load(open(sys.argv[1])); tag, T, sched, need = sys.argv[2:6]
+ok = ((j.get("corner") or {}).get("tag") == tag
+      and abs(float(j.get("decode_temperature", 0)) - float(T)) < 1e-9
+      and j.get("schedule") == sched
+      and (need != "1" or j.get("interior_unseen_policy") == "floor_maxb"))
+sys.exit(0 if ok else 1)
+PYG
+    echo "done   $1 @$2 [$3 T=$4 $5]  ($p)"
+    return 0
+  done
+  return 1
+}
 
 # =============================================================================
 # WALLTIME
@@ -157,6 +219,9 @@ R5=(SIEVE_EVICTORS=oracle,last_step SIEVE_CORNER_POLICIES=frac
 #   c. does the probe hold at step 4,096? L2 capture fidelity runs on the first
 #      probed step only; confirm rows exist for step 4096 in the parquet.
 if [[ "$MODE" == "--pilot" ]]; then
+  echo "the pilot is retired: the llama cells ran and measured the schedule"; exit 0
+fi
+if false; then       # kept for the record
   sbatch --array=0-0 --time=00:45:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=1 llama31-8b
   sbatch --array=0-0 --gpus-per-node=4 --time=01:30:00 h0_measurement/submit_h0_large_models.slurm "${R5[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=1 qwen3-30b-a3b-2507
   cat <<'CHECK'
@@ -187,9 +252,16 @@ fi
 # first two (drift.py prints predicted vs measured dtau).
 # qwen3-30b-a3b-2507 at 32k is the second architecture (MoE, 48L, kv=4) and the
 # highest dead-tier model in the set, i.e. where C1 says the router matters most.
+# DONE job21406669 / 21406670 / 21406671 (skipped by the guard unless
+# R5_NEED_INTERIOR=1); qwen3-30b @32k is the one re-run (job21406672 empty,
+# bug 8). Needs the FIXED submit_h0_large_models.slurm on the submitting machine.
+done_r5 llama31-8b 8192   or-la_f 0.7 sparse || \
 sbatch --array=0-0 --time=01:15:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=8192   SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 llama31-8b 32768  or-la_f 0.7 sparse || \
 sbatch --array=0-0 --time=01:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=32768  SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 llama31-8b 131072 or-la_f 0.7 sparse || \
 sbatch --array=0-0 --time=02:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=131072 SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 qwen3-30b-a3b-2507 32768 or-la_f 0.7 sparse || \
 sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R5[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
 
 # =============================================================================
@@ -201,6 +273,8 @@ sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_la
 # both interiors in one run; drift.py prints, per step, the median ratio of the
 # two corners' gains and the band fraction under each. If the ratio is flat in
 # t, section A's drift is a drift in the phase, not in the corner substitution.
+# DONE job21406673.
+done_r5 llama31-8b 8192 or-ac-la_f 0.7 dense || \
 sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm \
   SIEVE_EVICTORS=oracle,accum,last_step SIEVE_CORNER_POLICIES=frac \
   SIEVE_INTERIOR_SCORES=accum,last_step SIEVE_N_DECODE=33 SIEVE_QUANT_EVERY=8 \
@@ -215,6 +289,8 @@ sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm \
 # same way, sampling is not what R5 measures; if greedy drifts more and its
 # gen_distinct4 collapses, the difference is loops, and the sampled run is the
 # one that describes deployment.
+# DONE job21406674.
+done_r5 llama31-8b 8192 or-la_f 0 sparse || \
 sbatch --array=0-0 --time=01:15:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_DECODE_TEMPERATURE=0 SIEVE_CTX=8192 SIEVE_N_PROMPTS=3 llama31-8b
 # (the later SIEVE_DECODE_TEMPERATURE=0 wins: arguments are exported in order)
 
@@ -233,14 +309,14 @@ cat <<'CHECK'
   2. Read all of it at once -- drift.py groups by (model, ctx, decode_temp):
 
      python h0_measurement/bugs/5_phase_drift_across_decode/drift.py \
-            "h0_measurement/results/<A_8K>/*.parquet"  \
-            "h0_measurement/results/<A_32K>/*.parquet" \
-            "h0_measurement/results/<A_128K>/*.parquet" \
-            "h0_measurement/results/<A_QWEN>/*.parquet" \
-            "h0_measurement/results/<C_GREEDY>/*.parquet" \
+            "h0_measurement/results/job21406669/*.parquet" \
+            "h0_measurement/results/job21406670/*.parquet" \
+            "h0_measurement/results/job21406671/*.parquet" \
+            "h0_measurement/results/<A_QWEN, the new job>/*.parquet" \
+            "h0_measurement/results/job21406674/*.parquet" \
             --csv h0_measurement/reports/r5_drift.csv
      python h0_measurement/bugs/5_phase_drift_across_decode/drift.py \
-            "h0_measurement/results/<B_BRIDGE>/*.parquet" --calib 8
+            "h0_measurement/results/job21406673/*.parquet" --calib 8
 
      The bridge reads with --calib 8: in a dense run step 1 is not quantized.
 

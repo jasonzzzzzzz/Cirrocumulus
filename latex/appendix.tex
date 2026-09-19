@@ -1,0 +1,201 @@
+%\section{Appendix (planned)}
+\tbd{A.1 Measurement integrity: the validity gates (real-corpus enforcement, needle retrieval, probe/chunking equivalence) and the defects they catch.
+A.2 The $\tau/\ln2$ ladder identity as a consistency check; the 2-bit quantizer acts as a universal logit temperature ($\alpha=0.941$--$0.944$).
+A.3 Findings and negative results: why $\tau$ and $n_{95}/L$ fail as regime variables; the refuted absolute-support eviction budget; H2 (2-bit score ranking, $\rho=0.52$--$0.77$) and the move to a 3-bit base layer; Gaussian-logit simulation as a qualitatively wrong regime map.
+A.4 Per-model tables at every context.}
+
+
+\tableofcontents
+\vspace{1em}
+\hrule
+\vspace{1em}
+
+\section{Introduction: The KV-Cache Compression Dilemma}
+In autoregressive Transformer generation, storing key and value vectors across long context windows consumes substantial GPU high-bandwidth memory (HBM). Prior research has largely diverged into two competing paradigms:
+\begin{enumerate}
+    \item \textbf{Token Eviction (Sparsification):} Discarding tokens perceived to be uninformative (e.g., StreamingLLM, $\text{H}_2\text{O}$, SnapKV) while retaining retained tokens at full precision.
+    \item \textbf{Uniform Quantization:} Lowering the numerical bit-width of all cached key and value vectors uniformly across the context (e.g., 3-bit or 4-bit uniform quantization).
+\end{enumerate}
+The theory presented here unifies these two disparate strategies under a single information-theoretic rate-distortion framework, proving that token eviction is not an ad-hoc heuristic, but rather the boundary case of zero-bit quantization.
+
+
+\section{Output Distortion and the Equivalence Principle}
+
+\subsection{Standard Attention Formulation}
+For a query vector $q \in \mathbb{R}^d$, key vectors $\{k_i\}_{i=1}^L \subset \mathbb{R}^d$, and value vectors $\{v_i\}_{i=1}^L \subset \mathbb{R}^{d_v}$:
+\begin{align}
+    s_i &= \frac{q^\top k_i}{\sqrt{d}} \quad \text{(Pre-softmax logits)}, \\
+    a_i &= \frac{\exp(s_i)}{\sum_j \exp(s_j)} = [\mathrm{softmax}(s)]_i \quad \text{(Attention weights)}, \\
+    o &= \sum_{i=1}^L a_i v_i \quad \text{(Attention head output)}.
+\end{align}
+
+\subsection{Quantization Perturbation Model}
+When key $k_i$ is quantized using $b_i$ bits, the resulting logit $s_i$ undergoes a perturbation $\delta_i$:
+\begin{equation}
+    \tilde{s}_i = s_i + \delta_i, \quad \mathrm{Var}(\delta_i) = \tau^2 c_{b_i},
+\end{equation}
+where:
+\begin{itemize}
+    \item $\tau$ denotes the \textbf{head logit spread} (the dynamic range or standard deviation of the logits for that specific attention head).
+    \item $c_{b_i}$ is the \textbf{relative distortion factor} of the quantizer at bit-width $b_i$. For standard quantizers, distortion decays exponentially: $c_b \propto 4^{-b} = 2^{-2b}$.
+    \item Any constant bias in the perturbation is completely neutralized because the softmax operator is shift-invariant: $\mathrm{softmax}(s + C \cdot \mathbf{1}) = \mathrm{softmax}(s)$. Thus, mean shift costs nothing, and only the variance $\mathrm{Var}(\delta_i)$ induces output error.
+\end{itemize}
+
+\subsection{First-Order Taylor Approximation of Output Error}
+Differentiating the output vector $o$ with respect to logit $s_i$:
+\begin{equation}
+    \frac{\partial o}{\partial s_i} = \sum_{j} \frac{\partial a_j}{\partial s_i} v_j = a_i (v_i - o).
+\end{equation}
+Assuming independent perturbations across tokens, the expected squared distortion in the head output vector $o$ to first order is:
+\begin{equation}
+    \label{eq:distortion}
+    \mathbb{E}\|\Delta o\|^2 \approx \sum_{i=1}^L a_i^2 \|v_i - o\|^2 \tau^2 c_{b_i}.
+\end{equation}
+
+\subsection{Eviction as Zero-Bit Quantization}
+If a subset of tokens $E$ is evicted entirely and the remaining attention weights are renormalized, the leading-order output perturbation is:
+\begin{equation}
+    \|\Delta o_{\mathrm{evict}}\|^2 \approx \sum_{i \in E} a_i^2 \|v_i - o\|^2.
+\end{equation}
+Comparing this directly to Equation~\eqref{eq:distortion}, eviction precisely matches the quantization error formula when:
+\begin{equation}
+    \tau^2 c_0 = 1 \implies c_0 = \frac{1}{\tau^2}.
+\end{equation}
+\begin{remark}[\textbf{Fundamental Result}]
+Eviction is identical to a quantizer rung at $b_i = 0$. Its cost constant $c_0$ is mathematically derived from the curvature of the softmax operator rather than being hand-tuned as an empirical penalty.
+\end{remark}
+
+
+\section{Optimal Rate Allocation via Reverse Water-Filling}
+
+\subsection{The Constrained Optimization Problem}
+Given a total bit budget of $BL$ bits across $L$ tokens (an average precision of $B$ bits per token), the objective is to choose $\{b_i\}_{i=1}^L$ to minimize output distortion:
+\begin{equation}
+    \min_{\{b_i\}} \sum_{i=1}^L a_i^2 \|v_i - o\|^2 \tau^2 c_{b_i} \quad \text{subject to} \quad \sum_{i=1}^L b_i \le B L, \quad b_i \ge 0.
+\end{equation}
+
+\subsection{Lagrangian Solution}
+Using the distortion model $c_{b_i} \propto 4^{-b_i} = 2^{-2b_i}$, the Lagrangian separates independently for each token $i$. Setting the gradient with respect to $b_i$ to zero yields the water-filling solution:
+\begin{equation}
+    b_i^\star = \log_2 a_i + \log_2 \|v_i - o\| + c,
+\end{equation}
+where $c$ is a normalization constant determined by the total bit budget $BL$.
+\begin{itemize}
+    \item Tokens whose allocated bits exceed the threshold (above the ``water level'') are assigned $b_i^\star$.
+    \item Tokens falling below the threshold are dropped to $b_i^\star = 0$ (\textbf{eviction}).
+\end{itemize}
+
+\subsection{The Value-Free Simplification}
+Empirical measurements show that the variation of the value distance term $\log_2 \|v_i - o\|$ is negligible across tokens ($\le 0.035$ bits throughout real-world context data). Consequently, the value term can be absorbed into the constant:
+\begin{equation}
+    \label{eq:practical_wf}
+    b_i^\star \approx \log_2 a_i + c.
+\end{equation}
+\textbf{Operational Significance:} Optimal bit allocation can be computed entirely from the attention weights $a_i$ alone, without requiring memory access to the value cache.
+
+
+\section{Tier Extinction and the Order Parameter}
+
+\subsection{The Convexity Condition}
+On real hardware accelerators, bit-widths cannot vary continuously; they must belong to discrete rungs (e.g., $b \in \{0, 2, 4, 8\}$). A discrete tier $b$ is viable (lies on the lower convex envelope of the rate-distortion curve) if and only if storing a token at $b$ bits introduces less distortion than evicting it:
+\begin{equation}
+    \tau^2 c_b < \tau^2 c_0 = 1.
+\end{equation}
+\begin{definition}[\textbf{Dead Tier}]
+If $\tau^2 c_b > 1$, tier $b$ is defined as \textbf{dead}. Storing a token at $b$ bits injects more variance into the logit than completely deleting the token. Therefore, no token should ever be quantized to $b$ bits.
+\end{definition}
+
+\subsection{The Two Asymptotic Regimes}
+The inequality $\tau^2 c_b < 1$ determines the compression topology based on the head's logit spread $\tau$:
+\begin{enumerate}
+    \item \textbf{The Sharp End (High $\tau$, Large Dynamic Range):}
+    As $\tau$ increases, $\tau^2 c_b$ exceeds 1 for low-bit precisions, killing rungs from the bottom up (e.g., 2-bit dies first, then 3-bit). Eventually, the available tier set collapses strictly to $\{0, b_{\max}\}$.
+    $$\text{Optimal strategy} \longrightarrow \textbf{Pure Eviction (Keep at full precision or drop)}.$$
+    
+    \item \textbf{The Diffuse End (Low $\tau$, Small Dynamic Range):}
+    When $\tau$ is small, the standard deviation of the log-attention weights collapses:
+    \begin{equation}
+        \mathrm{std}_i(\log_2 a_i) = \frac{\tau}{\ln 2} \to 0.
+    \end{equation}
+    The ladder spread shrinks below the width of a single rung, meaning all tokens receive essentially the same bit allocation.
+    $$\text{Optimal strategy} \longrightarrow \textbf{Uniform Quantization}.$$
+\end{enumerate}
+
+\subsection{The Dead-Tier Fraction ($D_2$)}
+To quantify model behavior, the \textbf{dead-tier fraction} $D_2$ is defined as:
+\begin{equation}
+    D_2 = \frac{1}{H} \sum_{h=1}^H \mathbb{I}\left(\tau_h^2 c_2 > 1\right),
+\end{equation}
+representing the proportion of attention heads where 2-bit quantization is inferior to eviction. $D_2$ acts as an order parameter: it requires only a single calibration pass, possesses zero free parameters, and is invariant to sequence length $L$.
+
+
+\section{Empirical Evaluation Methodology}
+
+\subsection{Experimental Architecture}
+To test the analytical theory on real LLMs, an empirical testbed is structured as follows:
+\begin{itemize}
+    \item \textbf{Scale:} 24 distinct model/context configurations evaluated across 46,000 individual attention heads.
+    \item \textbf{Context Scaling:} Context windows span every power-of-two from 8k tokens up to native model context limits.
+    \item \textbf{Workload:} Synthetic ``needle-in-a-haystack'' retrieval embedded inside natural PG-19 book text.
+    \item \textbf{Input-Validity Gate:} Strict verification ensuring that the uncompressed model successfully retrieves the needle on every prompt before testing compression.
+\end{itemize}
+
+\subsection{Quantization Engine and Scoring Integrity}
+\begin{itemize}
+    \item \textbf{Quantizer:} Key vectors are quantized using $\mathrm{TurboQuant}_{\mathrm{mse}}$, which combines random orthogonal rotations with Lloyd--Max optimal scalar quantization.
+    \item \textbf{Strict Separation:} Equation~\eqref{eq:distortion} and Equation~\eqref{eq:practical_wf} are utilized \emph{exclusively} to plan bit assignments ($b_i^\star$). The recorded error is always the \textbf{exact recomputed output} $o$ evaluated through the real quantized key vectors.
+\end{itemize}
+
+\subsection{Matched-Budget Comparative Baselines ($B = 3$ bits/token)}
+All techniques operate under an identical bit budget ($B = 3$ bits per token):
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Compression Scheme} & \textbf{Mechanism} & \textbf{Regime Alignment} \\
+\midrule
+\textbf{Uniform Quantization} & Every token stored at exactly $b_i = 3$ bits & Diffuse Corner \\
+\textbf{Pure Eviction} & Keep top $BL/8 = 3L/8$ tokens at 8 bits; evict the rest & Sharp Corner \\
+\textbf{Water-Filling} & Allocates $b_i^\star \approx \log_2 a_i + c$ across discrete tiers & Intermediate Spectrum \\
+\bottomrule
+\end{tabular}
+\caption{Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text{H}_2\text{O}$ accumulated attention.}
+\label{tab:baselines}
+\end{table}
+
+\subsection{Evaluation Metrics}
+\begin{itemize}
+    \item \textbf{Per-Head Gain:} The ratio of the best corner baseline error to the water-filling error:
+    \begin{equation}
+        \mathrm{Gain} = \frac{\min\left(\mathrm{Error}_{\mathrm{uniform}}, \, \mathrm{Error}_{\mathrm{eviction}}\right)}{\mathrm{Error}_{\mathrm{water\text{-}filling}}}.
+    \end{equation}
+    \item \textbf{In-Band Heads:} Attention heads exhibiting $\mathrm{Gain} \ge 2\times$, where mixed-precision water-filling outperforms both classical extremes by at least a factor of two.
+    \item \textbf{Routed Gain:} The geometric mean of $\max(\mathrm{Gain}, 1)$, reflecting the real-world performance attained by a dynamic per-head router selecting the optimal compression scheme.
+    \item \textbf{Symmetric Information Principle:} Allocation and corner baselines score token importance using identical attention statistics, ensuring fair benchmarking.
+\end{itemize}
+
+
+\section{Summary of Key Takeaways}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}p{0.28\textwidth}p{0.67\textwidth}@{}}
+\toprule
+\textbf{Core Concept} & \textbf{Key Takeaway} \\
+\midrule
+\textbf{Eviction is 0-bit quantization} & Setting $\tau^2 c_0 = 1$ naturally aligns token dropping with quantization theory; no separate eviction heuristic is needed. \\
+\addlinespace
+\textbf{Logit spread $\tau$ dictates policy} & High $\tau$ (sharp heads) kills low-bit tiers and favors pure eviction; low $\tau$ (diffuse heads) favors uniform quantization. \\
+\addlinespace
+\textbf{Value-cache independence} & Bit allocation depends almost entirely on $\log_2 a_i$, enabling optimal allocation without accessing or loading value vectors. \\
+\addlinespace
+\textbf{Hardware routing potential} & Modeling in-band heads enables per-head routing, optimizing accuracy per byte across heterogeneous attention layers. \\
+\bottomrule
+\end{tabular}
+\caption{Summary of foundational insights.}
+\label{tab:takeaways}
+\end{table}
+
+
+

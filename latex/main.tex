@@ -9,9 +9,15 @@
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{amsmath,amssymb}
+%\usepackage{amsmath,amssymb}
 \usepackage{xcolor}
 \usepackage{enumitem}
+
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{microtype}
+
 
 % ---------------------------------------------------------------------------
 % Draft markers. Every \tbd{} anchors an experiment or paragraph that is still
@@ -21,6 +27,12 @@
 \definecolor{tbdcol}{HTML}{C0561B}
 \newcommand{\tbd}[1]{{\color{tbdcol}\textbf{TBD}~#1}}
 \newcommand{\sieve}{\textsc{Sieve}}
+
+% Theorem-like environments (used in appendix.tex; amsthm is loaded above).
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{remark}{Remark}[section]
 
 \title{Evict, Quantize, or Allocate?\\A Phase Diagram for KV-Cache Compression}
 
@@ -154,10 +166,6 @@ Any single policy is wrong for some heads at some context, so \sieve{} routes pe
 \bibliographystyle{iclr2026_conference}
 
 \appendix
-\section{Appendix (planned)}
-\tbd{A.1 Measurement integrity: the validity gates (real-corpus enforcement, needle retrieval, probe/chunking equivalence) and the defects they catch.
-A.2 The $\tau/\ln2$ ladder identity as a consistency check; the 2-bit quantizer acts as a universal logit temperature ($\alpha=0.941$--$0.944$).
-A.3 Findings and negative results: why $\tau$ and $n_{95}/L$ fail as regime variables; the refuted absolute-support eviction budget; H2 (2-bit score ranking, $\rho=0.52$--$0.77$) and the move to a 3-bit base layer; Gaussian-logit simulation as a qualitatively wrong regime map.
-A.4 Per-model tables at every context.}
+\input{appendix}
 
 \end{document}

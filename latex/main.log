@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  18 SEP 2026 16:10
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  19 SEP 2026 17:50
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -382,10 +382,6 @@ Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
 \@thisrulewidth=\dimen171
 )
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
-tex/amsfonts/amssymb.sty
-Package: amssymb 2013/01/14 v3.01 AMS font symbols
-)
-(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/enumitem/enumitem.sty
 Package: enumitem 2019/06/20 v3.9 Customized lists
 \labelindent=\skip64
@@ -395,8 +391,73 @@ Package: enumitem 2019/06/20 v3.9 Customized lists
 \enit@count@id=\count285
 \enitdp@description=\count286
 )
-LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 3
-3.
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/geometry/geometry.sty
+Package: geometry 2020/01/02 v5.9 Page Geometry
+
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/ge
+neric/iftex/ifvtex.sty
+Package: ifvtex 2019/10/25 v1.7 ifvtex legacy package. Use iftex instead.
+)
+\Gm@cnth=\count287
+\Gm@cntv=\count288
+\c@Gm@tempcnt=\count289
+\Gm@bindingoffset=\dimen173
+\Gm@wd@mp=\dimen174
+\Gm@odd@mp=\dimen175
+\Gm@even@mp=\dimen176
+\Gm@layoutwidth=\dimen177
+\Gm@layoutheight=\dimen178
+\Gm@layouthoffset=\dimen179
+\Gm@layoutvoffset=\dimen180
+\Gm@dimlist=\toks22
+)
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/amsfonts/amssymb.sty
+Package: amssymb 2013/01/14 v3.01 AMS font symbols
+)
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/amscls/amsthm.sty
+Package: amsthm 2020/05/29 v2.20.6
+\thm@style=\toks23
+\thm@bodyfont=\toks24
+\thm@headfont=\toks25
+\thm@notefont=\toks26
+\thm@headpunct=\toks27
+\thm@preskip=\skip65
+\thm@postskip=\skip66
+\thm@headsep=\skip67
+\dth@everypar=\toks28
+)
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/microtype.sty
+Package: microtype 2021/03/14 v2.8c Micro-typographical refinements (RS)
+\MT@toks=\toks29
+\MT@count=\count290
+LaTeX Info: Redefining \textls on input line 790.
+\MT@outer@kern=\dimen181
+LaTeX Info: Redefining \textmicrotypecontext on input line 1374.
+\MT@listname@count=\count291
+
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/microtype-pdftex.def
+File: microtype-pdftex.def 2021/03/14 v2.8c Definitions specific to pdftex (RS)
+
+LaTeX Info: Redefining \lsstyle on input line 915.
+LaTeX Info: Redefining \lslig on input line 915.
+\MT@outer@space=\skip68
+)
+Package microtype Info: Loading configuration file microtype.cfg.
+
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/microtype.cfg
+File: microtype.cfg 2021/03/14 v2.8c microtype main configuration file (RS)
+))
+\c@definition=\count292
+\c@theorem=\count293
+\c@remark=\count294
+LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 4
+5.
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/psnfss/ot1ptm.fd
@@ -405,44 +466,44 @@ File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2021-03-18 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count287
+\l__color_backend_stack_int=\count295
 \l__pdf_internal_box=\box52
 ) (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 33.
-LaTeX Font Info:    ... okay on input line 33.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 45.
+LaTeX Font Info:    ... okay on input line 45.
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/co
 ntext/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count288
-\scratchdimen=\dimen173
+\scratchcounter=\count296
+\scratchdimen=\dimen182
 \scratchbox=\box53
-\nofMPsegments=\count289
-\nofMParguments=\count290
-\everyMPshowfont=\toks22
-\MPscratchCnt=\count291
-\MPscratchDim=\dimen174
-\MPnumerator=\count292
-\makeMPintoPDFobject=\count293
-\everyMPtoPDFconversion=\toks23
+\nofMPsegments=\count297
+\nofMParguments=\count298
+\everyMPshowfont=\toks30
+\MPscratchCnt=\count299
+\MPscratchDim=\dimen183
+\MPnumerator=\count300
+\makeMPintoPDFobject=\count301
+\everyMPtoPDFconversion=\toks31
 )
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/epstopdf-pkg/epstopdf-base.sty
@@ -455,7 +516,7 @@ tex/latexconfig/epstopdf-sys.cfg
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring ON on input line 33.
+Package hyperref Info: Link coloring ON on input line 45.
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/hyperref/nameref.sty
@@ -469,36 +530,100 @@ Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
 neric/gettitlestring/gettitlestring.sty
 Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
-\c@section@level=\count294
+\c@section@level=\count302
 )
-LaTeX Info: Redefining \ref on input line 33.
-LaTeX Info: Redefining \pageref on input line 33.
-LaTeX Info: Redefining \nameref on input line 33.
+LaTeX Info: Redefining \ref on input line 45.
+LaTeX Info: Redefining \pageref on input line 45.
+LaTeX Info: Redefining \nameref on input line 45.
  (./main.out) (./main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 36.
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: <default>
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(72.26999pt, 469.75502pt, 72.26999pt)
+* v-part:(T,H,B)=(72.26999pt, 650.43001pt, 72.26999pt)
+* \paperwidth=614.295pt
+* \paperheight=794.96999pt
+* \textwidth=469.75502pt
+* \textheight=650.43001pt
+* \oddsidemargin=0.0pt
+* \evensidemargin=0.0pt
+* \topmargin=-55.06749pt
+* \headheight=12.0pt
+* \headsep=43.06749pt
+* \topskip=10.0pt
+* \footskip=30.0pt
+* \marginparwidth=5.05942pt
+* \marginparsep=11.0pt
+* \columnsep=10.0pt
+* \skip\footins=9.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+LaTeX Info: Redefining \microtypecontext on input line 45.
+Package microtype Info: Generating PDF output.
+Package microtype Info: Character protrusion enabled (level 2).
+Package microtype Info: Using default protrusion set `alltext'.
+Package microtype Info: Automatic font expansion enabled (level 2),
+(microtype)             stretch: 20, shrink: 20, step: 1, non-selected.
+Package microtype Info: Using default expansion set `alltext-nott'.
+LaTeX Info: Redefining \showhyphens on input line 45.
+Package microtype Info: No adjustment of tracking.
+Package microtype Info: No adjustment of interword spacing.
+Package microtype Info: No adjustment of character kerning.
+
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/mt-ptm.cfg
+File: mt-ptm.cfg 2006/04/20 v1.7 microtype config. file: Times (RS)
+)
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/mt-cmr.cfg
+File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman 
+(RS)
+)
+LaTeX Font Info:    Trying to load font information for U+msa on input line 48.
 
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 36.
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/mt-msa.cfg
+File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
+)
+LaTeX Font Info:    Trying to load font information for U+msb on input line 48.
 
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-<figures/fig1_teaser.pdf, id=46, 397.485pt x 128.64061pt>
+(/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
+tex/microtype/mt-msb.cfg
+File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
+)
+<figures/fig1_teaser.pdf, id=122, 397.485pt x 128.64061pt>
 File: figures/fig1_teaser.pdf Graphic file (type pdf)
 <use figures/fig1_teaser.pdf>
-Package pdftex.def Info: figures/fig1_teaser.pdf  used on input line 53.
-(pdftex.def)             Requested size: 397.48499pt x 128.64421pt.
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
-2.
+Package pdftex.def Info: figures/fig1_teaser.pdf  used on input line 65.
+(pdftex.def)             Requested size: 469.75502pt x 152.03406pt.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 7
+4.
 
 (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/la
 tex/psnfss/ts1ptm.fd
@@ -507,58 +632,90 @@ File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 /pdftex/updmap/pdftex.map}
 
 ] [2 <./figures/fig1_teaser.pdf>]
-<figures/fig2_results.pdf, id=153, 397.485pt x 124.3044pt>
+<figures/fig2_results.pdf, id=231, 397.485pt x 124.3044pt>
 File: figures/fig2_results.pdf Graphic file (type pdf)
 <use figures/fig2_results.pdf>
-Package pdftex.def Info: figures/fig2_results.pdf  used on input line 100.
-(pdftex.def)             Requested size: 397.48499pt x 124.30786pt.
+Package pdftex.def Info: figures/fig2_results.pdf  used on input line 112.
+(pdftex.def)             Requested size: 469.75502pt x 146.90929pt.
+[3 <./figures/fig2_results.pdf>] (./main.bbl [4]) (./appendix.tex (./main.toc
+[5])
+\tf@toc=\write4
+\openout4 = `main.toc'.
 
-Underfull \vbox (badness 1975) has occurred while \output is active []
 
- [3 <./figures/fig2_results.pdf>] (./main.bbl [4] [5]) [6] (./main.aux)
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [6]
+[7]
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 124.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `subscript' on input line 124.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 124.
+
+[8]
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 149.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 149.
+
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+) [9] [10] (./main.aux)
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 8EC135622D821D51CC5FC7127493F0AB;1109.
+(rerunfilecheck)             Checksum: AAB5B622042830FE78142CB09407D94B;5646.
  ) 
 Here is how much of TeX's memory you used:
- 11047 strings out of 480884
- 158446 string characters out of 5900692
- 471821 words of memory out of 5000000
- 28062 multiletter control sequences out of 15000+600000
- 438552 words of font info for 94 fonts, out of 8000000 for 9000
+ 13670 strings out of 480884
+ 201122 string characters out of 5900692
+ 553783 words of memory out of 5000000
+ 30259 multiletter control sequences out of 15000+600000
+ 453877 words of font info for 304 fonts, out of 8000000 for 9000
  36 hyphenation exceptions out of 8191
- 74i,11n,78p,1728b,477s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 74i,12n,78p,1742b,463s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/font
 s/enc/dvips/base/8r.enc}</cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr
-/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></cvmfs/soft.comput
+/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></cvmfs/soft.comput
 ecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfon
-ts/cm/cmmi10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/
-texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></cvmfs/soft.computecanada.
-ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cm
-mi6.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmmi7.pfb></cvmfs/soft.computecanada.ca/gentoo
-/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb><
-/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/t
-ype1/public/amsfonts/cm/cmr10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86
--64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></cvmfs/sof
-t.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmr7.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/
-share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></cvmfs/soft.computeca
-nada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmsy10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/tex
-mf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></cvmfs/soft.computecanada.ca/
-gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9
-.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/f
-onts/type1/public/amsfonts/symbols/msbm10.pfb></cvmfs/soft.computecanada.ca/gen
-too/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></c
-vmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/typ
-e1/urw/times/utmb8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr
-/share/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></cvmfs/soft.computecanada.c
-a/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-
-Output written on main.pdf (6 pages, 261231 bytes).
+ts/cm/cmex10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/
+texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></cvmfs/soft.computecanada
+.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/c
+mmi5.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-di
+st/fonts/type1/public/amsfonts/cm/cmmi6.pfb></cvmfs/soft.computecanada.ca/gento
+o/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb>
+</cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmmi9.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x8
+6-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></cvmfs/s
+oft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmr6.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/us
+r/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></cvmfs/soft.compute
+canada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmr9.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></cvmfs/soft.computecanada.ca
+/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+7.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/
+fonts/type1/public/amsfonts/cm/cmsy9.pfb></cvmfs/soft.computecanada.ca/gentoo/2
+023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.p
+fb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fon
+ts/type1/urw/helvetic/uhvb8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-
+64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></cvmfs/soft.comput
+ecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utm
+r8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dis
+t/fonts/type1/urw/times/utmri8a.pfb>
+Output written on main.pdf (10 pages, 304905 bytes).
 PDF statistics:
- 326 PDF objects out of 1000 (max. 8388607)
- 261 compressed objects within 3 object streams
- 43 named destinations out of 1000 (max. 500000)
- 59 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 483 PDF objects out of 1000 (max. 8388607)
+ 411 compressed objects within 5 object streams
+ 90 named destinations out of 1000 (max. 500000)
+ 70867 words of extra memory for PDF output out of 74296 (max. 10000000)
 

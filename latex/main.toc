@@ -1,0 +1,25 @@
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {section}{\numberline {2}One objective: eviction is quantization at zero rate}{2}{section.2}%
+\contentsline {section}{\numberline {3}Measuring the phase diagram}{2}{section.3}%
+\contentsline {section}{\numberline {4}From map to method: \textsc {Sieve}{}}{3}{section.4}%
+\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}%
+\contentsline {section}{\numberline {A}Introduction: The KV-Cache Compression Dilemma}{6}{appendix.A}%
+\contentsline {section}{\numberline {B}Output Distortion and the Equivalence Principle}{7}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}Standard Attention Formulation}{7}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Quantization Perturbation Model}{7}{subsection.B.2}%
+\contentsline {subsection}{\numberline {B.3}First-Order Taylor Approximation of Output Error}{7}{subsection.B.3}%
+\contentsline {subsection}{\numberline {B.4}Eviction as Zero-Bit Quantization}{7}{subsection.B.4}%
+\contentsline {section}{\numberline {C}Optimal Rate Allocation via Reverse Water-Filling}{8}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}The Constrained Optimization Problem}{8}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Lagrangian Solution}{8}{subsection.C.2}%
+\contentsline {subsection}{\numberline {C.3}The Value-Free Simplification}{8}{subsection.C.3}%
+\contentsline {section}{\numberline {D}Tier Extinction and the Order Parameter}{8}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}The Convexity Condition}{8}{subsection.D.1}%
+\contentsline {subsection}{\numberline {D.2}The Two Asymptotic Regimes}{8}{subsection.D.2}%
+\contentsline {subsection}{\numberline {D.3}The Dead-Tier Fraction ($D_2$)}{9}{subsection.D.3}%
+\contentsline {section}{\numberline {E}Empirical Evaluation Methodology}{9}{appendix.E}%
+\contentsline {subsection}{\numberline {E.1}Experimental Architecture}{9}{subsection.E.1}%
+\contentsline {subsection}{\numberline {E.2}Quantization Engine and Scoring Integrity}{9}{subsection.E.2}%
+\contentsline {subsection}{\numberline {E.3}Matched-Budget Comparative Baselines ($B = 3$ bits/token)}{9}{subsection.E.3}%
+\contentsline {subsection}{\numberline {E.4}Evaluation Metrics}{9}{subsection.E.4}%
+\contentsline {section}{\numberline {F}Summary of Key Takeaways}{9}{appendix.F}%

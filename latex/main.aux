@@ -36,6 +36,8 @@
 \newlabel{sec:results}{{3}{2}{Measuring the phase diagram}{section.3}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.\nobreakspace  {}\ref  {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf  {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf  {(c)} \emph  {Projected, not measured} ({\color  {tbdcol}\textbf  {TBD}\nobreakspace  {}[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle.}}{3}{figure.2}\protected@file@percent }
 \newlabel{fig:results}{{2}{3}{\textbf {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.~\ref {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf {(c)} \emph {Projected, not measured} (\tbd {[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle}{figure.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}From map to method: \textsc  {Sieve}{}}{3}{section.4}\protected@file@percent }
+\newlabel{sec:sieve}{{4}{3}{From map to method: \sieve {}}{section.4}{}}
 \citation{equitz1991successive}
 \citation{hsieh2024ruler}
 \citation{feng2024adakv,cai2024pyramidkv}
@@ -47,11 +49,6 @@
 \citation{cai2024pyramidkv,feng2024adakv}
 \bibdata{sieve}
 \bibcite{cai2024pyramidkv}{{1}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Measured facts (24 configurations) and the design decision each one forces.}}{4}{table.1}\protected@file@percent }
-\newlabel{tab:facts}{{1}{4}{Measured facts (24 configurations) and the design decision each one forces}{table.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}From map to method: \textsc  {Sieve}{}}{4}{section.4}\protected@file@percent }
-\newlabel{sec:sieve}{{4}{4}{From map to method: \sieve {}}{section.4}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}\protected@file@percent }
 \bibcite{cover2006elements}{{2}{2006}{{Cover \& Thomas}}{{Cover and Thomas}}}
 \bibcite{equitz1991successive}{{3}{1991}{{Equitz \& Cover}}{{Equitz and Cover}}}
 \bibcite{feng2024adakv}{{4}{2024}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
@@ -59,6 +56,9 @@
 \bibcite{he2024zipcache}{{6}{2024}{{He et~al.}}{{He, Zhang, Wu, Liu, Zhou, and Zhuang}}}
 \bibcite{hooper2024kvquant}{{7}{2024}{{Hooper et~al.}}{{Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer, and Gholami}}}
 \bibcite{hsieh2024ruler}{{8}{2024}{{Hsieh et~al.}}{{Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and Ginsburg}}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Measured facts (24 configurations) and the design decision each one forces.}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:facts}{{1}{4}{Measured facts (24 configurations) and the design decision each one forces}{table.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}\protected@file@percent }
 \bibcite{jiang2023mistral}{{9}{2023}{{Jiang et~al.}}{{}}}
 \bibcite{li2024snapkv}{{10}{2024}{{Li et~al.}}{{Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis, and Chen}}}
 \bibcite{liu2023scissorhands}{{11}{2023}{{Liu et~al.}}{{Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and Shrivastava}}}
@@ -72,5 +72,30 @@
 \bibcite{zandieh2025turboquant}{{19}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
 \bibcite{zhang2023h2o}{{20}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
 \bibstyle{iclr2026_conference}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix (planned)}{6}{appendix.A}\protected@file@percent }
-\gdef \@abspage@last{6}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Introduction: The KV-Cache Compression Dilemma}{6}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Output Distortion and the Equivalence Principle}{7}{appendix.B}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Standard Attention Formulation}{7}{subsection.B.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Quantization Perturbation Model}{7}{subsection.B.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}First-Order Taylor Approximation of Output Error}{7}{subsection.B.3}\protected@file@percent }
+\newlabel{eq:distortion}{{8}{7}{First-Order Taylor Approximation of Output Error}{equation.B.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}Eviction as Zero-Bit Quantization}{7}{subsection.B.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}Optimal Rate Allocation via Reverse Water-Filling}{8}{appendix.C}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}The Constrained Optimization Problem}{8}{subsection.C.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Lagrangian Solution}{8}{subsection.C.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}The Value-Free Simplification}{8}{subsection.C.3}\protected@file@percent }
+\newlabel{eq:practical_wf}{{13}{8}{The Value-Free Simplification}{equation.C.13}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {D}Tier Extinction and the Order Parameter}{8}{appendix.D}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}The Convexity Condition}{8}{subsection.D.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}The Two Asymptotic Regimes}{8}{subsection.D.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}The Dead-Tier Fraction ($D_2$)}{9}{subsection.D.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {E}Empirical Evaluation Methodology}{9}{appendix.E}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Experimental Architecture}{9}{subsection.E.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Quantization Engine and Scoring Integrity}{9}{subsection.E.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}Matched-Budget Comparative Baselines ($B = 3$ bits/token)}{9}{subsection.E.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text  {H}_2\text  {O}$ accumulated attention.}}{9}{table.2}\protected@file@percent }
+\newlabel{tab:baselines}{{2}{9}{Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text {H}_2\text {O}$ accumulated attention}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.4}Evaluation Metrics}{9}{subsection.E.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {F}Summary of Key Takeaways}{9}{appendix.F}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Summary of foundational insights.}}{10}{table.3}\protected@file@percent }
+\newlabel{tab:takeaways}{{3}{10}{Summary of foundational insights}{table.3}{}}
+\gdef \@abspage@last{10}

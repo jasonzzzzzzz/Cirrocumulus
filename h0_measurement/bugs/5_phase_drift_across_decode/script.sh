@@ -91,7 +91,12 @@ esac
 cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant}"
 
 # --- 0. login node, before any GPU time ---------------------------------------
-python -c "import sys;sys.path.insert(0,'tests');import test_units as T;\
+# The project venv, called by path. submit_h0*.slurm activate it INSIDE the job,
+# but this check runs in the submitting shell, where a bare `python` is the
+# system one (no pandas/torch). Same override as the slurm scripts.
+PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
+[[ -x "$PY" ]] || { echo "no venv python at $PY (set SIEVE_VENV)"; exit 1; }
+"$PY" -c "import sys;sys.path.insert(0,'tests');import test_units as T;\
 T.test_decode_plan();T.test_override_lists();T.test_rescore_is_idempotent();\
 T.test_ban_eos();T.test_practical_interior();\
 print('fails',T.fails);sys.exit(1 if T.fails else 0)" || { echo "unit tests failed -- not submitting"; exit 1; }

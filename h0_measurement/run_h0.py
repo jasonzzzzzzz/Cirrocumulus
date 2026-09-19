@@ -31,7 +31,57 @@ def load_cfg(path, name, overrides):
         except Exception:
             pass
         merged[k] = v
+    # --override hands a comma list through as a STRING when it is not JSON
+    # ("families=cont", "measure_steps=0,1,2"), and a string iterates character
+    # by character: families=cont would have run the families 'c','o','n','t'.
+    for k in ("families", "bit_list", "budgets", "measure_steps"):
+        v = merged.get(k)
+        if isinstance(v, str):
+            v = [x.strip() for x in v.split(",") if x.strip()]
+        elif v is not None and not isinstance(v, (list, tuple)):
+            v = [v]
+        if v is not None:
+            merged[k] = [int(x) for x in v] if k != "families" else list(v)
     return merged
+
+
+def next_token(logits, temperature=0.0, top_p=1.0, gen=None, ban=None):
+    """Greedy when temperature <= 0 (every campaign before R5). Otherwise seeded
+    nucleus sampling on CPU, so a long generation is reproducible and does not
+    collapse into the repetition loops greedy decoding falls into over thousands
+    of tokens -- a loop is a real attention regime, but not the one a deployed
+    sampler lives in, and it would read as phase drift.
+
+    `ban` (R5, opt-in via decode_ban_eos): token ids that may not be emitted --
+    the min_new_tokens mechanism. An instruct model continuing a book with no
+    chat template ends it within a few hundred tokens, and every later row is a
+    post-EOS continuation no deployment runs; past_eos only flags those rows, it
+    cannot give the measurement its steps back."""
+    last = logits[:, -1]
+    if ban:
+        last = last.clone()
+        last[:, ban] = float("-inf")
+    if temperature <= 0:
+        return last.argmax(-1, keepdim=True)
+    p = torch.softmax(last.float().cpu() / temperature, -1)
+    if top_p < 1.0:
+        ps, idx = p.sort(-1, descending=True)
+        ps = ps * ((ps.cumsum(-1) - ps) < top_p)
+        pick = torch.multinomial(ps / ps.sum(-1, keepdim=True), 1, generator=gen)
+        tok_id = idx.gather(-1, pick)
+    else:
+        tok_id = torch.multinomial(p, 1, generator=gen)
+    return tok_id.to(logits.device)
+
+
+def distinct4(ids, window=256):
+    """Distinct 4-gram fraction over the last `window` generated tokens: 1.0 is
+    fresh text, near 0 is a loop. NaN until there is enough text to judge."""
+    w = ids[-window:]
+    if len(w) < 8:
+        return float("nan")
+    grams = [tuple(w[i:i + 4]) for i in range(len(w) - 3)]
+    return len(set(grams)) / len(grams)
 
 
 def chunked_prefill(model, ids, chunk):
@@ -148,6 +198,7 @@ def main():
     if args.validate_only:
         c["ctx"] = min(int(c["ctx"]), 8192)   # no need to prefill 128k to validate
         c["n_prompts"], c["n_decode"] = 1, 1
+        c["measure_steps"] = []
     if args.validity_only:
         if args.validate_only:
             raise SystemExit("--validate-only and --validity-only are different "
@@ -260,6 +311,30 @@ def main():
     ev_floor = float(corner.floor) if _abs_on else float("nan")
     ev_ktol = float(corner.kstar_tol) if _kstar_on else float("nan")
 
+    # R5: the decode schedule. Dense (the default) probes every step and
+    # quantizes every quant_every-th. Sparse (`measure_steps`) decodes to the last
+    # listed step with the probe off in between, which is what makes a
+    # thousands-of-tokens generation affordable. Resolved here so an evictor the
+    # schedule cannot feed (accum) fails before the GPU is held.
+    try:
+        plan = evict.decode_plan(int(c["n_decode"]), int(c.get("quant_every", 1)),
+                                 c.get("measure_steps") or None,
+                                 () if args.validity_only else corner.evictors)
+    except ValueError as e:
+        raise SystemExit(f"bad decode schedule: {e}")
+    sched = ("sparse" if c.get("measure_steps") else "dense")
+    temp = float(c.get("decode_temperature", 0.0) or 0.0)
+    top_p = float(c.get("decode_top_p", 1.0))
+    ban_eos = bool(c.get("decode_ban_eos", False))
+    print(f"decode schedule: {sched}, {len(plan)} steps, "
+          f"{sum(r.probe for r in plan)} probed, {sum(r.row for r in plan)} "
+          f"measured, {sum(r.quant for r in plan)} quantized"
+          + (f"   sampling T={temp:g} top_p={top_p:g}" if temp > 0 else
+             "   greedy") + ("   EOS banned" if ban_eos else ""), flush=True)
+    if sched == "sparse" and any(kv.startswith("n_decode=") for kv in args.override):
+        print(f"     note: n_decode is ignored under measure_steps; the decode "
+              f"runs to step {len(plan) - 1}", flush=True)
+
     P.install()
     tok = AutoTokenizer.from_pretrained(c["id"], trust_remote_code=True)
     # A cache holding only weights (from_pretrained on the MODEL never fetches
@@ -325,6 +400,20 @@ def main():
           f"{cf.num_attention_heads}H kv={getattr(cf,'num_key_value_heads','?')} "
           f"d={getattr(cf,'head_dim', cf.hidden_size//cf.num_attention_heads)}",
           flush=True)
+    # End-of-sequence ids, for `past_eos`. The prompts carry no chat template, so
+    # an instruct model answers the niah question in ~5 tokens, emits EOS, and the
+    # decode loop keeps feeding it: every later step measures attention on a
+    # post-EOS continuation ("66224.assistant\n\nThe access code...") that no
+    # deployment ever runs. Harmless at n_decode 8 on the step-4 verdict, fatal
+    # for R5, where a trend over 32 steps would partly be the answer ending.
+    eos_ids = set()
+    for v in (getattr(getattr(model, "generation_config", None),
+                      "eos_token_id", None), tok.eos_token_id):
+        if v is not None:
+            eos_ids.update(int(x) for x in (v if isinstance(v, (list, tuple)) else [v]))
+    ban_ids = sorted(eos_ids) if ban_eos else None
+    if ban_eos and not ban_ids:
+        raise SystemExit("decode_ban_eos is set but the model declares no EOS id")
 
     # R4: the RoPE window, and how much of it this run consumes. `ctx` alone
     # cannot distinguish "long context" from "near the trained limit", and those
@@ -364,6 +453,7 @@ def main():
         quant.levels_for(b, "cpu")            # warm the Lloyd-Max disk cache
 
     rows, t0 = [], time.time()
+    l2_done = False
     evs = {}                    # (layer, head) -> {label: Evictor}, lagged state
     gens: dict[tuple, str] = {}     # (prompt, family) -> greedy decode, for the
     hits: dict[tuple, bool] = {}    # task-level validity check
@@ -387,7 +477,7 @@ def main():
             n_start, n_end = needle_token_span(tok, text, meta, n_ctx_actual)
             needle_mask = None
             if n_start >= 0:
-                needle_mask = torch.zeros(n_ctx_actual + int(c["n_decode"]) + 4,
+                needle_mask = torch.zeros(n_ctx_actual + len(plan) + 4,
                                           dtype=torch.bool, device=dev)
                 needle_mask[n_start:n_end] = True
                 src += f", needle tok {n_start}-{n_end}"
@@ -398,19 +488,36 @@ def main():
             past = chunked_prefill(model, ids, int(c.get("chunk", 4096)))
             cur = ids[:, -1:]
             gen_ids: list[int] = []
+            eos_at = None       # index in gen_ids of the first EOS, if any
             evs.clear()         # selection history does not carry across prompts
+            # Seeded per (prompt, family) so a sampled run is reproducible.
+            gen = (torch.Generator().manual_seed(
+                       int(c.get("decode_seed", 0)) * 1_000_003 + 1000 * p
+                       + fams.index(fam)) if temp > 0 else None)
 
-            for step in range(int(c["n_decode"])):
-                P.STATE.reset(); P.STATE.enabled = True
+            for step, role in enumerate(plan):
+                if role.probe:
+                    P.STATE.reset(); P.STATE.enabled = True
                 with torch.no_grad():
                     out = model(cur, past_key_values=past, use_cache=True)
                 P.STATE.enabled = False
                 past = out.past_key_values
-                cur = out.logits[:, -1:].argmax(-1)
+                cur = next_token(out.logits, temp, top_p, gen, ban_ids)
+                # The query this step measured is gen_ids[step-1]; the row is
+                # post-EOS if any token fed so far (not the one just produced)
+                # was an EOS.
+                past_eos = eos_at is not None and eos_at < step
                 gen_ids.append(int(cur.reshape(-1)[0].item()))
+                if eos_at is None and gen_ids[-1] in eos_ids:
+                    eos_at = len(gen_ids) - 1
                 del out
+                if not role.probe:
+                    continue            # sparse schedule: plain decode, no rows
+                if role.fresh:
+                    evs.clear()         # a history never spans an unprobed gap
 
-                if p == 0 and fam == fams[0] and step == 0:
+                if not l2_done:
+                    l2_done = True
                     ok2, d2 = validate.level2_capture(P.STATE, past)
                     print(f"[L2] capture fidelity = {d2:.3e} -> "
                           f"{'PASS' if ok2 else 'FAIL'}", flush=True)
@@ -421,16 +528,19 @@ def main():
 
                 # The bit sweep is the expensive part and answers a question the
                 # validity probe is not asking. head_metrics still runs its cheap
-                # path, so tau/ladder_bits are recorded either way.
-                do_quant = (not args.validity_only
-                            and step % int(c.get("quant_every", 1)) == 0)
+                # path, so tau/ladder_bits are recorded either way. A WARM step
+                # (sparse schedule, not measured) only feeds the evictors.
+                do_quant = not args.validity_only and role.quant
+                warm = not role.row
+                gd4 = distinct4(gen_ids[:step])
                 for li, qh in P.STATE.q.items():
                     K, V = P.cache_kv(past, li)
                     K = K.to(dev, torch.float32)          # [Hkv, L, d]
                     # The value tensor is only needed for the sensitivity term
                     # a_i*||v_i - o||. The validity probe never forms it, and
                     # a@V over L=131072 is what makes the full path slow.
-                    V = None if args.validity_only else V.to(dev, torch.float32)
+                    V = (None if args.validity_only or warm
+                         else V.to(dev, torch.float32))
                     qd = qh.to(dev)
                     n_rep = qd.shape[0] // K.shape[0]
                     scl = P.STATE.scaling[li]
@@ -463,6 +573,20 @@ def main():
                                    "ladder_bits_a_only": float(
                                        torch.log2(pa_).std().item())
                                    if pa_.numel() > 64 else float("nan")}
+                        elif warm:
+                            # Sparse-schedule warm step: build the history the
+                            # next measured step's lagged scores need, nothing
+                            # else. score() aligns, observe() records.
+                            finc = fin.cpu()
+                            pack = evs.get((li, h))
+                            if pack is None:
+                                pack = evs[(li, h)] = evict.make_many(
+                                    corner.evictors)
+                            a_cpu = a_h.float().cpu()
+                            for ev in pack.values():
+                                ev.score(finc)
+                                ev.observe(a_cpu, finc)
+                            continue
                         else:
                             Vh = V[h // n_rep][fin]       # index, do not expand
                             # Deployable eviction corners. Every score here is
@@ -517,6 +641,9 @@ def main():
                             rec.update(prompt=p, family=fam, step=step, layer=li,
                                        head=h, model=c["tag"], ctx=int(c["ctx"]),
                                        synthetic=synth, quantized=do_quant,
+                                       past_eos=past_eos, gen_distinct4=gd4,
+                                       schedule=sched, decode_temp=temp,
+                                       decode_ban_eos=ban_eos,
                                        norm_correct=norm_correct,
                                        native_ctx=native_ctx,
                                        rope_frac=rope_frac,
@@ -549,7 +676,7 @@ def main():
                     with torch.no_grad():
                         out = model(cur, past_key_values=past, use_cache=True)
                     past = out.past_key_values
-                    cur = out.logits[:, -1:].argmax(-1)
+                    cur = next_token(out.logits, temp, top_p, gen, ban_ids)
                     gen_ids.append(int(cur.reshape(-1)[0].item()))
                     del out
             del past; gc.collect(); torch.cuda.empty_cache()
@@ -599,7 +726,12 @@ def main():
                               if not args.validity_only else None),
                    "budgets": list(budgets), "bit_list": list(bit_list),
                    "maxb": int(maxb), "quant_every": int(c.get("quant_every", 1)),
-                   "n_prompts": int(c["n_prompts"]), "n_decode": int(c["n_decode"]),
+                   "n_prompts": int(c["n_prompts"]), "n_decode": len(plan),
+                   "schedule": sched,
+                   "measure_steps": [t for t, r in enumerate(plan) if r.row],
+                   "decode_temperature": temp, "decode_top_p": top_p,
+                   "decode_ban_eos": ban_eos,
+                   "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),
                    "config": {k: v for k, v in c.items()}}, fh, indent=1, default=str)

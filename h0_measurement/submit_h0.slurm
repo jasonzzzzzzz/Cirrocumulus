@@ -68,6 +68,20 @@ cd "$PROJECT_ROOT"
 SELF="$PROJECT_ROOT/h0_measurement/submit_h0.slurm"
 SIEVE_ROLE="${SIEVE_ROLE:-measure}"
 
+# OVERRIDES AS ARGUMENTS.  sbatch h0_measurement/submit_h0.slurm SIEVE_CTX=8192 llama31-8b
+# This cluster exports `sbatch` as a shell function that injects
+# --export=NONE --get-user-env, so the job starts from the LOGIN environment and
+# a `SIEVE_CTX=8192 sbatch ...` prefix never arrives. That silently turned every
+# override in job92* and the pilot job934606 into the per-model default. Script
+# arguments are passed verbatim, so any `SIEVE_NAME=value` argument is exported
+# here and the rest stay positional (model names). Values may contain commas.
+_rest=()
+for _a in "$@"; do
+  if [[ "$_a" =~ ^SIEVE_[A-Z0-9_]+= ]]; then export "$_a"; else _rest+=("$_a"); fi
+done
+set -- "${_rest[@]}"
+unset _a _rest
+
 # SIEVE_MODELS is COLON-separated on purpose. It travels through sbatch --export,
 # whose value list is comma-separated and whose handling of embedded spaces is
 # not portable -- a space-separated list there can arrive truncated.
@@ -138,6 +152,29 @@ done
 [[ -n "${SIEVE_QUANT_EVERY:-}" ]] && OVERRIDES+=("quant_every=$SIEVE_QUANT_EVERY")
 [[ -n "${SIEVE_N_PROMPTS:-}" ]]   && OVERRIDES+=("n_prompts=$SIEVE_N_PROMPTS")
 [[ -n "${SIEVE_ROT_SEED:-}" ]]    && OVERRIDES+=("rot_seed=$SIEVE_ROT_SEED")
+# R5 knobs (bugs/5_phase_drift_across_decode). run_h0.py has read measure_steps,
+# families and the sampler settings since the R5 plumbing landed, but nothing
+# forwarded them, so a long sparse decode could not be submitted at all.
+# Pattern-checked here so a typo fails before the GPU is held; run_h0.py does the
+# semantic checks (e.g. it refuses `accum` under a sparse schedule).
+#   SIEVE_MEASURE_STEPS=0,1,2,4,...,4096   sparse schedule; n_decode is ignored
+#   SIEVE_FAMILIES=cont                    comma list
+#   SIEVE_DECODE_TEMPERATURE=0.7  SIEVE_DECODE_TOP_P=0.9   0 = greedy (default)
+#   SIEVE_DECODE_SEED=0                    seeds the sampler per (prompt, family)
+#   SIEVE_DECODE_BAN_EOS=1                 EOS may not be emitted (min_new_tokens)
+_chk() { [[ -z "${!1:-}" || "${!1}" =~ $2 ]] || { echo "ERROR: $1 malformed, got '${!1}'" >&2; exit 1; }; }
+_chk SIEVE_MEASURE_STEPS      '^[0-9]+(,[0-9]+)*$'
+_chk SIEVE_FAMILIES           '^[a-z]+(,[a-z]+)*$'
+_chk SIEVE_DECODE_TEMPERATURE '^[0-9]*\.?[0-9]+$'
+_chk SIEVE_DECODE_TOP_P       '^[0-9]*\.?[0-9]+$'
+_chk SIEVE_DECODE_SEED        '^[0-9]+$'
+_chk SIEVE_DECODE_BAN_EOS     '^[01]$'
+[[ -n "${SIEVE_MEASURE_STEPS:-}" ]]      && OVERRIDES+=("measure_steps=$SIEVE_MEASURE_STEPS")
+[[ -n "${SIEVE_FAMILIES:-}" ]]           && OVERRIDES+=("families=$SIEVE_FAMILIES")
+[[ -n "${SIEVE_DECODE_TEMPERATURE:-}" ]] && OVERRIDES+=("decode_temperature=$SIEVE_DECODE_TEMPERATURE")
+[[ -n "${SIEVE_DECODE_TOP_P:-}" ]]       && OVERRIDES+=("decode_top_p=$SIEVE_DECODE_TOP_P")
+[[ -n "${SIEVE_DECODE_SEED:-}" ]]        && OVERRIDES+=("decode_seed=$SIEVE_DECODE_SEED")
+[[ -n "${SIEVE_DECODE_BAN_EOS:-}" ]]     && OVERRIDES+=("decode_ban_eos=$SIEVE_DECODE_BAN_EOS")
 
 if [[ -n "$SIEVE_INTERIOR_SCORES" ]]; then
   if [[ "$SIEVE_INTERIOR_SCORES" == "none" ]]; then
@@ -226,7 +263,7 @@ fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config}"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config} measure_steps=${SIEVE_MEASURE_STEPS:-dense} T=${SIEVE_DECODE_TEMPERATURE:-0}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
@@ -291,11 +328,14 @@ if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
     echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}";
     echo "evictors knob: ${SIEVE_EVICTORS:-unset}";
     echo "corner policies knob: ${SIEVE_CORNER_POLICIES:-unset}";
+    echo "interior scores knob: ${SIEVE_INTERIOR_SCORES:-unset}";
+    echo "decode knobs: measure_steps=${SIEVE_MEASURE_STEPS:-dense} families=${SIEVE_FAMILIES:-default} T=${SIEVE_DECODE_TEMPERATURE:-0} top_p=${SIEVE_DECODE_TOP_P:-1} seed=${SIEVE_DECODE_SEED:-0} ban_eos=${SIEVE_DECODE_BAN_EOS:-0}";
     echo;
     # The knobs above are what was ASKED for; unset does not say what the
     # defaults were, and models.yaml can change afterwards. Resolve and record
     # the EFFECTIVE corner per model, so this file stays readable on its own.
-    python - "${MODELS[@]}" <<'PY'
+    RUNINFO_RC=0
+    python - "${MODELS[@]}" <<'PY' || RUNINFO_RC=$?
 import os, sys, yaml
 sys.path.insert(0, os.getcwd())
 from sievelib import evict
@@ -305,6 +345,8 @@ if os.environ.get("SIEVE_EVICTORS"):
     ov["evictors"] = os.environ["SIEVE_EVICTORS"]
 if os.environ.get("SIEVE_CORNER_POLICIES"):
     ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
+if os.environ.get("SIEVE_INTERIOR_SCORES"):
+    ov["interior_scores"] = os.environ["SIEVE_INTERIOR_SCORES"]
 print("effective corner per model (authoritative copy: the .json beside each parquet)")
 for tag in sys.argv[1:]:
     m = next((x for x in cfg["models"] if x["tag"] == tag), None)
@@ -319,6 +361,16 @@ for tag in sys.argv[1:]:
           + (f"  kstar_tol={cs.kstar_tol:g}" if cs.kstar else "  kstar=off"))
 PY
   } > "${OUT_DIR}/RUN_INFO.txt" 2>&1
+  # The resolver above parses the SAME corner config run_h0.py will, so its
+  # failure means run_h0 would fail too -- stop here, but say why IN THE LOG.
+  # Its stderr goes into RUN_INFO.txt, and under `set -e` a failure inside this
+  # redirected group used to end the job with an empty .err and no message at
+  # all (pilots job934932/47/63: 10 s, exit 1, the cause only in RUN_INFO.txt).
+  if (( RUNINFO_RC != 0 )); then
+    { echo "ERROR: corner config does not parse (exit $RUNINFO_RC) -- from ${OUT_DIR}/RUN_INFO.txt:"
+      tail -n 5 "${OUT_DIR}/RUN_INFO.txt"; } | tee /dev/stderr
+    exit 1
+  fi
   REPORT_JOB=$(sbatch --parsable \
     --dependency="afterok:${SLURM_ARRAY_JOB_ID}" \
     --job-name=sieve-h0-report \

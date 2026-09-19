@@ -1194,6 +1194,124 @@ def test_ladder_identity():
           gap < 0.20, f"({gap:.4f} b; measured <=0.035 b on real heads)")
 
 
+def test_rescore_is_idempotent():
+    print("\n[R5][REGRESSION] a second score() in one step must not move the state")
+    EV = evict
+    # run_h0 scores every interior evictor TWICE per step: ranked for the corner,
+    # rank_bump=False for the allocator. The second call used to hit _align's
+    # "length unchanged" (sliding-window) branch and roll the history left by
+    # one, every step. Sink + heavy hitter at fixed positions make it visible.
+    def run(n_calls, spec="accum"):
+        ev = EV.make(spec)[1]
+        out = []
+        for step in range(4):
+            fin = torch.ones(10 + step, dtype=torch.bool)
+            for i in range(n_calls):
+                s = ev.score(fin, rank_bump=(i == 0))
+            out.append(None if s is None else s.clone())
+            a = torch.zeros(10 + step); a[0], a[5] = 0.7, 0.3
+            ev.observe(a, fin)
+        return ev, out
+    for spec in ("accum", "last_step", "lag:k=2", "window:window=2,pool=1"):
+        e1, o1 = run(1, spec)
+        e2, o2 = run(2, spec)
+        same = all(torch.equal(b, c) for b, c in zip(e1._bufs, e2._bufs))
+        check(f"[REGRESSION] {spec}: state identical with 1 or 2 score() calls",
+              same and e1._Lc == e2._Lc)
+    ev, _ = run(2, "accum")
+    check("[REGRESSION] accum keeps the sink's full mass (4 x 0.7)",
+          abs(float(ev._raw()[0]) - 2.8) < 1e-5, f"({float(ev._raw()[0]):.3f})")
+    check("[REGRESSION] ...and the heavy hitter stays on its own position",
+          abs(float(ev._raw()[5]) - 1.2) < 1e-5 and float(ev._raw()[2:5].abs().sum()) == 0)
+    # [REGRESSION] lag's ring was invisible to _align, so on a GROWING cache the
+    # k-steps-ago vector was shorter than the state and lag>=2 crashed at step k.
+    ev = EV.make("lag:k=3")[1]
+    seen = []
+    for t in range(6):
+        fin = torch.ones(8 + t, dtype=torch.bool)
+        s = ev.score(fin, rank_bump=False)
+        seen.append(None if s is None else float(s[2]))
+        a = torch.zeros(8 + t); a[2] = t + 1.0
+        ev.observe(a, fin)
+    check("[REGRESSION] lag:k=3 on a GROWING cache scores from 3 steps ago",
+          seen == [None, None, None, 1.0, 2.0, 3.0], f"({seen})")
+    check("lag:k=3 host state is counted (3 buffers, not 1)",
+          EV.state_bytes_per_slot(EV.CornerSpec(evictors=("oracle", "lag:k=3")))
+          == 4 * 3 + 1)
+    # The sliding-window roll must still happen on a REAL new step.
+    ev = EV.make("last_step")[1]
+    fin = torch.ones(6, dtype=torch.bool)
+    ev.score(fin); ev.observe(torch.arange(6.0), fin)
+    ev.score(fin)                                   # next step, same length
+    check("a genuine same-length step still rolls (sliding window)",
+          ev._raw()[:5].tolist() == [1.0, 2.0, 3.0, 4.0, 5.0])
+
+
+def test_decode_plan():
+    print("\n[R5] decode schedule: dense unchanged, sparse warms its evictors")
+    EV = evict
+    dense = EV.decode_plan(8, 4, None, ("oracle", "accum"))
+    check("dense = old behaviour: 8 probed rows, quant at 0 and 4",
+          len(dense) == 8 and all(r.probe and r.row for r in dense)
+          and [t for t, r in enumerate(dense) if r.quant] == [0, 4]
+          and [t for t, r in enumerate(dense) if r.fresh] == [0])
+    sp = EV.decode_plan(8, 4, [0, 64, 65, 1024], ("oracle", "last_step"))
+    rows = [t for t, r in enumerate(sp) if r.row]
+    probed = [t for t, r in enumerate(sp) if r.probe]
+    check("sparse: rows only at the listed steps, all quantized",
+          rows == [0, 64, 65, 1024] and all(sp[t].quant for t in rows))
+    check("sparse: last_step gets exactly one warm step before each block",
+          probed == [0, 63, 64, 65, 1023, 1024], f"({probed})")
+    check("sparse: history restarts at every block, never across a gap",
+          [t for t, r in enumerate(sp) if r.fresh] == [0, 63, 1023])
+    check("sparse: decode runs to the last measured step",
+          len(sp) == 1025)
+    sp3 = EV.decode_plan(1, 1, [100], ("oracle", "lag:k=3"))
+    check("lag:k=3 gets three warm steps",
+          [t for t, r in enumerate(sp3) if r.probe] == [97, 98, 99, 100])
+    raised = False
+    try:
+        EV.decode_plan(1, 1, [0, 100], ("oracle", "accum"))
+    except ValueError:
+        raised = True
+    check("[R5] accum (unbounded history) is refused under a sparse schedule",
+          raised)
+
+
+def test_override_lists():
+    print("\n[R5][REGRESSION] list overrides are lists, not strings")
+    import tempfile, yaml
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root, "h0_measurement"))
+    from run_h0 import load_cfg
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        yaml.safe_dump({"defaults": {"families": ["niah", "qa", "cont"],
+                                     "budgets": [1, 2, 3, 4]},
+                        "models": [{"tag": "m", "id": "x"}]}, fh)
+    c = load_cfg(fh.name, "m", ["families=cont", "budgets=[2,3]",
+                                "measure_steps=0,1,64"])
+    os.unlink(fh.name)
+    check("[REGRESSION] families=cont is ['cont'], not 'c','o','n','t'",
+          c["families"] == ["cont"], f"({c['families']})")
+    check("budgets=[2,3] (JSON) -> [2, 3]", c["budgets"] == [2, 3])
+    check("measure_steps=0,1,64 (comma list) -> ints",
+          c["measure_steps"] == [0, 1, 64])
+
+
+def test_ban_eos():
+    print("\n[R5] decode_ban_eos removes EOS from greedy AND sampled decoding")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root, "h0_measurement"))
+    from run_h0 import next_token
+    lg = torch.full((1, 1, 10), -5.0); lg[0, 0, 7] = 9.0; lg[0, 0, 3] = 8.0
+    check("unbanned greedy picks the EOS (id 7)", int(next_token(lg)) == 7)
+    check("banned greedy picks the runner-up", int(next_token(lg, ban=[7])) == 3)
+    g = torch.Generator().manual_seed(0)
+    picks = {int(next_token(lg, 1.0, 0.95, g, [7])) for _ in range(200)}
+    check("banned sampling never emits the EOS", 7 not in picks, f"({picks})")
+    check("the caller's logits are not modified", float(lg[0, 0, 7]) == 9.0)
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
@@ -1205,7 +1323,8 @@ if __name__ == "__main__":
               test_probe_chunked_prefill,
               test_needle_span, test_validity_gate, test_ladder_identity,
               test_rope_window,
-              test_practical_interior):
+              test_practical_interior, test_rescore_is_idempotent,
+              test_decode_plan, test_override_lists, test_ban_eos):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

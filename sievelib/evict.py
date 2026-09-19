@@ -89,9 +89,17 @@ class Evictor:
 
     score() must precede observe() in a step -- that ordering is what makes the
     score lagged, and it is the only information a deployed evictor has.
+
+    score() may be called MORE THAN ONCE in a step (run_h0 asks for the ranked
+    tensor for the corner and the rank_bump=False tensor for the interior). Only
+    the first call aligns; later calls before observe() re-read the same state.
     """
     name = "base"
     n_bufs = 1
+    # Consecutive decode steps of history the score needs to be the evictor it
+    # claims to be. None = unbounded (a running sum over EVERY step), which a
+    # sparse measurement schedule cannot feed -- see decode_plan.
+    history_steps: int | None = 1
 
     def __init__(self, **kw):
         if kw:
@@ -106,6 +114,7 @@ class Evictor:
         self._fresh = torch.zeros(0, dtype=torch.bool)
         self._Lc = 0
         self._steps = 0
+        self._pending = False       # aligned for a step that is not yet observed
 
     def ready(self) -> bool:
         return self._steps >= 1
@@ -132,25 +141,53 @@ class Evictor:
         self._fresh = torch.ones(Lc, dtype=torch.bool)
         self._Lc = Lc
 
+    @staticmethod
+    def _grow(b: torch.Tensor) -> torch.Tensor:
+        """Cache grew by one: append a zero slot for the new position."""
+        return torch.cat([b, torch.zeros(1, dtype=b.dtype)])
+
+    @staticmethod
+    def _shift(b: torch.Tensor) -> None:
+        """Sliding window: oldest position drops, new zero slot at the end."""
+        b.copy_(torch.roll(b, -1))
+        b[-1] = 0.0
+
     def _align(self, fin: torch.Tensor) -> None:
         Lc = fin.numel()
+        # [REGRESSION] A second score() in the same step used to land in the
+        # "length unchanged" branch below and ROLL the state left by one -- the
+        # sliding-window rule applied to a cache that had not moved. run_h0 calls
+        # score() twice per step for every interior evictor (ranked for the
+        # corner, rank_bump=False for the allocator), so the default `accum` lost
+        # its oldest position (the sink) and shifted all history by one slot per
+        # step: after 4 steps a 2.8-mass sink read 0.7 and a heavy hitter was
+        # smeared over 4 positions. Same step, same length -> nothing to do.
+        if self._pending:
+            if Lc == self._Lc:
+                return
+            # length changed without an observe(): position identity is gone,
+            # so start over exactly as the "anything else" branch does
+            self.reset()
+            self._alloc(Lc)
+            self._pending = True
+            return
+        self._pending = True
         if self._Lc == 0:
             self._alloc(Lc)
             return
         if Lc == self._Lc + 1:
-            z = torch.zeros(1, dtype=torch.float32)
-            self._bufs = [torch.cat([b, z]) for b in self._bufs]
+            self._bufs = [self._grow(b) for b in self._bufs]
             self._fresh = torch.cat([self._fresh,
                                      torch.ones(1, dtype=torch.bool)])
         elif Lc == self._Lc:
             for b in self._bufs:
-                b.copy_(torch.roll(b, -1))
-                b[-1] = 0.0
+                self._shift(b)
             self._fresh = torch.roll(self._fresh, -1)
             self._fresh[-1] = True
         else:
             self.reset()
             self._alloc(Lc)
+            self._pending = True
             return
         self._Lc = Lc
 
@@ -210,6 +247,7 @@ class Evictor:
         self._accum(a.detach().to("cpu", torch.float32).reshape(-1), fin)
         self._fresh[fin] = False
         self._steps += 1
+        self._pending = False
 
 
 @register("last_step")
@@ -231,6 +269,7 @@ class Accum(Evictor):
     """Running sum of attention received (H2O heavy-hitters). See the module
     docstring on prefill: our accumulator starts at decode."""
     n_bufs = 1
+    history_steps = None            # every step since the prompt began
 
     def _accum(self, a, fin):
         self._bufs[0][fin] += a
@@ -259,6 +298,13 @@ class Lag(Evictor):
 
     Options:  k (steps of lag, default 1)
     Memory:   k position-space vectors per (layer, head), like `window`.
+
+    [REGRESSION] The ring used to be a private list of vectors that _align never
+    saw, so on a growing cache the k-steps-ago vector was SHORTER than the state
+    and copying it back raised a size mismatch at step k -- every lag >= 2
+    crashed on the first full-attention step that needed it (the unit test used
+    a fixed-length cache, which never grows). The ring now lives in `_bufs`, the
+    one place alignment reaches, and the host-RAM estimate finally counts it.
     """
     n_bufs = 1
 
@@ -267,26 +313,22 @@ class Lag(Evictor):
         if k < 1:
             raise ValueError(f"lag k must be >= 1, got {k}")
         self.k = k
+        self.n_bufs = k
+        self.history_steps = k
         super().__init__(**kw)
 
-    def reset(self):
-        super().reset()
-        self._ring: list = []
-
     def ready(self) -> bool:
-        return len(self._ring) >= self.k
+        return self._steps >= self.k
 
     def _accum(self, a, fin):
-        v = torch.zeros(self._Lc, dtype=torch.float32)
-        v[fin] = a
-        self._ring.append(v)
-        if len(self._ring) > self.k:
-            self._ring.pop(0)
-        # `_raw` reads buffer 0, so publish the k-steps-ago vector there.
-        self._bufs[0].copy_(self._ring[0])
+        b = self._bufs[self._steps % self.k]      # ring; _steps not yet bumped
+        b.zero_()
+        b[fin] = a
 
     def _raw(self):
-        return self._bufs[0]
+        # The next write goes to slot _steps % k, which holds the observation
+        # from exactly k steps before it.
+        return self._bufs[self._steps % self.k]
 
 
 @register("window")
@@ -311,6 +353,7 @@ class Window(Evictor):
             raise ValueError(f"pool must be odd and >= 1, got {pool}")
         self.window, self.pool = window, pool
         self.n_bufs = window
+        self.history_steps = window
         super().__init__()
 
     def _accum(self, a, fin):
@@ -338,6 +381,7 @@ class Recency(Evictor):
     Options:  sinks (leading positions always kept, default 4)
     """
     n_bufs = 0
+    history_steps = 0
 
     def __init__(self, sinks: int = 4):
         self.sinks = int(sinks)
@@ -461,6 +505,61 @@ def state_bytes_per_slot(corner: "CornerSpec") -> int:
         if ev is not None:
             total += 4 * ev.n_bufs + 1
     return total
+
+
+@dataclass(frozen=True)
+class StepRole:
+    """What one decode step does in run_h0's loop."""
+    probe: bool     # capture queries and drive the evictors (score + observe)
+    row: bool       # emit metrics rows
+    quant: bool     # run the bit sweep -- the expensive path
+    fresh: bool     # first step of a probed block: evictor history starts here
+
+
+def decode_plan(n_decode: int, quant_every: int = 1, measure_steps=None,
+                specs=()) -> list[StepRole]:
+    """Per-step roles for the decode loop.
+
+    DENSE (measure_steps empty): every step is probed and emits rows, and every
+    `quant_every`-th step is quantized -- exactly the pre-R5 behaviour.
+
+    SPARSE (R5): only the listed steps emit rows, and each is quantized. The
+    decode runs to max(measure_steps) with the probe OFF in between, which is
+    what makes a several-thousand-token generation affordable: a probed step
+    costs a per-head pass over all layers, an unprobed one is a plain forward.
+    Each measured step is preceded by just enough probed WARM steps for every
+    configured evictor to hold the history it claims (`history_steps`), and
+    history restarts at each block, so a lagged score is never computed across a
+    gap. An evictor with unbounded history (`accum`, a running sum over EVERY
+    step) cannot be honestly fed by a sparse schedule and is refused -- with a
+    gap it would silently become `last_step` under another name.
+    """
+    if not measure_steps:
+        qe = max(1, int(quant_every))
+        return [StepRole(True, True, t % qe == 0, t == 0)
+                for t in range(int(n_decode))]
+    ms = sorted({int(x) for x in measure_steps})
+    if ms[0] < 0:
+        raise ValueError(f"measure_steps must be >= 0, got {ms[0]}")
+    need = 0
+    for sp in parse_specs(specs):
+        label, ev = make(sp)
+        if ev is None:
+            continue
+        if ev.history_steps is None:
+            raise ValueError(
+                f"evictor {label!r} accumulates over EVERY decode step, so a "
+                f"sparse measure_steps schedule cannot feed it. Use last_step / "
+                f"lag:k=N / window for a sparse run, or drop measure_steps and "
+                f"decode densely.")
+        need = max(need, int(ev.history_steps))
+    want = set(ms)
+    probe = set()
+    for m in ms:
+        probe.update(range(max(0, m - need), m + 1))
+    return [StepRole(t in probe, t in want, t in want,
+                     t in probe and (t - 1) not in probe)
+            for t in range(ms[-1] + 1)]
 
 
 @dataclass(frozen=True)

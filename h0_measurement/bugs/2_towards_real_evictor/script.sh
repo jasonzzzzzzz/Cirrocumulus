@@ -206,16 +206,21 @@ if [[ "$SECTION" != "--r3" ]]; then exit 0; fi
 # The first log line must echo them back: `ctx=8192 evictors=oracle,...`.
 # If it says `ctx=per-model`, cancel -- the job is not the experiment.
 #
-# WHY job92* MUST BE RE-RUN, not reanalysed. score()'s "never evict a token at
-# birth" rule rewrites fresh positions to max+1. That is ORDINAL -- correct for a
-# corner, which consumes a ranking. The R3 interior consumes the same tensor as a
-# MAGNITUDE (it normalises it into a distribution to build w2p), so the bump
-# absorbed 20-33% of the total mass, and MORE on concentrated heads (33% sharp vs
-# 20% diffuse). Concentrated heads are high-gain heads, so the artifact is
-# correlated with gain in exactly the direction of the headline R3-report.md
-# finding. Fixed by Evictor.score(rank_bump=False) + quant_metrics(interior_raw=);
-# pinned by test_practical_interior. EVERY w2p number in R3-report.md is
-# provisional until this re-runs.
+# WHY job214* MUST BE RE-RUN, not reanalysed (R3-report.md section 2). The
+# first re-run (job214003*, job214064*) used Evictor.score(rank_bump=False) for
+# the interior. That removed the ordinal "never evict at birth" bump -- and with
+# it the only protection the token appended THIS step had: scoring 0, it got
+# 0 bits, i.e. was EVICTED while the current query attends to it. Interior lag
+# cost read 5-13x instead of ~1.1-1.5x; every gain_pp*/interior_lag_cost*
+# column is invalid. The lag:k corner had the same defect for k >= 2 (the k-1
+# tokens newer than the snapshot scored 0). FIXED: Evictor.unseen() marks every
+# position a score knows nothing about; the corner bumps it, the interior holds
+# it at maxb and water-fills the rest (alloc.waterfill_floor, budget-matched).
+# Pinned by test_units.py::test_unseen_floor; validated on real attention by
+# R3-fresh-token-test.py (int_fixed == int_floor, cor_lag2_fixed == _prot).
+# Fixed runs carry "interior_unseen_policy": "floor_maxb" in their .json; runs
+# without it are NOT R3 results. The old bump was harmless (bump/floor = 1.00),
+# so job92* stays as a plausible, unconfirmed reference.
 
 cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant}"
 
@@ -266,7 +271,8 @@ cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-
 PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
 [[ -x "$PY" ]] || { echo "no venv python at $PY (set SIEVE_VENV)"; exit 1; }
 "$PY" -c "import sys;sys.path.insert(0,'tests');import test_units as T;\
-T.test_practical_interior();T.test_corner_provenance();\
+T.test_practical_interior();T.test_corner_provenance();T.test_unseen_floor();\
+T.test_rescore_is_idempotent();\
 print('fails',T.fails);sys.exit(1 if T.fails else 0)" \
   || { echo "unit tests failed -- not submitting"; exit 1; }
 
@@ -376,7 +382,22 @@ cat <<'CHECK'
 
   Expected for A/B: gain_pp3_accum present, rows at 0..7, quantized [0, 4].
   Expected for C:   four lag columns, rows at 0..15, quantized [0, 2, ..., 14].
+
+  3. THE FIX IS IN (job214* lacked it -- R3-report.md section 2):
+       grep -L '"interior_unseen_policy": "floor_maxb"' \
+            h0_measurement/results/job<NEW>*/*.json      # must print NOTHING
+     and the parquets carry unseen_frac_pp3_<score> (~1/L for accum, ~k/L for
+     lag:k). Median interior_lag_cost3_accum should be ~1.1-1.6x, not 5-13x.
   (A dense run emits a row at EVERY step; only the quantized ones carry the
   gain/lag columns.)
 
 CHECK
+
+# --- E. read it, AFTER every job above has finished -----------------------------
+# Not sbatch: CPU only, on the login node. R3-figure.py reads the fixed runs by
+# the job ids you pass; replace the default glob (it points at job214*, which is
+# invalid for every interior column) with the new ones:
+#   .venv/bin/python h0_measurement/bugs/2_towards_real_evictor/R3-figure.py \
+#       --results "h0_measurement/results/job<NEW_A_B_C>*/*.parquet"
+# and re-validate the fix on real attention (CPU, ~1 min):
+#   .venv/bin/python h0_measurement/bugs/2_towards_real_evictor/R3-fresh-token-test.py

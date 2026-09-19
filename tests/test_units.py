@@ -1235,9 +1235,9 @@ def test_rescore_is_idempotent():
         ev.observe(a, fin)
     check("[REGRESSION] lag:k=3 on a GROWING cache scores from 3 steps ago",
           seen == [None, None, None, 1.0, 2.0, 3.0], f"({seen})")
-    check("lag:k=3 host state is counted (3 buffers, not 1)",
+    check("lag:k=3 host state is counted (3 snapshots + 3 coverage masks)",
           EV.state_bytes_per_slot(EV.CornerSpec(evictors=("oracle", "lag:k=3")))
-          == 4 * 3 + 1)
+          == 4 * 3 + 3 + 1)
     # The sliding-window roll must still happen on a REAL new step.
     ev = EV.make("last_step")[1]
     fin = torch.ones(6, dtype=torch.bool)
@@ -1312,6 +1312,78 @@ def test_ban_eos():
     check("the caller's logits are not modified", float(lg[0, 0, 7]) == 9.0)
 
 
+def test_unseen_floor():
+    print("\n[R3][REGRESSION] positions a lagged score never saw are floored, not evicted")
+    from sievelib import evict as EV
+    from sievelib.alloc import waterfill_floor
+    # --- which positions are unseen ------------------------------------------
+    # accum observes every step: only the token appended THIS step is unseen.
+    ev = EV.make("accum")[1]
+    for t in range(4):
+        fin = torch.ones(10 + t, dtype=torch.bool)
+        ev.score(fin); ev.observe(torch.full((10 + t,), 1.0 / (10 + t)), fin)
+    fin = torch.ones(14, dtype=torch.bool); ev.score(fin, rank_bump=False)
+    check("accum: exactly the newest position is unseen",
+          ev.unseen(fin).tolist() == [False] * 13 + [True])
+    # [REGRESSION] lag:k=3 reads the snapshot from 3 steps ago, which never
+    # covered the 3 newest positions. They used to be bumped only if NEVER
+    # observed -- so 2 of the 3 scored 0 and the corner evicted them.
+    ev = EV.make("lag:k=3")[1]
+    for t in range(5):
+        fin = torch.ones(8 + t, dtype=torch.bool)
+        ev.score(fin); ev.observe(torch.full((8 + t,), 1.0 / (8 + t)), fin)
+    fin = torch.ones(13, dtype=torch.bool)
+    ranked = ev.score(fin)                      # snapshot covered 10 positions
+    un = ev.unseen(fin)
+    check("[REGRESSION] lag:k=3: every position newer than the snapshot is unseen",
+          un.tolist() == [False] * 10 + [True] * 3, f"({un.int().tolist()})")
+    check("[REGRESSION] lag:k=3 corner ranks all three above every seen position",
+          bool((ranked[10:] > ranked[:10].max()).all()))
+
+    # --- the interior floors them, budget-matched -----------------------------
+    torch.manual_seed(1)
+    L, d = 2048, 32
+    K = torch.randn(L, d, dtype=torch.float64)
+    q = torch.randn(d, dtype=torch.float64)
+    V = torch.randn(L, d, dtype=torch.float64)
+    R = quant.random_rotation(d, "cpu", seed=0).double()
+    sc = 2.2 / (K @ q / math.sqrt(d)).std()
+    s = (K @ q / math.sqrt(d)) * sc
+    s[-1] = s.max() + 3.0                     # the query attends to its own token
+    shat = {b: (quant.quantize_keys(K.float(), b, R.float()).double() @ q
+                / math.sqrt(d)) * sc for b in (1, 2, 3, 4, 8)}
+    for b in shat:
+        shat[b][-1] = s[-1] + (shat[b][-1] - (K[-1] @ q / math.sqrt(d)) * sc)
+    pa = torch.softmax(s + 0.6 * torch.randn(L, dtype=torch.float64), -1)
+    pa[-1] = 0.0                              # never observed: no evidence
+    spec = EV.CornerSpec(evictors=("oracle", "accum"), policies=("frac",),
+                         kstar=False, interior_scores=("accum",))
+    run = lambda **kw: quant_metrics(s, shat, V, budgets=(3,), maxb=8,
+                                     practical_scores={"accum": pa}, corner=spec,
+                                     interior_raw={"accum": pa}, **kw)
+    none = torch.zeros(L, dtype=torch.bool)
+    m_old = run(interior_unseen={"accum": none})            # the job214* behaviour
+    m_new = run()                                           # mask derived: raw <= 0
+    m_exp = run(interior_unseen={"accum": pa <= 0})         # explicit, as run_h0 does
+    lo, ln = m_old["interior_lag_cost3_accum"], m_new["interior_lag_cost3_accum"]
+    check("[REGRESSION] flooring the fresh token removes the eviction penalty",
+          ln < lo / 3, f"(evicted {lo:.2f}x -> floored {ln:.2f}x)")
+    check("derived and explicit unseen masks agree",
+          abs(ln - m_exp["interior_lag_cost3_accum"]) < 1e-12)
+    check("unseen share is reported", abs(m_new["unseen_frac_pp3_accum"] - 1 / L) < 1e-12)
+    w = torch.rand(L, dtype=torch.float64)
+    sig2 = {0: 1.0, 1: .36, 2: .12, 3: .03, 4: .009, 8: 3.5e-5}
+    fl = torch.zeros(L, dtype=torch.bool); fl[-5:] = True
+    bw = waterfill_floor(w, sig2, 3.0, 8, fl)
+    check("floored positions sit at the top tier", bool((bw[fl] == 8).all()))
+    # waterfill's bisection returns the last midpoint's allocation, which can
+    # land ONE tier-step (<= maxb bits in total) over B*L -- plain waterfill
+    # does it too (3.00049 b/token at L=2048 on some seeds). Same tolerance here.
+    check("the floor is budget-matched (to waterfill's own one-step tolerance)",
+          float(bw.double().sum()) <= 3.0 * L + 8 + 1e-9,
+          f"({float(bw.double().mean()):.4f} b/token)")
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
@@ -1324,7 +1396,8 @@ if __name__ == "__main__":
               test_needle_span, test_validity_gate, test_ladder_identity,
               test_rope_window,
               test_practical_interior, test_rescore_is_idempotent,
-              test_decode_plan, test_override_lists, test_ban_eos):
+              test_decode_plan, test_override_lists, test_ban_eos,
+              test_unseen_floor):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

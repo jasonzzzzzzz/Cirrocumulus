@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # =============================================================================
-# R3 RE-RUN SHEET (2026-09-19). Copy of script.sh that submits ONLY the R3
-# commands with no usable output after job214003* / job214064*:
+# R3 RE-RUN SHEET (2026-09-19, after the fresh-token fix). Generated from
+# script.sh; submits ONLY what still lacks a FIXED result:
 #
 #     bash h0_measurement/bugs/2_towards_real_evictor/script_temp.sh
 #
-# Status as checked (every parquet opened; rows == .json; all prompts, families,
-# steps and heads present):
-#   DONE  A main  8k      job21400319  4/4      A large  8k  job21406448  2/2
-#   DONE  A main 32k      job21400321  4/4      B main  reg  job21400323  4/4
-#   DONE  C llama31 32k   job21400326  1/1
-#   RE-RUN  A large 32k   llama33-70b missing; qwen3-30b parquet truncated here
-#   RE-RUN  B large reg   0/2 (job21400324 RUN_INFO only, job21406450 empty)
-#   RE-RUN  C llama31 8k  0/1 (job21400325 empty)
-#   RE-RUN  C qwen3-30b 8k 0/1 (job21400327, job21406451 RUN_INFO only)
-# Completed commands and the pilots are COMMENTED OUT below, each marked DONE
-# with the job that satisfied it. The two large arrays are split per model so a
-# finished model is not paid for twice.
+# WHY EVERYTHING IN R3 RE-RUNS. job214003* / job214064* EVICTED the token each
+# lagged score had never seen (R3-report.md section 2): every interior column
+# (gain_pp*, interior_lag_cost*) is invalid, and so is the lag:k corner for
+# k >= 2. Their oracle / E2-cell columns are valid, but those come back for free
+# in the re-run, so no R3 command counts as done.
 #
-# BEFORE SUBMITTING, on the machine that ran them, see why they failed -- a
-# TIMEOUT means the same --time will fail again:
-#   sacct -j 21400322,21400324,21400325,21400327,21406449,21406450,21406451 \
-#         -o JobID%18,State,Elapsed,Timelimit,ExitCode
-# Submit from trig-login01 with the FIXED submit_h0_large_models.slurm (the
-# preflight interior_scores fix), or the qwen3-30b lag sweep dies as before.
+# GUARDED. Each line submits only the models with no COMPLETE, FIXED result
+# under h0_measurement/results/job*/: PAR1 footer, a .json beside it, the
+# corner tag, and "interior_unseen_policy": "floor_maxb" -- which job214* does
+# not have, so it can never satisfy the guard. Re-running this sheet after a
+# partial failure submits only what is still missing.
 #
-# ---- original script.sh header follows ----
-# bug 2 -- submission sheet.
+# SAVING vs script.sh: section B main drops mistral-7b and qwen15-moe, whose
+# registry ctx (32768) is the SAME cell as section A's 32k line.
+#
+# Submit from trig-login01 with the fixed sievelib/{evict,alloc}.py and
+# h0_measurement/run_h0.py on that machine -- the unit-test gate below runs
+# test_unseen_floor and refuses to submit without the fix.
+#
+# ---- script.sh header follows ----
+# bug 2 -- submission sheet.  NOTHING RUNS WITHOUT A SECTION FLAG.
 #
 #     bash script.sh --r3 --pilot   ONE cheap job that sizes section C. Do first.
 #     bash script.sh --r3           re-run R3 (the current experiment)
@@ -233,16 +232,21 @@ if [[ "$SECTION" != "--r3" ]]; then exit 0; fi
 # The first log line must echo them back: `ctx=8192 evictors=oracle,...`.
 # If it says `ctx=per-model`, cancel -- the job is not the experiment.
 #
-# WHY job92* MUST BE RE-RUN, not reanalysed. score()'s "never evict a token at
-# birth" rule rewrites fresh positions to max+1. That is ORDINAL -- correct for a
-# corner, which consumes a ranking. The R3 interior consumes the same tensor as a
-# MAGNITUDE (it normalises it into a distribution to build w2p), so the bump
-# absorbed 20-33% of the total mass, and MORE on concentrated heads (33% sharp vs
-# 20% diffuse). Concentrated heads are high-gain heads, so the artifact is
-# correlated with gain in exactly the direction of the headline R3-report.md
-# finding. Fixed by Evictor.score(rank_bump=False) + quant_metrics(interior_raw=);
-# pinned by test_practical_interior. EVERY w2p number in R3-report.md is
-# provisional until this re-runs.
+# WHY job214* MUST BE RE-RUN, not reanalysed (R3-report.md section 2). The
+# first re-run (job214003*, job214064*) used Evictor.score(rank_bump=False) for
+# the interior. That removed the ordinal "never evict at birth" bump -- and with
+# it the only protection the token appended THIS step had: scoring 0, it got
+# 0 bits, i.e. was EVICTED while the current query attends to it. Interior lag
+# cost read 5-13x instead of ~1.1-1.5x; every gain_pp*/interior_lag_cost*
+# column is invalid. The lag:k corner had the same defect for k >= 2 (the k-1
+# tokens newer than the snapshot scored 0). FIXED: Evictor.unseen() marks every
+# position a score knows nothing about; the corner bumps it, the interior holds
+# it at maxb and water-fills the rest (alloc.waterfill_floor, budget-matched).
+# Pinned by test_units.py::test_unseen_floor; validated on real attention by
+# R3-fresh-token-test.py (int_fixed == int_floor, cor_lag2_fixed == _prot).
+# Fixed runs carry "interior_unseen_policy": "floor_maxb" in their .json; runs
+# without it are NOT R3 results. The old bump was harmless (bump/floor = 1.00),
+# so job92* stays as a plausible, unconfirmed reference.
 
 cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant}"
 
@@ -293,7 +297,8 @@ cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-
 PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
 [[ -x "$PY" ]] || { echo "no venv python at $PY (set SIEVE_VENV)"; exit 1; }
 "$PY" -c "import sys;sys.path.insert(0,'tests');import test_units as T;\
-T.test_practical_interior();T.test_corner_provenance();\
+T.test_practical_interior();T.test_corner_provenance();T.test_unseen_floor();\
+T.test_rescore_is_idempotent();\
 print('fails',T.fails);sys.exit(1 if T.fails else 0)" \
   || { echo "unit tests failed -- not submitting"; exit 1; }
 
@@ -308,6 +313,35 @@ LAGS=(SIEVE_N_DECODE=16 SIEVE_QUANT_EVERY=2 SIEVE_CORNER_POLICIES=frac
       'SIEVE_INTERIOR_SCORES=lag1,lag2,lag4,lag8')
 R3=(SIEVE_EVICTORS=oracle,accum SIEVE_CORNER_POLICIES=frac SIEVE_INTERIOR_SCORES=accum)
 
+# ---- re-run guard --------------------------------------------------------------
+# fixed MODEL CTX CORNER_TAG -- a COMPLETE result WITH the fresh-token fix exists.
+# The corner tag matters: the qwen3-30b 8k R3 run (or-ac_f) and its lag sweep
+# (or-la-la-la-la_f) write the SAME filename.
+fixed() {
+  local p
+  for p in h0_measurement/results/job*/h0_"$1"_"$2".parquet; do
+    [[ -f "$p" && -f "${p%.parquet}.json" ]] || continue
+    [[ "$(tail -c4 "$p" | od -An -c | tr -d ' \n')" == "PAR1" ]] || continue
+    grep -q "\"tag\": \"$3\"" "${p%.parquet}.json" || continue
+    grep -q '"interior_unseen_policy": "floor_maxb"' "${p%.parquet}.json" || continue
+    return 0
+  done
+  return 1
+}
+# run_missing TAG "model:ctx ..." <sbatch options> <slurm script> <script args>
+# Submits ONE array over the models still missing (appended as positional args,
+# which is how submit_h0*.slurm take their model list), or says it skipped.
+run_missing() {
+  local tag=$1 cells=$2 mc m=(); shift 2
+  for mc in $cells; do
+    if fixed "${mc%%:*}" "${mc##*:}" "$tag"; then echo "done   ${mc} [$tag]"
+    else m+=("${mc%%:*}"); fi
+  done
+  (( ${#m[@]} )) || return 0
+  echo "submit ${m[*]} [$tag]"
+  sbatch --array=0-$(( ${#m[@]} - 1 )) "$@" "${m[@]}"
+}
+
 # --- C0. THE PILOT.  Submit this ALONE and wait for it. -----------------------
 # Section C changes the decode shape and no run has ever used it, so C's headers
 # are an upper-bound model, not a measurement. One prompt (3 units) per C model
@@ -317,7 +351,7 @@ R3=(SIEVE_EVICTORS=oracle,accum SIEVE_CORNER_POLICIES=frac SIEVE_INTERIOR_SCORES
 # The qwen3-30b pilot is the important one: its C estimate spans 3h-6.5h
 # depending on how its g2-g0 splits between corners and interior, which no
 # existing run separates.
-# DONE -- pilots already ran; C is sized. Not re-submitted.
+# DONE -- pilots ran; section C is sized. Not re-submitted.
 # if [[ "${2:-}" == "--pilot" ]]; then
 #   sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=1 llama31-8b
 #   sbatch --array=0-0 --gpus-per-node=4 --time=01:30:00 h0_measurement/submit_h0_large_models.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=1 qwen3-30b-a3b-2507
@@ -334,28 +368,15 @@ R3=(SIEVE_EVICTORS=oracle,accum SIEVE_CORNER_POLICIES=frac SIEVE_INTERIOR_SCORES
 #    8k large  llama33-70b 1014 x0.44 = 441 s/u x12 = 88m -> 125m -> 02:15:00
 #   32k large  llama33-70b 1014 x0.66 = 669 s/u x12 =134m -> 182m -> 03:15:00
 # (qwen3-30b in the same large arrays needs 39m and 59m.)
-# DONE -- job21400319, 4/4
-# sbatch --array=0-3 --time=01:15:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=8192
-# DONE -- job21406448, 2/2 (the resubmit; job21400320 had qwen3-30b only)
-# sbatch --array=0-1 --time=02:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=8192
-# DONE -- job21400321, 4/4
-# sbatch --array=0-3 --time=01:30:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=32768
-# RE-RUN, split per model (was: --array=0-1 --time=03:15:00, both models).
-# sbatch --array=0-1 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=32768
-#   llama33-70b @32k: never produced a parquet (job21400322 empty, job21406449
-#   no llama file). 1014 x0.66 = 669 s/u x12 = 134m -> 182m -> 03:15:00.
-sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=32768 llama33-70b
-#   qwen3-30b @32k: job21406449 wrote it, but the copy checked on the analysis
-#   machine is truncated (25,860,000 bytes, no PAR1 footer, no .json) -- most
-#   likely a cut transfer. Re-run ONLY if the file on THIS (submitting) machine is
-#   also broken: a valid parquet ends in PAR1 and has its .json beside it.
-#   292 s/u x12 = 58m -> 88m -> 01:30:00.
-Q32=h0_measurement/results/job21406449/h0_qwen3-30b-a3b-2507_32768
-if [[ -f "$Q32.json" && "$(tail -c4 "$Q32.parquet" 2>/dev/null)" == "PAR1" ]]; then
-  echo "skip qwen3-30b @32k: $Q32.parquet is intact here -- re-copy it instead"
-else
-  sbatch --array=0-0 --gpus-per-node=4 --time=01:30:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=32768 qwen3-30b-a3b-2507
-fi
+# RE-RUN -- job21400319 / 21406448 / 21400321 / 21400322: interior invalid.
+run_missing or-ac_f "qwen3-8b:8192 llama31-8b:8192 mistral-7b:8192 qwen15-moe-a2.7b:8192" \
+  --time=01:15:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=8192
+run_missing or-ac_f "qwen3-30b-a3b-2507:8192 llama33-70b:8192" \
+  --gpus-per-node=4 --time=02:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=8192
+run_missing or-ac_f "qwen3-8b:32768 llama31-8b:32768 mistral-7b:32768 qwen15-moe-a2.7b:32768" \
+  --time=01:30:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=32768
+run_missing or-ac_f "qwen3-30b-a3b-2507:32768 llama33-70b:32768" \
+  --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=32768
 
 # --- B. registry-ctx cells, to replace the contaminated job92* numbers --------
 # Same cells job92* produced, so the re-run is directly comparable, plus the two
@@ -366,17 +387,13 @@ fi
 #          raised to 05:00:00: the lean rate is predicted, not measured, on
 #          the 70B, and a cancellation there throws away 4 GPUs x 4.5h. 05:00
 #          still sits under the five-corner g2 rate (298m), so it is not padding.
-# DONE -- job21400323, 4/4
-# sbatch --array=0-3 --time=01:45:00 h0_measurement/submit_h0.slurm "${R3[@]}"
-# RE-RUN, split per model (was: --array=0-1 --time=05:00:00, both models).
-# sbatch --array=0-1 --time=05:00:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}"
-#   Neither model wrote a parquet in job21400324 or job21406450. qwen3-30b needs
-#   only ~2h at 128k, so a 05:00 timeout cannot explain ITS loss -- read sacct
-#   (header) first. If llama33-70b shows TIMEOUT at 05:00, raise its --time.
-#   qwen3-30b: 443 s/u x12 = 89m -> 126m -> 02:15:00
-#   llama33-70b: 1014 s/u x12 = 203m -> 269m -> 05:00:00 (kept from script.sh)
-sbatch --array=0-0 --gpus-per-node=4 --time=02:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" qwen3-30b-a3b-2507
-sbatch --array=0-0 --gpus-per-node=4 --time=05:00:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" llama33-70b
+# RE-RUN -- job21400323 / 21406450: interior invalid. mistral-7b and
+# qwen15-moe are dropped here: their registry ctx is 32768, the same cell the
+# 32k line above runs. Only the models whose registry ctx differs remain.
+run_missing or-ac_f "qwen3-8b:40960 llama31-8b:131072" \
+  --time=01:45:00 h0_measurement/submit_h0.slurm "${R3[@]}"
+run_missing or-ac_f "qwen3-30b-a3b-2507:131072 llama33-70b:131072" \
+  --gpus-per-node=4 --time=05:00:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}"
 
 # --- C. THE STALENESS SWEEP (never ran; the design-deciding experiment) -------
 # `lag:k=N` scores from the attention EXACTLY N steps ago, so cost(k) prices the
@@ -401,14 +418,14 @@ sbatch --array=0-0 --gpus-per-node=4 --time=05:00:00 h0_measurement/submit_h0_la
 #   qwen3-30b   8k   (g0+4i) at 8k = 502 x4 = 2008 s/u x9 = 301m -> 06:30:00
 # qwen3-30b is expensive only because its interior share is unknown and taken as
 # 100%; if C0 shows ~800 s/u, its header drops to about 03:00:00.
-# RE-RUN -- job21400325 left an empty folder (died before RUN_INFO.txt).
-sbatch --array=0-0 --time=03:00:00 h0_measurement/submit_h0.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=3 llama31-8b
-# DONE -- job21400326, 1/1 (lag1..lag8 columns present)
-# sbatch --array=0-0 --time=04:30:00 h0_measurement/submit_h0.slurm "${LAGS[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=3 llama31-8b
-# RE-RUN -- job21400327 and job21406451 wrote RUN_INFO.txt and nothing else: the
-# failure point of the preflight interior_scores crash, which the large-model
-# script runs AFTER RUN_INFO. Needs the fixed submit_h0_large_models.slurm.
-#sbatch --array=0-0 --gpus-per-node=4 --time=06:30:00 h0_measurement/submit_h0_large_models.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
+# RE-RUN -- job21400325 / 21400326: lag:k>=2 evicted the k-1 newest tokens
+# (corner and interior). qwen3-30b never produced a result (21400327, 21406451).
+run_missing or-la-la-la-la_f "llama31-8b:8192" \
+  --time=03:00:00 h0_measurement/submit_h0.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=3
+run_missing or-la-la-la-la_f "llama31-8b:32768" \
+  --time=04:30:00 h0_measurement/submit_h0.slurm "${LAGS[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=3
+run_missing or-la-la-la-la_f "qwen3-30b-a3b-2507:8192" \
+  --gpus-per-node=4 --time=06:30:00 h0_measurement/submit_h0_large_models.slurm "${LAGS[@]}" SIEVE_CTX=8192 SIEVE_N_PROMPTS=3
 
 # --- D. verify the overrides ACTUALLY applied, before trusting anything -------
 cat <<'CHECK'
@@ -436,7 +453,22 @@ cat <<'CHECK'
 
   Expected for A/B: gain_pp3_accum present, rows at 0..7, quantized [0, 4].
   Expected for C:   four lag columns, rows at 0..15, quantized [0, 2, ..., 14].
+
+  3. THE FIX IS IN (job214* lacked it -- R3-report.md section 2):
+       grep -L '"interior_unseen_policy": "floor_maxb"' \
+            h0_measurement/results/job<NEW>*/*.json      # must print NOTHING
+     and the parquets carry unseen_frac_pp3_<score> (~1/L for accum, ~k/L for
+     lag:k). Median interior_lag_cost3_accum should be ~1.1-1.6x, not 5-13x.
   (A dense run emits a row at EVERY step; only the quantized ones carry the
   gain/lag columns.)
 
 CHECK
+
+# --- E. read it, AFTER every job above has finished -----------------------------
+# Not sbatch: CPU only, on the login node. R3-figure.py reads the fixed runs by
+# the job ids you pass; replace the default glob (it points at job214*, which is
+# invalid for every interior column) with the new ones:
+#   .venv/bin/python h0_measurement/bugs/2_towards_real_evictor/R3-figure.py \
+#       --results "h0_measurement/results/job<NEW_A_B_C>*/*.parquet"
+# and re-validate the fix on real attention (CPU, ~1 min):
+#   .venv/bin/python h0_measurement/bugs/2_towards_real_evictor/R3-fresh-token-test.py

@@ -102,6 +102,28 @@ def waterfill(w2: torch.Tensor, sig2: dict[int, float], budget_bits: float,
     return bt[idx].long()
 
 
+def waterfill_floor(w2: torch.Tensor, sig2: dict[int, float], budget_bits: float,
+                    maxb: int, floor: torch.Tensor | None) -> torch.Tensor:
+    """waterfill with the `floor` positions held at `maxb`, BUDGET-MATCHED: the
+    rest are water-filled on what those positions leave, so the head still
+    spends exactly budget_bits * L.
+
+    For a LAGGED allocator, `floor` is the set its score knows nothing about
+    (Evictor.unseen): at minimum the token appended this step. Water-filling
+    them on their score of 0 evicts them, and the current query attends to its
+    own token -- the job214* R3 defect: lag cost 6.4-7.0x on real attention
+    with them zeroed vs 1.13-1.46x floored (R3-fresh-token-test.py).
+    """
+    if floor is None or not bool(floor.any()):
+        return waterfill(w2, sig2, budget_bits, maxb)
+    L, n_f = w2.numel(), int(floor.sum().item())
+    out = torch.full((L,), int(maxb), dtype=torch.long, device=w2.device)
+    if n_f < L:
+        rest = max(0.0, (budget_bits * L - maxb * n_f) / (L - n_f))
+        out[~floor] = waterfill(w2[~floor], sig2, rest, maxb)
+    return out
+
+
 def exact_error(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tensor,
                 b: torch.Tensor, o: torch.Tensor | None = None) -> float:
     """Relative output error under a per-token allocation, computed exactly.
@@ -238,7 +260,8 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
                   practical_scores: dict[str, torch.Tensor] | None = None,
                   n95: float | None = None, corner=None,
                   practical_score: torch.Tensor | None = None,
-                  interior_raw: dict[str, torch.Tensor] | None = None) -> dict:
+                  interior_raw: dict[str, torch.Tensor] | None = None,
+                  interior_unseen: dict[str, torch.Tensor] | None = None) -> dict:
     """EXPENSIVE: needs quantized logits at every bit-width in `shat`.
 
     The eviction corner is built on TWO axes (see sievelib/evict.py):
@@ -322,6 +345,12 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     # concentrated heads the interior cares about. Fall back to the ranked score
     # only for old callers, and say so, because the fallback is biased.
     raw = dict(interior_raw or {})
+    # Positions each lagged score knows NOTHING about (Evictor.unseen): held
+    # at the top tier below, never water-filled on their score of 0. Callers
+    # that pass no mask get `raw <= 0`, which is exactly those positions for an
+    # attention history (a softmax is never exactly 0 where it was observed).
+    unseen_in = dict(interior_unseen or {})
+    unseen: dict[str, torch.Tensor] = {}
     w2p: dict[str, torch.Tensor] = {}
     for nm in corner.interior_scores:
         ps = raw.get(nm)
@@ -343,6 +372,13 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         ap = ap / tot
         op = ap @ Vd
         w2p[nm] = (ap * (Vd - op).norm(dim=-1)) ** 2
+        u = unseen_in.get(nm)
+        if u is None:
+            u = ps.double() <= 0
+        if u.numel() != L:
+            raise ValueError(f"interior_unseen[{nm!r}] has {u.numel()} entries, "
+                             f"the head has {L} live positions")
+        unseen[nm] = u.to(w2.device, torch.bool)
 
     # Corner rankings. The oracle is a CONFIGURED corner like any other (listed
     # by default); it is the only one that sees the current step.
@@ -356,7 +392,11 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
     # apples-to-apples with the w2p interior (see CornerSpec.interior_rank_corner).
     if corner.interior_rank_corner:
         for nm, wp in w2p.items():
-            rank[f"{nm}_w2p"] = torch.argsort(wp, descending=True)
+            # unseen positions first, as the raw-score corner's bump does
+            wr = wp.clone()
+            if bool(unseen[nm].any()):
+                wr[unseen[nm]] = float(wp.max().item()) + 1.0
+            rank[f"{nm}_w2p"] = torch.argsort(wr, descending=True)
     have_maxb = int(maxb) in shat
     out["n_practical"] = len(scores)
 
@@ -381,11 +421,12 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
         # the lagged allocator is choosing from strictly less information -- so
         # the gap between them prices what the interior pays for being honest.
         for nm, wp in w2p.items():
-            bwp = waterfill(wp, sig2, float(B), maxb)
+            bwp = waterfill_floor(wp, sig2, float(B), maxb, unseen[nm])
             e_wf_pp = exact_error(s, shat, V, bwp, o)
             out[f"err_wf_pp{B}_{nm}"] = e_wf_pp
             out[f"interior_lag_cost{B}_{nm}"] = e_wf_pp / max(e_wf, 1e-12)
             out[f"evict_frac_pp{B}_{nm}"] = float((bwp == 0).double().mean().item())
+            out[f"unseen_frac_pp{B}_{nm}"] = float(unseen[nm].double().mean().item())
             out[f"gain_u_pp{B}_{nm}"] = e_un / max(e_wf_pp, 1e-12)
 
         if not have_maxb or not rank:
@@ -497,12 +538,13 @@ def quant_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
 
 def head_metrics(s, shat, V, budgets=(1, 2, 3, 4), maxb=8, n_sink=4,
                  practical_scores=None, corner=None, practical_score=None,
-                 interior_raw=None) -> dict:
+                 interior_raw=None, interior_unseen=None) -> dict:
     m = sensitivity_metrics(s, V, n_sink)
     if m and shat:
         m.update(quant_metrics(s, shat, V, budgets, maxb,
                                practical_scores=practical_scores,
                                interior_raw=interior_raw,
+                               interior_unseen=interior_unseen,
                                n95=m.get("n95"), corner=corner,
                                practical_score=practical_score))
     return m

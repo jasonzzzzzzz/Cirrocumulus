@@ -119,6 +119,28 @@ class Evictor:
     def ready(self) -> bool:
         return self._steps >= 1
 
+    def bytes_per_slot(self) -> int:
+        """Host RAM per cache position: float32 buffers + the fresh mask."""
+        return 4 * self.n_bufs + 1
+
+    def _unseen_pos(self) -> torch.Tensor:
+        """Position space: True where the score carries NO information -- the
+        history never observed the position. Subclasses whose score is a
+        snapshot (Lag) widen this to every position the snapshot missed."""
+        return self._fresh
+
+    def unseen(self, fin: torch.Tensor) -> torch.Tensor:
+        """Positions (ordered like logits[fin]) the current score knows nothing
+        about. Call AFTER score() in the same step, so the state is aligned.
+
+        A score of 0 there is ABSENCE of evidence, not evidence of zero
+        attention. Treated as a magnitude it gets 0 bits from the allocator --
+        it EVICTS the token appended this very step, which the current query
+        attends to: the job214* R3 defect (R3-report.md section 2). The corner
+        bumps these positions (score) and the interior floors them at the top
+        tier (alloc.quant_metrics, interior_unseen)."""
+        return self._unseen_pos()[self._prep(fin)].clone()
+
     # -------------------------------------------------------- subclass hooks
     def _accum(self, a: torch.Tensor, fin: torch.Tensor) -> None:
         """Fold this step's attention into the buffers. Position space."""
@@ -223,7 +245,7 @@ class Evictor:
         s = self._raw()[fin].double().clone()
         if not rank_bump:
             return s
-        fr = self._fresh[fin]
+        fr = self._unseen_pos()[fin]
         if bool(fr.any()):
             seen = s[~fr]
             mx = float(seen.max().item()) if seen.numel() else 0.0
@@ -297,7 +319,14 @@ class Lag(Evictor):
     completeness guard in alloc.py withholds the row, by design.
 
     Options:  k (steps of lag, default 1)
-    Memory:   k position-space vectors per (layer, head), like `window`.
+    Memory:   k float32 vectors + k bool COVERAGE vectors per (layer, head).
+
+    [DEFECT, job214*] The k-1 tokens generated after the snapshot HAVE been
+    observed since (so `_fresh` is False for them) but are ABSENT from the
+    snapshot, so they scored 0: the corner evicted the newest tokens and the
+    interior gave them 0 bits. Measured on Llama-3.2-1B: lag-2 corner 2.05-3.65x
+    the oracle as implemented vs 1.37-1.42x with them protected. Each snapshot
+    now carries its coverage; positions it did not cover are `unseen`.
 
     [REGRESSION] The ring used to be a private list of vectors that _align never
     saw, so on a growing cache the k-steps-ago vector was SHORTER than the state
@@ -313,22 +342,37 @@ class Lag(Evictor):
         if k < 1:
             raise ValueError(f"lag k must be >= 1, got {k}")
         self.k = k
-        self.n_bufs = k
+        self.n_bufs = 2 * k            # k attention snapshots + k coverage masks
         self.history_steps = k
         super().__init__(**kw)
 
     def ready(self) -> bool:
         return self._steps >= self.k
 
+    def bytes_per_slot(self) -> int:
+        return 4 * self.k + self.k + 1    # float32 snapshots, bool coverage, fresh
+
+    def _alloc(self, Lc: int) -> None:
+        super()._alloc(Lc)
+        # coverage lives in _bufs so _grow/_shift keep it position-aligned
+        self._bufs[self.k:] = [torch.zeros(Lc, dtype=torch.bool)
+                               for _ in range(self.k)]
+
     def _accum(self, a, fin):
-        b = self._bufs[self._steps % self.k]      # ring; _steps not yet bumped
+        slot = self._steps % self.k               # ring; _steps not yet bumped
+        b, cov = self._bufs[slot], self._bufs[self.k + slot]
         b.zero_()
         b[fin] = a
+        cov.zero_()
+        cov[fin] = True
 
     def _raw(self):
         # The next write goes to slot _steps % k, which holds the observation
         # from exactly k steps before it.
         return self._bufs[self._steps % self.k]
+
+    def _unseen_pos(self):
+        return ~self._bufs[self.k + self._steps % self.k]
 
 
 @register("window")
@@ -503,7 +547,7 @@ def state_bytes_per_slot(corner: "CornerSpec") -> int:
     for spec in corner.evictors:
         _, ev = make(spec)
         if ev is not None:
-            total += 4 * ev.n_bufs + 1
+            total += ev.bytes_per_slot()
     return total
 
 

@@ -603,7 +603,7 @@ def main():
                             if pack is None:
                                 pack = evs[(li, h)] = evict.make_many(
                                     corner.evictors)
-                            scores, raw_scores = {}, {}
+                            scores, raw_scores, unseen = {}, {}, {}
                             for lab, ev in pack.items():
                                 v_ = ev.score(finc)
                                 if v_ is not None:
@@ -619,11 +619,15 @@ def main():
                                     r_ = ev.score(finc, rank_bump=False)
                                     if r_ is not None:
                                         raw_scores[lab] = r_.to(sh.device)
+                                        # what the score knows NOTHING about;
+                                        # floored at the top tier, not evicted
+                                        unseen[lab] = ev.unseen(finc).to(sh.device)
                             rec = head_metrics(
                                 sh, {b: v[h][fin] for b, v in shat_all.items()},
                                 Vh, budgets=budgets, maxb=maxb,
                                 practical_scores=scores, corner=corner,
-                                interior_raw=raw_scores)
+                                interior_raw=raw_scores,
+                                interior_unseen=unseen)
                             a_cpu = a_h.float().cpu()
                             for ev in pack.values():
                                 ev.observe(a_cpu, finc)
@@ -731,6 +735,11 @@ def main():
                    "measure_steps": [t for t, r in enumerate(plan) if r.row],
                    "decode_temperature": temp, "decode_top_p": top_p,
                    "decode_ban_eos": ban_eos,
+                   # R3: how the lagged interior treats positions its score has
+                   # never seen. job214* ran without this key and EVICTED them
+                   # (R3-report.md section 2); "floor_maxb" = held at the top
+                   # tier, budget-matched. Re-run sheets key on it.
+                   "interior_unseen_policy": "floor_maxb",
                    "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),

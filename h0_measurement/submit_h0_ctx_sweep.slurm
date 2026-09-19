@@ -238,6 +238,10 @@ if os.environ.get("SIEVE_EVICTORS"):
     ov["evictors"] = os.environ["SIEVE_EVICTORS"]
 if os.environ.get("SIEVE_CORNER_POLICIES"):
     ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
+if os.environ.get("SIEVE_INTERIOR_SCORES"):
+    # same mapping the OVERRIDES block applies for run_h0: `none` -> []
+    _i = os.environ["SIEVE_INTERIOR_SCORES"]
+    ov["interior_scores"] = [] if _i == "none" else _i
 m = next((x for x in cfg["models"] if x["tag"] == sys.argv[1]), None) or {}
 cs = evict.CornerSpec.from_cfg({**cfg["defaults"], **m, **ov})
 print("effective corner (authoritative copy: the .json beside each parquet)")
@@ -256,9 +260,8 @@ PY
     --output="${LOG_DIR}/h0ctx_report_%j.out" \
     --error="${LOG_DIR}/h0ctx_report_%j.err" \
     --array=0-0 \
-    --gpus-per-node=0 \
-    --cpus-per-task=4 \
-    --mem=32G \
+    --gpus-per-node=1 \
+    --cpus-per-task=16 \
     --time=00:30:00 \
     --export="ALL,SIEVE_ROLE=report,SIEVE_RUN_ID=${RUN_ID},SIEVE_MODEL=${MODEL},SIEVE_CTXS=${CTXS_COLON}" \
     "$SELF") \
@@ -302,7 +305,13 @@ cs = evict.CornerSpec.from_cfg({**d, **m,
      **({"evictors": os.environ["SIEVE_EVICTORS"]}
         if os.environ.get("SIEVE_EVICTORS") else {}),
      **({"corner_policies": os.environ["SIEVE_CORNER_POLICIES"]}
-        if os.environ.get("SIEVE_CORNER_POLICIES") else {})})
+        if os.environ.get("SIEVE_CORNER_POLICIES") else {}),
+     # The interior knob too, or a run whose evictors lack `accum` (lag sweep,
+     # R5's last_step) fails HERE on the accum interior default, before run_h0
+     # is even reached. `none` -> [] exactly as the OVERRIDES block maps it.
+     **({"interior_scores": ([] if os.environ["SIEVE_INTERIOR_SCORES"] == "none"
+                             else os.environ["SIEVE_INTERIOR_SCORES"])}
+        if os.environ.get("SIEVE_INTERIOR_SCORES") else {})})
 slot = evict.state_bytes_per_slot(cs)
 ev_gb = c.num_hidden_layers * c.num_attention_heads * ctx * slot / 1e9
 mem_mb = int(os.environ.get("SLURM_MEM_PER_NODE") or 0)

@@ -349,7 +349,10 @@ fi
 # header above -- and here they MUST, because that header now asks for 4 H100s.
 # The report is pure CPU (pandas + matplotlib); inheriting --gpus-per-node=4
 # would park four idle H100s for 30 minutes and put the report behind the whole
-# 4-GPU queue. --gpus-per-node=0 and the small cpu/mem values undo the header.
+# 4-GPU queue. --gpus-per-node=1 --cpus-per-task=16 undo the header -- the
+# smallest request Trillium's GPU side accepts (the same shape submit_h0.slurm's
+# report inherits). NOT --gpus-per-node=0: sbatch rejects it ("count > 0"). NOT
+# --mem: Trillium refuses the flag outright; every job gets its node's memory.
 if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
   { date; echo "models: ${MODELS[*]}"; echo "array job: ${SLURM_ARRAY_JOB_ID}";
     echo "ctx override: ${SIEVE_CTX:-none (per-model registry ctx)}";
@@ -373,7 +376,9 @@ if os.environ.get("SIEVE_EVICTORS"):
 if os.environ.get("SIEVE_CORNER_POLICIES"):
     ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
 if os.environ.get("SIEVE_INTERIOR_SCORES"):
-    ov["interior_scores"] = os.environ["SIEVE_INTERIOR_SCORES"]
+    # same mapping the OVERRIDES block applies for run_h0: `none` -> []
+    _i = os.environ["SIEVE_INTERIOR_SCORES"]
+    ov["interior_scores"] = [] if _i == "none" else _i
 print("effective corner per model (authoritative copy: the .json beside each parquet)")
 for tag in sys.argv[1:]:
     m = next((x for x in cfg["models"] if x["tag"] == tag), None)
@@ -404,9 +409,8 @@ PY
     --output="${LOG_DIR}/h0_report_%j.out" \
     --error="${LOG_DIR}/h0_report_%j.err" \
     --array=0-0 \
-    --gpus-per-node=0 \
-    --cpus-per-task=4 \
-    --mem=32G \
+    --gpus-per-node=1 \
+    --cpus-per-task=16 \
     --time=00:30:00 \
     --export="ALL,SIEVE_ROLE=report,SIEVE_RUN_ID=${RUN_ID},SIEVE_MODELS=${MODELS_COLON},SIEVE_CTX=${SIEVE_CTX}" \
     "$SELF") \
@@ -452,7 +456,13 @@ cs = evict.CornerSpec.from_cfg({**d, **m,
      **({"evictors": os.environ["SIEVE_EVICTORS"]}
         if os.environ.get("SIEVE_EVICTORS") else {}),
      **({"corner_policies": os.environ["SIEVE_CORNER_POLICIES"]}
-        if os.environ.get("SIEVE_CORNER_POLICIES") else {})})
+        if os.environ.get("SIEVE_CORNER_POLICIES") else {}),
+     # The interior knob too, or a run whose evictors lack `accum` (lag sweep,
+     # R5's last_step) fails HERE on the accum interior default, before run_h0
+     # is even reached. `none` -> [] exactly as the OVERRIDES block maps it.
+     **({"interior_scores": ([] if os.environ["SIEVE_INTERIOR_SCORES"] == "none"
+                             else os.environ["SIEVE_INTERIOR_SCORES"])}
+        if os.environ.get("SIEVE_INTERIOR_SCORES") else {})})
 slot = evict.state_bytes_per_slot(cs)
 ev_gb = c.num_hidden_layers * c.num_attention_heads * ctx * slot / 1e9
 mem_mb = int(os.environ.get("SLURM_MEM_PER_NODE") or 0)

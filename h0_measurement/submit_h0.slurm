@@ -346,7 +346,9 @@ if os.environ.get("SIEVE_EVICTORS"):
 if os.environ.get("SIEVE_CORNER_POLICIES"):
     ov["corner_policies"] = os.environ["SIEVE_CORNER_POLICIES"]
 if os.environ.get("SIEVE_INTERIOR_SCORES"):
-    ov["interior_scores"] = os.environ["SIEVE_INTERIOR_SCORES"]
+    # same mapping the OVERRIDES block applies for run_h0: `none` -> []
+    _i = os.environ["SIEVE_INTERIOR_SCORES"]
+    ov["interior_scores"] = [] if _i == "none" else _i
 print("effective corner per model (authoritative copy: the .json beside each parquet)")
 for tag in sys.argv[1:]:
     m = next((x for x in cfg["models"] if x["tag"] == tag), None)

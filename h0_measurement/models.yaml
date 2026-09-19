@@ -95,8 +95,17 @@ defaults:
   # the corner decide from the same information. `accum` (H2O) wins 74-93% of
   # corners, so it is the score a deployable system would carry. Each entry
   # costs one waterfill + one exact_error per (head, budget); [] disables.
-  interior_scores:
-  - accum
+  #
+  # DELIBERATELY NOT SET HERE -- the default is CornerSpec.interior_scores
+  # (= [accum], the same value). A key in this file is indistinguishable from an
+  # explicit request once merged, so spelling it out made _parse_interior treat
+  # the default as EXPLICIT: any run that changed the evictors without also
+  # setting SIEVE_INTERIOR_SCORES (the lag sweep, SIEVE_EVICTORS=oracle) died with
+  # "interior_scores ['accum'] are not practical evictors in this run". Left
+  # unset, a default naming an absent evictor is dropped, as evict.py intends.
+  # Set it per model or with SIEVE_INTERIOR_SCORES to request a score explicitly.
+  # interior_scores:
+  # - accum
   interior_rank_corner: true
   corner_in_filename: false
 models:

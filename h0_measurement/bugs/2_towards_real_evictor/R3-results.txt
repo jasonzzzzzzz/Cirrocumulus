@@ -1,0 +1,94 @@
+=== R3, the FIXED campaign: one row per (model, ctx) ===
+             model    ctx   heads  band_or  band_pr  band_pp  band_sym   v_or   v_pr   v_pp  dead2  tau  price  lag_med  lag_inband  lag_outband  rho_lag_gain  router_over
+        mistral-7b   8192 1024.00    53.71    76.66    66.21     64.65     GO     GO     GO  10.40 2.00   1.47     1.27        1.37         1.03          0.81        10.45
+       llama33-70b   8192 5120.00    83.59    92.81    87.38     86.72     GO     GO     GO   5.55 1.52   1.31     1.28        1.29         1.04          0.50         5.43
+  qwen15-moe-a2.7b   8192  384.00    30.99    55.47    41.41     39.06 NARROW     GO     GO  25.78 2.42   1.39     1.17        1.45         1.01          0.90        14.06
+        llama31-8b   8192 1024.00    43.36    67.48    54.49     52.34     GO     GO     GO  18.85 2.08   1.47     1.26        1.40         1.03          0.88        12.99
+          qwen3-8b   8192 1152.00    11.72    40.45    16.49     14.50   STOP     GO NARROW  50.48 2.60   1.40     1.12        1.53         1.02          0.96        23.96
+qwen3-30b-a3b-2507   8192 1536.00    10.35    34.83    14.13     12.96   STOP NARROW   STOP  62.04 2.17   1.29     1.11        1.48         1.04          0.92        20.70
+        mistral-7b  32768 1024.00    45.90    66.02    55.47     53.91     GO     GO     GO  20.26 2.21   1.41     1.21        1.37         1.02          0.86        10.55
+       llama33-70b  32768 5120.00    60.90    75.41    70.00     69.41     GO     GO     GO   9.63 1.94   1.25     1.11        1.17         1.02          0.69         5.41
+  qwen15-moe-a2.7b  32768  384.00    22.40    36.98    30.21     29.17 NARROW     GO NARROW  36.85 3.10   1.18     1.04        1.46         1.00          0.90         7.03
+        llama31-8b  32768 1024.00    25.49    45.12    33.98     32.23 NARROW     GO NARROW  27.00 2.41   1.31     1.06        1.30         1.01          0.90        11.23
+          qwen3-8b  32768 1152.00     6.51    26.74    11.46      9.64   STOP NARROW   STOP  59.81 3.08   1.12     1.02        1.64         1.00          0.97        15.28
+qwen3-30b-a3b-2507  32768 1536.00     6.90    25.26     8.07      7.49   STOP NARROW   STOP  67.74 2.39   1.18     1.06        1.53         1.03          0.94        17.19
+          qwen3-8b  40960 1152.00     5.90    26.56    12.24     10.07   STOP NARROW   STOP  62.41 3.35   1.12     1.02        1.60         1.00          0.95        14.32
+       llama33-70b 131072 5120.00    18.77    25.20    21.33     21.07 NARROW NARROW NARROW  41.39 3.32   1.03     1.00        1.13         1.00          0.88         3.89
+        llama31-8b 131072 1024.00    13.48    29.20    20.21     19.34   STOP NARROW NARROW  53.66 2.95   1.14     1.02        1.30         1.00          0.93         8.98
+qwen3-30b-a3b-2507 131072 1536.00     4.69    19.34     7.49      6.71   STOP NARROW   STOP  73.47 2.83   1.06     1.01        1.48         1.00          0.95        11.85
+
+corner demotion (E2) adds 6.4-28.7 band points; demoting the interior takes back 3.9-24.0, i.e. 58% of it (median cell).
+symmetric cell vs oracle cell: +1.2 to +12.5 points
+
+phase axis over 16 cells: Spearman(dead2, symmetric band) = -0.985   (E2 cell -0.921, oracle cell -0.979)
+   at ctx   8192: -1.00 over 6 models
+   at ctx  32768: -1.00 over 6 models
+   at ctx 131072: -1.00 over 3 models
+
+=== interior lag cost by treatment, shared cells (floor = fixed, bump = job92*, zero = job2140*/21406*) ===
+                          floor  bump  zero  floor_inband bump_inband
+cell                                                                 
+llama31-8b @128k           1.02  None 12.85          1.30        None
+llama31-8b @32k            1.06  None 11.30          1.30        None
+llama31-8b @8k             1.26  None 10.97          1.40        None
+llama33-70b @128k          1.00  None  4.88          1.13        None
+llama33-70b @32k           1.11  None 11.82          1.17        None
+llama33-70b @8k            1.28  None  7.87          1.29        None
+mistral-7b @32k            1.21  None  6.18          1.37        None
+mistral-7b @8k             1.27  None  5.97          1.37        None
+qwen15-moe-a2.7b @32k      1.04  None  5.67          1.46        None
+qwen15-moe-a2.7b @8k       1.17  None  5.63          1.45        None
+qwen3-30b-a3b-2507 @128k   1.01  None  5.72          1.48        None
+qwen3-30b-a3b-2507 @32k    1.06  None  6.83          1.53        None
+qwen3-30b-a3b-2507 @8k     1.11  None  6.26          1.48        None
+qwen3-8b @32k              1.02  None  6.16          1.64        None
+qwen3-8b @40k              1.02  None  6.19          1.60        None
+qwen3-8b @8k               1.12  None  5.54          1.53        None
+oracle-cell band reproduces across campaigns to 1.4 points (max over 16 shared cells)
+
+=== staleness sweep (steps 8-14, every lag ready) ===
+             model   ctx  k treatment  heads  corner_over_oracle  lag_med  lag_inband  band_pp
+        llama31-8b  8192  1     floor   1024                1.33     1.20        1.41    45.51
+        llama31-8b  8192  2     floor   1024                1.54     1.43        1.68    29.49
+        llama31-8b  8192  4     floor   1024                1.82     1.66        1.96    20.61
+        llama31-8b  8192  8     floor   1024                2.29     2.24        2.62    10.35
+        llama31-8b 32768  1     floor   1024                1.25     1.06        1.37    27.54
+        llama31-8b 32768  2     floor   1024                1.42     1.16        1.63    16.11
+        llama31-8b 32768  4     floor   1024                1.56     1.23        1.80    13.96
+        llama31-8b 32768  8     floor   1024                1.86     1.40        2.18     8.98
+qwen3-30b-a3b-2507  8192  1     floor   1536                1.17     1.05        1.56     5.60
+qwen3-30b-a3b-2507  8192  2     floor   1536                1.33     1.13        1.99     1.63
+qwen3-30b-a3b-2507  8192  4     floor   1536                1.52     1.24        2.36     0.98
+qwen3-30b-a3b-2507  8192  8     floor   1536                1.56     1.26        2.39     1.11
+
+wrote /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/2_towards_real_evictor/R3-fig.png
+wrote /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/2_towards_real_evictor/R3-per-run.csv
+wrote /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/2_towards_real_evictor/R3-cells.csv
+wrote /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/2_towards_real_evictor/R3-sweep.csv
+
+
+
+===================
+
+             model    ctx  band_or  band_pr  band_pp  viol  ev_or  ev_pp  unseen  med_gain_pp  med_gain_pr  kept
+        llama31-8b   8192    43.36    67.48    54.49 13.19  46.55  45.28    0.01         2.09         3.01 46.15
+        mistral-7b   8192    53.71    76.66    66.21 12.78  45.06  43.62    0.01         2.38         3.61 54.47
+  qwen15-moe-a2.7b   8192    30.99    55.47    41.41 17.62  48.85  47.52    0.01         1.76         2.32 42.55
+          qwen3-8b   8192    11.72    40.45    16.49 19.97  50.84  49.43    0.01         1.34         1.60 16.62
+       llama33-70b   8192    83.59    92.81    87.38  9.08  39.74  38.78    0.01         3.21         4.77 41.10
+qwen3-30b-a3b-2507   8192    10.35    34.83    14.13 19.47  50.86  49.94    0.01         1.27         1.51 15.43
+        llama31-8b  32768    25.49    45.12    33.98 21.00  49.19  48.25    0.00         1.56         1.77 43.28
+        mistral-7b  32768    45.90    66.02    55.47 14.45  47.65  46.58    0.00         2.16         3.07 47.57
+  qwen15-moe-a2.7b  32768    22.40    36.98    30.21 27.36  52.46  51.26    0.00         1.26         1.34 53.57
+          qwen3-8b  32768     6.51    26.74    11.46 27.88  52.99  51.81    0.00         1.11         1.14 24.46
+       llama33-70b  32768    60.90    75.41    70.00 14.00  45.12  44.18    0.00         2.64         3.35 62.72
+qwen3-30b-a3b-2507  32768     6.90    25.26     8.07 23.96  52.22  51.39    0.00         1.16         1.27  6.38
+        llama31-8b 131072    13.48    29.20    20.21 27.01  52.51  51.73    0.00         1.18         1.21 42.86
+          qwen3-8b  40960     5.90    26.56    12.24 29.31  53.81  52.52    0.00         1.11         1.13 30.67
+       llama33-70b 131072    18.77    25.20    21.33 32.08  54.40  54.21    0.00         1.09         1.10 39.82
+qwen3-30b-a3b-2507 131072     4.69    19.34     7.49 31.85  53.79  53.13    0.00         1.05         1.08 19.11
+
+symmetric keeps 6-63% of the corner-demotion gain (median 42%)
+per-head violations gain_pp > gain_best_practical: 9.1-32.1%
+interior evicts (oracle) 40-54% of tokens; lagged interior 39-54%
+median routed gain: E2 1.08-4.77, symmetric 1.05-3.21

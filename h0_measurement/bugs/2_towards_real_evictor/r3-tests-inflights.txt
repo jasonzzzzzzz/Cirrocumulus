@@ -1,0 +1,45 @@
+fails 0
+submit qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b [or-ac_f]
+Submitted batch job 21421769
+submit qwen3-30b-a3b-2507 llama33-70b [or-ac_f]
+Submitted batch job 21421770
+submit qwen3-8b llama31-8b mistral-7b qwen15-moe-a2.7b [or-ac_f]
+Submitted batch job 21421771
+submit qwen3-30b-a3b-2507 llama33-70b [or-ac_f]
+Submitted batch job 21421772
+submit qwen3-8b llama31-8b [or-ac_f]
+Submitted batch job 21421773
+submit qwen3-30b-a3b-2507 llama33-70b [or-ac_f]
+Submitted batch job 21421774
+submit llama31-8b [or-la-la-la-la_f]
+Submitted batch job 21421775
+submit llama31-8b [or-la-la-la-la_f]
+Submitted batch job 21421776
+submit qwen3-30b-a3b-2507 [or-la-la-la-la_f]
+Submitted batch job 21421777
+
+[jczhao20@rorqual3 ~]$ squeue -u jczhao20
+          JOBID     USER      ACCOUNT           NAME  ST  TIME_LEFT NODES CPUS TRES_PER_N MIN_MEM NODELIST (REASON) 
+     21421769_0 jczhao20 def-enright_       sieve-h0   R      52:43     1   16 gres/gpu:1     96G rg31501 (None) 
+     21421769_1 jczhao20 def-enright_       sieve-h0   R      52:43     1   16 gres/gpu:1     96G rg31604 (None) 
+     21421769_2 jczhao20 def-enright_       sieve-h0   R      52:43     1   16 gres/gpu:1     96G rg31607 (None) 
+     21421771_0 jczhao20 def-enright_       sieve-h0   R    1:10:57     1   16 gres/gpu:1     96G rg21704 (None) 
+     21421771_1 jczhao20 def-enright_       sieve-h0   R    1:10:57     1   16 gres/gpu:1     96G rg21801 (None) 
+     21421771_2 jczhao20 def-enright_       sieve-h0   R    1:10:57     1   16 gres/gpu:1     96G rg31503 (None) 
+     21421773_0 jczhao20 def-enright_       sieve-h0   R    1:25:57     1   16 gres/gpu:1     96G rg31606 (None) 
+     21421773_1 jczhao20 def-enright_       sieve-h0   R    1:32:25     1   16 gres/gpu:1     96G rg31608 (None) 
+     21421770_0 jczhao20 def-enright_ sieve-h0-large   R    2:12:33     1   32 gres/gpu:4    320G rg32403 (None) 
+     21421770_1 jczhao20 def-enright_ sieve-h0-large   R    2:12:33     1   32 gres/gpu:4    320G rg32503 (None) 
+     21421775_0 jczhao20 def-enright_       sieve-h0   R    2:50:39     1   16 gres/gpu:1     96G rg31703 (None) 
+     21421772_0 jczhao20 def-enright_ sieve-h0-large   R    3:12:36     1   32 gres/gpu:4    320G rg32203 (None) 
+     21421776_0 jczhao20 def-enright_       sieve-h0   R    4:20:39     1   16 gres/gpu:1     96G rg31902 (None) 
+   21421794_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1     96G  (Dependency) 
+   21423368_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1     96G  (Dependency) 
+   21423369_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1     96G  (Dependency) 
+   21423887_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1     96G  (Dependency) 
+   21423921_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1     96G  (Dependency) 
+   21421772_[1] jczhao20 def-enright_ sieve-h0-large  PD    3:15:00     1   32 gres/gpu:4    320G  (Priority) 
+   21424029_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1    320G  (Dependency) 
+   21424030_[0] jczhao20 def-enright_ sieve-h0-repor  PD      30:00     1   16 gres/gpu:1    320G  (Dependency) 
+ 21421774_[0-1] jczhao20 def-enright_ sieve-h0-large  PD    5:00:00     1   32 gres/gpu:4    320G  (Priority) 
+   21421777_[0] jczhao20 def-enright_ sieve-h0-large  PD    6:30:00     1   32 gres/gpu:4    320G  (Priority)

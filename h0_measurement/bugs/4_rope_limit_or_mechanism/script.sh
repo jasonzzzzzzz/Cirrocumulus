@@ -78,33 +78,36 @@
 # COST. KV cache scales linearly and attention work superlinearly: at 256k the
 # cache is ~26 GB (vs 13 at 128k) against 61 GB of weights, so 4 GPUs still hold
 # it, but prefill roughly doubles per octave and the per-head exact_error work
-# grows with L. n_prompts=3 and the minimal corner set pay for that. Walltime is
-# generous on purpose -- a requeue costs more than an idle hour.
-SIEVE_CTX=196608 SIEVE_N_PROMPTS=3 \
-  SIEVE_EVICTORS='oracle,accum' SIEVE_CORNER_POLICIES='frac' \
-  SIEVE_INTERIOR_SCORES='accum' \
-  sbatch --array=0-0 --gpus-per-node=4 --mem=496G --time=08:00:00 \
-  h0_measurement/submit_h0_large_models.slurm qwen3-30b-a3b-2507
+# grows with L. n_prompts=3 and the minimal corner set pay for that.
+#
+# WALLTIME. Rates from the table in bugs/2_towards_real_evictor/script.sh; the
+# lean oracle+accum config was MEASURED on llama31-8b at 128k (job934606: 224
+# s/unit). Rule: s/unit x units x 1.25 + 10m (main) / 15m (large), and an extra
+# x1.5 past 131k, where no run has ever been. Scaling UP uses L^0.6 (the larger
+# exponent measured), scaling DOWN L^0.3 -- the pessimistic one in each direction.
+#   qwen3-30b 196k  443 x1.27 = 563 s/u x9 = 84m  -> x1.875 +15 = 173m -> 03:00:00
+#   qwen3-30b 256k  443 x1.52 = 673 s/u x6 = 67m  -> x1.875 +15 = 141m -> 02:30:00
+#   llama31-8b 96k  224 x0.92 = 205 s/u x9 = 31m  -> x1.25  +10 =  49m -> 01:00:00
+#   llama33-70b 96k 1014 x0.92= 930 s/u x9 = 140m -> x1.25  +15 = 190m -> 03:15:00
+#   qwen3-1.7b <=41k  (28x16 heads, below qwen15-moe's 47 s/u at 32k) -> 01:00:00
+# (443 for qwen3-30b is its five-corner+interior rate: no lean-config or
+# corner-only run exists for it, so it takes no credit for dropping corners.)
+#
+# OVERRIDES ARE ARGUMENTS. This cluster's `sbatch` is a shell function that adds
+# --export=NONE, so an env prefix (`SIEVE_CTX=... sbatch`) never reaches the job;
+# submit_h0*.slurm export any SIEVE_NAME=value argument instead. Line 1 of each
+# log must read `ctx=<the value>` -- `ctx=per-model` means cancel.
+cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant}"
+R3=(SIEVE_EVICTORS=oracle,accum SIEVE_CORNER_POLICIES=frac SIEVE_INTERIOR_SCORES=accum)
 
-SIEVE_CTX=262144 SIEVE_N_PROMPTS=2 \
-  SIEVE_EVICTORS='oracle,accum' SIEVE_CORNER_POLICIES='frac' \
-  SIEVE_INTERIOR_SCORES='accum' \
-  sbatch --array=0-0 --gpus-per-node=4 --mem=496G --time=14:00:00 \
-  h0_measurement/submit_h0_large_models.slurm qwen3-30b-a3b-2507
+sbatch --array=0-0 --gpus-per-node=4 --time=03:00:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=196608 SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
+sbatch --array=0-0 --gpus-per-node=4 --time=02:30:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=262144 SIEVE_N_PROMPTS=2 qwen3-30b-a3b-2507
 
 # --- B. bracket the llama step from below ------------------------------------
 # 96k = 73% of a 131,072 window. Both llama models are AT their cap, so 96k is
 # the last point below it and the only way to give their 64k->128k step a shape.
-SIEVE_CTX=98304 SIEVE_N_PROMPTS=3 \
-  SIEVE_EVICTORS='oracle,accum' SIEVE_CORNER_POLICIES='frac' \
-  SIEVE_INTERIOR_SCORES='accum' \
-  sbatch --array=0-0 --time=02:00:00 h0_measurement/submit_h0.slurm llama31-8b
-
-SIEVE_CTX=98304 SIEVE_N_PROMPTS=3 \
-  SIEVE_EVICTORS='oracle,accum' SIEVE_CORNER_POLICIES='frac' \
-  SIEVE_INTERIOR_SCORES='accum' \
-  sbatch --array=0-0 --gpus-per-node=4 --mem=496G --time=05:00:00 \
-  h0_measurement/submit_h0_large_models.slurm llama33-70b
+sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=98304 SIEVE_N_PROMPTS=3 llama31-8b
+sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R3[@]}" SIEVE_CTX=98304 SIEVE_N_PROMPTS=3 llama33-70b
 
 # NOTE on the qwen3-1.7b control below: its tokenizer files were missing from
 # .hf_cache the last time this was checked, and run_h0 fails fast on that with a
@@ -118,10 +121,7 @@ SIEVE_CTX=98304 SIEVE_N_PROMPTS=3 \
 # to 32k (rope_frac 0.20 -> 0.80) and only fall approaching 40k. It is a tier
 # `debug` model, so treat it as a mechanism check, not as a headline point.
 for CX in 8192 16384 32768 40960; do
-  SIEVE_CTX=$CX SIEVE_N_PROMPTS=3 \
-    SIEVE_EVICTORS='oracle,accum' SIEVE_CORNER_POLICIES='frac' \
-    SIEVE_INTERIOR_SCORES='accum' \
-    sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm qwen3-1.7b
+  sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm "${R3[@]}" SIEVE_CTX=$CX SIEVE_N_PROMPTS=3 qwen3-1.7b
 done
 
 # --- D. read it --------------------------------------------------------------

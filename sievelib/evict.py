@@ -100,6 +100,11 @@ class Evictor:
     # claims to be. None = unbounded (a running sum over EVERY step), which a
     # sparse measurement schedule cannot feed -- see decode_plan.
     history_steps: int | None = 1
+    # Survives the block resets a sparse schedule does between measured steps.
+    # False for every evictor whose score is a window over RECENT steps: a
+    # window that spans a gap is not the evictor it claims to be. True only for
+    # `first`, whose score is one old snapshot by construction (R5).
+    persistent: bool = False
 
     def __init__(self, **kw):
         if kw:
@@ -164,9 +169,9 @@ class Evictor:
         self._Lc = Lc
 
     @staticmethod
-    def _grow(b: torch.Tensor) -> torch.Tensor:
-        """Cache grew by one: append a zero slot for the new position."""
-        return torch.cat([b, torch.zeros(1, dtype=b.dtype)])
+    def _grow(b: torch.Tensor, n: int = 1) -> torch.Tensor:
+        """Cache grew by n: append zero slots for the new positions."""
+        return torch.cat([b, torch.zeros(n, dtype=b.dtype)])
 
     @staticmethod
     def _shift(b: torch.Tensor) -> None:
@@ -197,10 +202,20 @@ class Evictor:
         if self._Lc == 0:
             self._alloc(Lc)
             return
-        if Lc == self._Lc + 1:
-            self._bufs = [self._grow(b) for b in self._bufs]
+        if Lc == self._Lc + 1 or (Lc > self._Lc and self.persistent):
+            # [REGRESSION] A sparse schedule leaves unprobed gaps, so the cache
+            # can grow by MORE than one between two score() calls. The generic
+            # branch below treats that as "position identity is gone" and
+            # resets -- which silently re-calibrated `first` at every block and
+            # made it identical to last_step (caught by the R5 smoke run: its
+            # unseen fraction read 1/L at step 4 instead of 4/L). Growth is the
+            # one shape where identity SURVIVES: the old positions are
+            # untouched and the new ones are simply unseen. Only a persistent
+            # evictor may cross a gap; a window over recent steps must not.
+            n = Lc - self._Lc
+            self._bufs = [self._grow(b, n) for b in self._bufs]
             self._fresh = torch.cat([self._fresh,
-                                     torch.ones(1, dtype=torch.bool)])
+                                     torch.ones(n, dtype=torch.bool)])
         elif Lc == self._Lc:
             for b in self._bufs:
                 self._shift(b)
@@ -373,6 +388,51 @@ class Lag(Evictor):
 
     def _unseen_pos(self):
         return ~self._bufs[self.k + self._steps % self.k]
+
+
+@register("first")
+class First(Evictor):
+    """The FIRST probed step's attention, frozen -- never updated again.
+
+    R5 / C4. The router is claimed to read a head's phase from ONE offline
+    calibration pass, and `lag:k` cannot price that claim: reaching k = 4096
+    would need 4096 buffers. `first` is the k -> infinity end of the same axis at
+    the cost of one buffer, so `interior_lag_cost<B>_first` at step t IS the
+    price of keeping the prefill-time allocation t steps later, and the gap to
+    `last_step` (k = 1) is what re-budgeting every step buys.
+
+    Positions appended after the snapshot are `unseen`: the snapshot says
+    nothing about them (it is not evidence of zero attention), so the corner
+    bumps them and the interior floors them at the top tier, exactly as for
+    `lag:k` -- see Evictor.unseen and alloc.waterfill_floor.
+
+    Options:  none
+    Memory:   one float32 snapshot + one bool coverage mask per (layer, head).
+    """
+    n_bufs = 2                     # [0] the snapshot, [1] its coverage
+    history_steps = 1              # one probed step, at the very beginning
+    persistent = True              # a sparse schedule must NOT reset it
+
+    def bytes_per_slot(self) -> int:
+        return 4 + 1 + 1           # float32 snapshot, bool coverage, fresh mask
+
+    def _alloc(self, Lc: int) -> None:
+        super()._alloc(Lc)
+        self._bufs[1] = torch.zeros(Lc, dtype=torch.bool)
+
+    def _accum(self, a, fin):
+        if self._steps:            # already frozen; later steps change nothing
+            return
+        self._bufs[0].zero_()
+        self._bufs[0][fin] = a
+        self._bufs[1].zero_()
+        self._bufs[1][fin] = True
+
+    def _raw(self):
+        return self._bufs[0]
+
+    def _unseen_pos(self):
+        return ~self._bufs[1]
 
 
 @register("window")

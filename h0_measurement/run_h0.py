@@ -45,7 +45,20 @@ def load_cfg(path, name, overrides):
     return merged
 
 
-def next_token(logits, temperature=0.0, top_p=1.0, gen=None, ban=None):
+def _no_repeat_banned(gen_ids, n):
+    """Token ids that would complete a repeat of an n-gram already generated."""
+    if n <= 0 or len(gen_ids) < n:
+        return ()
+    prefix = tuple(gen_ids[-(n - 1):]) if n > 1 else ()
+    out = set()
+    for i in range(len(gen_ids) - n + 1):
+        if tuple(gen_ids[i:i + n - 1]) == prefix:
+            out.add(gen_ids[i + n - 1])
+    return tuple(out)
+
+
+def next_token(logits, temperature=0.0, top_p=1.0, gen=None, ban=None,
+               gen_ids=(), rep_penalty=1.0, no_repeat=0):
     """Greedy when temperature <= 0 (every campaign before R5). Otherwise seeded
     nucleus sampling on CPU, so a long generation is reproducible and does not
     collapse into the repetition loops greedy decoding falls into over thousands
@@ -56,11 +69,36 @@ def next_token(logits, temperature=0.0, top_p=1.0, gen=None, ban=None):
     the min_new_tokens mechanism. An instruct model continuing a book with no
     chat template ends it within a few hundred tokens, and every later row is a
     post-EOS continuation no deployment runs; past_eos only flags those rows, it
-    cannot give the measurement its steps back."""
+    cannot give the measurement its steps back.
+
+    `rep_penalty` / `no_repeat` (R5): the anti-loop pair. Banning EOS pushes a
+    model into repetition loops over thousands of tokens -- measured on the
+    first R5 campaign, where the distinct-4-gram fraction fell to 0.05-0.27 by
+    step 4096 on qwen3-30b and on one llama31-8b prompt. A loop is a real
+    attention regime but not the one a deployed sampler lives in, and it would
+    read as phase drift. `rep_penalty` > 1 divides the logits of
+    already-generated tokens (the CTRL rule, HF's repetition_penalty);
+    `no_repeat` > 0 blocks any token that would complete a repeated n-gram,
+    which is what actually bounds a loop."""
     last = logits[:, -1]
-    if ban:
+    if ban or rep_penalty != 1.0 or no_repeat:
         last = last.clone()
+    if ban:
         last[:, ban] = float("-inf")
+    if rep_penalty != 1.0 and len(gen_ids):
+        idx = torch.tensor(sorted(set(gen_ids)), device=last.device)
+        sc = last[:, idx]
+        last[:, idx] = torch.where(sc < 0, sc * rep_penalty, sc / rep_penalty)
+    if no_repeat:
+        bad = _no_repeat_banned(list(gen_ids), int(no_repeat))
+        if bad:
+            last[:, torch.tensor(bad, device=last.device)] = float("-inf")
+    if not bool(torch.isfinite(last).any()):
+        # Every candidate was banned (EOS plus an n-gram block can in principle
+        # close off the whole vocabulary). Sampling would draw from NaNs and
+        # greedy would pick an arbitrary -inf, so fall back to the unbanned
+        # distribution for this step rather than dead-ending the generation.
+        last = logits[:, -1]
     if temperature <= 0:
         return last.argmax(-1, keepdim=True)
     p = torch.softmax(last.float().cpu() / temperature, -1)
@@ -326,11 +364,15 @@ def main():
     temp = float(c.get("decode_temperature", 0.0) or 0.0)
     top_p = float(c.get("decode_top_p", 1.0))
     ban_eos = bool(c.get("decode_ban_eos", False))
+    rep_pen = float(c.get("decode_rep_penalty", 1.0) or 1.0)
+    no_rep = int(c.get("decode_no_repeat_ngram", 0) or 0)
     print(f"decode schedule: {sched}, {len(plan)} steps, "
           f"{sum(r.probe for r in plan)} probed, {sum(r.row for r in plan)} "
           f"measured, {sum(r.quant for r in plan)} quantized"
           + (f"   sampling T={temp:g} top_p={top_p:g}" if temp > 0 else
-             "   greedy") + ("   EOS banned" if ban_eos else ""), flush=True)
+             "   greedy") + ("   EOS banned" if ban_eos else "")
+          + (f"   rep_penalty={rep_pen:g}" if rep_pen != 1.0 else "")
+          + (f"   no_repeat_ngram={no_rep}" if no_rep else ""), flush=True)
     if sched == "sparse" and any(kv.startswith("n_decode=") for kv in args.override):
         print(f"     note: n_decode is ignored under measure_steps; the decode "
               f"runs to step {len(plan) - 1}", flush=True)
@@ -502,7 +544,8 @@ def main():
                     out = model(cur, past_key_values=past, use_cache=True)
                 P.STATE.enabled = False
                 past = out.past_key_values
-                cur = next_token(out.logits, temp, top_p, gen, ban_ids)
+                cur = next_token(out.logits, temp, top_p, gen, ban_ids,
+                                 gen_ids, rep_pen, no_rep)
                 # The query this step measured is gen_ids[step-1]; the row is
                 # post-EOS if any token fed so far (not the one just produced)
                 # was an EOS.
@@ -514,7 +557,15 @@ def main():
                 if not role.probe:
                     continue            # sparse schedule: plain decode, no rows
                 if role.fresh:
-                    evs.clear()         # a history never spans an unprobed gap
+                    # A window over RECENT steps must never span an unprobed
+                    # gap, so it restarts here. `first` (R5) is persistent by
+                    # construction -- its score IS one old snapshot -- and
+                    # resetting it would re-calibrate at every block, which is
+                    # the opposite of the claim it measures.
+                    for _pack in evs.values():
+                        for _ev in _pack.values():
+                            if not getattr(_ev, "persistent", False):
+                                _ev.reset()
 
                 if not l2_done:
                     l2_done = True
@@ -648,6 +699,8 @@ def main():
                                        past_eos=past_eos, gen_distinct4=gd4,
                                        schedule=sched, decode_temp=temp,
                                        decode_ban_eos=ban_eos,
+                                       decode_rep_penalty=rep_pen,
+                                       decode_no_repeat_ngram=no_rep,
                                        norm_correct=norm_correct,
                                        native_ctx=native_ctx,
                                        rope_frac=rope_frac,
@@ -680,7 +733,8 @@ def main():
                     with torch.no_grad():
                         out = model(cur, past_key_values=past, use_cache=True)
                     past = out.past_key_values
-                    cur = next_token(out.logits, temp, top_p, gen, ban_ids)
+                    cur = next_token(out.logits, temp, top_p, gen, ban_ids,
+                                     gen_ids, rep_pen, no_rep)
                     gen_ids.append(int(cur.reshape(-1)[0].item()))
                     del out
             del past; gc.collect(); torch.cuda.empty_cache()
@@ -735,6 +789,8 @@ def main():
                    "measure_steps": [t for t, r in enumerate(plan) if r.row],
                    "decode_temperature": temp, "decode_top_p": top_p,
                    "decode_ban_eos": ban_eos,
+                   "decode_rep_penalty": rep_pen,
+                   "decode_no_repeat_ngram": no_rep,
                    # R3: how the lagged interior treats positions its score has
                    # never seen. job214* ran without this key and EVICTED them
                    # (R3-report.md section 2); "floor_maxb" = held at the top

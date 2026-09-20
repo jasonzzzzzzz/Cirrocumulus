@@ -162,6 +162,8 @@ done
 #   SIEVE_DECODE_TEMPERATURE=0.7  SIEVE_DECODE_TOP_P=0.9   0 = greedy (default)
 #   SIEVE_DECODE_SEED=0                    seeds the sampler per (prompt, family)
 #   SIEVE_DECODE_BAN_EOS=1                 EOS may not be emitted (min_new_tokens)
+#   SIEVE_DECODE_REP_PENALTY=1.05          CTRL repetition penalty (1 = off)
+#   SIEVE_DECODE_NO_REPEAT=8               block repeats of an n-gram (0 = off)
 _chk() { [[ -z "${!1:-}" || "${!1}" =~ $2 ]] || { echo "ERROR: $1 malformed, got '${!1}'" >&2; exit 1; }; }
 _chk SIEVE_MEASURE_STEPS      '^[0-9]+(,[0-9]+)*$'
 _chk SIEVE_FAMILIES           '^[a-z]+(,[a-z]+)*$'
@@ -169,12 +171,16 @@ _chk SIEVE_DECODE_TEMPERATURE '^[0-9]*\.?[0-9]+$'
 _chk SIEVE_DECODE_TOP_P       '^[0-9]*\.?[0-9]+$'
 _chk SIEVE_DECODE_SEED        '^[0-9]+$'
 _chk SIEVE_DECODE_BAN_EOS     '^[01]$'
+_chk SIEVE_DECODE_REP_PENALTY '^[0-9]*\.?[0-9]+$'
+_chk SIEVE_DECODE_NO_REPEAT   '^[0-9]+$'
 [[ -n "${SIEVE_MEASURE_STEPS:-}" ]]      && OVERRIDES+=("measure_steps=$SIEVE_MEASURE_STEPS")
 [[ -n "${SIEVE_FAMILIES:-}" ]]           && OVERRIDES+=("families=$SIEVE_FAMILIES")
 [[ -n "${SIEVE_DECODE_TEMPERATURE:-}" ]] && OVERRIDES+=("decode_temperature=$SIEVE_DECODE_TEMPERATURE")
 [[ -n "${SIEVE_DECODE_TOP_P:-}" ]]       && OVERRIDES+=("decode_top_p=$SIEVE_DECODE_TOP_P")
 [[ -n "${SIEVE_DECODE_SEED:-}" ]]        && OVERRIDES+=("decode_seed=$SIEVE_DECODE_SEED")
 [[ -n "${SIEVE_DECODE_BAN_EOS:-}" ]]     && OVERRIDES+=("decode_ban_eos=$SIEVE_DECODE_BAN_EOS")
+[[ -n "${SIEVE_DECODE_REP_PENALTY:-}" ]] && OVERRIDES+=("decode_rep_penalty=$SIEVE_DECODE_REP_PENALTY")
+[[ -n "${SIEVE_DECODE_NO_REPEAT:-}" ]]   && OVERRIDES+=("decode_no_repeat_ngram=$SIEVE_DECODE_NO_REPEAT")
 
 if [[ -n "$SIEVE_INTERIOR_SCORES" ]]; then
   if [[ "$SIEVE_INTERIOR_SCORES" == "none" ]]; then
@@ -329,7 +335,7 @@ if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
     echo "evictors knob: ${SIEVE_EVICTORS:-unset}";
     echo "corner policies knob: ${SIEVE_CORNER_POLICIES:-unset}";
     echo "interior scores knob: ${SIEVE_INTERIOR_SCORES:-unset}";
-    echo "decode knobs: measure_steps=${SIEVE_MEASURE_STEPS:-dense} families=${SIEVE_FAMILIES:-default} T=${SIEVE_DECODE_TEMPERATURE:-0} top_p=${SIEVE_DECODE_TOP_P:-1} seed=${SIEVE_DECODE_SEED:-0} ban_eos=${SIEVE_DECODE_BAN_EOS:-0}";
+    echo "decode knobs: measure_steps=${SIEVE_MEASURE_STEPS:-dense} families=${SIEVE_FAMILIES:-default} T=${SIEVE_DECODE_TEMPERATURE:-0} top_p=${SIEVE_DECODE_TOP_P:-1} seed=${SIEVE_DECODE_SEED:-0} ban_eos=${SIEVE_DECODE_BAN_EOS:-0} rep_penalty=${SIEVE_DECODE_REP_PENALTY:-1} no_repeat=${SIEVE_DECODE_NO_REPEAT:-0}";
     echo;
     # The knobs above are what was ASKED for; unset does not say what the
     # defaults were, and models.yaml can change afterwards. Resolve and record

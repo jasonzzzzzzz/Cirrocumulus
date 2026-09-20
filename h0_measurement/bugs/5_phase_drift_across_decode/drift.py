@@ -30,7 +30,19 @@ out of the per-head median mid-table and reads as a phase change.
                 at t by the same 2x rule). Depends only on gain(t) and the two
                 routes: interior costs max(1, 1/g) against the better option,
                 baseline max(1, g); 1.0 wherever the route did not flip.
-  lag           median interior_lag_cost<B>_<score> on in-band heads (R3's toll).
+  lag1          median interior_lag_cost<B>_last_step on in-band heads: the cost
+                of re-budgeting from ONE step ago.
+  froz          the same for `first` -- the score frozen at the first probed
+                step. THE C4 NUMBER: what keeping the prefill-time allocation
+                costs t steps later. froz/lag1 is what re-budgeting buys.
+                BLANKED past its horizon: the frozen score has never seen the t
+                generated tokens, so the interior floors them at maxb, and that
+                floor costs maxb*t bits out of B*L. At 8k and t = 4096 it eats
+                89% of the budget and leaves 0.5 b/token for everything else --
+                `froz` would then be measuring the floor policy, not staleness.
+                Past --max-floor-share of the budget the column reads `-`;
+                the horizon is t <= B*share*L/maxb, i.e. ~300 steps at 8k,
+                ~1200 at 32k and ~4900 at 128k for B = 3.
                 Shown ONLY for runs with the fresh-token fix ("interior_unseen_
                 policy": "floor_maxb" in the .json). Earlier runs gave the
                 token appended each step 0 bits -- evicted it -- and read 3-10x
@@ -41,6 +53,14 @@ out of the per-head median mid-table and reads as a phase change.
                 corner always protected.
   eos%          rows past the first EOS (excluded unless --keep-post-eos)
   d4            median distinct-4-gram fraction of the text so far (loop check)
+
+LOOPS ARE EXCLUDED, NOT JUST FLAGGED. Banning EOS pushes a model into repetition
+over thousands of tokens: in the first R5 campaign qwen3-30b @32k fell to
+d4 = 0.05-0.27 by step 4096 on all three prompts, and one llama31-8b @8k prompt
+to 0.04. A loop is a real attention regime but not the one a deployed sampler
+lives in, and it reads as phase drift. Any (prompt, step) at or below
+--min-distinct4 is dropped, along with every LATER step of that prompt, since a
+loop does not recover. `n_loop` in the header says how many were dropped.
 
 The floor for flip_gen/flip_rtr is the SAME statistic between the calibration
 step and the next measured step: per-head values carry up to 80% GPU
@@ -68,6 +88,49 @@ INTERIOR = re.compile(r"^(interior_lag_cost|gain_pp|in_band_pp|err_wf_pp|gain_u_
                       r"evict_frac_pp|unseen_frac_pp)")
 
 
+def r5_gain(df, B):
+    # NOTE the corner columns of `first` (gain_e<B>_first_frac and its w2p twin)
+    # are NOT a baseline anyone would field: `first` bumps every position its
+    # snapshot never saw, so past t = B*L/maxb the corner keeps ONLY generated
+    # tokens and its error explodes by construction. `first` is here as an
+    # INTERIOR score. Read interior_lag_cost<B>_first (`froz`), not its corner.
+    """The band/route column, pinned to the `last_step` (TOVA) corner.
+
+    `gain_best_practical` is a min over EVERY practical corner, so adding
+    `first` to the evictor list (it must be an evictor to be an interior score)
+    would silently strengthen the competitor and lower the band against the
+    first campaign and against the bridge. Recomputing min(uniform, last_step)
+    keeps the R5 verdict the same quantity across campaigns."""
+    ls, un = f"gain_e{B}_last_step_frac", f"gain_u{B}"
+    col = f"gain_best_practical{B}"
+    if ls in df and un in df and df[ls].notna().any():
+        df = df.copy()
+        df[col] = np.minimum(df[un], df[ls])
+    return df
+
+
+def drop_loops(df, thr):
+    """Truncate each run at the first step ANY of its prompts degenerates.
+
+    Per-prompt truncation would leave the later steps supported by whichever
+    prompts happened not to loop yet, and the per-head medians would then be
+    comparing different prompt sets step to step -- which is itself a drift.
+    The whole run stops at the earliest loop instead, so every step in the table
+    rests on the same prompts."""
+    if "gen_distinct4" not in df or thr <= 0:
+        return df, 0, {}
+    key = ["model", "ctx", "decode_temp", "schedule"]
+    d4 = df.groupby(key + ["prompt", "step"]).gen_distinct4.median().reset_index()
+    bad = d4[d4.gen_distinct4.notna() & (d4.gen_distinct4 <= thr)]
+    if bad.empty:
+        return df, 0, {}
+    cut = bad.groupby(key).step.min().rename("cut").reset_index()
+    m = df.merge(cut, on=key, how="left")
+    keep = m.cut.isna() | (m.step < m.cut)
+    where = {tuple(r[k] for k in key): int(r.cut) for _, r in cut.iterrows()}
+    return df[keep.to_numpy()], int((~keep).sum()), where
+
+
 def read_one(f):
     """One parquet, with its interior columns blanked unless the run has the
     fresh-token fix -- see `lag` in the module docstring."""
@@ -87,7 +150,7 @@ def load(patterns):
     files = sorted({f for p in patterns for f in glob.glob(p)})
     if not files:
         sys.exit(f"no parquet matched {patterns}")
-    df = pd.concat([read_one(f) for f in files], ignore_index=True)
+    df = pd.concat([read_one(f) for f in files], ignore_index=True).copy()
     for c, v in (("decode_temp", 0.0), ("past_eos", False), ("decode_ban_eos", False),
                  ("gen_distinct4", np.nan), ("schedule", "dense")):
         if c not in df:
@@ -128,7 +191,8 @@ def num(x, f="{:6.2f}"):
     return "     -" if x is None or not math.isfinite(x) else f.format(x)
 
 
-def block(g, B, calib, lagcols, eos_by_step):
+def block(g, B, calib, lagcols, eos_by_step, lag1col=None, frozcol=None,
+          maxb=8, max_floor_share=0.10):
     gcol = f"gain_best_practical{B}"
     keys = ["layer", "head"]
     steps = sorted(g.step.unique())
@@ -182,7 +246,7 @@ def block(g, B, calib, lagcols, eos_by_step):
     print(f"  {'step':>5} {'L':>7} {'dlog2L':>6} {'tau':>6} {'dtau':>6} "
           f"{'ladder':>6} {'n95':>6} {'dead1':>5} {'dead2':>5} {'band%':>5} "
           f"{'gain':>6} {'flipG':>5} {'flipR':>5} {'rho':>5} {'rgr90':>6} "
-          f"{'lag':>6} {'eos%':>4} {'d4':>5}")
+          f"{'lag1':>6} {'froz':>6} {'eos%':>4} {'d4':>5}")
     L0 = float(g.loc[g.step == calib, "L"].median())
     tau0 = float(c_ph["tau"].median())
     out = []
@@ -194,13 +258,20 @@ def block(g, B, calib, lagcols, eos_by_step):
                 if have_g and ph[gcol].notna().any() else float("nan"))
         med_g = float(ph[gcol].median()) if have_g else float("nan")
         fg, fr, rho, rg = flips(s) if s != calib else (0.0, 0.0, 1.0, 1.0)
-        lag = float("nan")
-        for lc in lagcols:
-            if lc in ph and have_g:
-                inb = ph[gcol] >= BAND_MIN
-                if bool(inb.any()):
-                    lag = float(ph.loc[inb, lc].median())
-                break
+        def inband_cost(col):
+            if not col or col not in ph or not have_g:
+                return float("nan")
+            inb = ph[gcol] >= BAND_MIN
+            return float(ph.loc[inb, col].median()) if bool(inb.any()) else float("nan")
+
+        lag = inband_cost(lag1col or (lagcols[0] if lagcols else None))
+        froz = inband_cost(frozcol)
+        # past its horizon the frozen column prices the maxb floor, not staleness
+        if frozcol and math.isfinite(froz):
+            uc = frozcol.replace("interior_lag_cost", "unseen_frac_pp")
+            share = (maxb / B) * float(ph[uc].median()) if uc in ph else float("nan")
+            if math.isfinite(share) and share > max_floor_share:
+                froz = float("nan")
         dead = {b: (float(ph[f"evict_beats_b{b}"].mean())
                     if f"evict_beats_b{b}" in ph else float("nan")) for b in (1, 2)}
         row = dict(step=int(s), L=L, dlog2L=math.log2(L / L0),
@@ -210,14 +281,14 @@ def block(g, B, calib, lagcols, eos_by_step):
                    else float("nan"),
                    n95=float(ph["n95"].median()) if "n95" in ph else float("nan"),
                    dead1=dead[1], dead2=dead[2], band=band, gain=med_g,
-                   flip_gen=fg, flip_rtr=fr, rho=rho, regret90=rg, lag=lag,
+                   flip_gen=fg, flip_rtr=fr, rho=rho, regret90=rg, lag=lag, froz=froz,
                    eos=float(eos_by_step.get(s, float("nan"))), d4=float(r["gen_distinct4"].median()))
         out.append(row)
         print(f"  {s:>5} {L:>7,.0f} {row['dlog2L']:>6.3f} {row['tau']:>6.3f} "
               f"{row['dtau']:>+6.3f} {num(row['ladder'])} {num(row['n95'], '{:6.0f}')} "
               f"{pct(dead[1]):>5} {pct(dead[2]):>5} {pct(band):>5} {num(med_g)} "
               f"{pct(fg):>5} {pct(fr):>5} {num(rho, '{:5.2f}')} {num(rg)} "
-              f"{num(lag)} {pct(row['eos'])} {num(row['d4'], '{:5.2f}')}")
+              f"{num(lag)} {num(froz)} {pct(row['eos'])} {num(row['d4'], '{:5.2f}')}")
     return pd.DataFrame(out)
 
 
@@ -254,16 +325,45 @@ def main():
                          "at step 0, so no practical gain exists there.")
     ap.add_argument("--family", default="cont")
     ap.add_argument("--keep-post-eos", action="store_true")
+    ap.add_argument("--maxb", type=int, default=8,
+                    help="top tier, for the froz horizon (models.yaml maxb)")
+    ap.add_argument("--max-floor-share", type=float, default=0.10,
+                    help="blank `froz` once the maxb floor on unseen positions "
+                         "costs more than this share of the head's budget")
+    ap.add_argument("--min-distinct4", type=float, default=0.5,
+                    help="drop a prompt from the first step whose distinct-4 "
+                         "fraction falls to this or below (0 = keep loops)")
     ap.add_argument("--csv")
     a = ap.parse_args()
 
     df = load(a.parquet)
     df = df[df.family == a.family] if a.family != "all" else df
+    df = r5_gain(df, a.B)
+    df, n_loop, cuts = drop_loops(df, a.min_distinct4)
+    if frozcol := next((c for c in df.columns
+                        if c.startswith(f"interior_lag_cost{a.B}_first")), None):
+        uc = frozcol.replace("interior_lag_cost", "unseen_frac_pp")
+        if uc in df:
+            hz = df.groupby(["model", "ctx"]).apply(
+                lambda x: x.loc[(a.maxb / a.B) * x[uc] <= a.max_floor_share, "step"].max()
+                if x[uc].notna().any() else float("nan"), include_groups=False)
+            print("`froz` horizon (last step where the maxb floor costs <= "
+                  f"{a.max_floor_share:.0%} of the budget):")
+            for (mdl, ctx), st in hz.items():
+                print(f"   {mdl} ctx {ctx:,}: step {'-' if pd.isna(st) else int(st)}")
+    if n_loop:
+        print(f"dropped {n_loop:,} rows to looping text (distinct-4 <= "
+              f"{a.min_distinct4:g}; a loop is not a phase). Runs truncated at:")
+        for (mdl, ctx, T, sched), st in sorted(cuts.items()):
+            print(f"   {mdl} ctx {ctx:,} T={T:g} {sched}: first loop at step {st}, "
+                  f"table stops before it")
     if "quantized" in df:
         df = df[df.quantized.astype(bool)]
     df = df.assign(_eos=df.past_eos.astype(bool))
     lagcols = sorted(c for c in df.columns
                      if re.match(rf"^interior_lag_cost{a.B}_", c))
+    lag1col = next((c for c in lagcols if c.endswith(("_last_step", "_lag1"))), None)
+    frozcol = next((c for c in lagcols if c.endswith("_first")), None)
     tables = []
     if "evictors" not in df:
         df = df.assign(evictors="?")
@@ -275,7 +375,9 @@ def main():
               f"{' (EOS banned)' if bool(g.decode_ban_eos.any()) else ''} "
               f"{'(post-EOS rows kept)' if a.keep_post_eos else '(post-EOS rows dropped)'}")
         gg = g if a.keep_post_eos else g[~g._eos]
-        t = block(gg, a.B, a.calib, lagcols, g.groupby("step")._eos.mean())
+        t = block(gg, a.B, a.calib, [c for c in (lag1col, frozcol) if c] or lagcols,
+                  g.groupby("step")._eos.mean(), lag1col, frozcol,
+                  a.maxb, a.max_floor_share)
         bridge(gg, a.B)
         if t is not None:
             tables.append(t.assign(model=mdl, ctx=ctx, decode_temp=T,

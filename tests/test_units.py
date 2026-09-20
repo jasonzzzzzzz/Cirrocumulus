@@ -1384,6 +1384,84 @@ def test_unseen_floor():
           f"({float(bw.double().mean()):.4f} b/token)")
 
 
+def test_first_evictor():
+    print("\n[R5] `first`: the frozen prefill-time score, for the one-pass claim")
+    from sievelib import evict as EV
+    ev = EV.make("first")[1]
+    for t in range(5):                       # five decode steps, growing cache
+        fin = torch.ones(6 + t, dtype=torch.bool)
+        ev.score(fin)
+        a = torch.zeros(6 + t); a[1] = t + 1.0
+        ev.observe(a, fin)
+    fin = torch.ones(11, dtype=torch.bool)
+    raw = ev.score(fin, rank_bump=False)
+    check("`first` freezes the FIRST step's attention (later steps change nothing)",
+          float(raw[1]) == 1.0, f"(got {float(raw[1])})")
+    check("positions appended after the snapshot are unseen, not zero evidence",
+          ev.unseen(fin).tolist() == [False] * 6 + [True] * 5)
+    ranked = ev.score(fin)
+    check("...so the corner bumps them above every position it did see",
+          bool((ranked[6:] > ranked[:6].max()).all()))
+    check("`first` is persistent: a sparse block reset must not re-calibrate it",
+          ev.persistent is True and EV.make("last_step")[1].persistent is False)
+    # [REGRESSION] a sparse schedule skips steps, so the cache grows by MORE
+    # than one between two score() calls. That used to reset the state, which
+    # turned `first` into `last_step` (R5 smoke run).
+    gap = EV.make("first")[1]
+    fin = torch.ones(8, dtype=torch.bool)
+    gap.score(fin)
+    a = torch.zeros(8); a[3] = 0.9
+    gap.observe(a, fin)
+    wide = torch.ones(8 + 64, dtype=torch.bool)      # 64 unprobed steps later
+    raw = gap.score(wide, rank_bump=False)
+    check("[REGRESSION] `first` survives an unprobed gap of 64 positions",
+          abs(float(raw[3]) - 0.9) < 1e-6 and float(raw[:3].sum()) == 0.0,
+          f"(kept {float(raw[3])})")          # float32 buffers, hence the tolerance
+    check("...and every position the gap appended is unseen",
+          gap.unseen(wide).tolist() == [False] * 8 + [True] * 64)
+    win = EV.make("last_step")[1]
+    win.score(fin); win.observe(a, fin)
+    win.score(wide)
+    check("a windowed evictor still restarts across a gap (identity is gone)",
+          win._steps == 0 or float(win._raw().abs().sum()) == 0.0)
+    check("host state counted as snapshot + coverage + fresh mask",
+          ev.bytes_per_slot() == 4 + 1 + 1)
+    cs = EV.CornerSpec.from_cfg({"evictors": "oracle,last_step,first",
+                                 "corner_policies": "frac",
+                                 "interior_scores": "last_step,first"})
+    check("`first` is a legal interior score beside last_step",
+          cs.interior_scores == ("last_step", "first")
+          and EV.corner_tag(cs) == "or-la-fi_f")
+    check("a sparse schedule accepts it (one warm step, then it never moves)",
+          len(EV.decode_plan(1, 1, [0, 1, 64, 4096], cs.evictors)) == 4097)
+
+
+def test_anti_loop_decoding():
+    print("\n[R5] repetition penalty and no-repeat-ngram bound the decode loop")
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root, "h0_measurement"))
+    from run_h0 import next_token, _no_repeat_banned
+    check("no-repeat finds the token that would close the loop",
+          set(_no_repeat_banned([1, 2, 3, 1, 2], 3)) == {3},
+          f"({sorted(_no_repeat_banned([1, 2, 3, 1, 2], 3))})")
+    check("...and stays quiet before there is an n-gram to repeat",
+          _no_repeat_banned([1, 2], 3) == ())
+    lg = torch.full((1, 1, 10), -5.0); lg[0, 0, 7] = 9.0; lg[0, 0, 3] = 8.0
+    check("greedy repeats the loop token when nothing stops it",
+          int(next_token(lg)) == 7)
+    check("no_repeat blocks it", int(next_token(lg, gen_ids=[7, 1, 7], no_repeat=1)) == 3)
+    check("a repetition penalty demotes already-generated tokens",
+          int(next_token(lg, gen_ids=[7] * 3, rep_penalty=4.0)) == 3)
+    check("penalty of 1.0 changes nothing", int(next_token(lg, gen_ids=[7], rep_penalty=1.0)) == 7)
+    check("the caller's logits are never modified", float(lg[0, 0, 7]) == 9.0)
+    # banning everything must not dead-end the generation (NaN draw / -inf pick)
+    small = torch.tensor([[[2.0, 1.0]]])
+    check("if every candidate is banned, fall back to the unbanned logits",
+          int(next_token(small, ban=[0, 1])) == 0)
+    check("...and the sampled path survives it too",
+          int(next_token(small, 1.0, 1.0, torch.Generator().manual_seed(0), [0, 1])) in (0, 1))
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
@@ -1397,7 +1475,7 @@ if __name__ == "__main__":
               test_rope_window,
               test_practical_interior, test_rescore_is_idempotent,
               test_decode_plan, test_override_lists, test_ban_eos,
-              test_unseen_floor):
+              test_unseen_floor, test_first_evictor, test_anti_loop_decoding):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

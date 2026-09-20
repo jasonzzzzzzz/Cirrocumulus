@@ -5,22 +5,35 @@
 #
 #     bash h0_measurement/bugs/5_phase_drift_across_decode/script.sh --run
 #
-# STATUS 2026-09-19 -- 5 of 6 cells DONE, one to go. --run is GUARDED: each
-# line submits only if its cell has no complete result with the same corner,
-# schedule and temperature under h0_measurement/results/job*/, so running it
-# now submits exactly ONE job (qwen3-30b @32k):
-#   A llama31-8b   8k  sampled   job21406669  done
-#   A llama31-8b  32k  sampled   job21406670  done
-#   A llama31-8b 128k  sampled   job21406671  done
-#   A qwen3-30b   32k  sampled   job21406672  EMPTY -- killed by bug 8 below
-#   B bridge       8k  dense     job21406673  done
-#   C llama31-8b   8k  greedy    job21406674  done
-# The pilot is no longer needed (the llama cells measured the schedule).
+# STATUS 2026-09-20 -- the first campaign ran; its results forced two changes,
+# so every drift cell RE-RUNS. --run is guarded and submits only what is missing.
+#   job21406669/70/71  llama31-8b 8k/32k/128k sampled   superseded (see below)
+#   job21406673        the bridge, dense                KEPT -- corner-only, valid
+#   job21406674        llama31-8b 8k greedy             superseded
+#   job21424195        qwen3-30b @32k                   superseded
 #
-# Want valid INTERIOR columns too (the `lag` column of drift.py)? The five done
-# cells predate bug 7's fix; R5's decision columns do not need them. To re-run
-# every cell with the fix anyway:
-#     R5_NEED_INTERIOR=1 bash .../script.sh --run
+# WHAT THE FIRST CAMPAIGN SHOWED, AND WHAT IT COST
+#   * THE GENERATIONS LOOPED. Banning EOS keeps decode going, but at 4,096 tokens
+#     the text degenerates: distinct-4 fell to 0.05/0.27/0.10 on all three
+#     qwen3-30b @32k prompts and to 0.04 on one llama31-8b @8k prompt, and the
+#     greedy control looped from step ~512. A loop is a real attention regime but
+#     not the one a deployed sampler lives in, and it reads as phase drift. Fixed
+#     on BOTH sides: decoding now carries a repetition penalty and an n-gram
+#     block (SIEVE_DECODE_REP_PENALTY / SIEVE_DECODE_NO_REPEAT), and drift.py
+#     truncates a run at the first step any prompt degenerates.
+#     llama31-8b @128k never looped (0.89-0.95) -- a long prompt sustains text.
+#   * NOTHING MEASURED THE CLAIM. C4 says the phase is read from ONE offline
+#     calibration pass, but the campaign only priced re-budgeting from one step
+#     ago (last_step). `lag:k` cannot reach k = 4096 -- it needs k buffers. NEW
+#     `first` evictor: the first probed step's attention, frozen, one buffer, so
+#     interior_lag_cost3_first at step t IS the price of keeping the prefill-time
+#     allocation t steps later, and froz/lag1 is what re-budgeting buys.
+#   * qwen3-30b ran at ONE ctx, so the L-growth test (its "double duty") could
+#     not run for it: it needs the same model at >= 2 ctx. Section A now adds
+#     qwen3-30b @8k.
+#
+# Want the old cells kept instead? They are superseded by the corner change
+# (tag or-la_f -> or-la-fi_f), so the guard re-runs them regardless.
 #
 # NOTHING RUNS WITHOUT --run (--pilot is retired, see STATUS). Layout follows
 # bugs/2_towards_real_evictor/script.sh; bug 2's sections are not repeated here.
@@ -76,6 +89,12 @@
 #      last_step under another name). R5 therefore runs `last_step` (TOVA) as the
 #      practical corner and the interior score. That changes the verdict corner
 #      from the campaign's, so section B measures the substitution.
+#      NOTE since `first` joined the evictor list (bug 10): an interior score
+#      must BE an evictor, so `first` is also a corner, and
+#      `gain_best_practical` is now a min over {last_step, first}. That would
+#      quietly strengthen the competitor and move the band against the first
+#      campaign and against the bridge, so drift.py recomputes the R5 verdict as
+#      min(uniform, last_step corner) -- the same quantity in every campaign.
 #   4. The interior default silently vanishes. interior_scores defaults to
 #      `accum`, and a DEFAULT that names an absent evictor is dropped without an
 #      error (evict._parse_interior). Without SIEVE_INTERIOR_SCORES=last_step the
@@ -99,7 +118,8 @@
 #      pre-fix runs. The last_step CORNER was never affected -- its only unseen
 #      token is the current one, which score() always bumped -- so the route,
 #      band, tau, dead-tier, flip, regret and bridge columns of job2140666x/7x
-#      are valid and the done cells need no re-run.
+#      are valid. The drift cells re-run anyway, for bugs 9 and 10; the bridge
+#      does not, because it compares corners only.
 #   8. submit_h0_large_models.slurm's host-RAM preflight rebuilt the corner
 #      without SIEVE_INTERIOR_SCORES, so with evictors=oracle,last_step it hit the
 #      `accum` interior default and died:
@@ -107,6 +127,16 @@
 #        run (configured: ['last_step'])
 #      That is why job21406672 (qwen3-30b @32k) is empty. Fixed in the preflight
 #      (and models.yaml no longer spells the default out).
+#
+#   9. The decode LOOPED (above). `decode_ban_eos` bought steps and then spent
+#      them on repetition. run_h0.next_token now takes `decode_rep_penalty`
+#      (the CTRL rule) and `decode_no_repeat_ngram`; both are stamped per row and
+#      in the .json. tests/test_units.py::test_anti_loop_decoding pins them.
+#  10. No score survived the generation. Added `first` (sievelib/evict.py): the
+#      frozen first probed step, persistent across the sparse schedule's block
+#      resets (Evictor.persistent, honoured by run_h0), with the positions it
+#      never saw marked unseen so the corner bumps them and the interior floors
+#      them. tests/test_units.py::test_first_evictor pins it.
 #
 # SUBMIT FROM trig-login01 (the GPU login node). From a CPU login node Slurm
 # rejects every line: "GPU resources requested from a CPU login node". And pass
@@ -141,37 +171,55 @@ print('fails',T.fails);sys.exit(1 if T.fails else 0)" || { echo "unit tests fail
 # sparse where only the trend matters. last_step needs one warm step before
 # each, so 14 measured + 11 warm = 25 probed steps out of 4,097.
 MS=0,1,2,4,8,16,32,64,128,256,512,1024,2048,4096
+# TWO HORIZONS LIVE ON THIS STEP LIST, and they point at different cells.
+#   LENGTH drift needs t to be a large fraction of L -> the 8k cell (4,096
+#     generated tokens grow the cache 0.585 octave; at 128k it is 0.045).
+#   The FROZEN column needs the opposite: `first` has never seen the t generated
+#     tokens, so the interior floors them at maxb and that floor costs maxb*t of
+#     the head's B*L bits. At B = 3, maxb = 8 it passes 10% of the budget at
+#     t ~ 0.037*L -- step ~300 at 8k, ~1,200 at 32k, ~4,900 at 128k. Past that
+#     `froz` prices the floor, not staleness, and drift.py blanks it
+#     (--max-floor-share). So the 128k cell is the one that answers C4 over the
+#     WHOLE sweep, and the 8k cell answers C2 inside a generation. Both run.
 # Sampled, not greedy: greedy decoding falls into repetition loops over
 # thousands of tokens, and a loop would read as phase drift. T/top_p are a
 # typical deployment setting, the same for every model so rows are comparable.
 # `cont` only: niah/qa answer in ~5 tokens and the rest is not the task.
 # SIEVE_NO_REPORT=1: the chained report.py medians over steps (bug 5 above);
 # the .json sidecar beside each parquet records the effective config instead.
-R5=(SIEVE_EVICTORS=oracle,last_step SIEVE_CORNER_POLICIES=frac
-    SIEVE_INTERIOR_SCORES=last_step
+# `first` is the frozen prefill-time score (bug 10) and rides along at one extra
+# waterfill + exact_error per (head, budget, measured step). The anti-loop pair
+# (bug 9): a mild repetition penalty plus a hard block on repeating any 8-gram,
+# which is what actually bounds a loop -- 8-gram repeats are rare in book prose,
+# so it binds on loops and almost nowhere else.
+R5=(SIEVE_EVICTORS=oracle,last_step,first SIEVE_CORNER_POLICIES=frac
+    SIEVE_INTERIOR_SCORES=last_step,first
     SIEVE_MEASURE_STEPS=$MS SIEVE_FAMILIES=cont
     SIEVE_DECODE_TEMPERATURE=0.7 SIEVE_DECODE_TOP_P=0.9 SIEVE_DECODE_SEED=0
-    SIEVE_DECODE_BAN_EOS=1 SIEVE_NO_REPORT=1)
+    SIEVE_DECODE_BAN_EOS=1 SIEVE_DECODE_REP_PENALTY=1.05 SIEVE_DECODE_NO_REPEAT=8
+    SIEVE_NO_REPORT=1)
 
 # ---- re-run guard --------------------------------------------------------------
-# done_r5 MODEL CTX CORNER_TAG TEMPERATURE SCHEDULE -- a complete result for this
-# cell exists: PAR1 footer, a .json beside it, and the same corner tag,
-# decode_temperature and schedule. The temperature matters: A's 8k cell and C's
-# greedy control write the SAME filename with the same corner.
-# R5_NEED_INTERIOR=1 also requires the bug-7 fix marker.
+# done_r5 MODEL CTX CORNER_TAG TEMPERATURE SCHEDULE [NO_REPEAT] -- a complete
+# result for this cell exists: PAR1 footer, a .json beside it, and the same
+# corner tag, decode_temperature, schedule and (when given) anti-loop setting.
+# The temperature matters: A's 8k cell and C's greedy control write the SAME
+# filename with the same corner. R5_NEED_INTERIOR=1 also requires the bug-7 fix
+# marker, which the bridge (corner-only, still valid) does not need.
 done_r5() {
   local p js
   for p in h0_measurement/results/job*/h0_"$1"_"$2".parquet; do
     js="${p%.parquet}.json"
     [[ -f "$p" && -f "$js" ]] || continue
     [[ "$(tail -c4 "$p" | od -An -c | tr -d ' \n')" == "PAR1" ]] || continue
-    "$PY" - "$js" "$3" "$4" "$5" "${R5_NEED_INTERIOR:-0}" <<'PYG' || continue
+    "$PY" - "$js" "$3" "$4" "$5" "${R5_NEED_INTERIOR:-0}" "${6:-}" <<'PYG' || continue
 import json, sys
-j = json.load(open(sys.argv[1])); tag, T, sched, need = sys.argv[2:6]
+j = json.load(open(sys.argv[1])); tag, T, sched, need, norep = sys.argv[2:7]
 ok = ((j.get("corner") or {}).get("tag") == tag
       and abs(float(j.get("decode_temperature", 0)) - float(T)) < 1e-9
       and j.get("schedule") == sched
-      and (need != "1" or j.get("interior_unseen_policy") == "floor_maxb"))
+      and (need != "1" or j.get("interior_unseen_policy") == "floor_maxb")
+      and (not norep or int(j.get("decode_no_repeat_ngram", 0) or 0) == int(norep)))
 sys.exit(0 if ok else 1)
 PYG
     echo "done   $1 @$2 [$3 T=$4 $5]  ($p)"
@@ -196,15 +244,31 @@ PYG
 # at 128k on one H100, 150 ms for the MoE on 4 cards (pipeline, not parallel).
 # Rule: s/unit x units x 1.25 + 10 min (main) / 15 min (large), rounded up.
 #
-#   llama31-8b    8k    99x7 = 690 + 120 =  810 s/u x3 = 41m -> 61m  -> 01:15:00
-#   llama31-8b   32k   148x7 =1035 + 200 = 1235 s/u x3 = 62m -> 87m  -> 01:30:00
-#   llama31-8b  128k   224x7 =1568 + 410 = 1978 s/u x3 = 99m -> 134m -> 02:30:00
-#                      (02:15 by the rule, raised one step: the 128k plain-decode
-#                      rate is assumed, and a cancellation there loses ~2 h)
-#   qwen3-30b    32k   292x7 =2046 + 615 = 2661 s/u x3 =133m -> 181m -> 03:15:00
-#   bridge (B)   8k    dense 33 steps, 5 quantized, 3 corners    -> 01:00:00
-#   greedy (C)   8k    same as the 8k cell                       -> 01:15:00
-# The pilot replaces every figure above with a measurement.
+# The FIRST campaign measured these cells, so the headers below are no longer a
+# model: the llama cells finished inside 01:15/01:30/02:30 and qwen3-30b @32k
+# inside 03:15. What changed since is the SECOND interior score (`first`): one
+# extra waterfill + exact_error per (head, budget) on each of the 14 measured
+# steps, on top of a per-unit cost dominated by prefill and the 7-width
+# quantize sweep. Measured share of the old rate: the interior was ~1 of 3
+# priced passes, so +30% is the honest upper bound -- every header below is the
+# old one plus that, rounded up to the next 15 min.
+#
+#   llama31-8b    8k    810 s/u x1.3 = 1053 x3 = 53m -> 76m  -> 01:30:00
+#   llama31-8b   32k   1235 s/u x1.3 = 1606 x3 = 80m -> 110m -> 02:00:00
+#   llama31-8b  128k   1978 s/u x1.3 = 2571 x3 =129m -> 171m -> 03:30:00
+#   qwen3-30b    32k   2661 s/u x1.3 = 3459 x3 =173m -> 231m -> 04:30:00
+#                      (both raised one step over the rule: x1.3 is an estimate,
+#                      the first campaign's true elapsed time lives only in that
+#                      cluster's logs, and these two ran closest to their old
+#                      headers. Read the real rates before trusting the rest:
+#                        sacct -j 21406669,21406670,21406671,21406674,21424195 \
+#                              -o JobID%18,State,Elapsed,Timelimit
+#                      and scale every header if a cell came within ~15 min of
+#                      its limit.)
+#   qwen3-30b     8k   x0.66 of its 32k rate = 2283 x3 =114m -> 158m -> 03:00:00
+#   bridge (B)   8k    unchanged, not re-run                     -> 01:00:00
+#   greedy (C)   8k    same as A's 8k cell                       -> 01:30:00
+# The anti-loop knobs cost nothing measurable: a set lookup per step.
 
 # =============================================================================
 # P. THE PILOT.  Submit ALONE; read it before --run.
@@ -250,19 +314,25 @@ fi
 #   128k -> 132k  (+0.045 octave)   LENGTH drift ~ 0; anything left is CONTENT
 # and the step-1 rows at three ctx give the across-ctx slope that predicts the
 # first two (drift.py prints predicted vs measured dtau).
-# qwen3-30b-a3b-2507 at 32k is the second architecture (MoE, 48L, kv=4) and the
-# highest dead-tier model in the set, i.e. where C1 says the router matters most.
-# DONE job21406669 / 21406670 / 21406671 (skipped by the guard unless
-# R5_NEED_INTERIOR=1); qwen3-30b @32k is the one re-run (job21406672 empty,
-# bug 8). Needs the FIXED submit_h0_large_models.slurm on the submitting machine.
-done_r5 llama31-8b 8192   or-la_f 0.7 sparse || \
-sbatch --array=0-0 --time=01:15:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=8192   SIEVE_N_PROMPTS=3 llama31-8b
-done_r5 llama31-8b 32768  or-la_f 0.7 sparse || \
-sbatch --array=0-0 --time=01:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=32768  SIEVE_N_PROMPTS=3 llama31-8b
-done_r5 llama31-8b 131072 or-la_f 0.7 sparse || \
-sbatch --array=0-0 --time=02:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=131072 SIEVE_N_PROMPTS=3 llama31-8b
-done_r5 qwen3-30b-a3b-2507 32768 or-la_f 0.7 sparse || \
-sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_large_models.slurm "${R5[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
+# qwen3-30b-a3b-2507 is the second architecture (MoE, 48L, kv=4) and the highest
+# dead-tier model in the set, i.e. where C1 says the router matters most. It now
+# runs at TWO ctx: the L-growth test needs a within-model slope, and with one ctx
+# drift.py could only print "needs one model at >= 2 ctx values". At 8k its
+# 4,096 generated tokens grow the cache by 0.585 octave -- the largest LENGTH
+# signal available anywhere in this design.
+#
+# Every cell re-runs: the corner is now oracle,last_step,first (tag or-la-fi_f),
+# so the guard does not match the first campaign's or-la_f results.
+done_r5 llama31-8b 8192   or-la-fi_f 0.7 sparse 8 || \
+sbatch --array=0-0 --time=01:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=8192   SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 llama31-8b 32768  or-la-fi_f 0.7 sparse 8 || \
+sbatch --array=0-0 --time=02:00:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=32768  SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 llama31-8b 131072 or-la-fi_f 0.7 sparse 8 || \
+sbatch --array=0-0 --time=03:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_CTX=131072 SIEVE_N_PROMPTS=3 llama31-8b
+done_r5 qwen3-30b-a3b-2507 32768 or-la-fi_f 0.7 sparse 8 || \
+sbatch --array=0-0 --gpus-per-node=4 --time=04:30:00 h0_measurement/submit_h0_large_models.slurm "${R5[@]}" SIEVE_CTX=32768 SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
+done_r5 qwen3-30b-a3b-2507 8192  or-la-fi_f 0.7 sparse 8 || \
+sbatch --array=0-0 --gpus-per-node=4 --time=03:00:00 h0_measurement/submit_h0_large_models.slurm "${R5[@]}" SIEVE_CTX=8192  SIEVE_N_PROMPTS=3 qwen3-30b-a3b-2507
 
 # =============================================================================
 # B. THE BRIDGE -- last_step (what a sparse run can field) vs accum (the
@@ -273,7 +343,10 @@ sbatch --array=0-0 --gpus-per-node=4 --time=03:15:00 h0_measurement/submit_h0_la
 # both interiors in one run; drift.py prints, per step, the median ratio of the
 # two corners' gains and the band fraction under each. If the ratio is flat in
 # t, section A's drift is a drift in the phase, not in the corner substitution.
-# DONE job21406673.
+# DONE job21406673, and KEPT: the bridge compares two CORNERS, and neither the
+# fresh-token defect nor the loop question touches those columns (its dense
+# 33-step decode stops long before the text degenerates -- distinct-4 was 0.92
+# at step 32). Its interior columns stay blanked by drift.py.
 done_r5 llama31-8b 8192 or-ac-la_f 0.7 dense || \
 sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm \
   SIEVE_EVICTORS=oracle,accum,last_step SIEVE_CORNER_POLICIES=frac \
@@ -289,9 +362,12 @@ sbatch --array=0-0 --time=01:00:00 h0_measurement/submit_h0.slurm \
 # same way, sampling is not what R5 measures; if greedy drifts more and its
 # gen_distinct4 collapses, the difference is loops, and the sampled run is the
 # one that describes deployment.
-# DONE job21406674.
-done_r5 llama31-8b 8192 or-la_f 0 sparse || \
-sbatch --array=0-0 --time=01:15:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_DECODE_TEMPERATURE=0 SIEVE_CTX=8192 SIEVE_N_PROMPTS=3 llama31-8b
+# The first greedy run looped from step ~512 (distinct-4 0.50/0.31/0.43), which
+# is exactly what this control exists to show -- but with the anti-loop knobs on
+# BOTH arms the comparison is now sampling-vs-greedy rather than
+# loop-vs-no-loop, which is the comparison worth having.
+done_r5 llama31-8b 8192 or-la-fi_f 0 sparse 8 || \
+sbatch --array=0-0 --time=01:30:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIEVE_DECODE_TEMPERATURE=0 SIEVE_CTX=8192 SIEVE_N_PROMPTS=3 llama31-8b
 # (the later SIEVE_DECODE_TEMPERATURE=0 wins: arguments are exported in order)
 
 # =============================================================================
@@ -300,13 +376,28 @@ sbatch --array=0-0 --time=01:15:00 h0_measurement/submit_h0.slurm "${R5[@]}" SIE
 cat <<'CHECK'
 
   1. Line 1 of every log (h0_<JOBID>_0.out / h0large_<JOBID>_0.out):
-       A, C:  evictors=oracle,last_step measure_steps=0,1,2,4,...,4096 T=0.7|0
+       A, C:  evictors=oracle,last_step,first measure_steps=0,1,2,4,...,4096
+              T=0.7|0, and the schedule line must end
+              "EOS banned   rep_penalty=1.05   no_repeat_ngram=8"
        B:     evictors=oracle,accum,last_step measure_steps=dense T=0.7
      and "decode schedule: sparse, 4097 steps, 25 probed, 14 measured" for A/C,
          "decode schedule: dense, 33 steps, 33 probed, 33 measured, 5 quantized"
          for B.
 
-  2. Read all of it at once -- drift.py groups by (model, ctx, decode_temp):
+  2. The new columns are there:
+       The `first` CORNER columns (gain_e3_first_frac and its w2p twin) are NOT
+       a baseline anyone would field: `first` bumps every position its snapshot
+       never saw, so past t = B*L/maxb its corner keeps only generated tokens.
+       It is an INTERIOR score here -- read interior_lag_cost3_first.
+
+       unseen_frac_pp3_first  ~ t/L at step t (the frozen snapshot never saw the
+                                generated tokens); unseen_frac_pp3_last_step ~ 1/L
+       interior_lag_cost3_first  the frozen prefill allocation = drift.py's `froz`
+     and the .json carries "decode_no_repeat_ngram": 8, "decode_rep_penalty":
+     1.05 and "interior_unseen_policy": "floor_maxb".
+
+  3. Read all of it at once -- drift.py groups by (model, ctx, decode_temp,
+     schedule, corner) and truncates each run at the first looping step:
 
      python h0_measurement/bugs/5_phase_drift_across_decode/drift.py \
             "h0_measurement/results/job21406669/*.parquet" \
@@ -358,6 +449,26 @@ CHECK
 #       -> section A's drift is partly the last_step/accum substitution. Report
 #          A against the bridge-corrected band, and say so.
 #
-# THE ONE THING THAT WOULD INVALIDATE A: generated text degenerating. If the
-# median gen_distinct4 at step 4,096 is below ~0.5 in the sampled runs, the late
-# rows measure a loop and are excluded from the verdict, whatever they show.
+# AND THE NEW AXIS -- froz/lag1, the price of ONE calibration pass:
+#
+#   froz/lag1 ~ 1 at every t
+#       -> RE-BUDGETING BUYS NOTHING. The prefill-time allocation is as good as
+#          one computed from the previous step, so C4's single pass covers the
+#          allocation as well as the route.
+#
+#   froz/lag1 grows with t while froz stays below the interior's edge
+#       -> RE-BUDGET ON A SCHEDULE, and the slope says how often. R3's sweep
+#          prices k = 1..8 inside a head; `first` extends that axis to k = t.
+#          This is the expected outcome and it is the cascade argument.
+#
+#   froz exceeds the interior's gain over the corner at some t
+#       -> A PREFILL-CALIBRATED INTERIOR STOPS PAYING there. Report that t as a
+#          deployment horizon, not as a tuning constant.
+#
+# THE ONE THING THAT WOULD INVALIDATE A: generated text degenerating. drift.py
+# now enforces this instead of leaving it to the reader -- it truncates each run
+# at the first step ANY prompt falls to distinct-4 <= 0.5 and says where. If a
+# cell still truncates early (qwen3-30b @32k stopped at 1,024 in the first
+# campaign), the anti-loop knobs were not enough: raise SIEVE_DECODE_REP_PENALTY
+# toward 1.15 or lower SIEVE_DECODE_NO_REPEAT toward 6 and re-run that cell --
+# do not read the tail.

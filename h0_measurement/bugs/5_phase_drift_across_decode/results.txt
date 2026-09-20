@@ -1,0 +1,34 @@
+/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/5_phase_drift_across_decode/drift.py:309: PerformanceWarning: DataFrame is highly fragmented.  This is usually the result of calling `frame.insert` many times, which has poor performance.  Consider joining all columns at once using pd.concat(axis=1) instead. To get a de-fragmented frame, use `newframe = frame.copy()`
+  df = df.assign(_eos=df.past_eos.astype(bool))
+2 parquet, 107,520 rows
+dropped 16,896 rows to looping text (distinct-4 <= 0.5; a loop is not a phase). Runs truncated at:
+   llama31-8b ctx 8,192 T=0.7 sparse: first loop at step 4096, table stops before it
+   qwen3-30b-a3b-2507 ctx 32,768 T=0.7 sparse: first loop at step 1024, table stops before it
+
+=== llama31-8b  ctx 8,192  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 23%  flip_rtr 23%
+   step       L dlog2L    tau   dtau ladder    n95 dead1 dead2 band%   gain flipG flipR   rho  rgr90   lag1   froz eos%    d4
+      0   7,537 -0.000  2.251 +0.036   3.27    158    99    39     -      -     -     -      -      -      -      -    0      -
+      1   7,538  0.000  2.215 +0.000   3.20    200    98    40    66   3.03     0     0  1.00   1.00      -      -    0      -
+      2   7,539  0.000  2.122 -0.093   3.08    156    99    26    75   3.79    23    23  0.67   2.74      -      -    0      -
+      4   7,541  0.001  2.164 -0.051   3.15    192    99    34    61   2.69    27    18  0.74   1.00      -      -    0      -
+      8   7,545  0.001  2.164 -0.051   3.13    217    99    33    57   2.51    27    20  0.72   1.00      -      -    0  1.00
+     16   7,553  0.003  2.247 +0.032   3.25    261    99    40    60   2.62    29    20  0.72   1.00      -      -    0  1.00
+     32   7,569  0.006  2.082 -0.133   3.02    216    98    26    70   3.49    26    19  0.71   2.24      -      -    0  1.00
+     64   7,601  0.012  2.090 -0.125   3.02    220    99    23    63   2.89    28    20  0.69   1.00      -      -    0  1.00
+    128   7,665  0.024  2.134 -0.081   3.09    224    98    27    65   3.05    31    22  0.66   2.10      -      -    0  0.96
+    256   7,793  0.048  2.188 -0.027   3.17    282    98    32    64   3.06    26    19  0.71   1.00      -      -    0  0.94
+    512   8,049  0.095  2.204 -0.011   3.19    222    99    27    63   2.85    32    23  0.65   1.06      -      -    0  0.97
+   1024   8,561  0.184  2.066 -0.149   2.98    367    98    19    84   4.82    33    25  0.54   4.36      -      -    0  0.93
+   2048   9,585  0.347  2.525 +0.310   3.64    268    98    53    42   1.54    34    30  0.61   1.00      -      -    0  0.89
+
+=== qwen3-30b-a3b-2507  ctx 32,768  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 19%  flip_rtr 14%
+   step       L dlog2L    tau   dtau ladder    n95 dead1 dead2 band%   gain flipG flipR   rho  rgr90   lag1   froz eos%    d4
+      0  30,146 -0.000  2.394 -0.051   3.48    959   100    72     -      -     -     -      -      -      -      -    0      -
+      1  30,147  0.000  2.445 +0.000   3.55    840   100    73    29   1.22     0     0  1.00   1.00   1.77      -    0      -
+      2  30,148  0.000  2.497 +0.053   3.62    842   100    73    29   1.24    19    14  0.74   1.00   1.71      -    0      -
+      4  30,150  0.000  2.404 -0.041   3.49    912   100    71    29   1.24    21    14  0.72   1.00   1.57      -    0      -
+      8  30,154  0.000  2.502 +0.057   3.62    880   100    72    29   1.30    25    18  0.67   1.00   1.64      -    0  1.00
+     16  30,162  0.001  2.471 +0.026   3.59    736   100    74    23   1.17    23    17  0.66   1.00   1.45      -    0  1.00
+     32  30,178  0.001  2.569 +0.125   3.73    878   100    72    37   1.50    28    19  0.70   2.33   1.63      -    0  1.00

@@ -4,7 +4,8 @@
 #
 #     bash h0_measurement/bugs/co-design/script.sh --run --dry            # print, submit nothing
 #     bash h0_measurement/bugs/co-design/script.sh --run --wave=1         # then 2, then 3
-#     bash h0_measurement/bugs/co-design/script.sh --run --wave=4         # ONLY after plan.md S1-S6 are synced
+#     bash h0_measurement/bugs/co-design/script.sh --pilot                # P1/P2, ~0.4 GPU-h, BEFORE wave 4
+#     bash h0_measurement/bugs/co-design/script.sh --run --wave=4         # ONLY after --pilot passes A1-A7
 #     bash h0_measurement/bugs/co-design/script.sh --run --wave=2 --extra
 #     bash h0_measurement/bugs/co-design/script.sh --read
 #
@@ -97,8 +98,8 @@
 # =============================================================================
 MODE=""; WAVE=all; EXTRA=0; DRY=0; FORCE=0
 case "${1:-}" in
-  --run|--read) MODE="$1"; shift ;;
-  *) echo "usage: bash $0 --run [--wave=1|2|3|4] [--extra] [--dry] [--force] | --read"; exit 0 ;;
+  --run|--read|--pilot) MODE="$1"; shift ;;
+  *) echo "usage: bash $0 --run [--wave=1|2|3|4] [--extra] [--dry] [--force] | --pilot | --read"; exit 0 ;;
 esac
 for a in "$@"; do
   case "$a" in
@@ -145,6 +146,15 @@ R6 / R4 (phase curve, rope fraction) -- LEAN cells pool with R3's 16:
      "h0_measurement/results/job214217*/*.parquet" "h0_measurement/results/job214447*/*.parquet" \
      "h0_measurement/results/<Q1,Q2,Q3,N8,N9,N12,N13,N16>/*.parquet" \
      -o h0_measurement/reports/h0_rope_vs_length.pdf
+
+CO-DESIGN (wave 4 only -- the group allocation and the cascade score):
+  .venv/bin/python h0_measurement/bugs/co-design/gqa_cascade.py \
+     "h0_measurement/results/<N5,N6,N7,N11,N14>/*.parquet" \
+     --csv h0_measurement/reports/codesign.csv
+  Read `grp_*_over_head3` (the grouping's OWN marginal cost, in band), NOT
+  `grp_*_cost3`, which divides by err_wf and carries R3's lag tail as well.
+  The group band and the per-head band use DIFFERENT corners; never difference
+  them. The reader prints the plan.md section 8 verdict for both designs.
 
 Two 0-GPU reads that need no new run and should be redone as cells land:
   (a) log(band) ~ dead2 [+ rope_frac | log2 L], leave-one-model-out error.
@@ -390,6 +400,55 @@ lean_new() {
 want() { [[ "$WAVE" == "$1" || ( "$WAVE" == all && "$1" != 4 ) ]]; }
 
 # =============================================================================
+# --pilot -- P1/P2 (plan.md section 7). ~0.4 GPU-h. RUN THIS BEFORE WAVE 4.
+# =============================================================================
+# The CPU smoke test (plan.md 7.0) already pins the invariants and the n_rep = 1
+# identity on synthetic heads and on qwen3-1.7b. What it cannot give is a real
+# GQA number at n_rep 4/8, or an s/unit for the wave-4 walltimes. These two do.
+# One prompt each, every coarse width, so the base-tier curve is visible.
+#   P1 llama31-8b @8k   n_rep 4, the first real ratio the headline cells use
+#   P2 qwen15-moe @8k   n_rep 1 -- the CONTROL: every group column must equal
+#                       its per-head twin, or something is wrong upstream.
+# Pilot results are n_prompts=1, so the wave-4 guards ignore them.
+if [[ "$MODE" == "--pilot" ]]; then
+  PILOT=(SIEVE_EVICTORS=oracle,accum SIEVE_CORNER_POLICIES=frac
+         SIEVE_INTERIOR_SCORES=accum SIEVE_GROUP_ALLOC=1
+         SIEVE_COARSE_BITS=2,3,4,6,8 SIEVE_EXTRA_BUDGETS=3 SIEVE_NO_REPORT=1)
+  if ! grep -q 'group_alloc' h0_measurement/run_h0.py; then
+    gate_fail "--pilot: group_alloc is not in run_h0.py (plan.md S4 not synced)"
+  fi
+  echo "submit P1  llama31-8b @8192  n_rep=4  (1 prompt, all coarse widths)"
+  SB --array=0-0 --time=00:40:00 "$MAIN" "${PILOT[@]}" \
+     SIEVE_CTX=8192 SIEVE_N_PROMPTS=1 llama31-8b
+  echo "submit P2  qwen15-moe-a2.7b @8192  n_rep=1 CONTROL"
+  SB --array=0-0 --time=00:30:00 "$MAIN" "${PILOT[@]}" \
+     SIEVE_CTX=8192 SIEVE_N_PROMPTS=1 qwen15-moe-a2.7b
+  cat <<'PCHECK'
+
+When they finish, the acceptance checks (plan.md section 7):
+  A1 IDENTITY  P2 (n_rep=1): every group column equals its per-head twin.
+       .venv/bin/python h0_measurement/bugs/co-design/gqa_cascade.py \
+           "h0_measurement/results/<P2>/*.parquet"
+     -> the grouping's marginal cost must read 1.000 EXACTLY. Anything else
+        means the control is broken; do not read P1.
+  A3 LOG   line 1 echoes  group_alloc=1 coarse_bits=2,3,4,6,8 , and the sidecar
+     carries "group_alloc": true beside "interior_unseen_policy": "floor_maxb".
+  A4 ORDER median grp_or_cost3 >= 1.0 (a constraint cannot help in aggregate).
+  A5 EXACT  cs_b8_cost3 ~ 1.00 (+-2%): at the top tier the cascade score IS the
+     exact one. 1.003 on the CPU smoke test.
+  A6 COST   "N rows Ts" vs the knobs-off rate. The CPU smoke test measured +55%
+     with FOUR widths; wave 4 uses two. Rescale the wave-4 headers by what P1
+     actually shows before submitting.
+  A7 CURVE  cs_cost must fall as bc rises. If bc=2 is NEGATIVE in `closed`, that
+     is the real finding (the 2-bit tier is a worse allocator than last step's
+     attention), not a bug -- it reproduced on the CPU smoke test.
+
+Then:  bash h0_measurement/bugs/co-design/script.sh --run --wave=4
+PCHECK
+  exit 0
+fi
+
+# =============================================================================
 # WAVE 1 -- everything that is 1 GPU and independent (~11 GPU-h allocated)
 # =============================================================================
 if want 1; then
@@ -447,11 +506,22 @@ fi
 # =============================================================================
 if want 3; then
 echo "== wave 3 =="
-# N16 R4's D1: qwen3-30b @64k closes its 2-octave hole. Submit only if Q1/Q2 came
-#     back FLAT on tau vs the quadratic null; otherwise it changes nothing.
+# N16 R4's D1: qwen3-30b @64k closes its 2-octave hole (32k -> 128k).
+#     STATUS 2026-09-20: Q1/Q2 LANDED and the condition is met, for a sharper
+#     reason than "flat". qwen3-30b's tau at its cap (262k) sits +0.202 above a
+#     quadratic-in-log2(L) null fitted to its pre-cap points -- the only
+#     borderline number in R4. That null is fitted across a 2-OCTAVE HOLE: drop
+#     the 128k point and the prediction at 262k swings 0.470, i.e. more than
+#     twice the effect being tested. 64k (rope 0.25) is the missing point, and
+#     it is the cheapest way to make the one ambiguous cell in R4 decisive.
+#     Run X1 FIRST (--extra): if qwen3-30b fits on one GPU this is 2 GPU-h, not 8.
 lean  N16 qwen3-30b-a3b-2507 65536 "$(q30tier)" 02:00:00 3
 
 # N17 R5 control: greedy vs sampled, both arms anti-loop.
+#     STATUS: the loop risk that argued for waiting is GONE. Wave 1's four drift
+#     cells ran clean to step 4,096 (distinct-4 0.71-0.98 at the last step,
+#     against 0.04-0.45 in campaign 1), so rep_penalty=1.05 / no_repeat=8 hold
+#     and these two need no re-tuning. Safe to submit now.
 drift N17 llama31-8b 8192  main 01:30:00 0
 
 # N18 R5: the middle of the length axis (froz valid to ~1,200 steps).

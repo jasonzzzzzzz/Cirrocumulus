@@ -1,0 +1,19 @@
+[jczhao20@rorqual1 Cirrocumulus]$ bash h0_measurement/bugs/4_rope_limit_or_mechanism/script.sh 
+Submitted batch job 21444721
+Submitted batch job 21444722
+Submitted batch job 21444723
+Submitted batch job 21444724
+Submitted batch job 21444725
+Submitted batch job 21444726
+Submitted batch job 21444727
+Submitted batch job 21444728
+[jczhao20@rorqual1 Cirrocumulus]$ squeue -u jczhao20
+          JOBID     USER      ACCOUNT           NAME  ST  TIME_LEFT NODES CPUS TRES_PER_N MIN_MEM NODELIST (REASON) 
+   21444721_[0] jczhao20 def-enright_ sieve-h0-large  PD    3:00:00     1   32 gres/gpu:4    320G  (Priority) 
+   21444722_[0] jczhao20 def-enright_ sieve-h0-large  PD    2:30:00     1   32 gres/gpu:4    320G  (Priority) 
+   21444723_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 
+   21444724_[0] jczhao20 def-enright_ sieve-h0-large  PD    3:15:00     1   32 gres/gpu:4    320G  (Priority) 
+   21444725_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 
+   21444726_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 
+   21444727_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 
+   21444728_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 

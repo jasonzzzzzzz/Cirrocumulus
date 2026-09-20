@@ -1298,6 +1298,65 @@ def test_override_lists():
           c["measure_steps"] == [0, 1, 64])
 
 
+def test_prompt_offset():
+    print("\n[R7] prompt_offset: a DISJOINT sample; rot_seed is not one")
+    import tempfile, yaml
+    from sievelib import prompts
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(root, "h0_measurement"))
+    from run_h0 import load_cfg
+
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        yaml.safe_dump({"defaults": {"n_prompts": 4, "rot_seed": 0},
+                        "models": [{"tag": "m", "id": "x"}]}, fh)
+    base = load_cfg(fh.name, "m", [])
+    off = load_cfg(fh.name, "m", ["prompt_offset=4", "n_prompts=4"])
+    os.unlink(fh.name)
+    check("absent prompt_offset defaults to 0 (every run before 2026-09-20)",
+          int(base.get("prompt_offset", 0)) == 0)
+    check("prompt_offset=4 parses as an int", off["prompt_offset"] == 4)
+    # what run_h0.py's loop does with it
+    blk = lambda c: list(range(int(c.get("prompt_offset", 0)),
+                               int(c.get("prompt_offset", 0)) + int(c["n_prompts"])))
+    check("block(offset=0, n=4) is the historical 0..3", blk(base) == [0, 1, 2, 3])
+    check("block(offset=4, n=4) is disjoint from it",
+          not set(blk(off)) & set(blk(base)), f"({blk(off)})")
+
+    tok = FakeTok()
+    ctx = 2048
+    with tempfile.TemporaryDirectory() as tmp:
+        _make_corpus(tmp)
+        win = lambda p, seed=0: prompts.build(
+            tok, "niah", ctx, seed=seed, corpus_dir=tmp, prompt_idx=p,
+            require_real=True)[1]
+        a = {(win(p)["doc"], win(p)["offset"]) for p in blk(base)}
+        b = {(win(p)["doc"], win(p)["offset"]) for p in blk(off)}
+        check("the two blocks read different (book, offset) windows",
+              not (a & b), f"({sorted(a)} vs {sorted(b)})")
+        # B1: the haystack is keyed on prompt_idx ALONE. `seed` is ignored when
+        # prompt_idx is given, and rot_seed never reaches prompts.py at all --
+        # so a second rot_seed re-measures the SAME documents.
+        m0, m1 = win(2, seed=0), win(2, seed=999)
+        check("[R7] prompt identity depends on prompt_idx only, not on any seed",
+              (m0["doc"], m0["offset"], m0["needle_code"])
+              == (m1["doc"], m1["offset"], m1["needle_code"]))
+    check("rot_seed does change the quantizer rotation (it is a QUANTIZER seed)",
+          not torch.allclose(quant.random_rotation(16, "cpu", torch.float32, seed=0),
+                             quant.random_rotation(16, "cpu", torch.float32, seed=1)))
+
+    # B3: the band fraction is a count of per-head MEDIANS, so it is not
+    # invariant to how many prompts each median is taken over -- fewer prompts,
+    # noisier medians, more heads pushed over the 2x line. Measured on the real
+    # campaign (bugs/7 plan.md): 21.0% at 1 prompt vs 18.9% at 4, same run.
+    # A replicate must therefore use the SAME block size as its reference.
+    g = torch.Generator().manual_seed(0)
+    true_gain = torch.full((512,), 1.6)                    # every head out of band
+    draws = true_gain[:, None] * torch.exp(0.8 * torch.randn(512, 6, generator=g))
+    band = lambda k: float((draws[:, :k].median(dim=1).values >= 2.0).float().mean())
+    check("[R7] band(1 prompt) > band(6 prompts) on identical heads",
+          band(1) > band(6), f"({100*band(1):.1f}% vs {100*band(6):.1f}%)")
+
+
 def test_ban_eos():
     print("\n[R5] decode_ban_eos removes EOS from greedy AND sampled decoding")
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1474,7 +1533,8 @@ if __name__ == "__main__":
               test_needle_span, test_validity_gate, test_ladder_identity,
               test_rope_window,
               test_practical_interior, test_rescore_is_idempotent,
-              test_decode_plan, test_override_lists, test_ban_eos,
+              test_decode_plan, test_override_lists, test_prompt_offset,
+              test_ban_eos,
               test_unseen_floor, test_first_evictor, test_anti_loop_decoding):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")

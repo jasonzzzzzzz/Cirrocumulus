@@ -482,7 +482,13 @@ def main():
           flush=True)
 
     head_dim = getattr(cf, "head_dim", cf.hidden_size // cf.num_attention_heads)
-    R = quant.random_rotation(head_dim, dev, torch.float32, seed=c.get("rot_seed", 0))
+    # R7: `rot_seed` rotates the QUANTIZER and nothing else -- in particular the
+    # prompts do not depend on it (they are keyed by prompt_idx, see the loop
+    # below), so a second rot_seed re-measures the same documents under a
+    # different rotation. Stamped per row and in the sidecar so a replicate can
+    # be told from its reference without re-reading models.yaml.
+    rot_seed = int(c.get("rot_seed", 0))
+    R = quant.random_rotation(head_dim, dev, torch.float32, seed=rot_seed)
     softcap = getattr(cf, "attn_logit_softcapping", None)
     norm_correct = bool(c.get("norm_correct", True))
     if softcap:
@@ -500,7 +506,17 @@ def main():
     gens: dict[tuple, str] = {}     # (prompt, family) -> greedy decode, for the
     hits: dict[tuple, bool] = {}    # task-level validity check
     fams = c.get("families", ["niah", "qa", "cont"])
-    for p in range(int(c["n_prompts"])):
+    # R7: an INDEPENDENT sample needs different prompt INDICES, not a different
+    # rot_seed -- prompts.py keys the haystack (book, offset, needle) on
+    # prompt_idx alone. n_prompts by itself always starts at 0, so a replicate
+    # re-pays for the reference run's prompts; prompt_offset moves the whole
+    # block. 0 (the default, and every run before 2026-09-20) is unchanged.
+    p_off = int(c.get("prompt_offset", 0))
+    if p_off:
+        print(f"prompt block: {p_off}..{p_off + int(c['n_prompts']) - 1} "
+              f"(prompt_offset={p_off}) -- disjoint from the default block",
+              flush=True)
+    for p in range(p_off, p_off + int(c["n_prompts"])):
         for fam in fams:
             # prompt_idx keys the haystack, so niah/qa/cont at the same p read
             # byte-identical text and the niah-vs-cont gate in report.py is a
@@ -705,6 +721,12 @@ def main():
                                        native_ctx=native_ctx,
                                        rope_frac=rope_frac,
                                        rope_type=rope_type,
+                                       # R7: which SAMPLE this row belongs to.
+                                       # `prompt` is now absolute, so a replicate
+                                       # is identified by its block, and rot_seed
+                                       # separates two runs of the SAME block.
+                                       prompt_offset=p_off,
+                                       rot_seed=rot_seed,
                                        evictors=",".join(ev_labels),
                                        corner_policies=",".join(ev_policies),
                                        corner_kappa=ev_kappa,
@@ -785,6 +807,15 @@ def main():
                    "budgets": list(budgets), "bit_list": list(bit_list),
                    "maxb": int(maxb), "quant_every": int(c.get("quant_every", 1)),
                    "n_prompts": int(c["n_prompts"]), "n_decode": len(plan),
+                   # R7: WHICH prompts, and which quantizer rotation. Without
+                   # these a replicate cannot be told from its reference from the
+                   # sidecar alone (rot_seed was only ever inside "config", and
+                   # the prompt block was implicit because it always started at
+                   # 0). The guards in bugs/2 and bugs/6 key on the corner tag;
+                   # these are what a seed/block-aware guard reads.
+                   "prompt_offset": p_off,
+                   "prompt_block": [p_off, p_off + int(c["n_prompts"]) - 1],
+                   "rot_seed": rot_seed,
                    "schedule": sched,
                    "measure_steps": [t for t, r in enumerate(plan) if r.row],
                    "decode_temperature": temp, "decode_top_p": top_p,

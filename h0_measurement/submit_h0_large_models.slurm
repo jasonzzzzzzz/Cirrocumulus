@@ -170,10 +170,12 @@ OVERRIDES=()
 # DECODE-SHAPE knobs, same integer-validated contract as SIEVE_CTX.
 # n_decode / quant_every exist for R3's staleness sweep: a `lag:k=N` score only
 # scores from step N onward, so the default (n_decode 8, quant_every 4 -> quant
-# steps 0 and 4) can never measure lag8. n_prompts / rot_seed exist for R7: two
-# independent samples of a cell need a different seed or a different prompt
-# count, and bugs/2/report.md 7 flagged that neither was reachable from SIEVE_*.
-for _v in SIEVE_N_DECODE SIEVE_QUANT_EVERY SIEVE_N_PROMPTS SIEVE_ROT_SEED; do
+# steps 0 and 4) can never measure lag8. n_prompts / rot_seed / prompt_offset
+# exist for R7 -- see submit_h0.slurm for which of the three gives a second
+# SAMPLE (prompt_offset), a LARGER nested one (n_prompts, and the band is not
+# invariant to it), and which is only a quantizer rotation (rot_seed).
+for _v in SIEVE_N_DECODE SIEVE_QUANT_EVERY SIEVE_N_PROMPTS SIEVE_ROT_SEED \
+          SIEVE_PROMPT_OFFSET; do
   _x="${!_v:-}"
   if [[ -n "$_x" && ! "$_x" =~ ^[0-9]+$ ]]; then
     echo "ERROR: $_v must be a non-negative integer, got '$_x'" >&2
@@ -184,6 +186,7 @@ done
 [[ -n "${SIEVE_QUANT_EVERY:-}" ]] && OVERRIDES+=("quant_every=$SIEVE_QUANT_EVERY")
 [[ -n "${SIEVE_N_PROMPTS:-}" ]]   && OVERRIDES+=("n_prompts=$SIEVE_N_PROMPTS")
 [[ -n "${SIEVE_ROT_SEED:-}" ]]    && OVERRIDES+=("rot_seed=$SIEVE_ROT_SEED")
+[[ -n "${SIEVE_PROMPT_OFFSET:-}" ]] && OVERRIDES+=("prompt_offset=$SIEVE_PROMPT_OFFSET")
 # R5 knobs (bugs/5_phase_drift_across_decode) -- see submit_h0.slurm for the
 # note. run_h0.py read them, nothing forwarded them.
 _chk() { [[ -z "${!1:-}" || "${!1}" =~ $2 ]] || { echo "ERROR: $1 malformed, got '${!1}'" >&2; exit 1; }; }
@@ -290,7 +293,7 @@ fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config} measure_steps=${SIEVE_MEASURE_STEPS:-dense} T=${SIEVE_DECODE_TEMPERATURE:-0}"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config} measure_steps=${SIEVE_MEASURE_STEPS:-dense} T=${SIEVE_DECODE_TEMPERATURE:-0} prompts=${SIEVE_N_PROMPTS:-per-model}@${SIEVE_PROMPT_OFFSET:-0} rot_seed=${SIEVE_ROT_SEED:-0}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
@@ -364,6 +367,7 @@ if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
     echo "corner policies knob: ${SIEVE_CORNER_POLICIES:-unset}";
     echo "interior scores knob: ${SIEVE_INTERIOR_SCORES:-unset}";
     echo "decode knobs: measure_steps=${SIEVE_MEASURE_STEPS:-dense} families=${SIEVE_FAMILIES:-default} T=${SIEVE_DECODE_TEMPERATURE:-0} top_p=${SIEVE_DECODE_TOP_P:-1} seed=${SIEVE_DECODE_SEED:-0} ban_eos=${SIEVE_DECODE_BAN_EOS:-0} rep_penalty=${SIEVE_DECODE_REP_PENALTY:-1} no_repeat=${SIEVE_DECODE_NO_REPEAT:-0}";
+    echo "sample knobs: n_prompts=${SIEVE_N_PROMPTS:-per-model} prompt_offset=${SIEVE_PROMPT_OFFSET:-0} rot_seed=${SIEVE_ROT_SEED:-0}   (R7: the OFFSET is what makes a second sample; rot_seed only rotates the quantizer)";
     echo;
     # The knobs above are what was ASKED for; unset does not say what the
     # defaults were, and models.yaml can change afterwards. Resolve and record

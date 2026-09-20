@@ -32,3 +32,56 @@ dropped 16,896 rows to looping text (distinct-4 <= 0.5; a loop is not a phase). 
       8  30,154  0.000  2.502 +0.057   3.62    880   100    72    29   1.30    25    18  0.67   1.00   1.64      -    0  1.00
      16  30,162  0.001  2.471 +0.026   3.59    736   100    74    23   1.17    23    17  0.66   1.00   1.45      -    0  1.00
      32  30,178  0.001  2.569 +0.125   3.73    878   100    72    37   1.50    28    19  0.70   2.33   1.63      -    0  1.00
+
+
+
+
+ ===============
+
+ dropped 19,968 rows to looping text (distinct-4 <= 0.5; a loop is not a phase). Runs truncated at:
+   llama31-8b ctx 8,192 T=0.7 sparse: first loop at step 4096, table stops before it
+   llama31-8b ctx 32,768 T=0.7 sparse: first loop at step 4096, table stops before it
+   qwen3-30b-a3b-2507 ctx 32,768 T=0.7 sparse: first loop at step 1024, table stops before it
+=== llama31-8b  ctx 8,192  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 23%  flip_rtr 23%
+      1   7,538  0.000  2.215 +0.000   3.20    200    98    40    66   3.03     0     0  1.00   1.00      -      -    0      -
+   1024   8,561  0.184  2.066 -0.149   2.98    367    98    19    84   4.82    33    25  0.54   4.36      -      -    0  0.93
+   2048   9,585  0.347  2.525 +0.310   3.64    268    98    53    42   1.54    34    30  0.61   1.00      -      -    0  0.89
+=== llama31-8b  ctx 32,768  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 12%  flip_rtr 11%
+      1  30,148  0.000  2.608 +0.000   3.79    510    99    38    39   1.42     0     0  1.00   1.00      -      -    0      -
+   1024  31,171  0.048  2.778 +0.169   4.01    318    99    53    38   1.32    21    15  0.79   1.00      -      -    0  0.83
+   2048  32,195  0.095  2.778 +0.169   4.00    360    99    46    33   1.26    20    16  0.77   1.00      -      -    0  0.77
+=== llama31-8b  ctx 131,072  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 12%  flip_rtr 8%
+      1 120,588  0.000  3.148 +0.000   4.56   1400    99    64    22   1.05     0     0  1.00   1.00      -      -    0      -
+   1024 121,611  0.012  3.217 +0.069   4.65   1242    99    67    21   1.04    13    10  0.76   1.00      -      -    0  0.90
+   2048 122,635  0.024  3.287 +0.139   4.73    998    99    71    16   1.02    16    12  0.70   1.00      -      -    0  0.95
+   4096 124,683  0.048  3.396 +0.248   4.92   1073    99    77    12   1.01    15    13  0.64   1.00      -      -    0  0.94
+=== qwen3-30b-a3b-2507  ctx 32,768  T=0.7  sparse  [oracle,last_step]  3 prompts, 0 reached EOS (EOS banned) (post-EOS rows dropped)
+  calibration step 1; noise floor (step 1 vs 2): flip_gen 19%  flip_rtr 14%
+      1  30,147  0.000  2.445 +0.000   3.55    840   100    73    29   1.22     0     0  1.00   1.00   1.77      -    0      -
+L-GROWTH TEST -- across-ctx slope at the calibration step vs the within-generation move at the last step
+  llama31-8b             T=0.7 ctx   8,192  slope +0.233/oct  G= 2048  dlog2L 0.347  dtau predicted +0.081  measured +0.310
+  llama31-8b             T=0.7 ctx  32,768  slope +0.233/oct  G= 2048  dlog2L 0.095  dtau predicted +0.022  measured +0.169
+  llama31-8b             T=0.7 ctx 131,072  slope +0.233/oct  G= 4096  dlog2L 0.048  dtau predicted +0.011  measured +0.248
+
+
+
+================== 
+
+    256  30,402  0.012  2.467 +0.023   3.57    674   100    75    38   1.45    27    19  0.64   2.48   2.03      -    0  0.96
+    512  30,658  0.024  2.482 +0.037   3.59   1006   100    73    45   1.74    29    24  0.66   2.96   2.22      -    0  0.76
+
+L-GROWTH TEST -- across-ctx slope at the calibration step vs the within-generation move at the last step
+--- bridge (job21406673):
+  BRIDGE -- last_step (what a sparse run can field) vs accum (the campaign's corner), per-head medians:
+   step  ratio band_acc band_last
+      8  0.942     62.3      57.0
+     16  0.955     61.4      57.8
+     24  0.905     66.4      59.2
+     32  0.962     69.6      64.6
+  ratio > 1: last_step is the WEAKER corner, so a sparse run's band% reads high by the band gap shown.
+
+
+

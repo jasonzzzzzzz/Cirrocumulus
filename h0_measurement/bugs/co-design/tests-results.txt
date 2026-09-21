@@ -1,0 +1,204 @@
+reader fixed
+=== llama31-8b @ 32,768   n_rep=4   36864 head-rows, 11817 in band   [job961035,job961036]
+    band %, BOTH vs the accum w2p-ranked corner (per-head | group)    39.9      46.4
+    the storable design, group corner throughout: band 46.4% lagged -> 51.5% with the cascade at bc=4
+      (against 39.9% for the per-head allocation on the SAME corner and ranking rule)
+=== llama31-8b @ 131,072   n_rep=4   36864 head-rows, 6647 in band   [job961033,job961034]
+    band %, BOTH vs the accum w2p-ranked corner (per-head | group)    23.8      28.9
+    the storable design, group corner throughout: band 28.9% lagged -> 36.5% with the cascade at bc=4
+      (against 23.8% for the per-head allocation on the SAME corner and ranking rule)
+=== qwen15-moe-a2.7b @ 16,384   n_rep=1   6912 head-rows, 2601 in band   [job961039]
+    band %, BOTH vs the accum w2p-ranked corner (per-head | group)    37.1      37.1
+    the storable design, group corner throughout: band 37.1% lagged -> 46.4% with the cascade at bc=4
+      (against 37.1% for the per-head allocation on the SAME corner and ranking rule)
+=== qwen3-30b-a3b-2507 @ 8,192   n_rep=8   36864 head-rows, 4792 in band   [job961040,job961041]
+    band %, BOTH vs the accum w2p-ranked corner (per-head | group)    17.3      21.6
+    the storable design, group corner throughout: band 21.6% lagged -> 35.1% with the cascade at bc=4
+      (against 17.3% for the per-head allocation on the SAME corner and ranking rule)
+=== qwen3-8b @ 8,192   n_rep=4   41472 head-rows, 6250 in band   [job961037,job961038]
+    band %, BOTH vs the accum w2p-ranked corner (per-head | group)    19.9      24.7
+    the storable design, group corner throughout: band 24.7% lagged -> 39.6% with the cascade at bc=4
+      (against 19.9% for the per-head allocation on the SAME corner and ranking rule)
+==============================================================================
+      read against re-budgeting more often (R3 section 2.3).
+
+
+27 parquet file(s), 27 run(s)
+
+================================================================================================
+llama31-8b @ 8,192
+================================================================================================
+  2 run(s) -> 3 prompt block(s) of 3
+    job21421769    prompts 0-2  rot_seed=0  corpus=b524da5e  corners=oracle,accum  fixed
+    job21421769    prompts 3-5  rot_seed=0  corpus=b524da5e  corners=oracle,accum  fixed
+    job21421775    prompts 0-2  rot_seed=0  corpus=b524da5e  corners=oracle,lag1,lag2,lag4,lag8  fixed
+
+  sym_acc                                band  53.8%  90% [ 48.5,  59.0]   routed 2.10x
+      2 block(s):  53.2  54.3   sd(prompt blocks) 0.76
+      -> GO, clear
+      pooled over all 6 prompts of the run:  54.5%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  sym_min5 [oracle,accum]                band  53.8%  90% [ 48.5,  59.0]   routed 2.10x
+      2 block(s):  53.2  54.3   sd(prompt blocks) 0.76
+      -> GO, clear
+      pooled over all 6 prompts of the run:  54.5%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  e2_acc                                 band  66.9%  90% [ 62.1,  71.7]   routed 3.04x
+      2 block(s):  66.6  67.2   sd(prompt blocks) 0.41
+      -> GO, clear
+      pooled over all 6 prompts of the run:  67.5%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  e2_min5 [oracle,accum]                 band  66.9%  90% [ 62.1,  71.7]   routed 3.04x
+      2 block(s):  66.6  67.2   sd(prompt blocks) 0.41
+      -> GO, clear
+      pooled over all 6 prompts of the run:  67.5%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  e2_min5 [oracle,lag1,lag2,lag4,lag8]   band  63.8%  90% [ 58.8,  68.8]   routed 2.67x
+      1 block(s):  63.8   sd(prompt blocks) n/a -- every block reads the SAME prompts, so this interval covers layers only
+      -> GO, clear
+
+  oracle                                 band  45.1%  90% [ 40.1,  50.2]   routed 1.82x
+      3 block(s):  43.2  46.4  45.9   sd(prompt blocks) 1.31   sd(same prompts, rerun/rotation) 1.93
+      -> GO, clear
+
+================================================================================================
+llama31-8b @ 32,768
+================================================================================================
+  4 run(s) -> 7 prompt block(s) of 3
+    job21421771    prompts 0-2  rot_seed=0  corpus=b524da5e  corners=oracle,accum  fixed
+    job21421771    prompts 3-5  rot_seed=0  corpus=b524da5e  corners=oracle,accum  fixed
+    job21421776    prompts 0-2  rot_seed=0  corpus=b524da5e  corners=oracle,lag1,lag2,lag4,lag8  fixed
+    job961035      prompts 6-8  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    job961035      prompts 9-11  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    job961036      prompts 12-14  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    job961036      prompts 15-17  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    WARNING: 2 different corpora here (0a26bc1e, b524da5e). The book order is seeded on corpus_sha (sievelib/prompts.py), so the SAME prompt index reads a DIFFERENT document in each -- blocks across corpora are independent samples, never a rotation control.
+
+  sym_acc                                band  37.3%  90% [ 32.3,  42.3]   routed 1.61x
+      6 block(s):  34.3  35.5  42.9  38.0  35.8  37.5   sd(prompt blocks) 3.03
+      -> STRADDLES GO (35)
+
+  sym_min5 [oracle,accum]                band  34.9%  90% [ 30.3,  39.5]   routed 1.55x
+      2 block(s):  34.3  35.5   sd(prompt blocks) 0.90
+      -> STRADDLES GO (35)
+      pooled over all 6 prompts of the run:  34.0%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  sym_min5 [oracle,last_step,accum,window,recency] band  28.7%  90% [ 24.5,  32.9]   routed 1.40x
+      4 block(s):  31.9  28.5  26.7  27.7   sd(prompt blocks) 2.28
+      -> NARROW, clear of both lines
+
+  e2_acc                                 band  47.0%  90% [ 41.7,  52.3]   routed 1.84x
+      6 block(s):  45.8  44.6  52.7  46.5  45.5  46.9   sd(prompt blocks) 2.91
+      -> GO, clear
+
+  e2_min5 [oracle,accum]                 band  45.2%  90% [ 40.3,  50.1]   routed 1.73x
+      2 block(s):  45.8  44.6   sd(prompt blocks) 0.83
+      -> GO, clear
+      pooled over all 6 prompts of the run:  45.1%  -- a LOWER-NOISE statistic, not a replicate (the band falls as prompts are added)
+
+  e2_min5 [oracle,lag1,lag2,lag4,lag8]   band  41.0%  90% [ 35.6,  46.4]   routed 1.50x
+      1 block(s):  41.0   sd(prompt blocks) n/a -- every block reads the SAME prompts, so this interval covers layers only
+      -> GO, clear
+
+  e2_min5 [oracle,last_step,accum,window,recency] band  42.6%  90% [ 37.7,  47.5]   routed 1.66x
+      4 block(s):  46.4  41.5  41.1  41.4   sd(prompt blocks) 2.53
+      -> GO, clear
+
+  oracle                                 band  27.0%  90% [ 22.7,  31.4]   routed 1.21x
+      7 block(s):  26.8  25.5  27.5  29.3  27.4  26.4  26.4   sd(prompt blocks) 1.31   sd(same prompts, rerun/rotation) 0.55
+      -> NARROW, clear of both lines
+
+  corner set (job961035, block 6-8, oracle,last_step,accum,window,recency): e2_acc  52.7%  vs  e2_min5  46.4%   (-6.3 pts from the corner definition alone)
+
+  corner set (job961035, block 9-11, oracle,last_step,accum,window,recency): e2_acc  46.5%  vs  e2_min5  41.5%   (-5.0 pts from the corner definition alone)
+
+  corner set (job961036, block 12-14, oracle,last_step,accum,window,recency): e2_acc  45.5%  vs  e2_min5  41.1%   (-4.4 pts from the corner definition alone)
+
+  corner set (job961036, block 15-17, oracle,last_step,accum,window,recency): e2_acc  46.9%  vs  e2_min5  41.4%   (-5.5 pts from the corner definition alone)
+
+  corner set (job961035, block 6-8, oracle,last_step,accum,window,recency): sym_acc  42.9%  vs  sym_min5  31.9%   (-10.9 pts from the corner definition alone)
+
+  corner set (job961035, block 9-11, oracle,last_step,accum,window,recency): sym_acc  38.0%  vs  sym_min5  28.5%   (-9.5 pts from the corner definition alone)
+
+  corner set (job961036, block 12-14, oracle,last_step,accum,window,recency): sym_acc  35.8%  vs  sym_min5  26.7%   (-9.2 pts from the corner definition alone)
+
+  corner set (job961036, block 15-17, oracle,last_step,accum,window,recency): sym_acc  37.5%  vs  sym_min5  27.7%   (-9.8 pts from the corner definition alone)
+
+================================================================================================
+llama31-8b @ 131,072
+================================================================================================
+  3 run(s) -> 3 prompt block(s) of 6
+    job21421773    prompts 0-5  rot_seed=0  corpus=b524da5e  corners=oracle,accum  fixed
+    job961033      prompts 6-11  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    job961034      prompts 12-17  rot_seed=1  corpus=0a26bc1e  corners=oracle,last_step,accum,window,recency  fixed
+    WARNING: 2 different corpora here (0a26bc1e, b524da5e). The book order is seeded on corpus_sha (sievelib/prompts.py), so the SAME prompt index reads a DIFFERENT document in each -- blocks across corpora are independent samples, never a rotation control.
+    note: blocks 0-5 and 6-11 share 1 document(s) at different offsets -- not fully independent samples
+    note: blocks 0-5 and 12-17 share 1 document(s) at different offsets -- not fully independent samples
+
+  sym_acc                                band  20.5%  90% [ 15.9,  25.0]   routed 1.19x
+      3 block(s):  20.2  21.9  19.3   sd(prompt blocks) 1.29
+      -> NARROW, clear of both lines
+
+  sym_min5 [oracle,accum]                band  20.2%  90% [ 15.5,  24.9]   routed 1.18x
+      1 block(s):  20.2   sd(prompt blocks) n/a -- every block reads the SAME prompts, so this interval covers layers only
+      -> NARROW, clear of both lines
+
+
+qwen3-30b-a3b-2507, every fixed LEAN cell (N16 = 64k is new):
+   ctx   tau  dead2    n95    sym         job  npr  rope
+  4096 2.086 59.652   67.0 19.748 job21465224    4 0.016
+  8192 2.168 62.326  104.0 18.028 job21421770    4 0.031
+ 32768 2.370 68.327  287.0 12.836 job21421772    4 0.125
+ 65536 2.563 71.195  602.0 12.449   job958168    3 0.250
+131072 2.900 73.617  743.5 10.975 job21421774    4 0.500
+196608 3.106 75.731  945.0  9.404   job943899    3 0.750
+262144 3.441 76.432 1615.0 10.069   job943900    2 1.000
+
+WITHOUT N16 (R4 report 8.2): quadratic on [4, 8, 32, 128]k
+   192k rope 0.75: measured 3.106  null 3.088  excess +0.018
+   256k rope 1.00: measured 3.441  null 3.238  excess +0.202
+
+WITH N16: quadratic on [4, 8, 32, 64, 128]k
+   192k rope 0.75: measured 3.106  null 3.078  excess +0.028
+   256k rope 1.00: measured 3.441  null 3.232  excess +0.209
+
+out-of-sample: the old null predicted tau(64k) = 2.611; N16 measured 2.563 (-0.048)
+
+
+
+wave 3 (+ the two extras that landed with it):
+  X1    job955334  LEAN      4,608 rows  99 cols  qwen3-30b-a3b-2507 @8,192
+  X2    job955335  DRIFT    43,008 rows  113 cols  llama31-8b @131,072
+  N16   job958168  LEAN     13,824 rows  99 cols  qwen3-30b-a3b-2507 @65,536
+  N17   job958169  DRIFT    43,008 rows  113 cols  llama31-8b @8,192
+  N18   job958170  DRIFT    43,008 rows  113 cols  llama31-8b @32,768
+-> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/co-design/wave3.csv
+   147,456 rows x 127 columns, 196.1 MB
+
+wave 4:
+  N7a   job961033  FIVE+    18,432 rows  152 cols  llama31-8b @131,072
+  N7b   job961034  FIVE+    18,432 rows  152 cols  llama31-8b @131,072
+  N5a   job961035  FIVE+    18,432 rows  152 cols  llama31-8b @32,768
+  N5b   job961036  FIVE+    18,432 rows  152 cols  llama31-8b @32,768
+  N6a   job961037  FIVE+    20,736 rows  152 cols  qwen3-8b @8,192
+  N6b   job961038  FIVE+    20,736 rows  152 cols  qwen3-8b @8,192
+  N11   job961039  LEAN+     6,912 rows  143 cols  qwen15-moe-a2.7b @16,384
+  N14a  job961040  FIVE+    18,432 rows  152 cols  qwen3-30b-a3b-2507 @8,192
+  N14b  job961041  FIVE+    18,432 rows  152 cols  qwen3-30b-a3b-2507 @8,192
+-> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/co-design/wave4.csv
+   158,976 rows x 152 columns, 331.9 MB
+
+cell                               floor @4096  exc rgr90  rho froz/lag1   d4
+llama31-8b @8k T=0.0                  12    18   +6  1.00 0.80      3.18 0.95
+llama31-8b @8k T=0.7                  23    25   +3  1.00 0.63      3.03 0.93
+llama31-8b @32k T=0.7                 15    14   -0  1.00 0.78      4.30 0.99
+llama31-8b @128k T=0.7                 6     9   +3  1.00 0.83      3.94 0.98
+qwen3-8b @8k T=0.7                    16    21   +5  1.00 0.69      2.52 0.79
+qwen3-8b @32k T=0.7                   14    17   +2  1.00 0.65      2.85 0.71
+=== X1 re-run on Trillium (job955334) vs rorqual X1 and the 4-GPU reference:
+  X1 Trillium 955334     tau 2.1634  dead2 61.98  sym 17.08
+  X1 rorqual 21484596    tau 2.1630  dead2 60.74  sym 18.06
+  ref 4-GPU 21421770     tau 2.1680  dead2 62.33  sym 18.03
+
+
+

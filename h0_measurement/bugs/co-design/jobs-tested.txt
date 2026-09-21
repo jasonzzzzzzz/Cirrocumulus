@@ -1,0 +1,16 @@
+Wave 3 and Wave 4
+
+job955334  qwen3-30b-a3b-2507   @  8,192  tag=or-ac_f            n=1@0 rot=0 sched=dense  T=0.0 grp=- coarse=- rows=36,864 unseen=floor_maxb
+job955335  llama31-8b           @131,072  tag=or-la-fi_f         n=3@3 rot=0 sched=sparse T=0.7 grp=- coarse=- rows=43,008 unseen=floor_maxb
+job958168  qwen3-30b-a3b-2507   @ 65,536  tag=or-ac_f            n=3@0 rot=0 sched=dense  T=0.0 grp=- coarse=- rows=110,592 unseen=floor_maxb
+job958169  llama31-8b           @  8,192  tag=or-la-fi_f         n=3@0 rot=0 sched=sparse T=0.0 grp=- coarse=- rows=43,008 unseen=floor_maxb
+job958170  llama31-8b           @ 32,768  tag=or-la-fi_f         n=3@0 rot=0 sched=sparse T=0.7 grp=- coarse=- rows=43,008 unseen=floor_maxb
+job961033  llama31-8b           @131,072  tag=or-la-ac-wi-re_f   n=6@6 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb
+job961034  llama31-8b           @131,072  tag=or-la-ac-wi-re_f   n=6@12 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb
+job961035  llama31-8b           @ 32,768  tag=or-la-ac-wi-re_f   n=6@6 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb
+job961036  llama31-8b           @ 32,768  tag=or-la-ac-wi-re_f   n=6@12 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb
+job961037  qwen3-8b             @  8,192  tag=or-la-ac-wi-re_f   n=6@6 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=165,888 unseen=floor_maxb
+job961038  qwen3-8b             @  8,192  tag=or-la-ac-wi-re_f   n=6@12 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=165,888 unseen=floor_maxb
+job961039  qwen15-moe-a2.7b     @ 16,384  tag=or-ac_f            n=6@0 rot=0 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=55,296 unseen=floor_maxb
+job961040  qwen3-30b-a3b-2507   @  8,192  tag=or-la-ac-wi-re_f   n=4@4 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb
+job961041  qwen3-30b-a3b-2507   @  8,192  tag=or-la-ac-wi-re_f   n=4@8 rot=1 sched=dense  T=0.0 grp=True coarse=[3, 4] rows=147,456 unseen=floor_maxb

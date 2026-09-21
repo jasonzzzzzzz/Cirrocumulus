@@ -165,14 +165,20 @@ def report_cell(key, recs, a):
     # class of error as plan.md B2, pointing the other way. The accum-only
     # per-head corner is reconstructible exactly from `err_e<B>_<score>_frac`
     # (R7 plan.md 2, verified max|diff| = 0.0), so the matched band is free.
+    # ...and on a matched RANKING RULE. The group corner ranks by the group-summed
+    # lagged SENSITIVITY w2p (unseen floored), so its per-head twin is the
+    # `<score>_w2p` corner, not the raw-attention `<score>` corner. Found on wave
+    # 4's n_rep = 1 cell: against the raw corner the two bands read 37.6 vs 37.1
+    # where they must be identical; against the w2p corner they are 37.1 = 37.1
+    # and the corner errors agree to 0.0 (plan.md 7.0d).
     gg = f"gain_grp_pp_{a.score}_{B}"
-    e_un, e_acc = f"err_uniform{B}", f"err_e{B}_{a.score}_frac"
+    e_un, e_acc = f"err_uniform{B}", f"err_e{B}_{a.score}_w2p_frac"
     ph_acc = f"err_wf_pp{B}_{a.score}"
     if gg in d and {e_un, e_acc, ph_acc} <= set(d.columns):
         ref = np.minimum(d[e_un], d[e_acc]) / d[ph_acc].clip(lower=1e-12)
         bh, bg = _band(ref), _band(d[gg])
         n_corn = int(d.n_practical.iloc[0]) if "n_practical" in d else 1
-        print(f"    {'band %, BOTH vs the accum-only corner (per-head | group)':<52s}"
+        print(f"    {'band %, BOTH vs the accum w2p-ranked corner (per-head | group)':<52s}"
               f"{bh:8.1f}{bg:10.1f}")
         row.update(band_perhead_matched=bh, band_group=bg)
         if gain_col in d and n_corn > 1:
@@ -231,7 +237,7 @@ def report_cell(key, recs, a):
                   f"cascade at bc={bc}")
             if "band_perhead_matched" in row:
                 print(f"      (against {row['band_perhead_matched']:.1f}% for the per-head "
-                      f"allocation on the SAME accum-only corner)")
+                      f"allocation on the SAME corner and ranking rule)")
             row["band_group_cascade"] = _band(d[gc])
             row["best_bc"] = bc
     return row

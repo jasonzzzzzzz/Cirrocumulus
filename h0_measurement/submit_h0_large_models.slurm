@@ -187,6 +187,28 @@ done
 [[ -n "${SIEVE_N_PROMPTS:-}" ]]   && OVERRIDES+=("n_prompts=$SIEVE_N_PROMPTS")
 [[ -n "${SIEVE_ROT_SEED:-}" ]]    && OVERRIDES+=("rot_seed=$SIEVE_ROT_SEED")
 [[ -n "${SIEVE_PROMPT_OFFSET:-}" ]] && OVERRIDES+=("prompt_offset=$SIEVE_PROMPT_OFFSET")
+# CO-DESIGN knobs (bugs/co-design/plan.md S5). Both default OFF: unset, they add
+# no override, run_h0.py takes the pre-2026-09-20 path and the parquet gains no
+# column. SIEVE_GROUP_ALLOC=1 measures the one-allocation-per-KV-head columns
+# (what a tiered cache can actually store, ROADMAP R12); SIEVE_COARSE_BITS is a
+# comma list of base-tier widths for the cascade score. run_h0.py does the
+# semantic checks (each width must be in bit_list, each budget in budgets).
+if [[ -n "${SIEVE_GROUP_ALLOC:-}" ]]; then
+  if [[ ! "$SIEVE_GROUP_ALLOC" =~ ^[01]$ ]]; then
+    echo "ERROR: SIEVE_GROUP_ALLOC must be 0 or 1, got '$SIEVE_GROUP_ALLOC'" >&2
+    exit 1
+  fi
+  OVERRIDES+=("group_alloc=$([[ "$SIEVE_GROUP_ALLOC" == 1 ]] && echo true || echo false)")
+fi
+for _v in SIEVE_COARSE_BITS SIEVE_EXTRA_BUDGETS; do
+  _x="${!_v:-}"
+  if [[ -n "$_x" && ! "$_x" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+    echo "ERROR: $_v must be a comma list of integers, got '$_x'" >&2
+    exit 1
+  fi
+done
+[[ -n "${SIEVE_COARSE_BITS:-}" ]]   && OVERRIDES+=("coarse_bits=$SIEVE_COARSE_BITS")
+[[ -n "${SIEVE_EXTRA_BUDGETS:-}" ]] && OVERRIDES+=("extra_budgets=$SIEVE_EXTRA_BUDGETS")
 # R5 knobs (bugs/5_phase_drift_across_decode) -- see submit_h0.slurm for the
 # note. run_h0.py read them, nothing forwarded them.
 _chk() { [[ -z "${!1:-}" || "${!1}" =~ $2 ]] || { echo "ERROR: $1 malformed, got '${!1}'" >&2; exit 1; }; }
@@ -293,7 +315,7 @@ fi
 
 # --------------------------------------------------------------- measure stage
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
-echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config} measure_steps=${SIEVE_MEASURE_STEPS:-dense} T=${SIEVE_DECODE_TEMPERATURE:-0} prompts=${SIEVE_N_PROMPTS:-per-model}@${SIEVE_PROMPT_OFFSET:-0} rot_seed=${SIEVE_ROT_SEED:-0}"
+echo "host=$(hostname) role=measure model=$MODEL task=$SLURM_ARRAY_TASK_ID run_id=$RUN_ID ctx=${SIEVE_CTX:-per-model} evictors=${SIEVE_EVICTORS:-per-config} measure_steps=${SIEVE_MEASURE_STEPS:-dense} T=${SIEVE_DECODE_TEMPERATURE:-0} prompts=${SIEVE_N_PROMPTS:-per-model}@${SIEVE_PROMPT_OFFSET:-0} rot_seed=${SIEVE_ROT_SEED:-0} group_alloc=${SIEVE_GROUP_ALLOC:-0} coarse_bits=${SIEVE_COARSE_BITS:-none}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 # prefetch.py skips tags it does not recognise and still exits 0, so a typo would
@@ -368,6 +390,7 @@ if [[ "${SLURM_ARRAY_TASK_ID}" -eq 0 && "${SIEVE_NO_REPORT:-0}" != "1" ]]; then
     echo "interior scores knob: ${SIEVE_INTERIOR_SCORES:-unset}";
     echo "decode knobs: measure_steps=${SIEVE_MEASURE_STEPS:-dense} families=${SIEVE_FAMILIES:-default} T=${SIEVE_DECODE_TEMPERATURE:-0} top_p=${SIEVE_DECODE_TOP_P:-1} seed=${SIEVE_DECODE_SEED:-0} ban_eos=${SIEVE_DECODE_BAN_EOS:-0} rep_penalty=${SIEVE_DECODE_REP_PENALTY:-1} no_repeat=${SIEVE_DECODE_NO_REPEAT:-0}";
     echo "sample knobs: n_prompts=${SIEVE_N_PROMPTS:-per-model} prompt_offset=${SIEVE_PROMPT_OFFSET:-0} rot_seed=${SIEVE_ROT_SEED:-0}   (R7: the OFFSET is what makes a second sample; rot_seed only rotates the quantizer)";
+    echo "co-design: group_alloc=${SIEVE_GROUP_ALLOC:-0} coarse_bits=${SIEVE_COARSE_BITS:-none} extra_budgets=${SIEVE_EXTRA_BUDGETS:-default}   (bugs/co-design/plan.md; unset = no new columns)";
     echo;
     # The knobs above are what was ASKED for; unset does not say what the
     # defaults were, and models.yaml can change afterwards. Resolve and record

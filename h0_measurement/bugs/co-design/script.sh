@@ -52,16 +52,16 @@
 #   N2   llama31-8b @  8192            DRIFT   R5*                              1.5
 #   N10  llama31-8b @ 16384            LEAN    R6 R4                            1.0
 #   N11  qwen15-moe @ 16384            LEAN    R6                               0.75
-#   N14  qwen3-30b  @  8192  n=8 @4     FIVE    R7 R3   (one job = 2 blocks)      8.0
+#   N14  qwen3-30b  @  8192  n=8 @4     FIVE    R7 R3   (one job = 2 blocks)      2.0
 #   N15  qwen3-30b  @  4096            LEAN    R6      (needle risk at 4k)      5.0
-#   N16  qwen3-30b  @ 65536  n=3       LEAN    R4      (only if Q1/Q2 are flat) 8.0
+#   N16  qwen3-30b  @ 65536  n=3       LEAN    R4  (Q1/Q2 landed: RUN IT)       2.0
 #   N17  llama31-8b @  8192, T=0       DRIFT   R5 (control)                     1.5
 #   N18  llama31-8b @ 32768            DRIFT   R5 (length-axis midpoint)        2.0
 #   --extra:  X1  qwen3-30b @8192 n=1 on ONE GPU  (does it fit? decides N14/N15/N16 cost)
 #             X2  llama31-8b @131072 DRIFT block 2 (prompts 3-5; noise floor at 3 prompts)
 #   Waves: 1 = N1 N8 N9 N3 N4 N12 N13 N2            (all 1 GPU, independent, ~11 GPU-h)
-#          2 = N10 N15                              (N15 is 4-GPU: run X1 first)
-#          3 = N16 N17 N18                          (N16 only after Q1/Q2 land)
+#          2 = N10 N15                              (done 2026-09-20)
+#          3 = N16 N17 N18                          (all three READY, see the body)
 #          4 = N7 N5 N6 N14 N11  WITH NEW COLUMNS   HELD until plan.md S1-S6 are synced:
 #              the parquets store per-head scalars, not per-token attention, so
 #              the GQA-group and cascade columns cannot be recomputed afterwards.
@@ -266,10 +266,23 @@ DRIFT=(SIEVE_EVICTORS=oracle,last_step,first SIEVE_CORNER_POLICIES=frac
        SIEVE_DECODE_BAN_EOS=1 SIEVE_DECODE_REP_PENALTY=1.05 SIEVE_DECODE_NO_REPEAT=8
        SIEVE_NO_REPORT=1)
 
-# Q30_ONE_GPU=1 -- run the qwen3-30b cells (N14, N15, N16) on ONE 80 GB GPU via the
-# main script instead of 4 pipeline-parallel GPUs. UNTESTED: 61 GB of bf16 weights
-# leave ~19 GB; run X1 first. If it fits, N14+N15 drop from 13 to ~3 GPU-h.
-Q30_ONE_GPU="${Q30_ONE_GPU:-0}"
+# Q30_ONE_GPU=1 -- run the qwen3-30b cells (N14, N16) on ONE 80 GB GPU via the
+# main script instead of 4 pipeline-parallel GPUs.
+#
+# MEASURED 2026-09-20 by X1 (job21484596, qwen3-30b-a3b-2507 @8k, 1 prompt):
+#     ONE GPU   36,864 rows  468s  / 3 units = 156 s/unit
+#     FOUR GPU  (job21421770, same cell, 12 units, 1,874s) = 156 s/unit
+# The per-unit rate is IDENTICAL, so the 4-GPU allocation was running three
+# cards idle: device_map=auto pipelines the layers, it does not shard the work.
+# One GPU is therefore 4x cheaper in GPU-hours at the same wall time, and X1's
+# numbers match the 4-GPU run (tau 2.1630 vs 2.1680, symmetric band 18.06 vs
+# 18.03, needle 1/1). DEFAULT IS NOW 1.
+#
+# The remaining risk is the KV CACHE, which X1 did not test: 61 GB of bf16
+# weights leave ~19 GB, and the cache is ~0.8 GB at 8k but ~6.4 GB at 64k. N16
+# (64k) should fit with ~12 GB spare; if it OOMs, re-run that cell with
+# Q30_ONE_GPU=0 -- it fails fast and costs almost nothing.
+Q30_ONE_GPU="${Q30_ONE_GPU:-1}"
 
 SB() { if (( DRY )); then echo "       sbatch $*"; else sbatch "$@"; fi; }
 
@@ -514,7 +527,8 @@ echo "== wave 3 =="
 #     the 128k point and the prediction at 262k swings 0.470, i.e. more than
 #     twice the effect being tested. 64k (rope 0.25) is the missing point, and
 #     it is the cheapest way to make the one ambiguous cell in R4 decisive.
-#     Run X1 FIRST (--extra): if qwen3-30b fits on one GPU this is 2 GPU-h, not 8.
+#     X1 settled the cost: one GPU is the same 156 s/unit as four, so this is
+#     2 GPU-h, not 8 (Q30_ONE_GPU now defaults to 1).
 lean  N16 qwen3-30b-a3b-2507 65536 "$(q30tier)" 02:00:00 3
 
 # N17 R5 control: greedy vs sampled, both arms anti-loop.
@@ -543,27 +557,30 @@ fi
 # BEFORE this wave. Not enforced here -- it is a human gate.
 # N7  R7, the widest prompt spread in the study (block sd ~9.6 pts at block size
 #     2). Every 128k number in R4/R5/R6 rests on 2-3-prompt cells.
-five_new N7a llama31-8b 131072  6 6 main 02:30:00
-five_new N7b llama31-8b 131072 12 6 main 02:30:00
+five_new N7a llama31-8b 131072  6 6 main 03:15:00
+five_new N7b llama31-8b 131072 12 6 main 03:15:00
 
 # N5  R7 + R3's five-corner item: sym 34.0 [29.2, 38.7] crosses GO.
-five_new N5a llama31-8b 32768   6 6 main 01:45:00
-five_new N5b llama31-8b 32768  12 6 main 01:45:00
+five_new N5a llama31-8b 32768   6 6 main 02:15:00
+five_new N5b llama31-8b 32768  12 6 main 02:15:00
 
 # N6  R7 + R3: sym 16.5 crosses STOP, e2 40.5 crosses GO. Also qwen3-8b's own
 #     8k point for R5/R6, so this model gets 8k/16k/24k/32k/40k in one place.
-five_new N6a qwen3-8b 8192      6 6 main 01:30:00
-five_new N6b qwen3-8b 8192     12 6 main 01:30:00
+five_new N6a qwen3-8b 8192      6 6 main 01:45:00
+five_new N6b qwen3-8b 8192     12 6 main 01:45:00
 
 # N11  the n_rep=1 CONTROL: qwen15-moe has one query head per KV head, so its
 #      group-constrained gain must equal its per-head gain exactly. It is also the
 #      cheapest cell in the registry, so the columns are validated at 6 prompts.
 lean_new N11 qwen15-moe-a2.7b 16384 main 00:45:00 6
 
-# N14 R7 + R3: qwen3-30b @8k, sym 14.1 crosses STOP. ONE job for both 4-prompt
-#     blocks (prompts 4..11): same GPU-h, one 4-GPU queue wait instead of two.
-#     errorbars.py cuts the parquet back into blocks of the reference size (4).
-five_new N14 qwen3-30b-a3b-2507 8192 4 8 "$(q30tier)" 02:00:00
+# N14 R7 + R3: qwen3-30b @8k, sym 14.1 crosses STOP. TWO jobs, one per 4-prompt
+#     block. It was merged into one 8-prompt job to buy a single 4-GPU queue
+#     wait; X1 moved this cell to ONE GPU, so that saving is gone while the
+#     risk is not -- run_h0 writes its parquet ONCE at the end, so a 24-unit job
+#     that overruns loses both blocks. Split is R7 plan.md section 4's own rule.
+five_new N14a qwen3-30b-a3b-2507 8192 4 4 "$(q30tier)" 01:45:00
+five_new N14b qwen3-30b-a3b-2507 8192 8 4 "$(q30tier)" 01:45:00
 fi
 
 # =============================================================================

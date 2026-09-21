@@ -14,6 +14,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sievelib import probe as P
 from sievelib import evict, prompts, quant, validate, validity
+from sievelib import alloc            # co-design: alloc.group_prepass, by
+                                      # ATTRIBUTE -- a `from ... import
+                                      # group_prepass` here would raise at
+                                      # import time against an older
+                                      # sievelib/alloc.py and take down every
+                                      # job, including ones that never set the
+                                      # knobs (plan.md I2).
 from sievelib.alloc import head_metrics
 
 
@@ -34,7 +41,12 @@ def load_cfg(path, name, overrides):
     # --override hands a comma list through as a STRING when it is not JSON
     # ("families=cont", "measure_steps=0,1,2"), and a string iterates character
     # by character: families=cont would have run the families 'c','o','n','t'.
-    for k in ("families", "bit_list", "budgets", "measure_steps"):
+    # co-design: coarse_bits / extra_budgets join this list for exactly the
+    # reason the comment above gives -- "coarse_bits=3,4" arrives as a STRING
+    # and iterating it would yield '3', ',', '4'. Absent keys are skipped, so a
+    # run that does not set them is unaffected.
+    for k in ("families", "bit_list", "budgets", "measure_steps",
+              "coarse_bits", "extra_budgets"):
         v = merged.get(k)
         if isinstance(v, str):
             v = [x.strip() for x in v.split(",") if x.strip()]
@@ -297,6 +309,35 @@ def main():
         raise SystemExit(f"budgets {missing} are not in bit_list {bit_list}; the "
                          f"uniform baseline needs real quantized logits at that "
                          f"width. Add them to bit_list or drop them from budgets.")
+
+    # ---- co-design (bugs/co-design/plan.md S4) -- OFF unless asked for ------
+    # group_alloc : one bit allocation per KV head, which is what a tiered cache
+    #               can actually store (ROADMAP R12).
+    # coarse_bits : base-tier widths for the cascade score -- softmax of the
+    #               ALREADY-quantized logits at that width is a current-query
+    #               attention estimate a deployed system can afford.
+    # Both default off, so a run that does not set them takes the pre-2026-09-20
+    # path exactly (tests/test_units.py::test_codesign_invariants).
+    group_alloc = bool(c.get("group_alloc", False))
+    coarse_bits = sorted({int(b) for b in (c.get("coarse_bits") or [])})
+    extra_budgets = tuple(int(B) for B in (c.get("extra_budgets") or [3]))
+    codesign = group_alloc or bool(coarse_bits)
+    if codesign:
+        bad = [b for b in coarse_bits if b not in bit_list]
+        if bad:
+            raise SystemExit(
+                f"coarse_bits {bad} are not in bit_list {bit_list}; the cascade "
+                f"score reads the quantized logits at that width, so it must be "
+                f"measured. Add it to bit_list or drop it from coarse_bits.")
+        bad = [B for B in extra_budgets if B not in tuple(int(x) for x in budgets)]
+        if bad:
+            raise SystemExit(
+                f"extra_budgets {bad} are not in budgets {tuple(budgets)}; the "
+                f"co-design columns are defined against err_wf<B>/err_uniform<B>, "
+                f"which only exist for a configured budget.")
+        print(f"co-design columns: group_alloc={group_alloc}  "
+              f"coarse_bits={coarse_bits or '(none)'}  budgets={list(extra_budgets)}"
+              f"   [bugs/co-design/plan.md]", flush=True)
     # Eviction-corner construction: WHO the corner is (evictors, oracle included
     # by default) and HOW MUCH it may keep (corner_policies). Resolved HERE so a
     # typo fails before the tokenizer, and long before a 4xH100 allocation is
@@ -625,6 +666,58 @@ def main():
                         s_all = s_all + msk
                         for b in shat_all:
                             shat_all[b] = shat_all[b] + msk
+
+                    # ---- co-design PRE-PASS (plan.md S4b) -------------------
+                    # A group allocation is shared by the n_rep query heads of a
+                    # KV head, so it cannot be built inside the per-head loop
+                    # below -- it needs every head of the group first. This pass
+                    # gathers them; the loop below is UNCHANGED apart from the
+                    # `extra=` kwarg it now forwards.
+                    #
+                    # It calls ev.score() a step early. That is safe and pinned:
+                    # score() is idempotent within a step (test_rescore_is_
+                    # idempotent) and only observe(), which still runs once in
+                    # the loop below, advances an evictor.
+                    extras = None
+                    if codesign and do_quant and not warm and V is not None:
+                        fin0 = torch.isfinite(s_all[0])
+                        allfin = bool(fin0.all())
+                        # V rows are shared by a group and are the big tensor
+                        # (L x d); slice ONCE per KV head, not once per query
+                        # head, or a 32-head layer at ctx 131072 carries ~2 GB.
+                        Vsl = {g: (V[g] if allfin else V[g][fin0])
+                               for g in range(V.shape[0])}
+                        gheads = []
+                        for h in range(s_all.shape[0]):
+                            fin = torch.isfinite(s_all[h])
+                            if not bool(torch.equal(fin, fin0)):
+                                raise SystemExit(
+                                    f"FATAL: layer {li} head {h} has different "
+                                    f"live positions from head 0. The additive "
+                                    f"mask is one vector per layer, so heads in "
+                                    f"a KV group must agree; a shared allocation "
+                                    f"would be mis-aligned. Re-run without "
+                                    f"SIEVE_GROUP_ALLOC and report this.")
+                            finc = fin.cpu()
+                            pk = evs.get((li, h))
+                            if pk is None:
+                                pk = evs[(li, h)] = evict.make_many(corner.evictors)
+                            raw_g, unseen_g = {}, {}
+                            for lab, ev in pk.items():
+                                if lab in corner.interior_scores:
+                                    r_ = ev.score(finc, rank_bump=False)
+                                    if r_ is not None:
+                                        raw_g[lab] = r_.to(dev)
+                                        unseen_g[lab] = ev.unseen(finc).to(dev)
+                            gheads.append(dict(
+                                s=s_all[h][fin],
+                                shat={b: v[h][fin] for b, v in shat_all.items()},
+                                V=Vsl[h // n_rep], raw=raw_g, unseen=unseen_g))
+                        extras = alloc.group_prepass(
+                            gheads, n_rep, budgets=extra_budgets, maxb=maxb,
+                            coarse_bits=coarse_bits, group=group_alloc)
+                        del gheads, Vsl
+
                     for h in range(s_all.shape[0]):
                         fin = torch.isfinite(s_all[h])
                         sh = s_all[h][fin]
@@ -694,7 +787,8 @@ def main():
                                 Vh, budgets=budgets, maxb=maxb,
                                 practical_scores=scores, corner=corner,
                                 interior_raw=raw_scores,
-                                interior_unseen=unseen)
+                                interior_unseen=unseen,
+                                extra=(extras[h] if extras is not None else None))
                             a_cpu = a_h.float().cpu()
                             for ev in pack.values():
                                 ev.observe(a_cpu, finc)
@@ -827,6 +921,12 @@ def main():
                    # (R3-report.md section 2); "floor_maxb" = held at the top
                    # tier, budget-matched. Re-run sheets key on it.
                    "interior_unseen_policy": "floor_maxb",
+                   # co-design (plan.md S4d). Present ONLY when the columns were
+                   # measured, so an older run is byte-identical and the wave-4
+                   # guard in bugs/co-design/script.sh can tell the two apart.
+                   **({"group_alloc": group_alloc,
+                       "coarse_bits": list(coarse_bits),
+                       "extra_budgets": list(extra_budgets)} if codesign else {}),
                    "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),

@@ -1,0 +1,107 @@
+======================
+
+Wave 1
+
+======================
+
+G: h0_measurement/results/job21421769/h0_llama31-8b_8192.parquet  median interior lag cost 1.23x
+C: corpus_sha b524da5e   R3 re-run used ['b524da5e']
+C: ctx 262,144: 22 full-window book(s), want 6
+C: ctx 131,072: 36 full-window book(s), want 18
+C: ctx  32,768: 40 full-window book(s), want 18
+C: ctx   8,192: 40 full-window book(s), want 12
+== wave 1 ==
+submit N1  llama31-8b @131072 DRIFT T=0.7 (main, 03:30:00)
+Submitted batch job 21465134
+submit N8  qwen3-8b @16384 LEAN n=6 (main, 01:15:00)
+Submitted batch job 21465135
+submit N9  qwen3-8b @24576 LEAN n=6 (main, 01:30:00)
+Submitted batch job 21465136
+submit N3  qwen3-8b @8192 DRIFT T=0.7 (main, 01:30:00)
+Submitted batch job 21465137
+submit N4  qwen3-8b @32768 DRIFT T=0.7 (main, 02:15:00)
+Submitted batch job 21465138
+submit N12  llama31-8b @65536 LEAN n=6 (main, 01:30:00)
+Submitted batch job 21465139
+submit N13  llama31-8b @98304 LEAN n=6 (main, 01:30:00)
+Submitted batch job 21465140
+submit N2  llama31-8b @8192 DRIFT T=0.7 (main, 01:30:00)
+Submitted batch job 21465141
+
+  1. Line 1 of every log (h0_<JOBID>_0.out / h0large_<JOBID>_0.out) must echo the
+     overrides:
+       LEAN   ctx=<n> evictors=oracle,accum
+       FIVE   ctx=<n> evictors=oracle,last_step,accum,window,recency
+              prompts=<n>@<offset> rot_seed=1        (offset must be 6/12/4, not 0)
+       DRIFT  evictors=oracle,last_step,first measure_steps=0,1,2,4,...,4096
+              and "decode schedule: sparse, 4097 steps, 25 probed, 14 measured"
+              ending "EOS banned   rep_penalty=1.05   no_repeat_ngram=8"
+     "ctx=per-model" or "evictors=per-config" -> scancel; the overrides were lost.
+
+  2. Every new .json carries the fix, and FIVE blocks carry their sample identity:
+       grep -L '"interior_unseen_policy": "floor_maxb"' h0_measurement/results/job<NEW>*/*.json
+       (must print NOTHING for LEAN/FIVE; DRIFT cells carry it too)
+
+  3. Input-validity: every niah needle retrieved (LEAN/FIVE). N15 (4k) is the one
+     to watch. DRIFT cells have no needle; their gate is the text itself:
+     drift.py truncates a run at the first step any prompt's distinct-4 <= 0.5.
+
+[jczhao20@rorqual1 Cirrocumulus]$ squeue -u jczhao20
+          JOBID     USER      ACCOUNT           NAME  ST  TIME_LEFT NODES CPUS TRES_PER_N MIN_MEM NODELIST (REASON) 
+   21465134_[0] jczhao20 def-enright_       sieve-h0  PD    3:30:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465135_[0] jczhao20 def-enright_       sieve-h0  PD    1:15:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465136_[0] jczhao20 def-enright_       sieve-h0  PD    1:30:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465137_[0] jczhao20 def-enright_       sieve-h0  PD    1:30:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465138_[0] jczhao20 def-enright_       sieve-h0  PD    2:15:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465139_[0] jczhao20 def-enright_       sieve-h0  PD    1:30:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465140_[0] jczhao20 def-enright_       sieve-h0  PD    1:30:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465141_[0] jczhao20 def-enright_       sieve-h0  PD    1:30:00     1   16 gres/gpu:1     96G  (Priority) 
+
+
+
+======================
+
+Wave 2
+
+======================
+
+G: h0_measurement/results/job21421769/h0_llama31-8b_8192.parquet  median interior lag cost 1.23x
+C: corpus_sha b524da5e   R3 re-run used ['b524da5e']
+C: ctx 262,144: 22 full-window book(s), want 6
+C: ctx 131,072: 36 full-window book(s), want 18
+C: ctx  32,768: 40 full-window book(s), want 18
+C: ctx   8,192: 40 full-window book(s), want 12
+== wave 2 ==
+submit N10  llama31-8b @16384 LEAN n=6 (main, 01:00:00)
+Submitted batch job 21465223
+submit N15  qwen3-30b-a3b-2507 @4096 LEAN n=4 (large, 01:15:00)
+Submitted batch job 21465224
+
+  1. Line 1 of every log (h0_<JOBID>_0.out / h0large_<JOBID>_0.out) must echo the
+     overrides:
+       LEAN   ctx=<n> evictors=oracle,accum
+       FIVE   ctx=<n> evictors=oracle,last_step,accum,window,recency
+              prompts=<n>@<offset> rot_seed=1        (offset must be 6/12/4, not 0)
+       DRIFT  evictors=oracle,last_step,first measure_steps=0,1,2,4,...,4096
+              and "decode schedule: sparse, 4097 steps, 25 probed, 14 measured"
+              ending "EOS banned   rep_penalty=1.05   no_repeat_ngram=8"
+     "ctx=per-model" or "evictors=per-config" -> scancel; the overrides were lost.
+
+  2. Every new .json carries the fix, and FIVE blocks carry their sample identity:
+       grep -L '"interior_unseen_policy": "floor_maxb"' h0_measurement/results/job<NEW>*/*.json
+       (must print NOTHING for LEAN/FIVE; DRIFT cells carry it too)
+
+  3. Input-validity: every niah needle retrieved (LEAN/FIVE). N15 (4k) is the one
+     to watch. DRIFT cells have no needle; their gate is the text itself:
+     drift.py truncates a run at the first step any prompt's distinct-4 <= 0.5.
+
+   21465223_[0] jczhao20 def-enright_       sieve-h0  PD    1:00:00     1   16 gres/gpu:1     96G  (Priority) 
+   21465224_[0] jczhao20 def-enright_ sieve-h0-large  PD    1:15:00     1   32 gres/gpu:4    320G  (Priority)
+
+======================
+
+Wave 3
+
+======================
+
+

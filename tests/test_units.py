@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sievelib import evict, quant
 from sievelib.alloc import (waterfill, exact_error, noise_model, head_metrics,
                             sensitivity_metrics, quant_metrics,
-                            evict_error_curve)
+                            evict_error_curve, group_prepass)
 
 OK, BAD = "\033[32mPASS\033[0m", "\033[31mFAIL\033[0m"
 fails = 0
@@ -1521,6 +1521,278 @@ def test_anti_loop_decoding():
           int(next_token(small, 1.0, 1.0, torch.Generator().manual_seed(0), [0, 1])) in (0, 1))
 
 
+def _codesign_head(seed=0, L=2048, d=32, K=None, V=None):
+    """The fixed synthetic head T1's golden was captured from. Do not change it
+    without regenerating tests/golden_head_metrics.json -- the golden IS the
+    pre-edit behaviour, and regenerating it from edited code would make T1
+    tautological."""
+    torch.manual_seed(seed)
+    K = torch.randn(L, d, dtype=torch.float64) if K is None else K
+    q = torch.randn(d, dtype=torch.float64)
+    V = torch.randn(L, d, dtype=torch.float64) if V is None else V
+    R = quant.random_rotation(d, "cpu", seed=0).double()
+    sc = 2.2 / (K @ q / math.sqrt(d)).std()
+    s = (K @ q / math.sqrt(d)) * sc
+    shat = {b: (quant.quantize_keys(K.float(), b, R.float()).double() @ q
+                / math.sqrt(d)) * sc for b in (1, 2, 3, 4, 8)}
+    pa = torch.softmax(s + 0.6 * torch.randn(L, dtype=torch.float64), -1)
+    return s, shat, V, pa
+
+
+def test_codesign_invariants():
+    """T1-T3, T7: the co-design columns must be INVISIBLE when not asked for.
+
+    These are the tests that make it safe to sync alloc.py / run_h0.py while a
+    campaign is queued (bugs/co-design/plan.md 5): a job that does not set the
+    knobs must behave exactly as it did before the edit."""
+    print("\n[co-design][REGRESSION] the new columns are invisible when off")
+    import json
+    from sievelib import evict as EV
+    s, shat, V, pa = _codesign_head()
+    spec = EV.CornerSpec(evictors=("oracle", "accum"), policies=("frac",),
+                         kstar=True, interior_scores=("accum",))
+    kw = dict(budgets=(3,), maxb=8, practical_scores={"accum": pa}, corner=spec,
+              interior_raw={"accum": pa}, interior_unseen={"accum": pa <= 0})
+
+    # --- T1 GOLDEN: byte-for-byte the pre-edit output -----------------------
+    gp = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      "golden_head_metrics.json")
+    gold = json.load(open(gp))
+    m_absent = head_metrics(s, shat, V, **kw)              # kwarg not passed
+    m_none = head_metrics(s, shat, V, extra=None, **kw)    # passed as None
+    for label, m in (("kwarg absent", m_absent), ("extra=None", m_none)):
+        keys_ok = set(m) == set(gold)
+        bad = [k for k in gold if k in m and (
+            m[k] != gold[k] if not isinstance(gold[k], float)
+            else not (math.isnan(gold[k]) and isinstance(m[k], float)
+                      and math.isnan(m[k])) and float(m[k]) != gold[k])]
+        check(f"T1 [{label}] every key unchanged ({len(gold)} keys)", keys_ok,
+              "" if keys_ok else f"(± {sorted(set(m) ^ set(gold))[:4]})")
+        check(f"T1 [{label}] every value bit-identical", not bad,
+              "" if not bad else f"({bad[:3]})")
+
+    # --- T2 MIXED VERSION: old run_h0 + new alloc, and the reverse ----------
+    import inspect
+    sig = inspect.signature(head_metrics)
+    check("T2 `extra` is keyword-with-default, so an OLD caller still binds",
+          sig.parameters["extra"].default is None)
+    check("T2 no OTHER parameter gained or lost a default",
+          [p for p in sig.parameters] [:11] ==
+          ["s", "shat", "V", "budgets", "maxb", "n_sink", "practical_scores",
+           "corner", "practical_score", "interior_raw", "interior_unseen"])
+    # a NEW alloc.py called by an OLD run_h0.py (positional, no extra) is T1's
+    # "kwarg absent" case, already checked above.
+
+    # --- T3 the corner tag must not move: every guard in bugs/* keys on it ---
+    for cfg, want in (
+            ({"evictors": ["oracle", "accum"], "corner_policies": ["frac"]}, "or-ac_f"),
+            ({"evictors": ["oracle", "last_step", "accum", "window", "recency"],
+              "corner_policies": ["frac"], "interior_scores": ["accum"]},
+             "or-la-ac-wi-re_f"),
+            ({"evictors": ["oracle", "last_step", "first"],
+              "corner_policies": ["frac"],
+              "interior_scores": ["last_step", "first"]}, "or-la-fi_f"),
+            ({"evictors": ["oracle", "accum"], "corner_policies": ["frac", "abs"]},
+             "or-ac_fa")):
+        sp = EV.CornerSpec.from_cfg(dict(cfg))
+        tag = EV.corner_tag(sp)
+        check(f"T3 corner tag {want}", tag == want and
+              EV.config_record(sp)["tag"] == want, f"(got {tag})")
+
+    # --- T7 no new column collides with a reader's prefix scan --------------
+    ex = group_prepass([dict(s=s, shat=shat, V=V, raw={"accum": pa},
+                             unseen={"accum": pa <= 0})],
+                       n_rep=1, budgets=(3,), maxb=8, coarse_bits=(3,))
+    m_on = head_metrics(s, shat, V, extra=ex[0], **kw)
+    added = set(m_on) - set(gold)
+    check("T7 turning the knobs on only ADDS columns", set(gold) <= set(m_on),
+          f"(lost {sorted(set(gold) - set(m_on))[:3]})")
+    # report.py:354/383/457, boundary.py:114, drift.py:344
+    hazards = ("gain_pp", "gain_e3_", "corner_bits_used3_",
+               "interior_lag_cost3_first")
+    hit = sorted(k for k in added if k.startswith(hazards))
+    check("T7 no new column is swept up by a reader's startswith() scan",
+          not hit, f"({hit})" if hit else f"({len(added)} new columns)")
+
+
+def test_codesign_group_and_cascade():
+    """T4-T6: the group allocation and the cascade score themselves."""
+    print("\n[co-design] group allocation (GQA) and the cascade score")
+    from sievelib import evict as EV
+    from sievelib.alloc import waterfill_group
+    sig2 = {0: 1.0, 1: .36, 2: .12, 3: .03, 4: .009, 8: 3.5e-5}
+    torch.manual_seed(3)
+    L = 4096
+    w2 = torch.rand(L, dtype=torch.float64) * 1e-4
+
+    # --- T4a n_rep = 1 is the CONTROL CELL: it must be EXACT ----------------
+    # qwen15-moe has one query head per KV head, so every group column must
+    # equal its per-head twin. If this drifts, the control means nothing.
+    a = waterfill(w2, sig2, 3.0, 8)
+    g1 = waterfill_group(w2[None, :], [sig2], 3.0, 8, None)
+    check("T4 n_rep=1: the group allocation IS waterfill, bit for bit",
+          torch.equal(a, g1))
+
+    # --- T4b identical heads: same up to waterfill's own bisection step -----
+    # Not bit-exact: the group Lagrangian is G x the single-head one, so the
+    # geometric bisection visits different lambdas and a borderline token can
+    # land one tier away. Same tolerance test_unseen_floor documents.
+    g4 = waterfill_group(w2[None, :].repeat(4, 1), [sig2] * 4, 3.0, 8, None)
+    ndiff = int((a != g4).sum())
+    check("T4 4 identical heads: allocation agrees to one tier-step",
+          ndiff <= 2 and int((a - g4).abs().max()) <= 1,
+          f"({ndiff} of {L} tokens differ by <=1 tier)")
+
+    # --- T4c budget-matched, every group size --------------------------------
+    for G in (1, 2, 4, 8):
+        torch.manual_seed(G)
+        W = torch.rand(G, L, dtype=torch.float64) * 1e-4
+        bb = waterfill_group(W, [sig2] * G, 3.0, 8, None)
+        check(f"T4 G={G} budget-matched", float(bb.double().sum()) <= 3.0 * L + 8 + 1e-9,
+              f"({float(bb.double().mean()):.5f} b/token)")
+
+    # --- T4d the floor: unseen positions are held, never evicted ------------
+    fl = torch.zeros(L, dtype=torch.bool); fl[-5:] = True
+    W = torch.rand(4, L, dtype=torch.float64) * 1e-4
+    bf = waterfill_group(W, [sig2] * 4, 3.0, 8, fl)
+    check("T4 floored positions sit at the top tier", bool((bf[fl] == 8).all()))
+    check("T4 ...and the rest is still budget-matched",
+          float(bf.double().sum()) <= 3.0 * L + 8 + 1e-9)
+
+    # --- T4e mismatched tier sets must raise, not silently mis-align --------
+    raised = False
+    try:
+        waterfill_group(W[:2], [sig2, {0: 1.0, 3: .03}], 3.0, 8, None)
+    except ValueError:
+        raised = True
+    check("T4 [REGRESSION] a group whose heads offer different tiers raises", raised)
+
+    # --- T5 loud failure, never a silent NaN column -------------------------
+    s, shat, V, pa = _codesign_head()
+    raised = False
+    try:
+        group_prepass([dict(s=s, shat=shat, V=V, raw={"accum": pa},
+                            unseen={"accum": pa <= 0})],
+                      n_rep=1, budgets=(3,), maxb=8, coarse_bits=(5,))  # not in bit_list
+    except ValueError:
+        raised = True
+    check("T5 a coarse width with no quantized logits raises", raised)
+    raised = False
+    try:
+        h2 = dict(s=s[:-1], shat={b: v[:-1] for b, v in shat.items()}, V=V[:-1],
+                  raw={"accum": pa[:-1]}, unseen={"accum": pa[:-1] <= 0})
+        group_prepass([dict(s=s, shat=shat, V=V, raw={"accum": pa},
+                            unseen={"accum": pa <= 0}), h2],
+                      n_rep=2, budgets=(3,), maxb=8)
+    except ValueError:
+        raised = True
+    check("T5 a group whose heads have different live lengths raises", raised)
+
+    # --- T6 the cascade at bc = maxb must reproduce the exact allocation ----
+    # softmax(shat[8]) is the current query against near-exact keys, so its
+    # sensitivity is w2 and its allocation must be err_wf's.
+    spec = EV.CornerSpec(evictors=("oracle", "accum"), policies=("frac",),
+                         kstar=False, interior_scores=("accum",))
+    ex = group_prepass([dict(s=s, shat=shat, V=V, raw={"accum": pa},
+                             unseen={"accum": pa <= 0})],
+                       n_rep=1, budgets=(3,), maxb=8, coarse_bits=(2, 3, 4, 8))
+    m = head_metrics(s, shat, V, budgets=(3,), maxb=8,
+                     practical_scores={"accum": pa}, corner=spec,
+                     interior_raw={"accum": pa}, interior_unseen={"accum": pa <= 0},
+                     extra=ex[0])
+    r8 = m["cs_b8_cost3"]
+    check("T6 cascade at bc=maxb reproduces the exact interior", abs(r8 - 1.0) < 0.02,
+          f"(err_wf_cs_b8 / err_wf = {r8:.4f})")
+    costs = [m[f"cs_b{b}_cost3"] for b in (2, 3, 4, 8)]
+    check("T6 the cascade gets better as the base tier widens (aggregate)",
+          costs[0] >= costs[-1] - 1e-9,
+          f"(bc 2/3/4/8 -> {', '.join(f'{c:.3f}' for c in costs)})")
+    check("T6 the deployable variant (lagged o) is reported beside the bound",
+          "csv_b3_accum_cost3" in m and "cs_b3_cost3" in m)
+    # n_rep=1 control, end to end: every group column equals its per-head twin
+    check("T4 n_rep=1 end to end: group interior == per-head lagged interior",
+          abs(m["err_wf_grp_pp_accum_3"] - m["err_wf_pp3_accum"]) < 1e-12,
+          f"({m['err_wf_grp_pp_accum_3']:.6e} vs {m['err_wf_pp3_accum']:.6e})")
+    check("T4 n_rep=1 end to end: group oracle interior == per-head err_wf",
+          abs(m["err_wf_grp_or_3"] - m["err_wf3"]) < 1e-12,
+          f"({m['err_wf_grp_or_3']:.6e} vs {m['err_wf3']:.6e})")
+
+    # --- T4g the group objective must be SCALE-INVARIANT per head -----------
+    # [REGRESSION] The first version summed raw w2 across a group, i.e. the sum
+    # of ABSOLUTE squared errors, while exact_error reports RELATIVE error. The
+    # head with the largest ||o|| then captured the shared allocation and its
+    # neighbours were starved -- in exactly the per-head relative numbers the
+    # band counts. Scaling one head's V by c scales its o and w2 by c and c^2
+    # and leaves every relative error untouched, so the group allocation must
+    # not move. Under the absolute sum it moves a lot.
+    torch.manual_seed(11)
+    Lg, dg = 1024, 16
+    Kg = torch.randn(Lg, dg, dtype=torch.float64)
+    Vg = torch.randn(Lg, dg, dtype=torch.float64)
+    Rg = quant.random_rotation(dg, "cpu", seed=0).double()
+    def _mkhead(V, seed):
+        torch.manual_seed(seed)
+        q = torch.randn(dg, dtype=torch.float64)
+        sc = 2.2 / (Kg @ q / math.sqrt(dg)).std()
+        sv = (Kg @ q / math.sqrt(dg)) * sc
+        sh = {b: (quant.quantize_keys(Kg.float(), b, Rg.float()).double() @ q
+                  / math.sqrt(dg)) * sc for b in (1, 2, 3, 4, 8)}
+        return dict(s=sv, shat=sh, V=V, raw={}, unseen={})
+    base_heads = [_mkhead(Vg, 21), _mkhead(Vg, 22)]
+    scaled = [base_heads[0], dict(base_heads[1], V=Vg * 1000.0)]
+    g_a = group_prepass(base_heads, n_rep=2, budgets=(3,), maxb=8)[0]["group"]
+    g_b = group_prepass(scaled, n_rep=2, budgets=(3,), maxb=8)[0]["group"]
+    moved = int((g_a["bits"][("or", 3)] != g_b["bits"][("or", 3)]).sum())
+    # Not bit-exact: (c^2*w2)/(c^2*||o||^2) is not w2/||o||^2 in IEEE754, so the
+    # bisection can still part by the usual one tier-step. The bug this guards
+    # against moves a large FRACTION of the allocation, not one token -- the
+    # contrast below is what makes the test able to fail.
+    def _abs_sum_alloc(hs):
+        W, sg = [], []
+        for h in hs:
+            a = torch.softmax(h["s"].double(), -1)
+            Vd = h["V"].double()
+            W.append((a * (Vd - a @ Vd).norm(dim=-1)) ** 2)
+            sg.append(noise_model(h["s"], h["shat"])["sig2"])
+        from sievelib.alloc import waterfill_group as _wg
+        return _wg(torch.stack(W), sg, 3.0, 8, None)
+    moved_buggy = int((_abs_sum_alloc(base_heads) != _abs_sum_alloc(scaled)).sum())
+    check("T4 [REGRESSION] group allocation is invariant to one head's V scale",
+          moved <= 2 and moved_buggy > 20 * max(moved, 1),
+          f"(relative sum: {moved}/{Lg} tokens move; absolute sum, the old bug: "
+          f"{moved_buggy}/{Lg})")
+
+    # --- T4f the PRE-PASS call order, which is the real risk in run_h0.py ---
+    # The group allocation needs every head of a group before any of them is
+    # measured, so run_h0.py calls score() once in a pre-pass and the per-head
+    # loop then calls it again. Only observe() may advance an evictor. This
+    # replays the exact sequence against the real classes: if it ever stops
+    # holding, every lagged column silently shifts by one step.
+    def _replay(with_prepass):
+        ev = EV.make("accum")[1]
+        seen = []
+        for t in range(6):
+            fin = torch.ones(16 + t, dtype=torch.bool)
+            if with_prepass:                       # run_h0.py's pre-pass
+                ev.score(fin, rank_bump=False)
+            v = ev.score(fin)                      # the per-head loop
+            r = ev.score(fin, rank_bump=False)     # ...and its interior score
+            seen.append((None if v is None else v.clone(),
+                         None if r is None else r.clone()))
+            ev.observe(torch.full((16 + t,), 1.0 / (16 + t)), fin)
+        return seen, ev
+    a_seen, a_ev = _replay(False)
+    b_seen, b_ev = _replay(True)
+    same = all((x is None and y is None) or torch.equal(x, y)
+               for (x1, r1), (x2, r2) in zip(a_seen, b_seen)
+               for x, y in ((x1, x2), (r1, r2)))
+    check("T4 [REGRESSION] the pre-pass score() does not move the evictor",
+          same, "" if same else "(lagged scores differ with the pre-pass in)")
+    fa = a_ev.score(torch.ones(22, dtype=torch.bool), rank_bump=False)
+    fb = b_ev.score(torch.ones(22, dtype=torch.bool), rank_bump=False)
+    check("T4 ...and the final state is identical", torch.equal(fa, fb))
+
+
 if __name__ == "__main__":
     for t in (test_lloyd_max, test_rotation_and_chunking, test_gqa_mapping,
               test_chunked_prefill, test_monotone_error, test_units_regression,
@@ -1535,7 +1807,8 @@ if __name__ == "__main__":
               test_practical_interior, test_rescore_is_idempotent,
               test_decode_plan, test_override_lists, test_prompt_offset,
               test_ban_eos,
-              test_unseen_floor, test_first_evictor, test_anti_loop_decoding):
+              test_unseen_floor, test_first_evictor, test_anti_loop_decoding,
+              test_codesign_invariants, test_codesign_group_and_cascade):
         t()
     print(f"\n{'ALL TESTS PASSED' if not fails else f'{fails} TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

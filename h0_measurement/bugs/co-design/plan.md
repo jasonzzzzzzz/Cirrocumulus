@@ -1,7 +1,13 @@
 # Co-design — two measurement columns: GQA-group allocation and the cascade score
 
-**Plan, 2026-09-20. Nothing here is applied.** Every shared-file change below
-waits for an explicit OK. Q1–Q3 (bugs/4, jobs 21444721/22/24) are queued and read
+> **Status 2026-09-20: S1–S6 are WRITTEN AND APPLIED on this machine, and the CPU
+> smoke test passed (§7.0). Nothing is synced to the cluster and nothing is
+> submitted.** The sync in §5 is the user's step, and §7's cluster pilots (P1, P2)
+> come before wave 4. Waves 1–3 of `script.sh` carry no co-design knob (verified:
+> 13 cells, zero occurrences) and are unaffected.
+
+**Plan, 2026-09-20.** Every shared-file change below was made only after an
+explicit OK. Q1–Q3 (bugs/4, jobs 21444721/22/24) are queued and read
 `run_h0.py` and `sievelib/` **when they start, not when they were submitted**, so
 every change is additive and default-off, and §5 states what each one does to a
 job that is already waiting. The only file written so far is `script.sh` beside
@@ -100,21 +106,32 @@ requires it (a block measured without the columns must not satisfy the guard).
 
 `err_*` is relative output error; `gain_* = min(uniform, corner) / interior`.
 
+Column names below are **as emitted** (verified against a real run: 44 new
+columns at `group_alloc=1 coarse_bits=3,4`, 69 at four widths). `<s>` is the
+interior score, `accum` everywhere here; `<bc>` a base-tier width.
+
 | rung | interior decides from | constraint | columns | status |
 |---|---|---|---|---|
 | R0 uniform | — | — | `err_uniform3` | exists |
 | R1 per-head oracle (the ideal) | current step, exact | per query head | `err_wf3` | exists |
-| R2 per-head lagged (R3's symmetric cell) | lagged `accum` | per query head | `err_wf_pp3_accum`, `gain_pp3_accum` | exists |
-| **R3 group, oracle info** | current step | **per KV head** | `err_wf_grp_or3`, `grp_cost_or3`, `gain_grp_or3` | **new** — the pure GQA cost |
-| **R4 group, lagged** (realizable today) | lagged `accum` | per KV head | `err_wf_grp_pp3_accum`, `grp_cost_pp3_accum`, `gain_grp_pp3_accum` | **new** |
-| **R5 cascade, bound** | current query × base-tier keys, exact `o` | per query head | `err_wf_cs3_b<bc>`, `cs_cost3_b<bc>`, `gain_cs3_b<bc>`, `gain_cs_sym3_b<bc>` | **new** |
-| **R6 cascade, deployable** | current query × base-tier keys, **lagged** `o` | per query head | `err_wf_csv3_b<bc>`, `csv_cost3_b<bc>`, `gain_csv3_b<bc>` | **new** |
-| **R7 group + cascade** (the likely design) | as R6 | per KV head | `err_wf_grp_csv3_b<bc0>`, `grp_cost_csv3_b<bc0>`, `gain_grp_csv3_b<bc0>` | **new** |
+| R2 per-head lagged (R3's symmetric cell) | lagged `accum` | per query head | `err_wf_pp3_<s>`, `gain_pp3_<s>`, `interior_lag_cost3_<s>` | exists |
+| **R3 group, oracle info** | current step | **per KV head** | `err_wf_grp_or_3`, `grp_or_cost3`, `gain_u_grp_or_3` | **new** — the pure GQA cost |
+| **R4 group, lagged** (realizable today) | lagged `accum` | per KV head | `err_wf_grp_pp_<s>_3`, **`grp_pp_<s>_over_head3`**, `grp_pp_<s>_cost3`, `gain_grp_pp_<s>_3` | **new** |
+| **R5 cascade, bound** | current query × base-tier keys, exact `o` | per query head | `err_wf_cs_b<bc>_3`, `cs_b<bc>_cost3`, `gain_cs_b<bc>_3`, `gain_cs_sym_b<bc>_3` | **new** |
+| **R6 cascade, deployable** | current query × base-tier keys, **lagged** `o` | per query head | `err_wf_csv_b<bc>_<s>_3`, `csv_b<bc>_<s>_cost3`, `gain_csv_b<bc>_<s>_3` | **new** |
+| **R7 group + cascade** (the likely design) | as R6 | per KV head | `err_wf_grp_csv_b<bc>_<s>_3`, **`grp_csv_b<bc>_<s>_over_head3`**, `gain_grp_csv_b<bc>_<s>_3` | **new** |
+
+**`*_over_head3` is the R12 number, `*_cost3` is not.** `cost` divides by
+`err_wf` and so carries R3's lag cost on top of the grouping; `over_head`
+divides by the matching per-head allocation and isolates the grouping alone
+(§7.0b). `gain_u_grp_or_3` is named apart because the `or` rung has no
+deployable corner to compare against and is reported against uniform.
 
 Group corners: `err_e3_grp_or_frac` (ranked by group-summed oracle sensitivity)
-and `err_e3_grp_accum_frac` (ranked by group-summed lagged attention). Coarse-ranked
-corner for the symmetric cascade cell: `err_e3_cs<bc>_frac`. Per-row stamps, only
-when the feature is on: `n_rep`, `kv_head`.
+and `err_e3_grp_pp_<s>_frac` (group-summed lagged attention) — the latter is the
+competitor every group `gain_` uses. Coarse-ranked corner for the symmetric
+cascade cell: `err_e3_cs<bc>_frac`. Also emitted: `evict_frac_*` per rung, and
+the stamps `n_rep`, `kv_head`, `grp_size` — only when the feature is on.
 
 Aggregate direction only, never per head: `waterfill` minimises the first-order
 proxy while the reported error is exact recomputation, so a constrained allocation
@@ -219,12 +236,12 @@ submission. Total added: **~4–10 GPU-h**.
 
 | id | file | change | LOC | blast radius on a **queued** job (default, no knob) | on a knob-on job |
 |---|---|---|---|---|---|
-| **S1** | `sievelib/alloc.py` | new `waterfill_group(w2_stack, sig2_list, budget, maxb, floor)` (§3.1) | ~35 | none: nothing calls it | new path |
-| **S2** | `sievelib/alloc.py` | new `group_allocations(...)`: per KV group → interior bits per mode + group corner rankings | ~50 | none: not called | new path |
-| **S3** | `sievelib/alloc.py` | new `extra_metrics(s, shat, V, base_out, *, coarse_bits, extra_budgets, group, …)` returning the §2 columns **from the dict `quant_metrics` already produced** (`err_wf`, `err_uniform`, `err_practical`, `err_wf_pp_*`) — so **`quant_metrics` itself is not edited**; plus `head_metrics` gains two optional kwargs and a 3-line `if extra is not None: m.update(extra_metrics(...))` after the existing `m.update(quant_metrics(...))` | ~120 + 5 | the 5 lines in `head_metrics` are the **only** edit inside a function a queued job executes; both kwargs default `None`, so the branch is not taken | new columns |
-| **S4** | `h0_measurement/run_h0.py` | (a) read the three knobs from `c` (default off); (b) **only if on**: a per-layer pre-pass before `for h in range(s_all.shape[0])` that, per KV group, builds the group inputs and calls `group_allocations` once; (c) pass `extra=` to `head_metrics` only if on; (d) stamp `n_rep`, `kv_head` per row and `group_alloc`/`coarse_bits`/`extra_budgets` in the sidecar **only if on**; (e) validate `coarse_bits ⊂ bit_list`, `extra_budgets ⊂ budgets`, and that `fin` is identical across a group's heads, at startup / first layer | ~90 | (a) is one `c.get` per knob; (b)–(d) sit behind `if group_alloc or coarse_bits:`. **This is the highest-risk edit**: a Python syntax/NameError in the file breaks *every* job that starts afterwards, queued or not. Mitigation §7 steps 1–3 | pre-pass runs the evictors' `score()` a second time per step; safe by the existing regression "a second `score()` in one step must not move the state", re-pinned by T4 |
-| **S5** | `submit_h0.slurm`, `submit_h0_large_models.slurm` | add the three names to the existing `for … SIEVE_PROMPT_OFFSET; do` forward list (`:159` / `:178`), the `OVERRIDES+=` lines (`:170` / `:189`), line-1 echo and RUN_INFO (only when set) | ~12 each | Slurm keeps the batch script it was given at submission, so **queued jobs run their spooled copy** — to confirm: `scontrol write batch_script <jobid> -` on one of 21444721/22/24. Even if it did re-read, unset names add nothing | pattern-checked like `SIEVE_PROMPT_OFFSET` |
-| **S6** | `tests/test_units.py` | T1–T6 (§6) | ~150 | none (tests are not run by jobs) | — |
+| **S1** ✅ | `sievelib/alloc.py` | new `waterfill_group(...)` (§3.1). **G = 1 delegates to `waterfill`/`waterfill_floor`** so the n_rep = 1 control is exact by construction: the group form is the same argmin multiplied through by w², and `a*b/a != a` in IEEE754 parted the two by one tier (4.5e-6 in the reported error) when it re-derived | ~50 | none: nothing calls it | new path |
+| **S2** ✅ | `sievelib/alloc.py` | new `group_allocations(...)`: per KV group → interior bits per mode + group corner rankings | ~50 | none: not called | new path |
+| **S3** ✅ | `sievelib/alloc.py` | new `extra_metrics(s, shat, V, base_out, *, coarse_bits, extra_budgets, group, …)` returning the §2 columns **from the dict `quant_metrics` already produced** (`err_wf`, `err_uniform`, `err_practical`, `err_wf_pp_*`) — so **`quant_metrics` itself is not edited**; plus `head_metrics` gains two optional kwargs and a 3-line `if extra is not None: m.update(extra_metrics(...))` after the existing `m.update(quant_metrics(...))` | ~120 + 5 | the 5 lines in `head_metrics` are the **only** edit inside a function a queued job executes; both kwargs default `None`, so the branch is not taken | new columns |
+| **S4** ✅ | `h0_measurement/run_h0.py` | (a) read the three knobs from `c` (default off); (b) **only if on**: a per-layer pre-pass before `for h in range(s_all.shape[0])` that, per KV group, builds the group inputs and calls `group_allocations` once; (c) pass `extra=` to `head_metrics` only if on; (d) stamp `n_rep`, `kv_head` per row and `group_alloc`/`coarse_bits`/`extra_budgets` in the sidecar **only if on**; (e) validate `coarse_bits ⊂ bit_list`, `extra_budgets ⊂ budgets`, and that `fin` is identical across a group's heads, at startup / first layer | ~90 | (a) is one `c.get` per knob; (b)–(d) sit behind `if group_alloc or coarse_bits:`. **This is the highest-risk edit**: a Python syntax/NameError in the file breaks *every* job that starts afterwards, queued or not. Mitigation §7 steps 1–3 | pre-pass runs the evictors' `score()` a second time per step; safe by the existing regression "a second `score()` in one step must not move the state", re-pinned by T4 |
+| **S5** ✅ | `submit_h0.slurm`, `submit_h0_large_models.slurm` | add the three names to the existing `for … SIEVE_PROMPT_OFFSET; do` forward list (`:159` / `:178`), the `OVERRIDES+=` lines (`:170` / `:189`), line-1 echo and RUN_INFO (only when set) | ~12 each | Slurm keeps the batch script it was given at submission, so **queued jobs run their spooled copy** — to confirm: `scontrol write batch_script <jobid> -` on one of 21444721/22/24. Even if it did re-read, unset names add nothing | pattern-checked like `SIEVE_PROMPT_OFFSET` |
+| **S6** ✅ | `tests/test_units.py` | T1–T6 (§6) | ~150 | none (tests are not run by jobs) | — |
 | **S7** | `co-design/script.sh` | wave 4 + `have_block`'s `NEED_GROUP` marker check | done | new file, none | — |
 | **S8** | `co-design/gqa_cascade.py` (new) | the reader: per-rung medians, the ladder, `closed` fraction, group band, dose-response in `n_rep` | ~200 | new file, 0 GPU | — |
 
@@ -272,6 +289,99 @@ already gates on all of them.
 
 ## 7. Pilots and acceptance — before wave 4
 
+### 7.0 Done — S1–S6 are written and the CPU smoke test passed (2026-09-20)
+
+Run on this machine, not the cluster. `qwen3-1.7b` (28L, **16 query heads / 8 KV
+heads, so n_rep = 2**), ctx 2,048, 1 prompt, `cont`, dense 2 steps, float32 CPU,
+`oracle,accum` + interior `accum` — the identical command twice, knobs off and on.
+
+| check | result |
+|---|---|
+| **I1 at run level** — every shared numeric column, quantized rows | **225 / 225 bit-identical** between the knobs-off and knobs-on runs |
+| **I1 vs a real campaign** — columns of a knobs-off run vs `job21421769` | identical but for `prompt_offset`, `rot_seed`, `decode_rep_penalty`, `decode_no_repeat_ngram`, all of which landed with R5/R7 **before** this work. **No co-design column appears.** |
+| sidecar marker | `group_alloc/coarse_bits/extra_budgets` present only with the knobs on; absent otherwise, so the wave-4 guard discriminates |
+| columns added | 69 with `group_alloc=1 coarse_bits=2,3,4,8`; none lost |
+| **A5** cascade at `bc = maxb` | `cs_b8_cost3 = 1.000` on real attention |
+| **A2** budget | every group allocation budget-matched to `waterfill`'s one-tier-step tolerance |
+| **A6** cost | 31 s → 48 s wall (**+55 %**) with **four** coarse widths + group; the wave-4 config uses two, so the +20–50 % estimate stands. Re-measure with P1. |
+| unit tests | T1–T7 green, and every gate test the `bugs/*` sheets run (`test_practical_interior`, `test_unseen_floor`, `test_first_evictor`, `test_rescore_is_idempotent`, `test_corner_provenance`, `test_prompt_offset`, `test_decode_plan`, `test_override_lists`, `test_ban_eos`) still green |
+
+### 7.0b Review pass — three bugs found in the first implementation, all fixed
+
+Found by re-reading the code against what the columns are supposed to *mean*,
+before any batch ran. Each is pinned by a test that fails on the old behaviour.
+
+| # | bug | why it mattered | fix |
+|---|---|---|---|
+| **1** | the group allocator summed **raw** `w2` across a KV group, i.e. the sum of **absolute** squared errors, while `exact_error` reports **relative** error | the head with the largest `‖o‖` captured the shared allocation and its neighbours were starved — in exactly the per-head relative numbers the band counts. Measured: scaling one head's V by 1000 (which changes no relative error at all) moved **574 of 1024 tokens**; after the fix, 1 | `_rel()` divides each head's `w2` by `‖o_h‖²` before any cross-head sum, making the group objective the sum of *relative* squared errors. Skipped at n_rep = 1, where a rescale cannot change the argmin but *can* move the finite bisection by one tier — that keeps the control bit-exact. T4g |
+| **2** | `gain_*` silently fell back to comparing against uniform when its corner was absent | a lagged corner has no history on early decode steps, so the column would change denominator between rows and any reader would average the two. `quant_metrics` withholds `gain_best_practical` for exactly this reason | the `gain_` column is withheld; the uniform-only variant is emitted under its own name `gain_u_grp_or_<B>`. The `cost` column, which needs only `err_wf`, is always emitted |
+| **3** | the group and cascade corners assumed the `frac` policy without checking it was configured | a run with `abs` only would get columns named `_frac` computed under a policy the rest of the run never used | corner columns are withheld unless `frac` is in `corner.policies` |
+
+**A fourth thing that was not a bug but was being reported wrongly.**
+`grp_pp_*cost3` divides by `err_wf`, so it carries the **lag** cost as well as
+the grouping. The lag tail is heavy and is R3's measurement, not R12's: at
+n_rep = 2 the conflated ratio reads median 1.165 / max 124×, while the
+grouping's *own* marginal cost reads **1.005 / max 4.99×**, and
+`corr(log grp_pp, log per-head lag) = 0.919`. A new column
+`grp_<name>_over_head<B>` divides by the matching per-head allocation, and
+`gqa_cascade.py` leads with it.
+
+**First real-attention numbers — a pilot, not a result.** One debug-tier model, one
+prompt, ctx 2,048, 448 head-rows, band 9.8 % (near STOP), and **n_rep = 2, the
+smallest real GQA ratio in the registry**. Every headline cell is n_rep 4 or 8.
+
+| quantity | all heads | in band (n=44) |
+|---|---|---|
+| per-head lagged interior (R3's number) | 1.131× | 1.401× |
+| **group's own marginal cost** `grp_pp_accum_over_head3` | **1.005×** | **1.064×** |
+| group, oracle information `grp_or_cost3` | 1.016× | 1.150× |
+| cascade `cs / csv` at bc = 3 | 1.054 / 1.055× | 1.214× |
+| cascade at bc = 4 | 1.021 / 1.020× | 1.080× |
+| gap closed, in-band, bc = 2 / 3 / 4 | | **−0.43 / +0.31 / +0.81** |
+
+Four things this already says, each to be re-tested at n_rep 4 and 8:
+
+1. **The group constraint is nearly free at n_rep = 2** (1.6 % under oracle
+   information, and it adds ~1.7 % on top of lag). The synthetic worst case in
+   development was 4.16×, so real heads inside a KV group are far more alike than
+   independent draws. If this survives n_rep 8, R12 stops being a threat to C4.
+2. **The deployable cascade costs nothing against its own bound**: `csv ≈ cs` to
+   three decimals at every width, so the lagged `o` is as good as the exact one and
+   the current-step V read is not needed.
+3. **A 2-bit base tier is worse than doing nothing** (−0.43: the coarse score is a
+   worse allocator than last step's attention), 3-bit is marginal, 4-bit closes
+   81 %. That is a sharper statement of R10's "the base layer moves to 3 bits" —
+   for the cascade, 3 bits is the edge of useful.
+4. **The group band went UP, 9.8 % → 13.2 %** — because the group corner is
+   constrained too (B2), and the constraint costs the *corner* more than the
+   interior. Real, and it makes the design look better, but it means
+   `gain_grp_pp` and `gain_pp3_accum` are **not the same statistic**: §8 must
+   compare group-to-group, and the paper must report both, named.
+
+### 7.0c Wave-4 readiness pass (2026-09-20, after waves 1–3 landed)
+
+Four things found by testing wave 4's **actual** config rather than LEAN, and by
+re-deriving its walltimes from wave 1's measured rates.
+
+| # | finding | fix |
+|---|---|---|
+| **1** | **FIVE+ had never been run.** §7.0 tested LEAN + the columns; wave 4 runs the five-corner set. Now tested end to end on qwen3-1.7b: corner tag still `or-la-ac-wi-re_f`, marker present only when on, **261/261 shared numeric columns bit-identical**, +44 columns, group marginals 1.008–1.020. Column overhead **+35%** (34 s → 46 s) with two coarse widths, against +55% with four. | none needed — it works |
+| **2** | **The two bands used different corner sets.** The group corner is ranked by the group-summed *interior* score, i.e. `accum` alone, while the five-corner per-head competitor `err_practical<B>` is a min over five. The group side got the easier corner — the same class of error as B2, pointing the other way. | `gqa_cascade.py` now reconstructs the **accum-only** per-head corner exactly (R7's identity) and prints both bands matched. On the test cell: 10.5% vs 12.1% matched, against 10.3% mismatched. The R12 headline is untouched — it is a ratio of two interiors with no corner in it. |
+| **3** | **Three of five cells would have overrun and lost everything.** Re-derived from wave 1's measured LEAN rates × (L)^0.3 × 1.54 (FIVE/LEAN) × 1.35 (FIVE+/FIVE): N7 needed 173 min against a 150-min header, N5 116 against 105, N14 173 against 120. `run_h0` writes its parquet once at the end. | N7 → 03:15, N5 → 02:15, N6 → 01:45, N14 → 01:45 per block |
+| **4** | **N14 was one 24-unit job.** It was merged to buy a single 4-GPU queue wait; X1 moved the cell to one GPU, so that saving vanished while the risk doubled. | split into N14a/N14b, one per 4-prompt block — R7 §4's own rule |
+
+**n_rep coverage is complete.** Wave 4 spans the whole dose-response axis:
+
+| cell | model | heads | **n_rep** |
+|---|---|---|---|
+| N11 | qwen15-moe-a2.7b | 16 q / 16 kv | **1** (the exactness control) |
+| N5, N7 | llama31-8b | 32 q / 8 kv | **4** |
+| N6 | qwen3-8b | 32 q / 8 kv | **4** |
+| N14 | qwen3-30b-a3b-2507 | 32 q / 4 kv | **8** |
+
+So §8's "does the group cost grow with n_rep" test is answerable from wave 4
+alone, at 1 / 4 / 8 — which is what turns a number into a mechanism.
+
 **Pre-sync, on CPU (the R5 path: Llama-3.2-1B, a real PG-19 prompt):**
 
 1. Full unit suite green.
@@ -307,11 +417,17 @@ SIEVE_COARSE_BITS=2,3,4,6,8 SIEVE_EXTRA_BUDGETS=3`, 1 prompt, 3 units):
 (`gain_pp3_accum ≥ 2`), because out-of-band heads never use the interior
 (R3-report §2.2: lag cost 1.00–1.04× there).
 
+**Read `grp_pp_accum_cost3`, not the band, as the primary.** §7.0 found the group
+band is *higher* than the per-head band (13.2 vs 9.8) because the group corner is
+constrained too: the two bands use different competitors and are not the same
+statistic. The cost ratio has one meaning; the bands must be compared
+group-to-group and both reported by name.
+
 | outcome | reading |
 |---|---|
-| median `grp_cost_pp3_accum ≤ 1.15` and group band within ~3 pts of `band_pp` | **Realizable.** C4's per-head router stands as written; report the group band beside the per-head band |
-| 1.15–2.0×, or group band 50–90% of the per-head band | **Realizable at a discount.** Every headline gain shrinks by that factor; report the **group** band as the paper's y-axis, and re-fit the phase law on it (dead-2 is unchanged) |
-| > 2.0×, or group band < 50% of the per-head band | **Per-head routing is partly fictional** for GQA models (ROADMAP R12's stated threat). The router must decide per **KV** head from group-summed w²; R8 must be run with the group allocation, or it measures something a cache cannot store |
+| median `grp_pp_accum_cost3 ≤ 1.15` at n_rep 4 **and** 8 | **Realizable.** C4's per-head router stands as written; report the group band beside the per-head band. This is what n_rep = 2 already shows (1.150×) |
+| 1.15–2.0× | **Realizable at a discount.** Every headline gain shrinks by that factor; report the **group** band as the paper's y-axis, and re-fit the phase law on it (dead-2 is unchanged) |
+| > 2.0× | **Per-head routing is partly fictional** for GQA models (ROADMAP R12's stated threat). The router must decide per **KV** head from group-summed w²; R8 must be run with the group allocation, or it measures something a cache cannot store |
 | `grp_cost` grows with `n_rep` (1 → 4 → 8: qwen15-moe, llama31-8b/qwen3-8b, qwen3-30b) | the mechanism is head-heterogeneity inside a group — the dose-response is the figure |
 | `grp_cost_or3 ≈ 1` but `grp_cost_pp3 ≫ 1` | the loss is an interaction of lag and grouping, not grouping alone — heads in a group differ in *where their attention moves* |
 
@@ -344,7 +460,7 @@ group, 1–2 days cascade) because §B2 adds a group corner.
 |---|---|---|
 | S1 + S2 (`waterfill_group`, `group_allocations`) | 0.75 | a `waterfill` with a per-token cost matrix |
 | S3 (`extra_metrics`, `head_metrics` hook) | 1.0 | cascade is ~40 of the ~120 lines |
-| S4 (`run_h0.py` pre-pass, stamps, validation) | 1.5 | the risky one; only place the head loop is touched |
+| S4 (`run_h0.py` pre-pass, stamps, validation) | 1.5 | the risky one; only place the head loop is touched. **Found while writing it:** `coarse_bits=3,4` arrives from `--override` as a STRING, so iterating it yields `'3', ',', '4'` — the same defect `load_cfg`'s comment already records for `families=cont`. Both new keys joined that coercion list |
 | S5 (two slurm scripts) | 0.25 | mechanical, the `prompt_offset` pattern |
 | S6 (T1–T7) | 1.0 | T4 and T1 are the load-bearing ones |
 | CPU smoke (§7 steps 1–3) | 0.5 | |
@@ -390,8 +506,9 @@ and needs no assumption about the base tier. C is one more column set once S4 ex
 | file | state |
 |---|---|
 | `plan.md` | this file |
-| `script.sh` | written, dry-run clean; waves 1–3 submit today; **wave 4 refuses to run until S4/S5 are synced** and its guards require `group_alloc: true` |
-| `gqa_cascade.py` | to write (S8), after S1–S5 |
+| `script.sh` | written, dry-run clean (S7 ✅). Waves 1–3 submit today and carry no co-design knob; `--pilot` runs P1/P2; **wave 4 refuses to run until S4/S5 are synced** and its guards require `group_alloc: true` |
+| `gqa_cascade.py` | **written (S8)** ✅ — 0 GPU. Leads with the grouping's marginal cost and the in-band column, prints the §8 verdict for both designs, and refuses cleanly on parquets without the columns |
+| `tests/golden_head_metrics.json` | written — T1's golden, captured from the code **before** S1–S3. Do not regenerate it from edited code, or T1 becomes tautological |
 
 - **R7 — carrier.** N5–N7, N14 are R7's blocks; `errorbars.py` is unaffected (B6).
   The columns exist only on those blocks, not on R3's reference block.

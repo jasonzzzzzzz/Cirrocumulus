@@ -275,10 +275,13 @@ def run_bits(model, past, ids, bits_by_layer, R, norm_correct, eos, max_new, L0,
     return gen, past
 
 
-def load_routes(path, model, ctx, block):
-    """A router_calib routes file, refused if it was not built for this model and
-    context, or if its calibration prompts overlap this run's -- a router
-    calibrated on its own test prompts is not C4's offline pass."""
+def load_routes(path, model, ctx, block, *, expected=None):
+    """Load an offline router calibration and reject a mismatched experiment.
+
+    Besides model/context and disjoint prompts, current callers pin the scoring
+    regime (question awareness, window, tasks, allocator rule and quantizer).
+    That prevents a valid JSON file from silently becoming the wrong router.
+    """
     j = json.load(open(path))
     meta = j.get("meta", {})
     if meta.get("model") != model or int(meta.get("ctx", -1)) != int(ctx):
@@ -289,6 +292,19 @@ def load_routes(path, model, ctx, block):
         raise SystemExit(f"routes {path} were calibrated on prompts {lo}..{hi}, which "
                          f"overlap this run's {block[0]}..{block[1]} -- use a disjoint "
                          f"--prompt-offset")
+    for key, want in (expected or {}).items():
+        got = meta.get(key)
+        if key in ("tasks", "candidates"):
+            ok = set(got or []) == set(want)
+        elif key == "budgets":
+            ok = {float(x) for x in want} <= {float(x) for x in (got or [])}
+        else:
+            ok = got == want
+        if not ok:
+            raise SystemExit(f"routes {path} have {key}={got!r}, expected {want!r}; "
+                             "run a matching calibration")
+    if "routes" not in j:
+        raise SystemExit(f"routes {path} has no routes block")
     return j["routes"], meta
 
 
@@ -399,8 +415,14 @@ def main():
         raise SystemExit("router_calib needs --routes <file from a calibration run>")
     routes, routes_meta = ({}, {})
     if a.routes:
-        routes, routes_meta = load_routes(a.routes, a.model, a.ctx,
-                                          (a.prompt_offset, a.prompt_offset + a.n_prompts - 1))
+        routes, routes_meta = load_routes(
+            a.routes, a.model, a.ctx,
+            (a.prompt_offset, a.prompt_offset + a.n_prompts - 1),
+            expected={"theta": a.theta, "prompt_block": [0, 9], "tasks": tasks,
+                      "budgets": budgets, "candidates": list(router.ROUTE_CANDIDATES),
+                      "question_agnostic": bool(a.question_agnostic),
+                      "window": a.window, "observed_queries": [a.window],
+                      "allocator_budget_rule": "feasible", "maxb": maxb})
         miss = [router.bkey(B) for B in budgets if router.bkey(B) not in routes]
         if miss:
             raise SystemExit(f"routes {a.routes} have no budget(s) {miss}")
@@ -575,6 +597,11 @@ def main():
                                                      a.prompt_offset + a.n_prompts - 1],
                                     "tasks": tasks, "budgets": budgets,
                                     "candidates": list(router.ROUTE_CANDIDATES),
+                                    "question_agnostic": bool(a.question_agnostic),
+                                    "window": a.window,
+                                    "observed_queries": [a.window],
+                                    "allocator_budget_rule": "feasible",
+                                    "maxb": maxb,
                                     "source": os.path.abspath(hout)},
                            "routes": rts}, fh, indent=1)
             share = {B: sum(r_ == "interior" for li in v for r_ in v[li]) /

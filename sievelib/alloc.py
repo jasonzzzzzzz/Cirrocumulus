@@ -91,7 +91,7 @@ def waterfill(w2: torch.Tensor, sig2: dict[int, float], budget_bits: float,
         return (cvec[None, :] + lam * bt[None, :] / w2c[:, None]).argmin(dim=1)
 
     lo, hi = 1e-30, 1e30
-    idx = alloc_for(lo)
+    feasible = alloc_for(hi)
     for _ in range(iters):
         mid = math.sqrt(lo * hi)
         idx = alloc_for(mid)
@@ -99,7 +99,8 @@ def waterfill(w2: torch.Tensor, sig2: dict[int, float], budget_bits: float,
             lo = mid
         else:
             hi = mid
-    return bt[idx].long()
+            feasible = idx
+    return bt[feasible].long()
 
 
 def waterfill_floor(w2: torch.Tensor, sig2: dict[int, float], budget_bits: float,
@@ -645,7 +646,7 @@ def waterfill_group(w2_stack: torch.Tensor, sig2_list: list[dict],
         cost = w2s.double().T @ C                      # [n, n_bits]
         target = budget * n
         lo, hi = 1e-30, 1e30
-        idx = (cost + lo * bt[None, :]).argmin(dim=1)
+        feasible = (cost + hi * bt[None, :]).argmin(dim=1)
         for _ in range(iters):
             mid = math.sqrt(lo * hi)
             idx = (cost + mid * bt[None, :]).argmin(dim=1)
@@ -653,7 +654,8 @@ def waterfill_group(w2_stack: torch.Tensor, sig2_list: list[dict],
                 lo = mid
             else:
                 hi = mid
-        return bt[idx].long()
+                feasible = idx
+        return bt[feasible].long()
 
     if floor is None or not bool(floor.any()):
         return _solve(w2_stack, float(budget_bits))

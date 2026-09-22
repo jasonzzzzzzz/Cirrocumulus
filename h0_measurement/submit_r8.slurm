@@ -3,6 +3,7 @@
 #SBATCH --output=h0_measurement/logs/r8_%j.out
 #SBATCH --error=h0_measurement/logs/r8_%j.err
 #SBATCH --nodes=1
+##SBATCH --mem=96G
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16

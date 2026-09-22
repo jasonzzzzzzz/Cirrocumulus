@@ -230,6 +230,98 @@ def test_decode_compressed():
     C.STATE.reset_prompt()
 
 
+def test_question_prefill_compressed():
+    """Question-agnostic mode (plan.md 12): the question is prefilled as ONE
+    multi-token call over the compressed context. Every row must equal what the
+    same token would get as a decode step over the same compressed context --
+    causal inside the question, evicted positions masked, window and question at
+    full precision -- and compression off must still be the probe."""
+    print("\n[R8] question prefill over a compressed context == row-by-row decode")
+    d, Hkv, H, Cn, Wc, nq = 32, 2, 8, 200, 12, 9
+    L = Cn + Wc + nq
+    R = quant.random_rotation(d, "cpu", seed=0)
+    g = torch.Generator().manual_seed(11)
+    q = torch.randn(1, H, nq, d, generator=g)
+    k = torch.randn(1, Hkv, L, d, generator=g)
+    v = torch.randn(1, Hkv, L, d, generator=g)
+    m = _Mod(0, d)
+    bits = torch.randint(1, 5, (Hkv, Cn))
+    bits[:, ::3] = 0                                      # a third evicted
+
+    def arm():
+        C.STATE.reset_prompt()
+        C.STATE.window_start = C.STATE.ctx_len = Cn
+        kd, ev = C.mixed_quantize_keys(k[0, :, :Cn].float(), bits, R)
+        C.STATE.kdeq[0], C.STATE.evict[0], C.STATE.bits[0] = kd, ev, bits
+        C.STATE.enabled = True
+
+    arm()
+    block, _ = C.sieve_compress_attention(m, q, k, v)
+    rows = []
+    for i in range(nq):
+        kl = Cn + Wc + i + 1
+        o, _ = C.sieve_compress_attention(m, q[:, :, i:i + 1], k[:, :, :kl], v[:, :, :kl])
+        rows.append(o)
+    rows = torch.cat(rows, 1)
+    check("every question row == its decode step over the compressed context",
+          torch.allclose(block, rows, atol=1e-5),
+          f"(max diff {float((block - rows).abs().max()):.2e})")
+    v2 = v.clone()
+    v2[:, :, :Cn][:, :, ::3] = 1e4
+    arm()
+    poisoned, _ = C.sieve_compress_attention(m, q, k, v2)
+    check("evicted context positions have exactly zero influence on the question",
+          torch.equal(block, poisoned))
+    v3 = v.clone()
+    v3[:, :, -1] += 100.0                                 # the LAST question token's value
+    arm()
+    moved, _ = C.sieve_compress_attention(m, q, k, v3)
+    check("causal: only the last question row sees the last question token",
+          torch.equal(moved[:, :-1], block[:, :-1]) and not torch.equal(moved[:, -1], block[:, -1]))
+    bm = torch.ones(1, 1, nq, L, dtype=torch.bool)       # a boolean all-attend mask
+    arm()
+    withmask, _ = C.sieve_compress_attention(m, q, k, v, attention_mask=bm)
+    check("an all-True boolean mask from the caller changes nothing",
+          torch.allclose(withmask, block, atol=0))
+    C.STATE.reset_prompt()
+    off, _ = C.sieve_compress_attention(m, q, k, v)
+    ref, _ = sieve_probe_attention(m, q, k, v)
+    check("compression off: the question prefill is the probe, bit for bit", torch.equal(off, ref))
+    C.STATE.reset_prompt()
+
+
+def test_fractional_budget():
+    """B = 0.5: eviction and the interior spend it; uniform refuses it; route
+    keys spell it one way."""
+    print("\n[R8] fractional budgets (B = 0.5)")
+    maxb = 8
+    sc = torch.rand(8, 32737)
+    b = router.allocate("evict", 0.5, sc, maxb)
+    bpt = float(b.double().mean())
+    check("evict at B = 0.5 spends <= 0.5 bits per token, keeps 1/16",
+          0.5 - maxb / 32737 - 1e-9 <= bpt <= 0.5 + 1e-9, f"({bpt:.4f})")
+    raised = False
+    try:
+        router.allocate("uniform", 0.5, sc, maxb)
+    except ValueError:
+        raised = True
+    check("uniform at B = 0.5 raises (no 0.5-bit quantizer)", raised)
+    check("is_width: 2 yes, 2.0 yes, 0.5 no, 7 no",
+          router.is_width(2) and router.is_width(2.0) and not router.is_width(0.5)
+          and not router.is_width(7))
+    check("bkey: 2 -> '2', 2.0 -> '2', 0.5 -> '0.5'",
+          router.bkey(2) == "2" and router.bkey(2.0) == "2" and router.bkey(0.5) == "0.5")
+    past, *_ = _p2_layer()
+    ctx = router.build_layer_ctx(0, past, quant.random_rotation(32, "cpu", seed=0),
+                                 [1, 2, 3, 4, 5, 6, 8])
+    bi = router.alloc_interior(ctx, 0.5, maxb)
+    check("interior at B = 0.5 spends <= 0.5 bits per token",
+          float(bi.double().mean()) <= 0.5 + 1e-6, f"({float(bi.double().mean()):.4f})")
+    e = {"interior": torch.rand(8), "evict": torch.rand(8)}           # no uniform at 0.5
+    rts = router.route(e, ctx.n_rep)
+    check("route works without the uniform candidate", set(rts) <= {"interior", "evict"})
+
+
 def _p2_layer(H=8, Hkv=2, C=240, w=16, d=32, seed=7):
     """One layer as the driver sees it at decode start: the window captured by
     the real prefill hook, and the cache holding context + window keys."""
@@ -282,7 +374,7 @@ def test_p2_interior():
               torch.equal(bits, torch.stack(ref)))
         bpt = float(bits.double().mean())
         check(f"       B={B}: budget-matched ({bpt:.4f} b/token), and it evicts on its own",
-              bpt <= B + 8 / C + 1e-9 and bool((bits == 0).any()))
+              bpt <= B + 1e-9 and bool((bits == 0).any()))
     # T-R8-7: n_rep = 1 -- the group of one IS the per-head water-fill
     past1, *_ = _p2_layer(H=4, Hkv=4, seed=9)
     c1 = router.build_layer_ctx(0, past1, R, bit_list)
@@ -550,14 +642,73 @@ def test_generation_end_to_end():
           a["bits_per_token"] <= 2.0 + 1e-9, f"({a})")
 
 
+def test_question_agnostic_end_to_end():
+    """--question-agnostic on a real model: context prefilled alone, question
+    prefilled per arm. The FP arm must equal plain generation on context +
+    question; 8-bit uniform must answer like FP; and SnapKV's window must now be
+    the context's own tail, not the question."""
+    print("\n[R8] question-agnostic mode end to end on Llama-3.2-1B")
+    os.environ.setdefault("HF_HOME", os.path.join(ROOT, ".hf_cache"))
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    mid = "meta-llama/Llama-3.2-1B-Instruct"
+    try:
+        tok = AutoTokenizer.from_pretrained(mid, local_files_only=True)
+        C.install()
+        model = AutoModelForCausalLM.from_pretrained(
+            mid, dtype=torch.float32, attn_implementation=C.IMPL,
+            local_files_only=True).eval()
+    except Exception as e:
+        check("model available", False, f"({type(e).__name__}: {e}) -- skipped")
+        return
+    sys.path.insert(0, os.path.join(ROOT, "h0_measurement"))
+    import run_r8 as RR
+    corpus = os.environ.get("H0_CORPUS") or os.path.join(ROOT, ".h0_corpus/pg19")
+    text, meta = TR.build(tok, "niah_single", 1024, prompt_idx=1, corpus_dir=corpus)
+    qtxt = meta["question"]
+    check("text == context + question", text.endswith(qtxt) and len(qtxt) > 20)
+    cids = tok(text[:len(text) - len(qtxt)], return_tensors="pt").input_ids
+    q_ids = tok(qtxt, add_special_tokens=False, return_tensors="pt").input_ids
+    ids = torch.cat([cids, q_ids], 1)
+    nc = cids.shape[1]
+    R = quant.random_rotation(model.config.head_dim, "cpu", seed=0)
+    eos = RR.eos_ids(model, tok)
+    past, _ = RR.prefill(model, ids[:, :nc + 1], window=32, chunk=256)
+    L0 = C.cache_len(past)
+    check("only the context was prefilled", L0 == nc)
+    check("the protected window has exactly 32 prefill queries",
+          C.STATE.ctx_len == nc - 32 and C.STATE.qwin[0].shape[1] == 32)
+    outs = {}
+    for arm, B in (("fp", 0), ("uniform", 8), ("fp", 0), ("evict", 0.5)):
+        gen, _ = RR.run_arm(model, past, ids, arm, B, R, True, 8, eos, 16, L0, tok, q_ids)
+        outs.setdefault((arm, B), []).append(gen)
+    check("fp repeats exactly after a crop", outs[("fp", 0)][0] == outs[("fp", 0)][1])
+    with torch.no_grad():
+        ref = model.generate(ids, max_new_tokens=16, do_sample=False,
+                             attention_mask=torch.ones_like(ids),
+                             pad_token_id=tok.eos_token_id)[0, ids.shape[1]:].tolist()
+    ref = [t for t in ref if t not in eos][:len(outs[("fp", 0)][0])]
+    fp_txt = tok.decode(outs[("fp", 0)][0])
+    check("fp arm == model.generate on context + question", outs[("fp", 0)][0] == ref,
+          f"({fp_txt!r})")
+    check("the FP ceiling is correct in this mode too",
+          TR.score("niah_single", fp_txt, meta)["score"] == 1.0, f"({fp_txt!r})")
+    check("uniform 8-bit answers like fp", outs[("uniform", 8)][0] == outs[("fp", 0)][0],
+          f"(u8 {tok.decode(outs[('uniform', 8)][0])!r})")
+    a = C.bits_audit()
+    check("evict B = 0.5 spent <= 0.5 bits per context token",
+          a["bits_per_token"] <= 0.5 + 1e-9, f"({a})")
+
+
 if __name__ == "__main__":
     fast = "--fast" in sys.argv
     tests = [test_off_is_the_probe, test_capture_chunking, test_h2o_capture,
              test_snapkv_pool, test_mixed_quantize, test_budget_matched,
              test_decode_compressed, test_crop_to, test_p2_interior,
-             test_p2_eval_and_route, test_p2_answer_span, test_eval_vectorised]
+             test_p2_eval_and_route, test_p2_answer_span, test_eval_vectorised,
+             test_question_prefill_compressed, test_fractional_budget]
     if not fast:
-        tests += [test_tasks, test_generation_end_to_end]
+        tests += [test_tasks, test_generation_end_to_end, test_question_agnostic_end_to_end]
     for t in tests:
         t()
     print(f"\n{'ALL R8 TESTS PASSED' if not fails else f'{fails} R8 TEST(S) FAILED'}")

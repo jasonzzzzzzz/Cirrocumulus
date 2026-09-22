@@ -150,7 +150,10 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
     text = prefix + body + question
     meta.update(family=f"ruler_{task}", task=task, prompt_idx=prompt_idx,
                 expected=expected, distractors=distractors,
-                needle_depths=[round(d, 4) for d in depths], n_needles=len(needles))
+                needle_depths=[round(d, 4) for d in depths], n_needles=len(needles),
+                # text == context + question: the question-agnostic driver
+                # compresses the context before the question exists (plan.md 12)
+                question=question)
     return text, meta
 
 

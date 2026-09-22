@@ -2,9 +2,15 @@
 # =============================================================================
 # R8 -- ROUTER-ON vs ROUTER-OFF ON AN END TASK   (ROADMAP.md tier 2)
 #
-#     bash h0_measurement/bugs/8_router_endtask/script.sh --p0 --dry    # print only
-#     bash h0_measurement/bugs/8_router_endtask/script.sh --p0          # the budget pilot
+#     bash h0_measurement/bugs/8_router_endtask/script.sh --p0b --dry   # print only
+#     bash h0_measurement/bugs/8_router_endtask/script.sh --p0b         # CURRENT STEP
 #     bash h0_measurement/bugs/8_router_endtask/script.sh --read
+#
+# STATUS (2026-09-22). P0 DONE (job 21529825): SnapKV 1.00 at every budget --
+# with the question in its observation window, eviction is an oracle on these
+# tasks (plan.md 11). P0b re-runs the pilot QUESTION-AGNOSTIC (the context is
+# compressed before the question exists; plan.md 12) with a 0.5-bit budget.
+# P2 waits on P0b's read.
 #
 # NOTHING RUNS WITHOUT A FLAG. Overrides are ARGUMENTS (R8_NAME=value), never env
 # prefixes -- this cluster's sbatch adds --export=NONE. No --mem. Submit from
@@ -26,29 +32,32 @@
 # {run_r8.py, submit_r8.slurm}, tests/test_r8.py, and this folder.
 # =============================================================================
 case "${1:-}" in
-  --p0|--read|--p2-pilot|--p2-cal|--p2) MODE="$1"; shift ;;
+  --p0|--p0b|--read|--p2-pilot|--p2-cal|--p2) MODE="$1"; shift ;;
   *) cat <<'USAGE'
-usage: bash script.sh --p0 [--dry] [--force]              the budget pilot (running)
+usage: bash script.sh --p0b [--dry] [--force]             question-agnostic budget pilot (NEXT)
+       bash script.sh --p0 [--dry] [--force]              the question-aware budget pilot (DONE)
        bash script.sh --p2-pilot --budgets=B[,B] [--dry]   P2 rate + smoke, 1 cell
        bash script.sh --p2-cal   --budgets=B[,B] [--dry]   router calibration, prompts 0-9
        bash script.sh --p2       --budgets=B[,B] [--eval-prompts=20] [--dry]
                                                            P2 evaluation, prompts 100-(100+N-1)
        bash script.sh --read
+  P2 modes take --qa to run question-agnostic (decide from P0b's read).
 USAGE
      exit 0 ;;
 esac
-DRY=0; FORCE=0; P2_BUDGETS=""; THETA="1.0"; P2_N=20
+DRY=0; FORCE=0; P2_BUDGETS=""; THETA="1.0"; P2_N=20; QA=0
 for a in "$@"; do
   case "$a" in --dry) DRY=1 ;; --force) FORCE=1 ;;
     --budgets=*) P2_BUDGETS="${a#--budgets=}" ;;
     --theta=*) THETA="${a#--theta=}" ;;
     --eval-prompts=*) P2_N="${a#--eval-prompts=}" ;;
+    --qa) QA=1 ;;
     *) echo "unknown option $a"; exit 1 ;; esac
 done
 if [[ "$MODE" == --p2* ]]; then
   # P2 runs where P0 found uniform degrading -- that budget is the whole point of
   # P0, so there is no default here to fall back on silently.
-  [[ "$P2_BUDGETS" =~ ^[0-9]+(,[0-9]+)*$ ]] || {
+  [[ "$P2_BUDGETS" =~ ^[0-9]+(\.[0-9]+)?(,[0-9]+(\.[0-9]+)?)*$ ]] || {
     echo "P2 needs --budgets=<from P0's read, e.g. 2 or 2,3>  (script.sh --read, the '-> P0:' lines)"
     exit 1; }
   # eval block is 100..100+N-1; the pilot uses 200-201 and calibration 0-9
@@ -62,9 +71,12 @@ PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
 
 if [[ "$MODE" == "--read" ]]; then
 cat <<'READ'
-  .venv/bin/python h0_measurement/bugs/8_router_endtask/read_r8.py \
-      "h0_measurement/results/r8job*/r8_*.parquet" \
-      --csv h0_measurement/reports/r8_p0.csv
+  P0  (done):  OMP_NUM_THREADS=8 .venv/bin/python h0_measurement/bugs/8_router_endtask/read_r8.py \
+                  "h0_measurement/results/r8job21529825/r8_*.parquet" --csv h0_measurement/reports/r8_p0.csv
+  P0b:         OMP_NUM_THREADS=8 .venv/bin/python h0_measurement/bugs/8_router_endtask/read_r8.py \
+                  "h0_measurement/results/r8job<P0b>/r8_*.parquet" --csv h0_measurement/reports/r8_p0b.csv
+  (the reader keeps question-aware and question-agnostic runs apart, labelled
+   "[question-aware]" / "[question-AGNOSTIC]")
 
 Read, in this order:
   1. the BITS AUDIT line -- every arm must have spent <= B bits per context token.
@@ -84,14 +96,9 @@ fi
 gate_fail() { echo "GATE FAILED: $1"; (( DRY )) || exit 1; echo "  (--dry: continuing)"; }
 
 # ---- gates, login node, before any GPU time --------------------------------
-# T: the R8 correctness anchors. --fast is the tensor half (seconds); the job
-#    re-runs it on the node. The model half (Llama-3.2-1B end to end on CPU)
-#    is worth running once after any change to sievelib/compress.py:
-#        .venv/bin/python tests/test_r8.py
-"$PY" tests/test_r8.py --fast >/tmp/r8_gate_$$.log 2>&1 \
-  || { tail -20 /tmp/r8_gate_$$.log; gate_fail "tests/test_r8.py --fast"; }
-grep -q "ALL R8 TESTS PASSED" /tmp/r8_gate_$$.log && echo "T: R8 tensor anchors pass"
-rm -f /tmp/r8_gate_$$.log
+# T: the R8 tensor tests are NOT run here: the login node kills them (~85 cores
+#    for ~35 s). submit_r8.slurm runs `tests/test_r8.py --fast` on the node
+#    before any model work and exits on failure, so the gate still holds.
 
 # F: the files this sheet submits must exist in THIS checkout -- the cluster is
 #    a separate machine and nothing here is useful until they are synced to it.
@@ -109,10 +116,12 @@ done
 mkdir -p h0_measurement/logs
 
 # ---- guard: skip a cell that already has a complete result -----------------
-have_r8() {   # have_r8 MODEL CTX NPROMPTS OFFSET ARMS
+have_r8() {   # have_r8 MODEL CTX NPROMPTS OFFSET ARMS [QA 0|1] [BUDGETS]
   "$PY" - "$@" <<'PYG'
 import glob, json, os, sys
 model, ctx, n, off, arms = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
+qa = sys.argv[6] == "1" if len(sys.argv) > 6 else False
+want_b = {float(b) for b in sys.argv[7].split(",")} if len(sys.argv) > 7 else set()
 for js in glob.glob(f"h0_measurement/results/r8job*/r8_{model}_{ctx}.json"):
     try:
         j = json.load(open(js))
@@ -121,6 +130,10 @@ for js in glob.glob(f"h0_measurement/results/r8job*/r8_{model}_{ctx}.json"):
     p = js[:-5] + ".parquet"
     if (j.get("n_prompts", 0) >= n and j.get("prompt_offset") == off
             and set(arms.split(",")) <= set(j.get("arms", []))
+            # a question-aware run never counts as a question-agnostic one, and
+            # every requested budget must be in it
+            and bool(j.get("question_agnostic", False)) == qa
+            and want_b <= {float(b) for b in j.get("budgets", [])}
             and os.path.isfile(p) and open(p, "rb").read()[-4:] == b"PAR1"):
         print(os.path.dirname(js)); sys.exit(0)
 sys.exit(1)
@@ -132,7 +145,7 @@ SB() { if (( DRY )); then echo "       sbatch $*"; else sbatch "$@"; fi; }
 cell() {   # cell ID MODEL CTX WALL [R8_*=... extras]
   local id=$1 m=$2 cx=$3 wt=$4; shift 4
   local n=20 off=0 arms=fp,uniform,evict,evict_h2o where
-  if (( ! FORCE )) && where=$(have_r8 "$m" "$cx" "$n" "$off" "$arms"); then
+  if (( ! FORCE )) && where=$(have_r8 "$m" "$cx" "$n" "$off" "$arms" 0 1,2,3,4); then
     echo "done   $id  $m @$cx  ($where)"; return 0; fi
   echo "submit $id  $m @$cx  arms=$arms budgets=1,2,3,4 prompts=$n@$off ($wt)"
   SB --time="$wt" h0_measurement/submit_r8.slurm \
@@ -185,30 +198,33 @@ p2cell() {   # p2cell KIND MODEL CTX WALL
   local kind=$1 m=$2 cx=$3 wt=$4 rf="$ROUTES_DIR/${2}_${3}.json"
   # a theta sweep keeps one routes file per theta; 1.0 keeps the plain name
   [[ "$THETA" != "1.0" ]] && rf="$ROUTES_DIR/${2}_${3}_t${THETA}.json"
+  # question-agnostic routes are a different calibration: never mix the two
+  (( QA )) && rf="${rf%.json}_qa.json"
+  local qa_arg=(R8_QA="$QA")
   case "$kind" in
     pilot)
       echo "submit P2-pilot $m @$cx  (2 prompts, all P2 arms but router_calib, $wt)"
       SB --time="$wt" h0_measurement/submit_r8.slurm R8_MODEL="$m" R8_CTX="$cx" \
          R8_ARMS=fp,uniform,evict,interior,interior_pool,interior_cascade,router_oracle \
          R8_BUDGETS="$P2_BUDGETS" R8_N_PROMPTS=2 R8_PROMPT_OFFSET=200 \
-         R8_HEAD_ERROR=1 R8_THETA="$THETA" ;;
+         R8_HEAD_ERROR=1 R8_THETA="$THETA" "${qa_arg[@]}" ;;
     cal)
       if (( ! FORCE )) && [[ -f "$rf" ]]; then echo "done   P2-cal  $m @$cx  ($rf)"; return 0; fi
       echo "submit P2-cal  $m @$cx  prompts 0-9 -> $rf ($wt)"
       SB --time="$wt" h0_measurement/submit_r8.slurm R8_MODEL="$m" R8_CTX="$cx" \
          R8_ARMS="$P2_CAL_ARMS" R8_BUDGETS="$P2_BUDGETS" R8_N_PROMPTS=10 R8_PROMPT_OFFSET=0 \
-         R8_HEAD_ERROR=1 R8_THETA="$THETA" R8_WRITE_ROUTES="$rf" ;;
+         R8_HEAD_ERROR=1 R8_THETA="$THETA" R8_WRITE_ROUTES="$rf" "${qa_arg[@]}" ;;
     eval)
       wt=$(scale_wall "$wt" "$P2_N")
       if [[ ! -f "$rf" ]]; then
         echo "WAIT   P2-eval $m @$cx  -- no routes yet ($rf): run --p2-cal first"; return 0; fi
       local where
-      if (( ! FORCE )) && where=$(have_r8 "$m" "$cx" "$P2_N" 100 "$P2_EVAL_ARMS"); then
+      if (( ! FORCE )) && where=$(have_r8 "$m" "$cx" "$P2_N" 100 "$P2_EVAL_ARMS" "$QA" "$P2_BUDGETS"); then
         echo "done   P2-eval $m @$cx  ($where)"; return 0; fi
       echo "submit P2-eval $m @$cx  prompts 100-$((99 + P2_N)), routes $rf ($wt)"
       SB --time="$wt" h0_measurement/submit_r8.slurm R8_MODEL="$m" R8_CTX="$cx" \
          R8_ARMS="$P2_EVAL_ARMS" R8_BUDGETS="$P2_BUDGETS" R8_N_PROMPTS="$P2_N" R8_PROMPT_OFFSET=100 \
-         R8_HEAD_ERROR=1 R8_THETA="$THETA" R8_ROUTES="$rf" ;;
+         R8_HEAD_ERROR=1 R8_THETA="$THETA" R8_ROUTES="$rf" "${qa_arg[@]}" ;;
   esac
 }
 
@@ -245,7 +261,49 @@ P2CHECK
 fi
 
 # =============================================================================
-# P0 -- THE BUDGET PILOT
+# P0b -- THE QUESTION-AGNOSTIC BUDGET PILOT (plan.md 12)            <- CURRENT
+# =============================================================================
+# Same cell, tasks and prompts as P0; what changes is WHEN compression happens.
+# The context is prefilled and scored ALONE (SnapKV's window = the context's last
+# 32 tokens), compressed, and only then is the question prefilled -- through the
+# compressed cache -- and answered. Budgets add 0.5 (1/16 of the tokens kept at
+# 8 bits; uniform is undefined there and skipped). evict_h2o is dropped (P0:
+# weak baseline, plan.md 11.1).
+#
+# WALLTIME. P0 measured 29 s per prompt x task (prefill 11.3 s incl. the H2O
+# capture, ~1.2-1.6 s per decode). P0b: no H2O capture, 9 decodes + 9 question
+# prefills of ~40 tokens -> ~25 s x 80 = ~35 min. Header 1:00:00.
+if [[ "$MODE" == "--p0b" ]]; then
+  m=llama31-8b; cx=32768; arms=fp,uniform,evict; bud=0.5,1,2,3,4
+  if (( ! FORCE )) && where=$(have_r8 "$m" "$cx" 20 0 "$arms" 1 "$bud"); then
+    echo "done   P0b  $m @$cx  ($where)"
+  else
+    echo "submit P0b  $m @$cx  QUESTION-AGNOSTIC arms=$arms budgets=$bud prompts=20@0 (01:00:00)"
+    SB --time=01:00:00 h0_measurement/submit_r8.slurm \
+       R8_MODEL="$m" R8_CTX="$cx" R8_ARMS="$arms" R8_BUDGETS="$bud" \
+       R8_N_PROMPTS=20 R8_PROMPT_OFFSET=0 R8_QA=1
+  fi
+  cat <<'CHECKB'
+
+  Line 1 of h0_measurement/logs/r8_<JOBID>.out must show  qa=1 ... budgets=0.5,1,2,3,4
+  then "ALL R8 TESTS PASSED", "uniform skipped at B = [0.5]", the R8 banner with
+  "compress_at=context_end (question-agnostic)", and one line per (prompt, task).
+
+  Then: bash h0_measurement/bugs/8_router_endtask/script.sh --read   (the P0b line)
+
+  DECISION (plan.md 12.3):
+    evict falls below ~0.9 at some B while FP >= 0.95  -> the regime discriminates;
+        P2 runs with --qa at the budgets where uniform and evict DIFFER most.
+    evict still ~1.00 at B = 0.5                        -> eviction is not the
+        bottleneck even blind; stop and rethink the task set before any P2.
+    FP < 0.95 on a task                                 -> the separately-tokenized
+        question broke the prompt; debug before reading any arm.
+CHECKB
+  exit 0
+fi
+
+# =============================================================================
+# P0 -- THE QUESTION-AWARE BUDGET PILOT        DONE: job 21529825 (plan.md 11)
 # =============================================================================
 # WALLTIME. Prefill once per (prompt, task), then 9 decodes (fp + 2 arms x 4
 # budgets) of 24-64 tokens each, plus one quantization of the context per
@@ -260,7 +318,7 @@ cat <<'CHECK'
   must read:
      host=... role=r8 ... model=llama31-8b ctx=32768 arms=fp,uniform,evict,evict_h2o
              budgets=1,2,3,4 tasks=niah_single,... prompts=20@0 window=32
-  then "T: ... ALL R8 TESTS PASSED" from the in-job gate, then one line per
+  then "ALL R8 TESTS PASSED" from the in-job tensor tests, then one line per
   (prompt, task) with every arm's score.
 
   Then:  bash h0_measurement/bugs/8_router_endtask/script.sh --read

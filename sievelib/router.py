@@ -39,6 +39,19 @@ ARMS_P0 = ("fp", "uniform", "evict", "evict_h2o")
 SNAPKV_POOL = 7          # SnapKV's default kernel
 
 
+def bkey(B) -> str:
+    """A budget as a routes-file key: "2" for 2 or 2.0, "0.5" for 0.5. One
+    spelling for the writer (calibrate_routes) and every reader."""
+    B = float(B)
+    return str(int(B)) if B.is_integer() else f"{B:g}"
+
+
+def is_width(B, maxb: int = 8, bit_list=(1, 2, 3, 4, 5, 6, 8)) -> bool:
+    """Uniform needs B to be a quantizer width: there is no 0.5-bit quantizer.
+    Eviction and the interior spend any B in (0, maxb]."""
+    return float(B).is_integer() and int(B) in bit_list
+
+
 def keep_count(B: float, ctx_len: int, maxb: int) -> int:
     """Tokens an eviction corner may keep at maxb and still spend <= B bits per
     token: floor(B*L/maxb), the `frac` rule (evict.corner_tokens)."""
@@ -73,6 +86,9 @@ def allocate(arm: str, B: int, score: torch.Tensor, maxb: int,
     if arm == "fp":
         return None
     if arm == "uniform":
+        if not float(B).is_integer():
+            raise ValueError(f"uniform needs an integer width, got B = {B} -- "
+                             f"skip it at fractional budgets (run_r8 does)")
         return torch.full((Hkv, C), int(B), dtype=torch.long, device=score.device)
     if arm == "evict":
         return _topk_bits(snapkv_pool(score, pool), B, maxb)
@@ -157,6 +173,10 @@ class LayerCtx:
     ap_cascade: torch.Tensor | None = None       # [H, C] the same, over base-tier keys
     ap_pool: torch.Tensor | None = None          # [H, C] SnapKV-pooled over positions
     h2o: torch.Tensor | None = None
+    # R9 baselines (sievelib/baselines.py): the prefill window queries, and the
+    # per-query-head W_O Gram matrices LaProx reads. Unused by every P0/P2 arm.
+    qwin: torch.Tensor | None = None             # [H, w, d]
+    wo_gram: torch.Tensor | None = None          # [H, dh, dh]
 
 
 def _dist(x: torch.Tensor) -> torch.Tensor:
@@ -183,10 +203,14 @@ def _window_attention(qwin, K_ctx, K_win, scaling, C):
 
 
 def build_layer_ctx(li, past, R, bit_list, norm_correct=True, cascade_bits=None,
-                    want_h2o=False) -> LayerCtx:
+                    want_h2o=False, need_noise=True, wo_gram=None) -> LayerCtx:
     """Read one layer's cache and the prefill capture into a LayerCtx, and
     quantize its context keys at EVERY width once -- the noise model, every
-    arm's allocation and the per-head errors all reuse them."""
+    arm's allocation and the per-head errors all reuse them.
+
+    R9: `need_noise=False` skips the noise model (sig2 = None), which only the
+    interior reads; pass an empty `bit_list` as well to skip quantization when no
+    per-head error is measured. Both default to the P2 behaviour."""
     from . import compress as Cm
     from .probe import cache_kv
     S = Cm.STATE
@@ -202,14 +226,17 @@ def build_layer_ctx(li, past, R, bit_list, norm_correct=True, cascade_bits=None,
     # the noise model, fitted on the LAST PREFILL query: at decode start the full
     # keys still exist, so this is deployable; the step-0 query is kept for
     # measurement only
-    q_last = S.qwin[li][:, -1, :].float()                            # [H, d]
-    s = quant.logits_gqa(q_last, Kc, sc)                             # [H, C]
-    shat = {b: quant.logits_gqa(q_last, Kq[b], sc) for b in bit_list}
-    sig2 = [alloc.noise_model(s[h], {b: shat[b][h] for b in bit_list})["sig2"]
-            for h in range(H)]
+    sig2 = None
+    if need_noise:
+        q_last = S.qwin[li][:, -1, :].float()                        # [H, d]
+        s = quant.logits_gqa(q_last, Kc, sc)                         # [H, C]
+        shat = {b: quant.logits_gqa(q_last, Kq[b], sc) for b in bit_list}
+        sig2 = [alloc.noise_model(s[h], {b: shat[b][h] for b in bit_list})["sig2"]
+                for h in range(H)]
     ctx = LayerCtx(li=li, n_rep=n_rep, scaling=sc, Kc=Kc, Vc=Vc, Kw=Kw, Vw=Vw,
                    snap=S.score[li], ap=_dist(S.score_h[li]), sig2=sig2, Kq=Kq,
-                   ap_pool=_dist(snapkv_pool(S.score_h[li])))
+                   ap_pool=_dist(snapkv_pool(S.score_h[li])),
+                   qwin=S.qwin.get(li), wo_gram=wo_gram)
     if cascade_bits is not None:
         ctx.ap_cascade = _dist(_window_attention(S.qwin[li], Kq[int(cascade_bits)],
                                                   Kw, sc, C))
@@ -382,5 +409,5 @@ def calibrate_routes(errors: "pd.DataFrame", n_rep: int, theta: float = 1.0,
                 rts.append("interior")
             else:
                 rts.append(bb)
-        out.setdefault(str(int(B)), {})[str(int(li))] = rts
+        out.setdefault(bkey(B), {})[str(int(li))] = rts
     return out

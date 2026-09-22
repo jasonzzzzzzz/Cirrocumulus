@@ -1,5 +1,20 @@
 # R8 — router-on vs router-off on an end task
 
+
+> **Status 2026-09-22: IN PROGRESS. Next job: P0b** —
+> `bash h0_measurement/bugs/8_router_endtask/script.sh --p0b` (~1 GPU-h, not yet
+> submitted).
+>
+> | phase | state | where |
+> |---|---|---|
+> | build + tests (P0 path, P2 path, question-agnostic mode, B = 0.5) | done; `tests/test_r8.py` all pass | §9, §10, §12 |
+> | **P0** question-aware budget pilot, llama31-8b @32k | **done**, job 21529825 | **§11** — SnapKV 1.00 at every budget: with the question in its window, eviction is an oracle on these tasks |
+> | **P0b** question-agnostic + B = 0.5 | **built, next to submit** | **§12** (design, checks, CPU pilot, decision table) |
+> | P2 interior + routers (pilot → calibration → evaluation, 5 cells) | built, waits on P0b's read | §10 |
+>
+> The sections below are in the order they were written (§0–§8 the original
+> plan, §9 onward the build and results). §11–§12 are current.
+
 **Plan, 2026-09-21. P0 is BUILT and CPU-validated (§9); nothing has run on the cluster.** Every file below is NEW; no
 shared file (`run_h0.py`, `alloc.py`, `probe.py`, `quant.py`, `evict.py`,
 `test_units.py`) is edited, because wave 4 is about to run on exactly that code.
@@ -577,3 +592,167 @@ P-1 and P-2 compare the router with the best of uniform / evict / interior
 **chosen on the same prompts**. That choice is biased toward whichever fixed
 policy got lucky, so "router − best fixed" is conservative: P-1 failures should
 be re-checked against each fixed policy (`--p2-verbose` prints them all).
+
+---
+
+## 11. P0 result — job 21529825 (2026-09-22): the tasks are solved by SnapKV
+
+llama31-8b @32,768 (30.2k prompt tokens), 20 prompts × 4 tasks, maxb = 8, W = 32.
+Bits audit OK. Wall 38.5 min (header 1:30): **29 s per prompt × task**, of which
+prefill 11.3 s and ~1.2–1.6 s per arm decode. Reader output:
+`h0_measurement/reports/r8_p0.csv`.
+
+| task | FP | uniform B=1 / 2 / 3 / 4 | evict (SnapKV) B=1…4 | evict_h2o B=1 / 2 / 3 / 4 |
+|---|---|---|---|---|
+| niah_single | 1.00 | 0.25 / 1.00 / 1.00 / 1.00 | **1.00 at every B** | 0.00 / 0.00 / 0.00 / 0.10 |
+| niah_multikey | 1.00 | 0.35 / 1.00 / 1.00 / 1.00 | **1.00** | 0.20 / 0.45 / 0.65 / 0.80 |
+| niah_multivalue | 0.99 | 0.06 / 1.00 / 1.00 / 0.99 | **1.00** | 0.11 / 0.33 / 0.45 / 0.54 |
+| vt | 1.00 | 0.20 / 1.00 / 1.00 / 1.00 | **1.00** | 0.61 / 0.78 / 0.76 / 0.85 |
+
+### 11.1 What it says
+
+1. **§9.6's C1 prediction holds.** Uniform at B = 2 is 1.00 on llama31-8b (dead-2
+   ≈ 27–31%), where qwen3-1.7b (≈ 78%) scored 0.00. The cliff sits between 1 and 2
+   bits: 1-bit keys corrupt the value (`650417` → other digits), 2-bit keys are exact.
+2. **SnapKV is at ceiling at B = 1** — keeping 12.5% of the context (~3.8k tokens)
+   at 8 bits — on every task, **including vt**. §9's CPU hypothesis (SnapKV drops
+   the chain links the question never names) is refuted at this scale: the 32
+   question tokens in the window vote every hop onto the kept set.
+3. **H2O is the weak baseline §9.5 predicted**, and fails in a telling way: it keeps
+   the *first* digits of the needle and drops the rest (`650417` → `650.`) — the
+   causal-count bias acts even inside a 6-token number. Drop it from P2.
+4. **No budget puts uniform in [0.50, 0.80]**, and the arm the router must beat
+   (evict) is at 1.00 with zero variance at every B. P2 as planned would measure
+   ties: no end-task gain exists for P-1…P-5 to rank, and P-4 has no variance to
+   correlate. **P2 is on hold until the regime is fixed.**
+
+### 11.2 Why: the question is in the window at compression time
+
+Every arm compresses *after* prefill of context + question, and the window vote
+that scores tokens is the question itself. On retrieval tasks that makes eviction
+an oracle: the question points at the needle. This is the published blind spot
+of query-aware eviction (compress-once-query-many, prefix caching, multi-turn):
+the compressor does not know the question when it compresses. It is also exactly
+the regime where a *unified* quantize-or-evict allocator should matter — mixed
+precision keeps everything at some bits, so a needle the scorer did not foresee
+degrades rather than vanishes.
+
+### 11.3 Options for P0b
+
+| option | change | expected | verdict |
+|---|---|---|---|
+| **A. query-agnostic compression** | score and compress the context **before** the question: the window = the last W context tokens; the question is prefilled after compression and kept FP | SnapKV loses the needle at low B (its vote no longer points at it); uniform unchanged (1→2-bit cliff); the interior and router have room between them | **recommended** — the realistic deployment regime and the one C1/C4 are about |
+| B. sub-1-bit budgets (0.25, 0.5) | allow float budgets; uniform undefined below 1 | SnapKV at 1.5–3% of tokens still likely keeps a ~60-token needle set; interior ≈ evict | cheap but probably still at ceiling |
+| C. harder tasks (16 keys, 8 values, 8 hops) | `tasks_ruler.build` knobs | question-aware SnapKV still points at the needle | does not attack the cause |
+
+A and B combine: A defines the regime, B (0.5 bits) extends the budget axis
+below uniform's cliff. **Chosen (2026-09-22): A + B → P0b, §12.**
+
+---
+
+## 12. P0b — question-agnostic compression + a 0.5-bit budget (built 2026-09-22)
+
+### 12.1 What changes, and what does not
+
+| | P0 (question-aware) | P0b (`--question-agnostic`) |
+|---|---|---|
+| tokenization | `tok(context + question)` | `tok(context)` ⧺ `tok(question, add_special_tokens=False)` — as a prefix cache holds them |
+| prefilled at full precision | context + question (all but the last token) | **context only** |
+| observation window (SnapKV vote, interior score, noise model) | last W = 32 prompt tokens = **the question** | last W context tokens = **the haystack's tail** |
+| compressed | context before the window | same |
+| question | inside the window, full precision | prefilled **per arm, through the compressed cache**; full precision itself |
+| decode | from the last prompt token, over the compressed context | same |
+| FP arm | plain generation | plain generation (the question prefill is uncompressed) |
+
+Mechanism: `compress.sieve_compress_attention` gained one branch — a multi-token
+call while `STATE.enabled` (only ever the question prefill) substitutes the
+compressed context and applies an explicit causal + evicted + caller mask
+(`_question_view`). The context prefill never takes it (`STATE.enabled` is False
+there), and the question-aware path is untouched.
+
+Budgets may be fractional. At **B = 0.5** eviction keeps 1/16 of the context at
+8 bits and the interior water-fills 0.5 bits per token; **uniform is skipped**
+(there is no 0.5-bit quantizer). The routes file keys budgets with
+`router.bkey` ("2", "0.5"); routers drop the uniform candidate where it does not
+exist. The reader compares against evict where uniform is absent.
+
+The R9 SOTA baselines (`bugs/9_sota_eviction_baselines`) read the same prefill
+capture, so `--question-agnostic` applies to them unchanged — in this mode they
+are blind in the same way SnapKV is.
+
+### 12.2 Verification
+
+| check | result |
+|---|---|
+| `tests/test_r8.py` (full, CPU) | **ALL PASS**, incl. 3 new tests: question prefill over a compressed context == row-by-row decode (max diff 1.2e-7), evicted positions have zero influence on the question, causal inside the question, bool-mask safe; B = 0.5 budget/route pieces; end to end on Llama-3.2-1B — QA fp arm == `model.generate(context + question)` token for token, u8 == fp, evict 0.5 spends ≤ 0.5 b/tok |
+| `tests/test_baselines.py` (R9) | ALL PASS |
+| question-aware path unchanged | old vs new `run_r8.py` on qwen3-1.7b @2k (fp/uniform/evict, B 1,3, 2 tasks): **identical parquets** except timing columns |
+| mechanism (Llama-3.2-1B @2k, niah_single) | blind SnapKV's kept set shifts toward recent tokens (mean kept position 0.61 → 0.75 of the context at B = 1); needle-token survival 0.92 → 0.59 when the needle is not at the very end |
+
+### 12.3 CPU pilot, qwen3-1.7b @2,048 (partial; plumbing + direction only)
+
+Partial: the scratch output was lost when the session ended. These are the
+per-prompt log lines that had printed (5 of 12 prompt × task pairs in the P0b-shaped
+run, plus the first 3 tasks of the P2-shaped run). qwen3-1.7b is the high-dead-tier
+toy model (dead-2 ≈ 78%), so absolute levels do **not** transfer to llama31-8b.
+Each entry is a single prompt, so every score is 0/1 or a fraction of the expected
+answers.
+
+P0b-shaped (`--arms fp,uniform,evict --budgets 0.5,1,2,3,4 --question-agnostic`):
+
+| prompt · task (needle depth) | fp | uniform 1 / 2 / 3 / 4 | evict 0.5 / 1 / 2 / 3 / 4 |
+|---|---|---|---|
+| p0 niah_single (0.45) | 1.00 | 0 / 0 / 0 / **1.00** | 0 / 0 / 0 / 0 / **0** |
+| p0 niah_multikey | 1.00 | 0 / 0 / 0 / 1.00 | 0 / 0 / 0 / 0 / 0 |
+| p0 niah_multivalue | 1.00 | 0 / 0 / 0.75 / 1.00 | 0 / 0 / 0 / 0 / 0 |
+| p0 vt | 1.00 | 0 / 0 / 0 / 1.00 | 0 / 0 / 0 / 0.20 / 0.80 |
+| p1 niah_single (deep) | 1.00 | 0 / 0 / 0 / 1.00 | 0 / 0 / **1.00 / 1.00 / 1.00** |
+
+P2-shaped (`+ interior, interior_pool, router_oracle --head-error`, B 0.5 / 1 / 3), prompt 0:
+
+| task | uniform 1 / 3 | evict 0.5 / 1 / 3 | interior 0.5 / 1 / 3 | interior_pool 0.5 / 1 / 3 | router_oracle 0.5 / 1 / 3 |
+|---|---|---|---|---|---|
+| niah_single | 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / **1.00** | 0 / 0 / **1.00** |
+| niah_multikey | 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / **1.00** | 0 / 0 / **1.00** |
+| niah_multivalue | 0 / 0.75 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / **1.00** |
+
+What this is and is not evidence for:
+- **The regime discriminates.** Blind SnapKV fails whenever the needle is not near
+  the end (p0, depth 0.45: 0 even while keeping half the context at B = 4) and
+  passes when it is (p1). That is the mechanism measured on Llama-3.2-1B (§12.2).
+- **Uniform's cliff moves up** (P0's CPU run: 3 bits; here: 4), because the question
+  now reads compressed keys too.
+- On prompt 0 at B = 3, **interior_pool and the oracle router answer where uniform,
+  SnapKV and the plain interior all fail.** That is one prompt on a toy model: a
+  plumbing check that also points in a direction, not a result.
+- The P2 path ran end to end in this mode (60 rows, uniform correctly absent at
+  B = 0.5, 25,088 per-head errors), and `read_r8.py --p2` read it.
+
+**Bits audit tolerance (reader).** The water-fill arms (interior, routers)
+overspend by up to ~0.05% of B: the bisection on λ cannot hit B exactly with
+discrete widths. Eviction and uniform spend ≤ B exactly. `read_r8.py` now flags
+only overspends above 0.2% of B and prints the worst one. `alloc.waterfill_group`
+is left unchanged: H0's campaigns and golden tests depend on it.
+
+### 12.4 Known approximation in QA mode (P2 only)
+
+`router.eval_heads` measures each head's output error over **context + window**
+keys; in QA mode the decode queries also attend to the question's (exact) keys,
+which the per-head error leaves out. The error is therefore relative to a
+slightly smaller softmax than the model uses. It affects the per-head error
+columns (P-4's x-axis) only, not accuracy, and is the same for every arm.
+
+### 12.5 The P0b run
+
+`bash h0_measurement/bugs/8_router_endtask/script.sh --p0b` — llama31-8b @32,768,
+arms fp/uniform/evict, budgets 0.5/1/2/3/4, 20 prompts × 4 tasks, `R8_QA=1`,
+header 1:00:00 (estimate ~35 min from P0's 29 s per prompt × task).
+
+Decision table (written before the run):
+
+| P0b shows | then |
+|---|---|
+| evict < ~0.9 at some B with FP ≥ 0.95 | the regime discriminates → P2 with `--qa`, at the budgets where uniform and evict differ most (0.5 counts: interior vs evict there) |
+| evict still ~1.00 at B = 0.5 | eviction is not the bottleneck even blind → rethink the task set before P2 |
+| uniform ≪ P0's uniform at the same B | the question now reads compressed keys too; expected, and it moves uniform's cliff — read it per task |
+| FP < 0.95 | the separate tokenization broke the prompt → debug before reading arms |

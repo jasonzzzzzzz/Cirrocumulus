@@ -39,6 +39,17 @@ DESIGN (bugs/8_router_endtask/plan.md section 2):
     path L1 validates as a drop-in for the native attention to 0.000 logit
     difference. Compression changes the keys and adds a mask; nothing else.
 
+QUESTION-AGNOSTIC MODE (plan.md 11-12). P0 found SnapKV at 1.00 at every budget:
+with the question inside the observation window, the window vote points at the
+needle, so eviction becomes an oracle. A deployed compress-once cache (prefix
+caching, multi-turn) compresses BEFORE the question exists. In that mode the
+driver prefills the CONTEXT only (the window = its last W tokens), compresses,
+and then prefills the QUESTION through this function with compression ON: a
+q_len > 1 call while `STATE.enabled` reads the compressed context under a
+causal mask, exactly as each of its rows would as a decode step
+(tests/test_r8.py::test_question_prefill_compressed pins that equality). The
+question and the answer are positions >= ctx_len, so they stay full precision.
+
 Nothing here mutates the KV cache. The compressed keys are substituted into the
 attention call, so the cache stays full precision and one prefill can serve
 every arm: crop the cache back to the prefill length and run the next arm.
@@ -233,6 +244,44 @@ def _capture_h2o(li, query, key, scaling):
     STATE.score_h2o[li] = acc if li not in STATE.score_h2o else STATE.score_h2o[li] + acc
 
 
+def _additive(mask, dtype):
+    """An attention mask as an additive float mask (0 = attend). HF may hand a
+    custom attention function a boolean mask (True = attend) or a float one."""
+    if mask.dtype == torch.bool:
+        z = torch.zeros(mask.shape, dtype=dtype, device=mask.device)
+        return z.masked_fill(~mask, torch.finfo(dtype).min)
+    return mask.to(dtype)
+
+
+def _question_view(li, query, key, attention_mask):
+    """Question-agnostic mode: a MULTI-token call (the question's prefill) over a
+    compressed context. Returns the keys with the compressed context substituted
+    and an explicit additive mask = causal + evicted + the caller's mask. The
+    mask is always explicit, so _sdpa never falls back to its own causal logic."""
+    q_len, k_len = query.shape[2], key.shape[2]
+    C = STATE.ctx_len
+    kd = STATE.kdeq[li]
+    if kd.shape[1] != C or k_len - q_len < C:
+        raise RuntimeError(
+            f"layer {li}: question prefill over a compressed context of {kd.shape[1]} "
+            f"tokens (expected {C}) with only {k_len - q_len} cached -- the cache was "
+            f"not cropped back to the context length before the question")
+    key = torch.cat([kd.unsqueeze(0).to(key.dtype), key[:, :, C:, :]], dim=2)
+    H = query.shape[1]
+    neg = torch.finfo(query.dtype).min
+    m = torch.zeros(1, H, q_len, k_len, dtype=query.dtype, device=query.device)
+    pos = torch.arange(q_len, device=query.device) + (k_len - q_len)
+    j = torch.arange(k_len, device=query.device)
+    m.masked_fill_((j.view(1, -1) > pos.view(-1, 1)).view(1, 1, q_len, k_len), neg)
+    ev = STATE.evict[li]
+    if bool(ev.any()):
+        evq = ev.repeat_interleave(H // key.shape[1], dim=0).to(query.device)   # [H, C]
+        m[0, :, :, :C].masked_fill_(evq.unsqueeze(1), neg)
+    if attention_mask is not None:
+        m = torch.minimum(m, _additive(attention_mask[:, :, -q_len:, :k_len], query.dtype))
+    return key, m
+
+
 def sieve_compress_attention(module, query, key, value, attention_mask=None,
                              scaling=None, dropout=0.0, **kwargs):
     if kwargs.get("softcap"):
@@ -244,6 +293,13 @@ def sieve_compress_attention(module, query, key, value, attention_mask=None,
         scaling = module.head_dim ** -0.5
     q_len, k_len = query.shape[2], key.shape[2]
     li = _layer(module)
+
+    if q_len > 1 and STATE.enabled and li in STATE.kdeq:
+        # question-agnostic mode: the question is prefilled AFTER compression and
+        # reads the compressed context (never during the context prefill, where
+        # STATE.enabled is False)
+        key, m = _question_view(li, query, key, attention_mask)
+        return _sdpa(query, key, value, m, scaling, True), None
 
     if q_len > 1:                                  # prefill: always full precision
         out = _sdpa(query, key, value, attention_mask, scaling, True)

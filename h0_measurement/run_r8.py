@@ -18,6 +18,17 @@ the paper's output-error numbers describing the same population -- the point of
 P-4 -- and it is the stricter choice: a system whose first answer token came
 from the full-precision prefill would hide some of the damage.
 
+QUESTION-AGNOSTIC MODE (--question-agnostic; plan.md 11-12). P0 compressed after
+the question was read, and SnapKV -- whose window vote IS the question -- scored
+1.00 at every budget. With the flag, the prompt is tokenized as context +
+question (separately, as a prefix cache would hold them), only the CONTEXT is
+prefilled and scored (the window = its last W tokens), and every arm then
+prefills the QUESTION through the compressed context before decoding. The FP
+arm is unchanged in substance: an uncompressed question prefill.
+
+Budgets may be fractional (e.g. 0.5): eviction and the interior spend any B in
+(0, maxb]; uniform needs a quantizer width and is skipped at other budgets.
+
 Design and decision table: h0_measurement/bugs/8_router_endtask/plan.md.
 """
 from __future__ import annotations
@@ -30,6 +41,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 from sievelib import compress as C, quant, router, prompts, tasks_ruler as TR  # noqa: E402
+from sievelib import baselines as BL  # noqa: E402
 import run_h0  # noqa: E402  (load_cfg, chunked_prefill -- reused, not copied)
 
 
@@ -46,11 +58,16 @@ def eos_ids(model, tok) -> set[int]:
 def prefill(model, ids, window: int, chunk: int, h2o: bool = False):
     """Full-precision prefill of ids[:, :n-1], capturing the observation
     window's attention (SnapKV's vote) and, when `h2o`, the attention every
-    context token received from every prefill query. Returns (cache, n)."""
+    context token received from every prefill query. Returns (cache, n).
+
+    Question-agnostic mode passes ids = context + the question's FIRST token, so
+    exactly the context is prefilled and the window is its last W tokens."""
     n = ids.shape[1]
+    # ids[-1] is the first decode query, not a prefill query. Count the
+    # protected window from the n-1 tokens actually prefilled.
     W = max(1, min(int(window), n - 2))
     C.STATE.reset_prompt()
-    C.STATE.window_start = C.STATE.ctx_len = n - W
+    C.STATE.window_start = C.STATE.ctx_len = (n - 1) - W
     C.STATE.h2o = bool(h2o)
     C.STATE.capture = True
     try:
@@ -58,6 +75,17 @@ def prefill(model, ids, window: int, chunk: int, h2o: bool = False):
     finally:
         C.STATE.capture = False
     return past, n
+
+
+def _question(model, past, q_ids):
+    """Question-agnostic mode: prefill the question (all but its last token)
+    through whatever view compress.STATE currently gives -- compressed for a
+    compressed arm, full precision for fp. The last token is decode step 0."""
+    if q_ids is None or q_ids.shape[1] <= 1:
+        return past
+    with torch.no_grad():
+        out = model(q_ids[:, :-1], past_key_values=past, use_cache=True)
+    return out.past_key_values
 
 
 def _decode(model, past, first, max_new, eos, tok):
@@ -82,14 +110,17 @@ def _decode(model, past, first, max_new, eos, tok):
     return gen, past
 
 
-def run_arm(model, past, ids, arm, B, R, norm_correct, maxb, eos, max_new, L0, tok=None):
+def run_arm(model, past, ids, arm, B, R, norm_correct, maxb, eos, max_new, L0, tok=None,
+            q_ids=None):
     """One (arm, budget) on an already-prefilled cache. Crops the cache back to
-    the prefill length first, so arms never see each other's generated tokens."""
+    the prefill length first, so arms never see each other's generated tokens.
+    `q_ids` (question-agnostic mode): the question, prefilled after compression."""
     C.crop_to(past, L0)
     C.STATE.reset_arm()
     bits = router.allocate_all(arm, B, getattr(C.STATE, router.score_source(arm)), maxb)
     if bits is not None:
         C.apply_bits(past, bits, R, norm_correct)
+    past = _question(model, past, q_ids)
     gen, past = _decode(model, past, ids[0, -1], max_new, eos, tok)
     C.STATE.enabled = False
     return gen, past
@@ -117,13 +148,21 @@ def p2_wants(arms, head_error, write_routes):
 
 
 def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list,
-               n_layers, *, cascade_bits, need_err, routes, theta, ans_mask=None):
+               n_layers, *, cascade_bits, need_err, routes, theta, ans_mask=None,
+               bls=None, wo=None):
+    # uniform exists only at quantizer widths (no 0.5-bit quantizer): at other
+    # budgets it is neither an arm nor a router candidate
     """Every allocation for this prompt, LAYER BY LAYER, so each layer's context
     keys are quantized once at every width and reused by the noise model, every
     arm, and every per-head error. Returns
         bits[(arm, B)][layer] -> uint8 [Hkv, C]      (uint8: 1/8 the memory of long)
         errs[(arm, B)][layer] -> float64 [H]          (only when need_err)
-        rlog[(router, B)][layer] -> list of routed arms per KV head"""
+        rlog[(router, B)][layer] -> list of routed arms per KV head
+
+    R9: `bls` are the baseline arms (sievelib/baselines.py), `wo` the per-layer
+    W_O Gram matrices LaProx reads. A baseline whose allocator needs the whole
+    model (LaProx's global top-K) is scored for every layer in a pre-pass first;
+    the rest are scored inside the layer loop like every other arm."""
     C.crop_to(past, L0)                    # the FP arm left its tokens in the cache
     q0 = C.STATE.qdec                      # layer -> [ [H, d] per FP decode step ]
     if need_err and len(q0) != n_layers:
@@ -131,16 +170,47 @@ def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list
                            f"-- the FP arm must run first with capture_q on")
     bits, errs, rlog, amass = {}, {}, {}, {}
     base = [x for x in BASE_ARMS if x in want]
+    bls = bls or {}
+    wo = wo or {}
+    # only the interior (and the routers built on it) read the noise model; only
+    # the noise model and per-head errors read quantized keys. A baseline-only
+    # run skips both -- a P2 run is unchanged.
+    need_noise = bool(set(want) & {"interior", "interior_pool", "interior_cascade"}
+                      or routers)
+    qbits = bit_list if (need_noise or need_err) else []
+    Cn = C.STATE.ctx_len
+    bl_scores, bl_bits = {}, {}
+    model_bls = [b for b in bls.values() if b.scope == "model"]
+    if model_bls:
+        for li in range(n_layers):
+            lc = router.build_layer_ctx(li, past, R, [], norm_correct,
+                                        need_noise=False, wo_gram=wo.get(li))
+            for b in model_bls:
+                bl_scores.setdefault(b.label, {})[li] = b.score(lc)
+            del lc
+        for b in model_bls:
+            for B in budgets:
+                bl_bits[(b.label, B)] = b.allocate_model(bl_scores[b.label], B, maxb)
     for li in range(n_layers):
         ctx = router.build_layer_ctx(
-            li, past, R, bit_list, norm_correct,
+            li, past, R, qbits, norm_correct,
             cascade_bits=cascade_bits if "interior_cascade" in want else None,
-            want_h2o="evict_h2o" in want)
+            want_h2o="evict_h2o" in want, need_noise=need_noise, wo_gram=wo.get(li))
         if need_err and ans_mask is not None:
             amass[li] = router.answer_mass(ctx, q0[li][0], ans_mask)
+        layer_sc = {lab: (bl_scores[lab][li] if b.scope == "model" else b.score(ctx))
+                    for lab, b in bls.items()}
         for B in budgets:
+            for lab, b in bls.items():
+                bb = (bl_bits[(lab, B)][li] if b.scope == "model"
+                      else b.allocate_layer(layer_sc[lab], B, maxb))
+                bits.setdefault((lab, B), {})[li] = bb.to(torch.uint8)
+                if need_err:
+                    errs.setdefault((lab, B), {})[li] = router.eval_heads(ctx, bb, q0[li])
             per = {}
             for arm in base:
+                if arm == "uniform" and not router.is_width(B, maxb, bit_list):
+                    continue
                 b = router.base_bits(arm, B, ctx, maxb)
                 per[arm] = b
                 bits.setdefault((arm, B), {})[li] = b.to(torch.uint8)
@@ -148,16 +218,25 @@ def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list
                     errs.setdefault((arm, B), {})[li] = router.eval_heads(ctx, b, q0[li])
             for rt in routers:
                 if rt == "router_oracle":
-                    rts = router.route({c: errs[(c, B)][li] for c in router.ROUTE_CANDIDATES},
-                                       ctx.n_rep, theta)
+                    rts = router.route({c: errs[(c, B)][li] for c in router.ROUTE_CANDIDATES
+                                        if (c, B) in errs}, ctx.n_rep, theta)
                 else:                                   # router_calib: fixed, offline
-                    rts = routes[str(B)][str(li)]
+                    rts = routes[router.bkey(B)][str(li)]
                 rb = router.compose(rts, per)
                 bits.setdefault((rt, B), {})[li] = rb.to(torch.uint8)
                 rlog.setdefault((rt, B), {})[li] = rts
                 if need_err:
                     errs.setdefault((rt, B), {})[li] = router.eval_heads(ctx, rb, q0[li])
         del ctx
+    for (lab, B), by_layer in bits.items():
+        if len(by_layer) != n_layers:
+            raise RuntimeError(f"{lab}: allocated {len(by_layer)} of {n_layers} layers")
+        spent = sum(int(x.long().sum()) for x in by_layer.values())
+        slots = sum(x.numel() for x in by_layer.values())
+        if spent > float(B) * slots + 1e-7:
+            raise RuntimeError(f"{lab}: allocation spends {spent / slots:.6f} > B={B}")
+        if lab in bls:
+            BL.check_bits(by_layer, B, maxb, lab)
     return bits, errs, rlog, amass
 
 
@@ -182,13 +261,15 @@ def answer_positions(tok, text, expected, ctx_len):
     return m
 
 
-def run_bits(model, past, ids, bits_by_layer, R, norm_correct, eos, max_new, L0, tok):
+def run_bits(model, past, ids, bits_by_layer, R, norm_correct, eos, max_new, L0, tok,
+             q_ids=None):
     """Decode one arm from PRECOMPUTED widths (P2's counterpart of run_arm)."""
     C.crop_to(past, L0)
     C.STATE.reset_arm()
     if bits_by_layer is not None:
         C.apply_bits(past, {li: b.long() for li, b in bits_by_layer.items()},
                      R, norm_correct)
+    past = _question(model, past, q_ids)
     gen, past = _decode(model, past, ids[0, -1], max_new, eos, tok)
     C.STATE.enabled = False
     return gen, past
@@ -229,6 +310,10 @@ def main():
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--override", nargs="*", default=[])
     ap.add_argument("--allow-synthetic", action="store_true")
+    ap.add_argument("--question-agnostic", action="store_true",
+                    help="compress the CONTEXT before the question exists: prefill and "
+                         "score the context only (window = its last W tokens), then "
+                         "prefill the question through the compressed cache (plan.md 12)")
     # ---- P2 ----
     ap.add_argument("--head-error", action="store_true",
                     help="also measure every arm's per-head OUTPUT ERROR for the step-0 "
@@ -255,12 +340,27 @@ def main():
         raise SystemExit(f"ctx {a.ctx} exceeds {a.model}'s RoPE window {native}")
     tasks = [t for t in a.tasks.split(",") if t]
     arms = [x for x in a.arms.split(",") if x]
-    budgets = [int(b) for b in a.budgets.split(",") if b]
+    # R9 baselines: parsed (and refused) before the model loads; each arm from
+    # here on is known by its label, which is what the parquet records
+    arms, bls = BL.resolve_arms(arms)
+    if a.window < 1:
+        raise SystemExit("--window must be positive")
+    too_long = {lab: b.score_opts["obs"] for lab, b in bls.items()
+                if b.score_opts["obs"] > a.window}
+    if too_long:
+        raise SystemExit(f"baseline observation windows {too_long} exceed --window={a.window}; "
+                         "increase --window so the requested queries are captured")
+    # ints stay ints (P0's parquet is unchanged); 0.5 stays 0.5
+    budgets = [int(float(b)) if float(b).is_integer() else float(b)
+               for b in a.budgets.split(",") if b]
     bit_list = sorted(c.get("bit_list", [1, 2, 3, 4, 5, 6, 8]))
     maxb = max(bit_list)
-    bad = [b for b in budgets if b not in bit_list]
+    bad = [b for b in budgets if not 0 < b <= maxb]
     if bad:
-        raise SystemExit(f"budgets {bad} are not quantizer widths {bit_list}")
+        raise SystemExit(f"budgets {bad} outside (0, {maxb}]")
+    no_uni = [b for b in budgets if not router.is_width(b, maxb, bit_list)]
+    if no_uni and "uniform" in arms:
+        print(f"uniform skipped at B = {no_uni}: not a quantizer width {bit_list}", flush=True)
     corpus = prompts.resolve_corpus_dir(os.environ.get("H0_CORPUS"))
     require_real = str(c.get("tier", "main")) in ("main", "large") and not a.allow_synthetic
     if require_real and corpus is None:
@@ -284,18 +384,24 @@ def main():
     print(f"R8  {a.model} @{a.ctx:,}  {cf.num_hidden_layers}L "
           f"{cf.num_attention_heads}q/{getattr(cf,'num_key_value_heads','?')}kv  "
           f"arms={arms} budgets={budgets} tasks={tasks} "
-          f"prompts={a.n_prompts}@{a.prompt_offset} window={a.window} maxb={maxb}",
+          f"prompts={a.n_prompts}@{a.prompt_offset} window={a.window} maxb={maxb} "
+          f"compress_at={'context_end (question-agnostic)' if a.question_agnostic else 'question_end'}",
           flush=True)
 
     want, routers, need_err = p2_wants(arms, a.head_error, a.write_routes)
-    p2 = bool(want - {"uniform", "evict", "evict_h2o"} or routers or need_err)
+    p2 = bool(want - {"uniform", "evict", "evict_h2o"} or routers or need_err or bls)
+    wo = BL.wo_gram(model) if any(b.needs_wo for b in bls.values()) else None
+    if bls:
+        print("R9 baselines: " + "; ".join(
+            f"{lab} = {b.score_name}{b.score_opts} + {b.alloc_name}{b.alloc_opts or ''}"
+            for lab, b in bls.items()), flush=True)
     if "router_calib" in arms and not a.routes:
         raise SystemExit("router_calib needs --routes <file from a calibration run>")
     routes, routes_meta = ({}, {})
     if a.routes:
         routes, routes_meta = load_routes(a.routes, a.model, a.ctx,
                                           (a.prompt_offset, a.prompt_offset + a.n_prompts - 1))
-        miss = [str(B) for B in budgets if str(B) not in routes]
+        miss = [router.bkey(B) for B in budgets if router.bkey(B) not in routes]
         if miss:
             raise SystemExit(f"routes {a.routes} have no budget(s) {miss}")
     if p2 and need_err and "fp" not in arms:
@@ -307,20 +413,34 @@ def main():
                  if a.routes else ""), flush=True)
 
     plan = [("fp", 0)] if "fp" in arms else []
-    plan += [(arm, B) for arm in arms if arm != "fp" for B in budgets]
+    plan += [(arm, B) for arm in arms if arm != "fp" for B in budgets
+             if not (arm == "uniform" and not router.is_width(B, maxb, bit_list))]
     rows, t_all = [], time.time()
     head_rows = []           # P2 per-head errors, one small frame per (prompt, task)
     for p in range(a.prompt_offset, a.prompt_offset + a.n_prompts):
         for task in tasks:
             text, meta = TR.build(tok, task, a.ctx, prompt_idx=p, corpus_dir=corpus,
                                   require_real=require_real)
-            ids = tok(text, return_tensors="pt").input_ids.to(dev)
+            if a.question_agnostic:
+                # context and question tokenized SEPARATELY, as a prefix cache holds
+                # them: the context's tokens cannot depend on a question not yet asked
+                qtxt = meta["question"]
+                ctx_text = text[:len(text) - len(qtxt)]
+                cids = tok(ctx_text, return_tensors="pt").input_ids
+                q_ids = tok(qtxt, add_special_tokens=False, return_tensors="pt").input_ids.to(dev)
+                ids = torch.cat([cids.to(dev), q_ids], 1)
+                nc = cids.shape[1]
+                pre_ids = ids[:, :nc + 1]           # prefill() drops the last: exactly the context
+            else:
+                ctx_text, q_ids = text, None
+                ids = tok(text, return_tensors="pt").input_ids.to(dev)
+                pre_ids = ids
             n = ids.shape[1]
             if n > a.ctx:
                 print(f"  skip p{p} {task}: {n} tokens > ctx {a.ctx}", flush=True)
                 continue
             t0 = time.time()
-            past, _ = prefill(model, ids, a.window, chunk, h2o="evict_h2o" in arms)
+            past, _ = prefill(model, pre_ids, a.window, chunk, h2o="evict_h2o" in arms)
             L0 = C.cache_len(past)
             t_pre = time.time() - t0
             line = []
@@ -330,14 +450,14 @@ def main():
                 t1 = time.time()
                 if not p2:                                     # the P0 path, unchanged
                     gen, past = run_arm(model, past, ids, arm, B, R, norm_correct, maxb,
-                                        eos, TR.MAX_NEW[task], L0, tok)
+                                        eos, TR.MAX_NEW[task], L0, tok, q_ids)
                 elif arm == "fp":
                     # FP first: the ceiling, and the step-0 query every per-head
                     # error is measured for
                     C.STATE.capture_q = a.n_q if need_err else 0
                     try:
                         gen, past = run_bits(model, past, ids, None, R, norm_correct,
-                                             eos, TR.MAX_NEW[task], L0, tok)
+                                             eos, TR.MAX_NEW[task], L0, tok, q_ids)
                     finally:
                         C.STATE.capture_q = 0
                 else:
@@ -347,15 +467,18 @@ def main():
                             past, L0, want, routers, budgets, R, norm_correct, maxb,
                             bit_list, cf.num_hidden_layers, cascade_bits=a.cascade_bits,
                             need_err=need_err, routes=routes, theta=a.theta,
-                            ans_mask=answer_positions(tok, text, meta["expected"],
-                                                      C.STATE.ctx_len))
+                            ans_mask=answer_positions(tok, ctx_text, meta["expected"],
+                                                      C.STATE.ctx_len),
+                            bls=bls, wo=wo)
                         t_pc = time.time() - tp
                     gen, past = run_bits(model, past, ids, bits[(arm, B)], R, norm_correct,
-                                         eos, TR.MAX_NEW[task], L0, tok)
+                                         eos, TR.MAX_NEW[task], L0, tok, q_ids)
                 pred = tok.decode(gen)
                 sc = TR.score(task, pred, meta)
                 au = C.bits_audit() if arm != "fp" else {"bits_per_token": 16.0,
                                                          "evict_frac": 0.0}
+                if arm != "fp" and not au["bits_per_token"] <= float(B) + 1e-7:
+                    raise RuntimeError(f"{arm} B={B} spent {au['bits_per_token']:.6f} bits/token")
                 extra = {}
                 if p2 and errs and (arm, B) in errs:
                     e = torch.cat([errs[(arm, B)][li] for li in sorted(errs[(arm, B)])])
@@ -368,13 +491,17 @@ def main():
                     task=task, prompt_idx=p, arm=arm, B=B, **sc, pred=pred[:200],
                     gen_len=len(gen), bits_per_token=au["bits_per_token"],
                     evict_frac=au["evict_frac"], n_prompt_tokens=n,
-                    ctx_len=C.STATE.ctx_len, window=a.window, maxb=maxb,
+                    ctx_len=C.STATE.ctx_len, window=a.window,
+                    observed_queries=L0 - C.STATE.ctx_len,
+                    allocator_budget_rule="feasible", maxb=maxb,
                     needle_depths=json.dumps(meta["needle_depths"]),
                     corpus_doc=meta.get("doc") or "", corpus_offset=meta.get("offset") or 0,
                     corpus_sha=meta.get("corpus_sha") or "", synthetic=meta["synthetic"],
                     rot_seed=rot_seed, norm_correct=norm_correct,
                     t_prefill=t_pre, t_arm=time.time() - t1, t_precompute=t_pc,
-                    theta=a.theta if p2 else float("nan"), **extra))
+                    theta=a.theta if p2 else float("nan"),
+                    **({"question_agnostic": True, "n_question_tokens": int(q_ids.shape[1])}
+                       if a.question_agnostic else {}), **extra))
                 line.append(f"{arm}{B if B else ''}:{sc['score']:.2f}")
             if p2 and errs:
                 # per-head errors for this (prompt, task): one numpy block per (arm, B)
@@ -407,11 +534,21 @@ def main():
         json.dump({"parquet": os.path.basename(out), "model": a.model, "model_id": c["id"],
                    "ctx": a.ctx, "native_ctx": native, "tasks": tasks, "arms": arms,
                    "budgets": budgets, "n_prompts": a.n_prompts,
-                   "prompt_offset": a.prompt_offset, "window": a.window, "maxb": maxb,
+                   "prompt_offset": a.prompt_offset, "window": a.window,
+                   "observation_queries": sorted(int(x) for x in df.observed_queries.dropna().unique()),
+                   "allocator_budget_rule": "feasible", "maxb": maxb,
                    "rows": len(df), "rot_seed": rot_seed, "norm_correct": norm_correct,
                    "attn_impl": C.IMPL, "compress_from": "first_answer_token",
+                   "question_agnostic": bool(a.question_agnostic),
+                   "compress_at": ("context_end: context prefilled and scored alone "
+                                   "(window = its last W tokens), question prefilled "
+                                   "through the compressed cache"
+                                   if a.question_agnostic else
+                                   "question_end: window = the last W prompt tokens"),
                    "eviction": {"evict": "SnapKV: window vote, pooled over the KV group's heads, max-pooled over positions (kernel %d)" % router.SNAPKV_POOL,
-                                "evict_h2o": "H2O: attention from every prefill query, summed over the KV group"},
+                                "evict_h2o": "H2O: attention from every prefill query, summed over the KV group",
+                                **{lab: b.config_record()["describe"] for lab, b in bls.items()}},
+                   "baselines": {lab: b.config_record() for lab, b in bls.items()} or None,
                    "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
                    "p2": {"enabled": p2, "want": sorted(want), "routers": routers,
                           "head_error": need_err, "theta": a.theta,

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIEVE — A Phase Diagram for KV Cache Compression (ICLR 2027, v9)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root{
+    --bg:#fff; --panel:#f6f7fb; --panel-2:#eef1f8; --ink:#12141c; --ink-2:#4c5366;
+    --rule:#dfe3ed; --accent:#3b3fa8; --accent-soft:#e8e9f7;
+    --warn:#a8611f; --warn-soft:#fdf3e7; --kill:#9b2c3a; --kill-soft:#fdeff1;
+    --ok:#1f6b52; --ok-soft:#edf6f2;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.65;margin:0;padding:2.5rem 1rem 5rem}
+  .container{max-width:920px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.6rem}
+  h1{font-size:1.95rem;font-weight:700;line-height:1.25;margin:0 0 .5rem;letter-spacing:-.02em}
+  .subtitle{color:var(--ink-2);font-size:1.02rem;margin:0 0 1.5rem;padding-bottom:1.25rem;border-bottom:2px solid var(--rule)}
+  h2{font-size:1.28rem;font-weight:700;letter-spacing:-.01em;margin:2.4rem 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid var(--rule)}
+  h3{font-size:1.03rem;font-weight:650;margin:1.5rem 0 .4rem}
+  h3 .tag{font-family:var(--mono);font-size:.7rem;font-weight:500;color:var(--accent);background:var(--accent-soft);padding:.12rem .45rem;border-radius:3px;margin-right:.5rem;vertical-align:.1em}
+  p{margin:0 0 1rem}
+  ul,ol{margin:0 0 1rem;padding-left:1.35rem}
+  li{margin-bottom:.45rem}
+  strong{color:#000;font-weight:650}
+  code{font-family:var(--mono);font-size:.87em;background:var(--panel-2);padding:.1rem .3rem;border-radius:3px}
+  .thesis{background:var(--panel);border-left:4px solid var(--accent);padding:1.15rem 1.35rem;border-radius:0 6px 6px 0;margin-bottom:1.5rem}
+  .thesis .lead{font-size:1.06rem;margin-bottom:.75rem}
+  .callout,.kill,.win{border-left:4px solid;padding:.9rem 1.2rem;border-radius:0 6px 6px 0;margin:1.25rem 0;font-size:.95rem}
+  .callout{border-color:var(--warn);background:var(--warn-soft)}
+  .kill{border-color:var(--kill);background:var(--kill-soft)}
+  .win{border-color:var(--ok);background:var(--ok-soft)}
+  .label{display:block;font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+  .callout .label{color:var(--warn)} .kill .label{color:var(--kill)} .win .label{color:var(--ok)}
+  pre{background:#14161f;color:#e8eaf2;padding:1.1rem;border-radius:6px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;line-height:1.5;margin:0 0 1.5rem}
+  table{width:100%;border-collapse:collapse;margin:1.4rem 0;font-size:.9rem}
+  th,td{border:1px solid var(--rule);padding:.55rem .7rem;text-align:left;vertical-align:top}
+  th{background:var(--panel-2);font-weight:650}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  tr.band{background:#eaf5f0}
+  tr.out{background:#fdf0f2}
+  .done{color:var(--ok);font-weight:650} .down{color:var(--kill);font-weight:650}
+  figure{margin:1.5rem 0}
+  figure img{width:100%;border:1px solid var(--rule);border-radius:6px;display:block}
+  figcaption{font-size:.86rem;color:var(--ink-2);margin-top:.5rem;line-height:1.5}
+  .footnote{font-size:.87rem;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:1rem;margin-top:2.5rem}
+  @media (max-width:600px){body{padding:1.5rem .9rem 3rem}h1{font-size:1.5rem}table{font-size:.8rem}th,td{padding:.4rem .45rem}pre{font-size:.65rem}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="eyebrow">ICLR 2027 · Submission proposal · v9 · the SYMMETRIC grid: 25 configurations where the interior and the corner read the same information · design fixed · end-task in progress</div>
+  <h1>A Phase Diagram for KV Cache Compression</h1>
+  <p class="subtitle">Uniform quantization, per-token rate allocation, and token eviction are each optimal in a different regime. The boundary variable is derivable from the same cost comparison that generates the theory, it contains no context length, and <em>context length is what moves models across it</em>.</p>
+
+  <div class="thesis">
+    <p class="lead"><strong>Thesis.</strong> Every KV compression method minimizes a <em>reconstruction</em> distortion. Attention does not consume keys; it consumes an output \(o=\sum_i a_iv_i\). Posed against <em>output</em> distortion, KV compression becomes a rate-allocation problem whose solution is reverse water-filling, with eviction recovered as the zero-rate case at derived cost \(c_0=1\). The three families are therefore one program — and the program tells you which of them to use.</p>
+    <p style="margin-bottom:0"><strong>What changed in v9.</strong> Three things, all of which cost us numbers and bought defensibility. (i) <strong>The comparison is now symmetric</strong>: v8 demoted the eviction corner to a deployable score but left <em>our</em> interior reading the current step. With both sides lagged, the edge survives at about half its size and <strong>5 of 16 cells are STOP</strong>, where v8 reported none (§1). (ii) <strong>The boundary is pinned per architecture, not universally</strong> (§2) — dead-tier fraction still <em>orders</em> the band almost perfectly, but its critical value is architecture-specific, so C1 is restated as an ordering claim plus a fitted threshold. (iii) <strong>The design is no longer a sketch</strong>: allocation is per KV head (realizable, measured cost 1.14–1.32×), the score is a cascade off the 4-bit base tier, and the router and the allocator run on <em>different clocks</em> (§5, §6). What is still open is the one thing a reviewer cares most about: <strong>end-task accuracy (§8), now in progress.</strong></p>
+  </div>
+
+  <h2>1. The symmetric grid — what the interior is worth when both sides are deployable</h2>
+
+  <p>Per-head measurement at 4k–262k context on H100s: PG-19 haystacks, real TurboQuant<sub>mse</sub> quantized keys, exact recomputation of the attention output, gains against the <em>better</em> of the two corners at matched total bits. Every configuration passes an input-validity gate requiring real text and demonstrated needle retrieval.</p>
+
+  <div class="callout">
+    <span class="label">The correction that defines this version — our own interior was still an oracle</span>
+    v8 rebuilt the eviction corner from real evictors (H2O / SnapKV / StreamingLLM on lagged attention) and reported that every STOP verdict disappeared. But the <em>interior</em> still water-filled on the current step's sensitivity \(a_i\lVert v_i-o\rVert\) — the same privilege we had just published as unacceptable in a baseline. <strong>The symmetric cell fixes that: both sides score on lagged attention, with positions the score has never seen held at the top tier rather than evicted.</strong> Demoting the corner alone (v8's "E2" cell) adds 6.4–28.7 band points over the all-oracle cell; demoting the interior as well gives back <strong>42% of that</strong> (median cell). The interior still wins on <strong>16/16</strong> cells, by +1.2 to +12.5 points over the all-oracle comparison — but the honest grid has STOP cells in it again.
+  </div>
+
+  <p><strong>The 16 symmetric cells</strong> (% of heads with ≥ 2× gain at 3 bits/token; GO ≥ 35, STOP &lt; 15). "or → E2 → sym" tracks the verdict as each side of the comparison is made deployable:</p>
+
+  <table>
+    <thead><tr><th>model</th><th class="num">ctx</th><th class="num">oracle</th><th class="num">E2 (v8)</th><th class="num">symmetric</th><th>verdict trail</th><th class="num">dead-2</th><th class="num">\(\tau\)</th></tr></thead>
+    <tbody>
+      <tr class="band"><td>llama3.3-70B</td><td class="num">8k</td><td class="num">83.6</td><td class="num">92.8</td><td class="num"><strong>87.4</strong></td><td class="done">GO → GO → GO</td><td class="num">5.5</td><td class="num">1.52</td></tr>
+      <tr class="band"><td>mistral-7b</td><td class="num">8k</td><td class="num">53.7</td><td class="num">76.7</td><td class="num"><strong>66.2</strong></td><td class="done">GO → GO → GO</td><td class="num">10.4</td><td class="num">2.00</td></tr>
+      <tr class="band"><td>llama3.1-8B</td><td class="num">8k</td><td class="num">43.4</td><td class="num">67.5</td><td class="num"><strong>54.5</strong></td><td class="done">GO → GO → GO</td><td class="num">18.8</td><td class="num">2.08</td></tr>
+      <tr class="band"><td>qwen1.5-MoE</td><td class="num">8k</td><td class="num">31.0</td><td class="num">55.5</td><td class="num"><strong>41.4</strong></td><td class="done">NARROW → GO → GO</td><td class="num">25.8</td><td class="num">2.42</td></tr>
+      <tr><td>qwen3-8B</td><td class="num">8k</td><td class="num">11.7</td><td class="num">40.5</td><td class="num"><strong>16.5</strong></td><td>STOP → GO → NARROW</td><td class="num">50.5</td><td class="num">2.60</td></tr>
+      <tr class="out"><td>qwen3-30B</td><td class="num">8k</td><td class="num">10.4</td><td class="num">34.8</td><td class="num"><strong>14.1</strong></td><td class="down">STOP → NARROW → STOP</td><td class="num">62.0</td><td class="num">2.17</td></tr>
+      <tr class="band"><td>llama3.3-70B</td><td class="num">32k</td><td class="num">60.9</td><td class="num">75.4</td><td class="num"><strong>70.0</strong></td><td class="done">GO → GO → GO</td><td class="num">9.6</td><td class="num">1.94</td></tr>
+      <tr class="band"><td>mistral-7b</td><td class="num">32k</td><td class="num">45.9</td><td class="num">66.0</td><td class="num"><strong>55.5</strong></td><td class="done">GO → GO → GO</td><td class="num">20.3</td><td class="num">2.21</td></tr>
+      <tr><td>llama3.1-8B</td><td class="num">32k</td><td class="num">25.5</td><td class="num">45.1</td><td class="num"><strong>34.0</strong></td><td>NARROW → GO → NARROW</td><td class="num">27.0</td><td class="num">2.41</td></tr>
+      <tr><td>qwen1.5-MoE</td><td class="num">32k</td><td class="num">22.4</td><td class="num">37.0</td><td class="num"><strong>30.2</strong></td><td>NARROW → GO → NARROW</td><td class="num">36.8</td><td class="num">3.10</td></tr>
+      <tr class="out"><td>qwen3-8B</td><td class="num">32k</td><td class="num">6.5</td><td class="num">26.7</td><td class="num"><strong>11.5</strong></td><td class="down">STOP → NARROW → STOP</td><td class="num">59.8</td><td class="num">3.08</td></tr>
+      <tr class="out"><td>qwen3-30B</td><td class="num">32k</td><td class="num">6.9</td><td class="num">25.3</td><td class="num"><strong>8.1</strong></td><td class="down">STOP → NARROW → STOP</td><td class="num">67.7</td><td class="num">2.39</td></tr>
+      <tr class="out"><td>qwen3-8B</td><td class="num">40k</td><td class="num">5.9</td><td class="num">26.6</td><td class="num"><strong>12.2</strong></td><td class="down">STOP → NARROW → STOP</td><td class="num">62.4</td><td class="num">3.35</td></tr>
+      <tr><td>llama3.3-70B</td><td class="num">128k</td><td class="num">18.8</td><td class="num">25.2</td><td class="num"><strong>21.3</strong></td><td>NARROW → NARROW → NARROW</td><td class="num">41.4</td><td class="num">3.32</td></tr>
+      <tr><td>llama3.1-8B</td><td class="num">128k</td><td class="num">13.5</td><td class="num">29.2</td><td class="num"><strong>20.2</strong></td><td>STOP → NARROW → NARROW</td><td class="num">53.7</td><td class="num">2.95</td></tr>
+      <tr class="out"><td>qwen3-30B</td><td class="num">128k</td><td class="num">4.7</td><td class="num">19.3</td><td class="num"><strong>7.5</strong></td><td class="down">STOP → NARROW → STOP</td><td class="num">73.5</td><td class="num">2.83</td></tr>
+    </tbody>
+  </table>
+
+  <p>Median <strong>routed gain</strong> — the robust statistic, and the one the phase figure now uses — runs <strong>1.05–3.21×</strong> in the symmetric cell against 1.08–4.77× in v8's. Nine further cells (§2) bring the grid to <strong>25 configurations</strong>.</p>
+
+  <h3>1.1 Where the interior's cost lands — the finding that makes the design</h3>
+
+  <p>The interior does not lose uniformly when it is denied the current step. It loses <em>exactly</em> on the heads it was winning:</p>
+
+  <table>
+    <thead><tr><th>interior lag cost \(=\) err(lagged) / err(current-step)</th><th class="num">value</th></tr></thead>
+    <tbody>
+      <tr><td>median head</td><td class="num">1.00–1.28×</td></tr>
+      <tr><td><strong>out-of-band heads</strong> (gain &lt; 2×)</td><td class="num"><strong>1.00–1.04×</strong></td></tr>
+      <tr class="band"><td><strong>in-band heads</strong> (gain ≥ 2×)</td><td class="num"><strong>1.13–1.64×</strong></td></tr>
+      <tr><td>\(\rho\)(lag cost, gain), 16/16 cells</td><td class="num">+0.50 … +0.97</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>A head is in band precisely because its sensitivity is concentrated somewhere a flat allocation cannot exploit — and that concentration is what moves between steps. The interior's advantage and its dependence on current-query information are the same property.</strong> This single fact drives the whole design in §5–§6: it says the allocation must be re-budgeted (and §6 prices the alternative), and it says a cheap current-query score is worth building (§5.2). The lagged allocator still evicts 39–54% of tokens on its own, against 40–54% for the oracle one — tier 0 is inside the allocator either way.</p>
+
+  <p><strong>The price of deployable scoring falls with context.</strong> accum-corner error / oracle-corner error is 1.29–1.47× at 8k, 1.12–1.42× at 32k, 1.03–1.14× at 128k, in 6/6 models: at long context a lagged score is nearly as good as current-step truth for deciding <em>what to keep</em>. C5's "scoring is solved" is strongest exactly where the band is lowest.</p>
+
+  <h3>1.2 The regime variable is tier extinction — derived, not fitted</h3>
+
+  <p>Three candidate regime variables have been proposed in this project's history, and the history is the methodological argument:</p>
+
+  <table>
+    <thead><tr><th style="width:24%">Candidate</th><th style="width:14%">\(\rho\) vs band</th><th>Why it fails or holds</th></tr></thead>
+    <tbody>
+      <tr class="out"><td><strong>\(\tau\)</strong> — logit spread<br><span style="color:#4a5b64">v5, from simulation</span></td><td class="num">−0.74</td><td>A bulk second moment. Two models can share \(\tau\) and differ fourfold in outcome, because \(\tau\) does not know where the tiers fall relative to \(c_0\).</td></tr>
+      <tr class="out"><td><strong>\(\varphi=n_{95}/L\)</strong> — effective support<br><span style="color:#4a5b64">v6, fitted on six points</span></td><td class="num">+0.26</td><td><strong>Wrong sign on valid data.</strong> \(\varphi\) divides by \(L\), so it conflates the architecture with the context length it happened to be measured at.</td></tr>
+      <tr class="band"><td><strong>dead-tier fraction</strong><br><span style="color:#4a5b64">v7+, derived from \(\tau^2c_b\) vs \(c_0\)</span></td><td class="num">−0.978</td><td>Contains no \(L\). It is \(\tau\) pushed through the tier-extinction test the theory already specified. On the 25-cell symmetric grid: \(\rho=-0.978\) pooled, <strong>−0.915 partialled on model identity</strong>, and a single log-linear law fits all 25 cells at \(R^2=0.971\) with leave-one-model-out error 2.60 band points. Fig 5 pools <strong>27</strong> — that grid plus the two RoPE-headroom cells at 196k and 262k — and the numbers are unchanged to the third decimal (\(\rho=-0.979\); crossings GO 29.1%, STOP 54.1%).</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>The lesson generalizes: an index selected because it fits gets overturned by the next axis you populate; an index derived from the cost comparison does not.</strong> \(\varphi\) stays in the paper as a negative result.</p>
+
+  <h2>2. Two boundaries — and the one that is architecture-specific</h2>
+
+  <p>Both edges fall out of comparing \(\tau^2c_b\) with the derived eviction cost \(c_0=1\): the <strong>ladder collapses</strong> at the diffuse end (\(\tau/\ln2\) too narrow for the allocation to differ from uniform), and <strong>tiers go extinct</strong> at the sharp end (\(\tau^2c_b>1\) kills rungs from the bottom until two tiers remain, and two tiers <em>is</em> eviction). The 1-bit tier is dead in 95–100% of heads everywhere and should never be offered.</p>
+
+  <p><strong>Where the boundary sits — 25 cells, six models, isotonic (monotone) crossings.</strong> A parametric fit is the wrong tool here and we say so: the logistic put GO at 34.6% when no cell existed between 25.8% and 27.0%, so the reader gets a crossing that cannot leave its own bracket, plus two intervals — one for measurement, one for architecture.</p>
+
+  <table>
+    <thead><tr><th>line</th><th class="num">crossing \(d^\*\)</th><th class="num">90% measurement</th><th class="num">90% architecture</th><th>bracket</th></tr></thead>
+    <tbody>
+      <tr><td><strong>STOP</strong> (band 15%)</td><td class="num"><strong>54.1%</strong> dead-2</td><td class="num">[49.6, 58.8]</td><td class="num">[48.0, 61.8]</td><td>gap of 0.7 pts — but the two cells bracketing it are <em>different models</em></td></tr>
+      <tr><td><strong>GO</strong> (band 35%)</td><td class="num"><strong>29.0%</strong> dead-2</td><td class="num">[25.7, 32.0]</td><td class="num">[25.5, 34.6]</td><td><strong>overlap</strong>: models on both sides of the line at the same dead-2, one inverted pair</td></tr>
+    </tbody>
+  </table>
+
+  <div class="kill">
+    <span class="label">C1, restated — this is a correction, not a caveat</span>
+    Nine cells were run specifically to close these brackets. They did not close them; they turned the GO bracket from a <em>gap</em> (missing data) into an <strong>overlap</strong> (contradictory data). At dead-2 ≈ 54, llama3.1-8B @128k reads <strong>20.2%</strong> in band while qwen3-8B @16k reads <strong>12.2%</strong> — an 8-point disagreement across 0.6 points of the phase variable. Per-model crossings span 5.4 points (llama3.1-8B 26.7, llama3.3-70B 31.9, qwen1.5-MoE 32.1) and the architecture interval is ~1.5× the measurement interval at both lines. <strong>More cells cannot fix this: it is architecture scatter, not noise.</strong> So C1 becomes an <em>ordering</em> claim — dead-2 ranks the band almost perfectly, \(\rho=-0.978\) pooled and −1.00 within every model — <strong>plus a per-architecture threshold that the calibration pass must fit</strong>, which it already has the data to do. A universal "45%" number would have been wrong in both directions.
+  </div>
+
+  <h3>2.1 Context length is a phase variable</h3>
+
+  <p>Sweeping llama3.1-8B across six points, nothing else changed (symmetric cell, `accum` corner):</p>
+
+  <table>
+    <thead><tr><th class="num">ctx</th><th class="num">8k</th><th class="num">16k</th><th class="num">32k</th><th class="num">64k</th><th class="num">96k</th><th class="num">128k</th></tr></thead>
+    <tbody>
+      <tr><td>symmetric band</td><td class="num">54.5</td><td class="num">46.6</td><td class="num">34.0</td><td class="num">26.1</td><td class="num">23.4</td><td class="num"><strong>20.2</strong></td></tr>
+      <tr><td>dead-2 fraction</td><td class="num">18.8</td><td class="num">23.7</td><td class="num">27.0</td><td class="num">29.8</td><td class="num">40.6</td><td class="num"><strong>53.7</strong></td></tr>
+      <tr><td>\(\tau\)</td><td class="num">2.08</td><td class="num">2.23</td><td class="num">2.41</td><td class="num">2.70</td><td class="num">2.79</td><td class="num"><strong>2.95</strong></td></tr>
+      <tr><td>verdict</td><td class="done">GO</td><td class="done">GO</td><td>NARROW</td><td>NARROW</td><td>NARROW</td><td>NARROW</td></tr>
+    </tbody>
+  </table>
+
+  <p>qwen3-8B traverses the bottom of the same axis over five points (16.5 → 12.2 → 10.9 → 11.5 → 12.2 across dead-2 50.5 → 62.4) — and there the <em>band saturates into its own noise</em> while the routed gain stays monotone (1.421 → 1.317 → 1.298 → 1.283 → 1.281). That is a third independent argument for reporting routed gain as the y-axis and the band as a verdict only.</p>
+
+  <div class="win">
+    <span class="label">R4 · is the long-context collapse real, or an artifact of running models at their trained limit? · ANSWERED</span>
+    Two readings fit the old data equally well: the decay is a property of attention (ABSOLUTE-L), or part of it is an artifact of measuring at 100% of the RoPE window (ROPE-FRAC). The test was <strong>pre-registered before the cells ran</strong>: read \(\tau\), not dead-2 <em>rates</em>, against a <strong>quadratic-in-\(\log_2 L\) null fitted to each model's pre-cap points</strong>, with thresholds fixed in advance (excess &gt; +0.25 = cap effect, |excess| &lt; 0.15 = smooth). Cells at 196k and 262k were run on the one model with RoPE headroom, and every one passed its needle gate.<br><br>
+    <strong>The answer is mostly ABSOLUTE-L, and it reverses this project's earlier reading.</strong> \(\tau\) is convex in \(\log L\), so the linear extrapolations that produced the original "cap effect" under-predicted and manufactured one; dead-2 <em>rates</em> are a threshold artifact. What survives is a real but modest <strong>+0.21 \(\tau\) excess at exactly rope_frac = 1.00</strong> (qwen3-30B +0.209, qwen3-8B +0.216), <strong>none at 0.75</strong> (+0.028) and none in llama3.1-8B (−0.135). An out-of-sample check: the null fitted without the 64k point predicted \(\tau=2.611\) there and the measured value was <strong>2.563</strong>.<br><br>
+    <em>Consequence for the paper:</em> the "37-point collapse in the last octave" headline of v8 is withdrawn as a <em>mechanism</em> claim. The decay is real, steep and smooth in \(\log L\); models measured at their exact trained limit carry a small additional penalty on top.
+  </div>
+
+  <figure>
+    <img src="fig5_phase.png" alt="Band fraction against dead-tier fraction, context sweeps, and ladder width validation">
+    <figcaption><strong>Fig 5 — the phase figure, regenerated on the symmetric grid</strong> (27 cells; <code>h0_measurement/make_fig_phase.py --target sym</code>, provenance in <code>docs/fig5_phase.txt</code>). <em>Panel 1 — the phase axis against the robust statistic.</em> Routed gain (geometric mean of \(\max(\text{gain},1)\)) against the dead-2-bit-tier fraction, the share of heads with \(\tau^2c_2>c_0{=}1\). Spearman <strong>\(-0.979\) pooled, \(-0.943\) with model identity partialled out</strong>, and \(-1.00\) to \(-0.96\) within each of the five swept models. Filled markers are the symmetric cell; hollow markers joined by a stem are the same cells in the all-oracle comparison, so each stem <em>is</em> the price of holding both sides to deployable information. Inset: \(\varphi=n_{95}/L\), the v6 candidate, still wrong-signed (\(+0.40\)). <em>Panel 2 — the same relationship in the thresholded band</em>, kept because the verdicts are defined on it, demoted because it is a count at a 2× boundary. The isotonic crossings are marked (<strong>GO 29.1%, STOP 54.1%</strong> dead-2) and the arrow carries R6's architecture result: llama3.1-8B @128k reads <strong>20.2%</strong> while qwen3-8B @16k reads <strong>12.2%</strong> — <strong>8 band points apart across 0.7 points of the phase variable</strong>, one NARROW and one STOP. That is why C1 is an ordering claim plus a per-architecture threshold (§2). <em>Panel 3 — the context sweeps</em>, solid symmetric, dotted all-oracle; \(-15.8\) to \(-1.5\) band-points per doubling. <em>Panel 4 — the theory's forward prediction</em>: the linearized cost model against the exactly-recomputed gain, ratio <strong>0.80–1.42×</strong> over 27 configurations, the band drawn at the measured envelope rather than a round number. This panel replaces a former \(\tau/\ln2\) scatter that plotted \(x\) against \(x\) (§4).</figcaption>
+  </figure>
+
+  <h2>3. What a band number means — error bars, and the component that dominates them</h2>
+
+  <p>A verdict at a 2× threshold on a per-head median is a fragile object, so v9 measures its own error budget rather than asserting it. Two disjoint prompt blocks per cell, five corners, pooled with the reference block:</p>
+
+  <table>
+    <thead><tr><th>cell</th><th class="num">symmetric, accum corner [90%]</th><th class="num">prompt-block sd</th><th class="num">symmetric, min over 5 corners [90%]</th><th>verdict moves?</th></tr></thead>
+    <tbody>
+      <tr><td>llama3.1-8B @32k</td><td class="num">37.0 [31.4, 42.5]</td><td class="num">2.98</td><td class="num"><strong>28.4</strong> [23.6, 33.1]</td><td>straddles GO → <strong>NARROW, clear</strong></td></tr>
+      <tr><td>llama3.1-8B @128k</td><td class="num">20.5 [15.9, 25.0]</td><td class="num">1.29</td><td class="num"><strong>14.5</strong> [10.5, 18.5]</td><td>NARROW, clear → <strong>straddles STOP</strong></td></tr>
+      <tr><td>qwen3-8B @8k</td><td class="num">14.7 [11.5, 17.9]</td><td class="num">1.53</td><td class="num"><strong>7.9</strong> [4.9, 11.0]</td><td>straddles STOP → <strong>STOP, clear</strong></td></tr>
+      <tr><td>qwen3-30B @8k</td><td class="num">13.7 [10.0, 17.3]</td><td class="num">0.41</td><td class="num"><strong>8.6</strong> [5.7, 11.5]</td><td>straddles STOP → <strong>STOP, clear</strong></td></tr>
+    </tbody>
+  </table>
+
+  <ul>
+    <li><strong>Prompts are a small component: sd 0.4–3.0 band points</strong> at six prompts. An earlier screen at two prompts predicted 9.6 for the 128k cell; it measures 1.29. Six prompts suffice, and the rule "12 prompts at 128k" is withdrawn.</li>
+    <li><strong>The corner set is the big one: −5.1 to −8.6 points</strong> on the symmetric band when the corner is a minimum over five evictors rather than H2O alone (−9.2 to −10.9 within single blocks at 32k). <strong>It changes verdicts in three of four cells.</strong></li>
+    <li><strong>Therefore: "the band is X%" is not a measurement until the corner set is named.</strong> v9 reports the five-corner minimum as the defensible competitor and states the accum-only number beside it. Under the five-corner minimum, llama3.1-8B @128k is the single cell that becomes borderline.</li>
+  </ul>
+
+  <h2>4. The allocation theorem</h2>
+
+  <p>With \(\hat s_i=s_i+\delta_i\), \(\operatorname{Var}(\delta_i)=\tau^2c_b\), and \(\partial o/\partial s_i=a_i(v_i-o)\), first-order output error is \(\sum_i a_i^2w_i^2\tau^2c_{b_i}\). Minimizing under \(\sum_ib_i\le B\) gives, above the water level,</p>
+
+  $$b_i^\star=\log_2 a_i+c \qquad\text{(the } \|v_i-o\| \text{ factor is measured to be negligible, ≤ 0.035 bits)}$$
+
+  <p>and \(b_i^\star=0\) otherwise. Eviction's cost constant is derived, not chosen: dropping a set \(E\) and renormalizing costs exactly \(\sum_{i\in E}a_i^2\|o_R-v_i\|^2\), so \(c_0=1\) in absolute units and eviction sits on the same axis as every quantized tier. The comparison \(\tau^2c_b\) vs \(1\) generates the tier-extinction boundary of §2.</p>
+
+  <p><strong>The theory's one genuine forward prediction</strong> remains the linearized cost model against exactly-recomputed gain: <strong>0.80–1.42×</strong> on per-configuration medians over the 27-cell symmetric grid (0.79–1.34 over v8's 24 cells). The former headline "\(\tau/\ln2\) confirmed to 1.5%" is an <em>algebraic identity</em> (\(\log_2a_i = s_i/\ln2-\log_2Z\)), verified at \(8\times10^{-16}\) and demoted to an appendix consistency check.</p>
+
+  <h2>5. The design, now measured rather than sketched</h2>
+
+  <p>v8 left three architecture questions open, each of which could have invalidated the method as a <em>system</em> rather than as an analysis. All three are now measured.</p>
+
+  <h3>5.1 Per-head rates are realizable under GQA — at a discount that scales with group size</h3>
+
+  <p>Five of six models are grouped-query: heads sharing a KV head cannot be given independent rates, so "per-head allocation" is partly fictional unless the shared constraint is cheap. The kill line written before the run was <strong>3×</strong>. Measured on in-band heads, with the lag cost divided out:</p>
+
+  <table>
+    <thead><tr><th>cell</th><th class="num">n_rep</th><th class="num">grouping cost (in band)</th><th class="num">same, oracle info</th><th class="num">band: per-head → group</th></tr></thead>
+    <tbody>
+      <tr class="band"><td>qwen1.5-MoE @16k <em>(control)</em></td><td class="num">1</td><td class="num"><strong>1.000</strong></td><td class="num">1.000</td><td class="num">37.1 → 37.1</td></tr>
+      <tr><td>llama3.1-8B @32k</td><td class="num">4</td><td class="num">1.115</td><td class="num">1.176</td><td class="num">39.9 → <strong>46.4</strong></td></tr>
+      <tr><td>llama3.1-8B @128k</td><td class="num">4</td><td class="num">1.136</td><td class="num">1.183</td><td class="num">23.8 → <strong>28.9</strong></td></tr>
+      <tr><td>qwen3-8B @8k</td><td class="num">4</td><td class="num">1.191</td><td class="num">1.255</td><td class="num">19.9 → <strong>24.7</strong></td></tr>
+      <tr><td>qwen3-30B @8k</td><td class="num">8</td><td class="num"><strong>1.316</strong></td><td class="num">1.400</td><td class="num">17.3 → <strong>21.6</strong></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Dose–response 1.000 → 1.136 → 1.316 at n_rep 1 → 4 → 8</strong> makes this a mechanism rather than a number: heads that share a KV head are alike but not identical, and the more of them share, the more the compromise costs. The n_rep = 1 control is exact to the decimal, which is what licenses reading the other rows as the grouping's own cost. Two consequences the reviewer should not miss: across <em>all</em> heads the cost is 1.003–1.056× (it concentrates on the heads that matter, exactly like the lag cost of §1.1); and <strong>the shared constraint hurts eviction MORE than it hurts the interior</strong> — the group band sits <strong>4.3–6.5 points above</strong> the per-head band, because one keep-set shared by n_rep heads is a harsher compromise than one set of bit-widths. <strong>Under the realizable constraint the interior's edge widens.</strong></p>
+
+  <h3>5.2 The score: a cascade off the base tier closes ~89% of the lag penalty</h3>
+
+  <p>§1.1 showed the interior's cost is precisely its dependence on the current query. The cascade pays that back without reading full-precision keys: score the current query against the <strong>4-bit base tier</strong> that is already stored, then allocate.</p>
+
+  <table>
+    <thead><tr><th>cell</th><th class="num">lag penalty (in band)</th><th class="num">closed at bc = 3</th><th class="num">closed at bc = 4</th></tr></thead>
+    <tbody>
+      <tr><td>llama3.1-8B @32k</td><td class="num">1.465×</td><td class="num">0.59</td><td class="num"><strong>0.82</strong></td></tr>
+      <tr><td>llama3.1-8B @128k</td><td class="num">1.514×</td><td class="num">0.71</td><td class="num"><strong>0.86</strong></td></tr>
+      <tr><td>qwen1.5-MoE @16k</td><td class="num">1.567×</td><td class="num">0.72</td><td class="num"><strong>0.89</strong></td></tr>
+      <tr><td>qwen3-30B @8k</td><td class="num">1.545×</td><td class="num">0.72</td><td class="num"><strong>0.89</strong></td></tr>
+      <tr><td>qwen3-8B @8k</td><td class="num">1.647×</td><td class="num">0.79</td><td class="num"><strong>0.91</strong></td></tr>
+    </tbody>
+  </table>
+
+  <p>bc = 4 removes a median <strong>89%</strong> of the penalty against 72% at bc = 3, so the base layer's width is a design knob with a measured setting — and this is the concrete form of "the coarse pass identifies the head region" that replaced the failed H2 ordering claim.</p>
+
+  <h3>5.3 Timing: the router and the allocator run on different clocks</h3>
+
+  <p>C4 claims one offline calibration pass. Six cells, two architectures, 8k–128k, sampled and greedy, generating 4,096 tokens with a sparse measurement schedule:</p>
+
+  <ul>
+    <li><strong>The route survives the whole generation.</strong> p90 regret from keeping the calibration-time route is <strong>1.00 in all six cells</strong>. Route flips run 9–25% against a same-run noise floor of 6–23%, and rank correlation of gain against the calibration step holds at 0.63–0.83. <strong>C4's offline pass is verified.</strong></li>
+    <li><strong>The allocation does not.</strong> Keeping the <em>prefill-time</em> allocation costs <strong>2.5–4.3×</strong> the error of a one-step-old one by the end of each context's valid horizon.</li>
+  </ul>
+
+  <p class="pull"><strong>This is a two-timescale system, and that is a design result, not a caveat: route once, offline, per head; re-budget the bits during decode.</strong> It also explains why the cascade of §5.2 matters — re-budgeting is what needs a current-query score that does not read full keys.</p>
+
+  <p>One honest negative from the same campaign: whether \(\tau\) drifts <em>within</em> a generation because of content or because the cache grows cannot be told apart at 3–6 prompts (per-prompt sd ≈ 0.22). An earlier claim that it matched the cache-growth prediction is withdrawn as underpowered; it needs ~20 prompts per cell.</p>
+
+  <h2>6. Architecture — the router is the method</h2>
+
+<pre><code>OFFLINE CALIBRATION (one forward pass; the H0 pipeline as shipped)
+  per head: tau, per-tier sig2_b, dead-tier fraction  ->  phase assignment
+  the test is derived, not fitted:  buy tier b only while tau^2 * c_b &lt; c0 = 1
+  the THRESHOLD is architecture-specific (§2): fit it per model on the
+  calibration pass -- do not ship a universal dead-2 cut
+
+  ladder width tau/ln2 &lt; ~2 b     -> UNIFORM bits, allocation disabled
+  2-bit tier live, below the fitted cut -> SIEVE ladder, tiers from the envelope
+  above the fitted cut            -> evict-DEFAULT, but NOT wholesale: the
+                                     per-head override decides
+  1-bit tier                      -> never offered (dead in 95-100% of heads)
+
+GRANULARITY (measured, §5.1)
+  one allocation per KV HEAD, shared by its n_rep query heads.
+  cost 1.000 / 1.136 / 1.316x at n_rep 1 / 4 / 8, in band; 1.003-1.056x overall.
+  the same constraint costs EVICTION more: group band is 4.3-6.5 pts higher.
+
+DECODE, two clocks (§5.3)
+  route        decided ONCE, offline, per head        (p90 regret 1.00 @4,096 tok)
+  allocation   RE-BUDGETED during decode              (frozen costs 2.5-4.3x)
+  score        cascade: current query x 4-bit base tier, no full keys read
+               (closes ~89% of the lag penalty; bc=3 closes 72%)
+
+STORAGE  nested code, 8 b K + FP8 V = k8v4 budget, 2.0x vs BF16, layer-major
+  base layer is 3-4 b, not 2: 2-bit scores do not rank within the head region,
+  and bc = 4 is what the cascade needs.</code></pre>
+
+  <h3>6.1 Design rules the measurement forces</h3>
+
+  <table>
+    <thead><tr><th style="width:24%">Rule</th><th style="width:34%">Evidence</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Beat eviction, not uniform — and say which eviction</strong></td><td>interior vs uniform 20–34×; vs a deployable evictor 1.05–3.21× routed. The corner set moves the band 5–9 points (§3)</td><td>Uniform is not a serious baseline at 3 b. Every headline number must name its corner set, or it is not a measurement.</td></tr>
+      <tr><td><strong>Eviction is tier 0, inside the allocator</strong></td><td>the lagged interior <em>chooses</em> to evict 39–54% of tokens at \(B{=}3\)</td><td>SIEVE is a joint evict-and-quantize allocator, not an alternative to eviction.</td></tr>
+      <tr><td><strong>Allocate per KV head</strong></td><td>1.14× (n_rep 4), 1.32× (n_rep 8), monotone in group size; kill line was 3×</td><td>Per-head rates are realizable on GQA models, and the realizable comparison <em>favours</em> the interior.</td></tr>
+      <tr><td><strong>Route offline, re-budget online</strong></td><td>p90 route regret 1.00 over 4,096 tokens; frozen allocation costs 2.5–4.3×</td><td>One calibration pass, plus a decode-time re-budgeter. Two components, two clocks.</td></tr>
+      <tr><td><strong>Score the re-budget off the base tier</strong></td><td>cascade at bc = 4 closes 82–91% of the lag penalty</td><td>The re-budgeter never reads full-precision keys, which is what makes it deployable.</td></tr>
+      <tr><td><strong>No global keep-count constant</strong></td><td>\(K^\*\) = 100% of budget everywhere; \(K^\*/n_{95}\) spans 36× (6.5–233)</td><td>Per-head keep-counts from measured support; a fixed \(\kappa\) costs 1.9–7.4× error.</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>What the system does <em>not</em> need.</strong> The oracle's advantage over a deployable score is only 1.03–1.47×, falling with context, and it sits on diffuse heads the router sends to the interior anyway. <strong>Scoring is solved; allocation and timing are where the value is.</strong></p>
+
+  <h2>7. End-task accuracy — the open item, and its first result</h2>
+
+  <p>Every number above is an <em>output-error</em> ratio. The fair question is whether that matters, and it is the one thing this paper still owes. The experiment (R8) is built and running: RULER-style retrieval and multi-hop tasks on the same PG-19 haystacks, the model <strong>generating</strong> from a genuinely compressed cache (simulated quantization at the allocated widths, evicted tokens masked), arms at matched bits — full precision, uniform, SnapKV, H2O, the water-fill interior, and the router against its own oracle.</p>
+
+  <div class="callout">
+    <span class="label">P0 — the budget pilot, complete (llama3.1-8B @32k, 20 prompts × 4 tasks): a negative result worth reporting</span>
+    Full precision answers 0.99–1.00 on every task, so the tasks are valid. Uniform quantization fails at 1 bit and is perfect from 2 bits — a cliff, exactly where the dead-2 fraction predicts it for this model. <strong>But SnapKV scores 1.00 at every budget down to 1 bit, on every task.</strong> The reason is structural and it is a finding about the literature's evaluation protocol, not about our allocator: <em>when the question sits inside the observation window that the evictor scores with, eviction is an oracle on retrieval tasks.</em> The window vote points straight at the needle, and nothing else can beat perfect.<br><br>
+    <strong>The fix, now built:</strong> compress the context <em>before</em> the question exists — the regime of prefix caching and multi-turn serving, and the one where a unified quantize-or-evict allocator should matter, because mixed precision degrades a needle it did not foresee instead of deleting it. In this mode a blind SnapKV keeps a recency-shifted set (mean kept position 0.61 → 0.75 of the context) and loses needles that are not near the end. A 0.5-bit budget is added below uniform's cliff, where eviction and the interior are the only arms that exist. <strong>P0b is the next job; the interior and router arms follow.</strong>
+  </div>
+
+  <h2>8. Contributions</h2>
+
+  <ol>
+    <li><strong>The objective is wrong.</strong> KV compression should minimize attention-output distortion, not key reconstruction distortion.</li>
+    <li><strong>Eviction is quantization at zero rate</strong>; \(c_0=1\) is derived, not posited, putting two literatures on one axis.</li>
+    <li><strong>A phase diagram whose boundary variable is derived rather than fitted, and which survives two changes of baseline.</strong> The dead-tier fraction orders the productive band at \(\rho=-0.978\) over 25 configurations, six architectures and 4k–262k of context, −1.00 within every model, −0.915 partialled on model identity. It contains no \(L\). It was established against an <em>oracle</em> corner and survived that corner being replaced (+6 to +29 points) and then our own interior being demoted as well (−42% of that gain). <strong>Restated in v9:</strong> it is an <em>ordering</em> claim plus an architecture-specific threshold — the crossing spans 5.4 points across models, which nine further cells sharpened rather than closed.</li>
+    <li><strong>Context length is a phase variable, acting through \(\tau\)</strong>, and \(\tau\) is <em>convex</em> in \(\log L\) (v9 correction; the earlier "accelerating collapse" was linear extrapolation plus a threshold artifact). One model traverses GO → NARROW on context alone. Models measured at 100% of their RoPE window carry an additional +0.21 \(\tau\) excess, measured against a pre-registered curved null on the one model with headroom.</li>
+    <li><strong>A cost model that forward-predicts measured output-error gain to 0.80–1.42×</strong> over 27 configurations, independent of the corner definition. The \(\tau/\ln2\) "prediction" it replaced is an algebraic identity (§4).</li>
+    <li><strong>The price of deployable information, measured on both sides.</strong> For the corner: current-step truth is worth 1.03–1.47× over a lagged score, falling with context. For the interior: 1.13–1.64× on in-band heads and 1.00–1.04× elsewhere, with \(\rho(\text{lag cost},\text{gain})=+0.50\ldots+0.97\). <strong>The interior's advantage and its need for current-query information are the same property</strong> — which is what makes the two-timescale design necessary rather than convenient.</li>
+    <li><strong>Per-head rates are realizable under GQA, and the constraint favours us.</strong> 1.000 / 1.136 / 1.316× at n_rep 1 / 4 / 8 (kill line 3×), monotone in group size, with an exact n_rep = 1 control; and the same constraint costs eviction 4.3–6.5 band points more than it costs the interior.</li>
+    <li><strong>A two-timescale result for per-head routing.</strong> The route survives 4,096 generated tokens (p90 regret 1.00, six cells); the allocation does not (2.5–4.3× if frozen). A cascade score off the 4-bit base tier closes ~89% of the resulting penalty without reading full keys.</li>
+    <li><strong>Tail dependence is architectural and spans 36×.</strong> \(K^\*\) is 100% of the fractional budget everywhere (the absolute-support budget we proposed is refuted); \(K^\*/n_{95}\) spans 6.5–233 and is not ordered by support.</li>
+    <li><strong>A methodological result about measuring attention</strong>, including the error budget of our own verdict statistic: the corner set moves the band 5–9 points and changes verdicts, while prompts move it 0.4–3.0. And a protocol finding for end-task evaluation (§7): <em>a question-aware evictor is an oracle on retrieval benchmarks</em>, which is how it scores 1.00 at every budget we tested.</li>
+  </ol>
+
+  <h2>9. What remains</h2>
+
+  <table>
+    <thead><tr><th style="width:26%">item</th><th style="width:14%">status</th><th>what it decides</th></tr></thead>
+    <tbody>
+      <tr class="band"><td>symmetric grid, boundary, error bars, timing, GQA, cascade</td><td class="done">COMPLETE</td><td>§1–§6. 25 configurations; the design is fixed.</td></tr>
+      <tr><td><strong>R8 · end-task accuracy</strong></td><td><strong>IN PROGRESS</strong></td><td>§7. P0 complete (and it moved the design of the experiment); P0b next; then the interior and router arms, with per-head output errors recorded on the same prompts so the proxy can be validated per cell.</td></tr>
+      <tr><td>SOTA eviction baselines (Ada-KV, DropKV, OBCache, LaProx)</td><td>built, CPU-validated, not run</td><td>Whether the corner set that matters most (§3) contains anything stronger than SnapKV on an end task.</td></tr>
+      <tr><td>\(K^\*\)-derived per-head budget</td><td>not started</td><td>The budget rule; orthogonal to whether the interior pays, so it stands alone.</td></tr>
+      <tr><td>tier set + 3–4-bit base layer</td><td>partly answered by the cascade (bc = 4)</td><td>Which rungs to offer, given the 1-bit tier is dead everywhere.</td></tr>
+      <tr><td>nested coding overhead</td><td>not started</td><td>Whether the storage layout is viable at finite \(d\). A 20% rate penalty removes the architecture's foundation.</td></tr>
+      <tr><td>kernel / TPOT vs dense FP8</td><td>not started</td><td>The systems claim. Scoped last, deliberately.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>10. Score &amp; viability</h2>
+
+  <table>
+    <thead><tr><th style="width:17%">Criterion</th><th class="num" style="width:5%">v6</th><th class="num" style="width:5%">v7</th><th class="num" style="width:5%">v8</th><th class="num" style="width:6%">v9</th><th>Reasoning</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Novelty</strong></td><td class="num">7.5</td><td class="num">8.5</td><td class="num">8.5</td><td class="num"><strong>8.5</strong></td>
+        <td>Unchanged. The symmetric comparison and the two-timescale result are new claims, not weaker ones: nobody else reports the price of deployable information on <em>both</em> sides of the comparison, and the GQA dose–response converts a threat into a mechanism.</td></tr>
+      <tr><td><strong>Theoretical rigor</strong></td><td class="num">7.0</td><td class="num">7.5</td><td class="num">7.5</td><td class="num"><strong>7.5</strong></td>
+        <td>Held. The forward prediction (0.80–1.42×) carries the theory; the boundary is derived from \(\tau^2c_b\) vs \(c_0\). Not raised, because v9 also had to restate C1 from a universal threshold to an ordering claim plus a per-architecture cut.</td></tr>
+      <tr><td><strong>Empirical relevance</strong></td><td class="num">7.5</td><td class="num">8.5</td><td class="num">8.5</td><td class="num"><strong>8.0</strong></td>
+        <td><em>Down, deliberately.</em> 25 configurations, a measured error budget, a pre-registered RoPE test and an exact GQA control are stronger evidence than v8 had — but the honest grid contains <strong>5 STOP cells</strong> where v8 reported none, and the headline gain is halved. End-task remains unproven (§7), and P0 showed that proving it needs a harder protocol than the field's default.</td></tr>
+      <tr><td><strong>Positioning</strong></td><td class="num">8.0</td><td class="num">8.0</td><td class="num">8.0</td><td class="num"><strong>8.5</strong></td>
+        <td>Up. Two of v9's results are about how this literature <em>evaluates</em>: a band number is meaningless without its corner set, and a question-aware evictor is an oracle on retrieval benchmarks. Both are reusable by anyone in the area, independent of whether our allocator wins.</td></tr>
+      <tr><td><strong>Acceptance</strong></td><td class="num">55–65%</td><td class="num">62–74%</td><td class="num">62–74%</td><td class="num"><strong>58–70%</strong></td>
+        <td>Slightly down and much better supported. The variance is now almost entirely §7: an output-error gain of 1.05–3.21× routed has to survive translation to end-task at matched bits. The phase diagram itself is no longer the risk — it survived two baseline changes, a partial correlation, an out-of-sample test and its own error budget.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>11. The three ways this still dies</h2>
+  <ol>
+    <li><strong>End-task does not move (§7).</strong> If accuracy at matched bits is flat across arms — or if only a protocol nobody deploys can separate them — the diagram stays true and the method stays uninteresting. P0 already showed the default retrieval protocol cannot separate anything, because a question-aware evictor is perfect on it. The question-agnostic regime is the honest test; it is also the one where we expect to win, so it must be pre-registered and reported whichever way it lands.</li>
+    <li><strong>Long context is NARROW-to-STOP, and the corner set can push it over.</strong> On the symmetric grid 5 of 16 cells are STOP, and under the five-corner minimum llama3.1-8B @128k (20.5 → 14.5) straddles the STOP line. Allocation helps most below ~64k, where the KV cache hurts least. The science survives — the diagram predicts its own boundary — but the deployment reach narrows.</li>
+    <li><strong>Nesting is not free at finite \(d\).</strong> Equitz–Cover is asymptotic and assumes optimal vector quantization; we use per-coordinate Lloyd-Max at \(d{=}128\) with three refinement boundaries. A 20% rate penalty removes the storage architecture's foundation, and it is still unmeasured.</li>
+  </ol>
+
+  <p class="footnote">
+    <strong>This revision supersedes v8</strong> and replaces its results table for the second time in the project's history — for the same reason as the first, applied to ourselves. v8 measured a deployable eviction corner against an interior that still read the current step; v9's headline is the <strong>symmetric cell</strong>, where both sides score on lagged attention (\(\rho\) between them unchanged at −0.978). <strong>Changed in v9:</strong> every band fraction (the interior keeps about half the gain v8 credited it with; 5 of 16 cells are STOP); C1 restated from a universal boundary to an ordering claim plus an architecture-specific threshold (GO 29.0%, STOP 54.1% dead-2, architecture interval ~1.5× the measurement interval); R4's answer reversed to "mostly absolute-\(L\), \(\tau\) convex in \(\log L\), plus a +0.21 excess at the RoPE cap" against a pre-registered curved null; the "37-point collapse" withdrawn as a mechanism claim; an error budget added (corner set −5 to −9 points, prompts 0.4–3.0); and three design questions closed with measurements — GQA granularity (1.14×/1.32×, dose–response, exact n_rep = 1 control), the cascade score (bc = 4 closes ~89% of the lag penalty) and timing (route once, re-budget during decode). <strong>Added:</strong> §7, the end-task experiment, with P0's negative protocol result. <strong>Carried forward unchanged:</strong> the allocation theorem, \(c_0=1\), the negligible value term, the 0.80–1.42× forward prediction, \(\alpha=0.941\)–0.944, the QJL dead-zone result, the \(\varphi\) negative result, the \(K^\*\) refutation and the 36× tail-dependence spread. <strong>Fig 5 is regenerated</strong> on the symmetric grid (27 cells, <code>make_fig_phase.py --target sym</code>): it reproduces bugs/6's boundary reader on the same inputs — crossings GO 29.1% / STOP 54.1% dead-2, \(\rho=-0.979\) — and its provenance is recorded in <code>docs/fig5_phase.txt</code>. Measurement integrity is enforced by standing gates rather than asserted: real-corpus enforcement, per-prompt needle-retrieval verification, probe/chunking equivalence, and — new in this cycle — a floor-policy marker that every symmetric-cell number is read from, so an unfixed run cannot silently enter the grid. Deployment claims about FP8, BF16, norm correction and the omission of QJL come from the vLLM project's May 2026 evaluation and merged attention backend.
+  </p>
+
+</div>
+</body>
+</html>

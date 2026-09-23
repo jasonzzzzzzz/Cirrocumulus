@@ -767,35 +767,69 @@ The current synthetic Gaussian panel can remain as a small explanatory schematic
 
 ## 12. Priority order for the manuscript
 
-These are writing/evidence priorities, not proposals for a new design.
+These are writing/evidence priorities, not proposals for a new design. Statuses below refer to the revised `latex/main.tex` compiled on 2026-09-22.
 
 ### Must fix before submission
 
-1. Correct the exact eviction derivation and the zero-rate cost units.
-2. Replace all oracle-labeled-as-symmetric figures and numbers with R3/R6 results.
-3. Cite and distinguish DiffKV, CAOTE/ReST-KV, RDKV, RateQuant, and AATC.
-4. Remove exclusive “first joint,” exact-equivalence, universal-boundary, and length-free-calibration claims.
-5. Remove invented projected numeric panels.
-6. Disclose key-only rate accounting, full value treatment, metadata omissions, and the actual GQA allocation unit.
-7. Rename hindsight \(\max(\mathrm{gain},1)\) as an oracle portfolio until a prospective router is evaluated.
-8. Reconcile 10,240 heads, 46,000 measurements, 24/25 configurations, and the independent statistical unit.
+1. **[DONE — draft]** Corrected the exact set-eviction identity, separated it from the local separable zero-rate approximation, and put finite- and zero-rate costs in consistent absolute units.
+2. **[DONE — draft]** Replaced the oracle-labeled-as-symmetric and projected figures with measured R3/R5/R6 panels. The primary comparison is now explicitly lagged-versus-lagged.
+3. **[DONE — draft]** Added and differentiated DiffKV, HqeKV, CAOTE, ReST-KV, RDKV, RateQuant, and attention-aware transform coding.
+4. **[DONE — draft]** Removed exclusive “first joint,” exact-equivalence, universal-boundary, and length-free-calibration claims. The paper now claims an architecture- and context-conditioned characterization.
+5. **[DONE — draft]** Removed invented projected numeric panels from the manuscript; all plotted quantitative panels are generated from measured results.
+6. **[DONE — draft]** Disclosed key-only bit accounting, exact values, omitted scale/index/metadata/packing costs, the 8-bit experimental maximum, and query-head versus shared-KV-head allocation.
+7. **[DONE — draft]** Renamed geometric \(\max(g,1)\) as \(G_+\), a retrospective hindsight portfolio statistic, and explicitly denied that it is deployed-router performance.
+8. **[DONE — draft]** Reconciled the counts: 10,240 distinct query-head positions, 2,016 KV-head positions, 29,312 R3 and 44,416 R6 query-head–configuration aggregates, 16/25 cells, with model/cell rather than raw heads as the independent unit.
 
 ### Strongly desirable
 
-1. Use continuous gain as primary and the 2x band as secondary.
-2. Compare \(D_2\) to RateQuant-style heterogeneity and simple concentration baselines.
-3. Report leave-one-model-out performance and model-cluster uncertainty.
-4. Integrate R4--R7 and co-design results instead of leaving them as TBDs.
-5. Add R8 only if calibration and evaluation are disjoint and the result is complete.
+1. **[DONE — draft]** Continuous \(G_+\) is primary; the \(2\times\) band is secondary and always tied to a named information/corner contract.
+2. **[WAITING — R10]** Compare \(D_2\) prospectively with RateQuant-style AM/GM or \(\operatorname{var}(\log w)\) heterogeneity, entropy/Gini, and context-only baselines under one leave-model-out protocol. The manuscript contains a visible R10 anchor.
+3. **[MOSTLY DONE — R6]** Added leave-one-model-out error (2.60 band points), model-partial correlation (\(-0.915\)), prompt uncertainty, and architecture scatter. A final model-resampled uncertainty table/interval should be added if the frozen R6 artifact supports it.
+4. **[DONE — draft]** Integrated R4 context/RoPE residuals, R5 route-versus-allocation staleness, R6 boundary extension, R7 prompt/corner sensitivity, GQA grouping, and cascade recovery. The underpowered within-generation \(\tau\) claim remains excluded.
+5. **[WAITING — R8/P2 + R9]** P0b is complete and is no longer listed as pending. End-task effectiveness remains anchored until the five-cell disjoint evaluation and fixed SOTA-baseline campaign are consolidated and audited.
 
-### Final novelty/effectiveness verdict
+### Final novelty/effectiveness verdict after the rewrite
 
-**Novelty:** The paper is potentially novel enough for ICLR if it is claimed as an architecture- and context-dependent characterization of when joint token allocation helps. It is not safely novel as “the first joint eviction/quantization formulation,” because archival DiffKV already combines the actions and concurrent RDKV overlaps closely with the rate-distortion derivation.
+**Novelty:** The revised paper is claimed as an architecture- and context-dependent characterization of when joint key-token allocation helps, not as the first joint eviction/quantization formulation. That remains the defensible ICLR narrative despite the close concurrent overlap with RDKV and RateQuant and the archival hybrid designs in DiffKV/HqeKV.
 
-**Methodological effectiveness:** The exact-output measurement program is strong, and the symmetric result confirms that the main phenomenon survives deployable information. The current manuscript nevertheless overstates budget matching, routing, universality, and mathematical exactness.
+**Methodological effectiveness:** The major correctness and reporting blockers in the prior draft are fixed in the manuscript: exact versus approximate eviction is separated, evaluation is based on exact recomputation, the information contract is symmetric, projected results are gone, and the boundary is explicitly architecture-conditioned.
 
-**Practical effectiveness:** Not established yet. R8 end-task accuracy and an eventual packed/runtime implementation determine whether Sieve should be sold as an effective method. They are not necessary for a carefully scoped characterization paper, but they are necessary for the current method/system language.
+**Practical effectiveness:** Still not established. R8/P2+R9 determines whether Sieve can be promoted from a prospective selector to an evaluated method. Total-memory and throughput claims additionally require full accounting and a packed implementation.
 
-**Recommended selling decision:** Keep the joint formulation at the front as the lens. Sell the paper on the answer that follows from it:
+**Current selling decision:** Keep the joint formulation at the front as the lens, then sell the answer:
 
 > **The important question is not whether eviction and quantization can be combined. It is when their combination has a useful interior—and that answer changes with context.**
+
+---
+
+## 13. Updated awaited items and next actions (2026-09-22)
+
+### Completed and integrated in the draft
+
+- **R3:** honest symmetric lagged-versus-lagged comparison over 16 cells, including information-contract sensitivity and hindsight portfolio gain.
+- **R4:** absolute-context trend separated from the model-dependent RoPE-cap residual.
+- **R5:** slow policy choice versus fast token-allocation refresh over 4,096 decode tokens.
+- **R6:** 25-cell, six-model extension over 4k–256k, continuous response, model-conditioned scatter, partial correlation, and leave-one-model-out error.
+- **R7:** prompt uncertainty and five-corner robustness.
+- **Co-design evidence:** shared-KV-head/GQA cost and 4-bit cascade recovery.
+- **R8/P0b:** completed; it identifies a question-agnostic, nonsaturated pilot budget. It is not end-task evidence and is not an awaited item.
+- **Writing/correctness:** corrected derivation and units, measured-only figures, bounded contribution language, full accounting disclosures, closest-work comparison table, and explicit limitations.
+- **Page budget:** the compiled main body ends on page 6; references run through page 8; the preserved appendix follows on a separate page. The body excluding references is within the eight-page limit.
+
+### Awaited evidence
+
+1. **R8/P2 + R9 — end-task effectiveness (highest priority):** wait for the consolidated five-cell report with disjoint calibration/evaluation routes, fixed uniform/cascade/SnapKV/Ada-KV/DropKV/OBCache/LaProx arms, paired reader outputs, validity gates, false-positive checks, and bit-accounting audit.
+2. **R10 — predictor comparison:** compare \(D_2\) with RateQuant-style heterogeneity, entropy/Gini, and context-only predictors under the same leave-model-out split. This is the most important remaining analysis for the “predictive regime map” language.
+3. **A-VALUE — direct allocation ablation:** compare attention-only and value-aware assignments using exact output error. The current \(0.035\)-bit observation is only an aggregate ladder-width result.
+4. **Within-generation \(\tau\) dynamics — secondary:** increase to roughly 20 prompts per cell before making any claim about \(\tau\)'s short-timescale drift. This is not required for the route/allocation staleness result.
+5. **SYSTEM — only for memory/speed claims:** account for values, scales, indices, metadata, protected windows, nested-tier storage, and packing; then measure a packed kernel's latency and throughput.
+
+### Next actions in order
+
+1. Finish and audit R8/P2+R9; do not insert partial end-task numbers into the paper.
+2. Branch the final narrative on that result: if positive, promote Sieve and add one end-task figure/contribution; if null or mixed, keep the paper as a regime-characterization study and report the failure boundary.
+3. Run R10 and add a compact predictor table or panel with a frozen leave-model-out protocol.
+4. Run A-VALUE and either validate the attention-only simplification or narrow it further.
+5. Add total-KV accounting and a packed-kernel evaluation only if the submission will make system-efficiency claims.
+6. Replace the provisional ICLR 2026 style with the official ICLR 2027 style when released, then repeat the page-count, citation, and claim-consistency checks.
+

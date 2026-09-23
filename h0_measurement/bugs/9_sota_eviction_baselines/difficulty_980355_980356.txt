@@ -1,0 +1,26 @@
+2 file(s), 60 rows, 10 prompt(s), metric = score
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC; k16/v7/h7]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  niah_multivalue  n=10 prompts   FP  0.99 [0.96, 1.00]  max_new=88
+    generation cap reached: fp 10%, uniform 60%
+      B               uniform
+      2      0.87 [0.69,0.99]
+    -> P0: TOO EASY -- uniform still 0.87 at B = 2. Add keys / values / hops before running P1.
+
+  vt               n=10 prompts   FP  0.99 [0.96, 1.00]  max_new=112   <- INVALID: incomplete FP answer reached max_new_tokens
+    generation cap reached: fp 100%, uniform 100%
+      B               uniform
+      2      0.97 [0.95,1.00]
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC; k16/v7/h8]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  vt               n=10 prompts   FP  1.00 [1.00, 1.00]  max_new=128
+    generation cap reached: fp 100%, uniform 100%
+      B               uniform
+      2      0.97 [0.92,1.00]
+    -> P0: TOO EASY -- uniform still 0.97 at B = 2. Add keys / values / hops before running P1.

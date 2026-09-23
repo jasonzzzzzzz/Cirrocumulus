@@ -5,10 +5,19 @@
 # --------------------
 # The completed campaign already passed its implementation/provenance checks.
 # Do not rerun it merely to "reproduce" the table. Its main unresolved mechanism
-# question is P-5: did router_calib fail because its offline routes do not
+# question was P-5: did router_calib fail because its offline routes do not
 # transfer, or does the output-error routing objective itself fail on Llama?
 #
-# This script runs ONE inexpensive diagnostic at llama31-8b @32K, B=2:
+# RESULT (job 979308, completed 2026-09-22)
+# ---------------------------------------------------------
+# Both contribute. The oracle improves mean accuracy by +0.298 over calibrated
+# routing [paired prompt-block 95% CI +0.139,+0.459], but remains -0.201 below
+# uniform [-0.324,-0.085]. It minimizes the stated proxy (mean error 0.135 vs
+# uniform 0.652) while losing task accuracy (0.761 vs 0.963). Do not resubmit
+# this diagnostic. Read it with:
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --oracle-read 979308
+#
+# This script defines ONE inexpensive diagnostic at llama31-8b @32K, B=2:
 #
 #   router_calib  fixed routes learned from disjoint prompts 0..9
 #   router_oracle chooses, on each evaluation prompt and KV head, the candidate
@@ -59,22 +68,52 @@
 # are disjoint from calibration 0..9 and prior evaluation 100..119. The task set
 # must exactly match the route file's four-task calibration metadata.
 #
-# CONDITIONAL LATER WORK -- NOT IMPLEMENTED, DO NOT RUN YET
-# ---------------------------------------------------------
-# A harder-task rerun is needed only if the goal is a new non-ceiling benchmark
-# or if the oracle shows that routing has useful headroom. It is not needed to
-# report the current negative result.
+# NEXT ITERATION: NON-CEILING TASK SCREEN
+# ---------------------------------------
+# The task interface is now explicit and provenance-safe. Step 2 screens two
+# independent configurations on prompts 400..409, Llama 32K, B=2, QA mode:
 #
-# The current CLI hardcodes n_keys=n_values=n_hops=4. Before a hard-task run,
-# add --n-keys/--n-values/--n-hops through run_r8.py, submit_r8.slurm, and the
-# campaign script. Stamp the task configuration into result rows, sidecars,
-# route metadata, route filenames, completion guards, and reader provenance.
-# Otherwise an old four-key route could be silently reused for an eight-key run.
+#   screen: k8/v6/h6 and k16/v8/h8, fp + uniform, three discriminating tasks
+#   mid:    k16/v7/h7, multivalue + VT only, after level 6 was too easy and
+#           level 8 failed the FP gate for those tasks
 #
-# Prefer hardening the tasks at the existing B=2 quantizer width. Do not simply
-# choose B=1.5: uniform has no 1.5-bit quantizer and is currently skipped there.
-# First gate a single 32K cell with fp/uniform/evict; require FP >= .95 and
-# uniform accuracy in roughly [.50,.80] before any new router/SOTA campaign.
+# Run:
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-dry
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-submit
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-status JOB [JOB...]
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-read JOB [JOB...]
+#
+# Each initial result must contain 60 rows; the midpoint must contain 40 rows.
+# Every result must use one real-corpus SHA and pass the B=2 audit. FP >= .95
+# is the eligibility gate, not a claim that every screened task passes.
+# A useful task has uniform mean in [.50,.80], or a 90% interval overlapping
+# that band at this screening size.
+#
+# DEVELOPMENT RESULT (jobs 980284, 980285, 980356, 980355)
+# ---------------------------------------------------------------------------
+# Only multikey at n_keys=16 passes. Multivalue v7 is too easy; v8 fails FP.
+# VT h7 is censored; cap-fixed h8 is too easy. Do not add harder value/hop
+# points after these failures. Confirm the fixed multikey point once:
+#
+#   1. Print the exact held-out command:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-dry
+#   2. Submit it and save CONFIRM_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-submit
+#   3. Check completion:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-status JOB
+#   4. After COMPLETED, audit and save the result:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB
+#
+# This confirmation is k16/v4/h4, multikey only, fp+uniform, B=2, prompts
+# 420..439 (40 rows). It passes only with FP >= .95, no incomplete capped FP,
+# and uniform in [.50,.80]. Do not tune n_keys on the confirmation prompts.
+#
+# CONFIRMATION RESULT (job 980414, completed 2026-09-23)
+# ---------------------------------------------------------------------------
+# Exact provenance and bits checks pass. FP=1.00, uniform=0.80; FP-uniform
+# is +0.20 with paired 90% interval [+0.05,+0.35]. No incomplete FP row is
+# capped. Do not resubmit; read with --confirm-read 980414. Step 3 is the
+# whole-policy diagnostic specified in plan.md and has not been submitted.
 
 set -euo pipefail
 
@@ -89,6 +128,8 @@ REPORT_DIR="h0_measurement/bugs/9_sota_eviction_baselines"
 
 ARMS="fp,uniform,evict,interior,interior_cascade,router_calib,router_oracle"
 TASKS="niah_single,niah_multikey,niah_multivalue,vt"
+DIFFICULTY_TASKS="niah_multikey,niah_multivalue,vt"
+CONFIRM_TASKS="niah_multikey"
 
 usage() {
   cat <<'USAGE'
@@ -98,6 +139,21 @@ usage:
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --oracle-status JOB_ID
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --oracle-read JOB_ID
 
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-dry [screen|easy|hard|mid|vt-hard]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-submit [screen|easy|hard|mid|vt-hard]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-status JOB_ID [JOB_ID...]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-read JOB_ID [JOB_ID...]
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB_ID
+
+The default selector "screen" addresses all three tasks at (8,6,6) and
+(16,8,8). The post-screen "mid" selector reruns multivalue and VT at (16,7,7)
+with difficulty-aware answer limits; "vt-hard" does the same for VT at h8.
+The confirmation interface is fixed to the selected k16/v4/h4 multikey cell on
+held-out prompts 420--439 and cannot accept a difficulty selector.
 This script intentionally does not rerun the completed five-cell campaign.
 Read the ordered instructions and decision table at the top of the file.
 USAGE
@@ -133,7 +189,12 @@ oracle_command() {
 }
 
 submit_oracle() {
-  local output job_id
+  local output job_id completed="h0_measurement/results/r8diag979308/r8_llama31-8b_32768.parquet"
+  if [[ -f "$completed" ]]; then
+    echo "oracle diagnostic already completed: job 979308"
+    echo "read: bash $REPORT_DIR/steps.sh --oracle-read 979308"
+    return 0
+  fi
   output=$(sbatch --parsable --time=02:00:00 "$WORKER" \
     R8_RUN_PREFIX=r8diag \
     R8_MODEL=llama31-8b \
@@ -188,6 +249,256 @@ read_oracle() {
   echo "saved: $out"
 }
 
+difficulty_specs() {
+  case "${1:-screen}" in
+    screen) printf '%s\n' "8 6 6 $DIFFICULTY_TASKS any" "16 8 8 $DIFFICULTY_TASKS any" ;;
+    easy) printf '%s\n' "8 6 6 $DIFFICULTY_TASKS any" ;;
+    hard) printf '%s\n' "16 8 8 $DIFFICULTY_TASKS any" ;;
+    mid) printf '%s\n' "16 7 7 niah_multivalue,vt difficulty_v1" ;;
+    vt-hard) printf '%s\n' "16 7 8 vt difficulty_v1" ;;
+    *) echo "ERROR: difficulty selector must be screen, easy, hard, mid, or vt-hard" >&2; exit 2 ;;
+  esac
+}
+
+grid_complete() {
+  local nk=$1 nv=$2 nh=$3 tasks=$4 contract=$5
+  local n_prompts=$6 prompt_offset=$7 run_prefix=$8
+  "$PY" - "$nk" "$nv" "$nh" "$tasks" "$contract" \
+    "$n_prompts" "$prompt_offset" "$run_prefix" <<'PY'
+from collections import Counter
+import glob
+import json
+import os
+import sys
+
+import pandas as pd
+
+nk, nv, nh = map(int, sys.argv[1:4])
+want_tasks = set(sys.argv[4].split(","))
+contract = sys.argv[5]
+n_prompts, prompt_offset = map(int, sys.argv[6:8])
+run_prefix = sys.argv[8]
+expected_rows = n_prompts * len(want_tasks) * 2
+expected_prompts = set(range(prompt_offset, prompt_offset + n_prompts))
+base = {"niah_single": 24, "niah_multikey": 24, "niah_multivalue": 64, "vt": 64}
+expected_limits = {
+    t: (base[t] + 8 * max(nv - 4, 0) if t == "niah_multivalue"
+        else base[t] + 16 * max(nh - 4, 0) if t == "vt"
+        else base[t])
+    for t in want_tasks
+}
+tag = f"k{nk}_v{nv}_h{nh}"
+want_cfg = {"n_keys": nk, "n_values": nv, "n_hops": nh}
+pattern = (
+    f"h0_measurement/results/{run_prefix}*/"
+    f"r8_llama31-8b_32768_{tag}.json"
+)
+
+for js in sorted(glob.glob(pattern)):
+    try:
+        meta = json.load(open(js))
+        parquet = js[:-5] + ".parquet"
+        with open(parquet, "rb") as fh:
+            fh.seek(-4, os.SEEK_END)
+            complete = fh.read() == b"PAR1"
+
+        columns = [
+            "prompt_idx", "task", "arm", "B", "n_keys", "n_values", "n_hops",
+            "corpus_sha", "synthetic", "bits_per_token", "question_agnostic",
+        ]
+        if contract != "any":
+            columns += ["max_new_tokens", "gen_len", "reached_max_new"]
+        frame = pd.read_parquet(parquet, columns=columns)
+        rows = {column: frame[column].tolist() for column in columns}
+
+        combos = Counter(zip(rows["prompt_idx"], rows["task"], rows["arm"]))
+        expected_combos = {
+            (prompt, task, arm)
+            for prompt in expected_prompts
+            for task in want_tasks
+            for arm in {"fp", "uniform"}
+        }
+        row_contract = (
+            len(frame) == expected_rows
+            and set(rows["prompt_idx"]) == expected_prompts
+            and set(rows["task"]) == want_tasks
+            and set(rows["arm"]) == {"fp", "uniform"}
+            and all(
+                (arm == "fp" and float(budget) == 0.0)
+                or (arm == "uniform" and float(budget) == 2.0)
+                for arm, budget in zip(rows["arm"], rows["B"])
+            )
+            and all(bool(value) for value in rows["question_agnostic"])
+            and set(combos) == expected_combos
+            and all(count == 1 for count in combos.values())
+            and set(rows["n_keys"]) == {nk}
+            and set(rows["n_values"]) == {nv}
+            and set(rows["n_hops"]) == {nh}
+            and len(set(rows["corpus_sha"])) == 1
+            and next(iter(set(rows["corpus_sha"]))) not in {"", "synthetic"}
+            and not any(bool(x) for x in rows["synthetic"])
+            and all(
+                bits is None or float(bits) <= 2.0 + 1e-6
+                for bits, arm in zip(rows["bits_per_token"], rows["arm"])
+                if arm == "uniform"
+            )
+        )
+        if contract != "any":
+            row_contract = row_contract and all(
+                int(limit) == expected_limits[task]
+                and bool(reached) == (int(gen_len) >= int(limit))
+                for limit, gen_len, reached, task in zip(
+                    rows["max_new_tokens"], rows["gen_len"],
+                    rows["reached_max_new"], rows["task"]
+                )
+            )
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        continue
+
+    if (
+        meta.get("task_config") == want_cfg
+        and meta.get("model") == "llama31-8b"
+        and meta.get("ctx") == 32768
+        and set(meta.get("tasks", [])) == want_tasks
+        and set(meta.get("arms", [])) == {"fp", "uniform"}
+        and {float(x) for x in meta.get("budgets", [])} == {2.0}
+        and meta.get("n_prompts") == n_prompts
+        and meta.get("prompt_offset") == prompt_offset
+        and bool(meta.get("question_agnostic", False))
+        and meta.get("rows") == expected_rows
+        and meta.get("corpus_sha") == next(iter(set(rows["corpus_sha"])))
+        and (
+            contract == "any"
+            or (
+                meta.get("generation_limit_version") == contract
+                and meta.get("generation_limits") == expected_limits
+            )
+        )
+        and complete
+        and row_contract
+    ):
+        print(os.path.dirname(js))
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+difficulty_complete() {
+  local tag="k${1}_v${2}_h${3}"
+  grid_complete "$1" "$2" "$3" "$4" "$5" 10 400 "r8diff_${tag}_"
+}
+
+confirmation_complete() {
+  grid_complete 16 4 4 "$CONFIRM_TASKS" difficulty_v1 20 420 \
+    "r8confirm_k16_v4_h4_"
+}
+
+difficulty_command() {
+  local nk=$1 nv=$2 nh=$3 tasks=$4 tag="k${1}_v${2}_h${3}"
+  printf '%q ' sbatch --parsable --time=00:30:00 "$WORKER" \
+    R8_RUN_PREFIX="r8diff_${tag}_" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS="$tasks" \
+    R8_N_PROMPTS=10 R8_PROMPT_OFFSET=400 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES="$nv" R8_N_HOPS="$nh"
+  printf '\n'
+}
+
+confirmation_command() {
+  printf '%q ' sbatch --parsable --time=00:30:00 "$WORKER" \
+    R8_RUN_PREFIX=r8confirm_k16_v4_h4_ \
+    R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS="$CONFIRM_TASKS" \
+    R8_N_PROMPTS=20 R8_PROMPT_OFFSET=420 R8_QA=1 \
+    R8_N_KEYS=16 R8_N_VALUES=4 R8_N_HOPS=4
+  printf '\n'
+}
+
+submit_difficulty_one() {
+  local nk=$1 nv=$2 nh=$3 tasks=$4 contract=$5 tag="k${1}_v${2}_h${3}" output job_id where
+  if where=$(difficulty_complete "$nk" "$nv" "$nh" "$tasks" "$contract"); then
+    echo "difficulty $tag tasks=$tasks already complete: $where"
+    return 0
+  fi
+  output=$(sbatch --parsable --time=00:30:00 "$WORKER" \
+    R8_RUN_PREFIX="r8diff_${tag}_" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS="$tasks" \
+    R8_N_PROMPTS=10 R8_PROMPT_OFFSET=400 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES="$nv" R8_N_HOPS="$nh")
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2; exit 1; }
+  echo "DIFFICULTY_JOB_ID=$job_id config=$tag tasks=$tasks contract=$contract"
+}
+
+submit_confirmation() {
+  local output job_id where
+  if where=$(confirmation_complete); then
+    echo "held-out confirmation already complete: $where"
+    return 0
+  fi
+  output=$(sbatch --parsable --time=00:30:00 "$WORKER" \
+    R8_RUN_PREFIX=r8confirm_k16_v4_h4_ \
+    R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS="$CONFIRM_TASKS" \
+    R8_N_PROMPTS=20 R8_PROMPT_OFFSET=420 R8_QA=1 \
+    R8_N_KEYS=16 R8_N_VALUES=4 R8_N_HOPS=4)
+  job_id="${output%%;*}"
+  job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2
+    exit 1
+  }
+  echo "submitted held-out multikey confirmation"
+  echo "CONFIRM_JOB_ID=$job_id"
+  echo "config=k16_v4_h4 tasks=$CONFIRM_TASKS prompts=420..439 contract=difficulty_v1"
+  echo "next: bash $REPORT_DIR/steps.sh --confirm-status $job_id"
+}
+
+status_difficulty() {
+  shift
+  local job_id
+  for job_id in "$@"; do
+    need_job_id "$job_id"
+    echo "===== job $job_id ====="
+    status_oracle "$job_id"
+  done
+}
+
+read_grid_jobs() {
+  local label=$1 run_stem=$2
+  shift 2
+  (($#)) || { echo "ERROR: at least one $label JOB_ID is required" >&2; exit 2; }
+  local job_id f out ids=""
+  local -a parquets=()
+  for job_id in "$@"; do
+    need_job_id "$job_id"
+    ids="${ids}${ids:+_}${job_id}"
+    f=$(find h0_measurement/results -maxdepth 2 -type f \
+      -path "*${run_stem}_*_${job_id}/r8_llama31-8b_32768*.parquet" \
+      -print -quit)
+    [[ -n "$f" ]] || {
+      echo "ERROR: no completed $label parquet for job $job_id" >&2
+      exit 1
+    }
+    parquets+=("$f")
+  done
+  out="$REPORT_DIR/${label}_${ids}.txt"
+  env OMP_NUM_THREADS=8 "$PY" "$READER" "${parquets[@]}" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+}
+
+read_difficulty() {
+  shift
+  read_grid_jobs difficulty r8diff "$@"
+}
+
+read_confirmation() {
+  shift
+  read_grid_jobs confirmation r8confirm "$@"
+}
+
 MODE="${1:-}"
 case "$MODE" in
   --oracle-dry)
@@ -215,6 +526,50 @@ case "$MODE" in
     need_file "$READER"
     [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
     read_oracle "$2"
+    ;;
+  --difficulty-dry)
+    need_file "$WORKER"; need_file "$READER"
+    echo "DRY RUN; submit nothing:"
+    while read -r nk nv nh tasks contract; do difficulty_command "$nk" "$nv" "$nh" "$tasks"; done \
+      < <(difficulty_specs "${2:-screen}")
+    ;;
+  --difficulty-submit)
+    need_file "$WORKER"; need_file "$READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    while read -r nk nv nh tasks contract; do
+      submit_difficulty_one "$nk" "$nv" "$nh" "$tasks" "$contract"
+    done < <(difficulty_specs "${2:-screen}")
+    ;;
+  --difficulty-status)
+    (($# >= 2)) || { echo "ERROR: at least one JOB_ID is required" >&2; exit 2; }
+    status_difficulty "$@"
+    ;;
+  --difficulty-read)
+    need_file "$READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_difficulty "$@"
+    ;;
+  --confirm-dry)
+    need_file "$WORKER"; need_file "$READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    echo "DRY RUN; submit nothing:"
+    confirmation_command
+    ;;
+  --confirm-submit)
+    need_file "$WORKER"; need_file "$READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_confirmation
+    ;;
+  --confirm-status)
+    (($# >= 2)) || { echo "ERROR: at least one JOB_ID is required" >&2; exit 2; }
+    status_difficulty "$@"
+    ;;
+  --confirm-read)
+    need_file "$READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_confirmation "$@"
     ;;
   -h|--help|"")
     usage

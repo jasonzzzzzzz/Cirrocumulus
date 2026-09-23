@@ -1,7 +1,8 @@
 # R9 main-model baseline results
 
-**Date:** 2026-09-22  
-**Status:** all five evaluation cells complete.  
+**Dates:** main campaign 2026-09-22; non-ceiling follow-up 2026-09-23  
+**Status:** all five evaluation cells complete; the non-ceiling task interface
+is held-out confirmed in job 980414.  
 **Full R8/router analysis:** `../8_router_endtask/report.md`.
 
 ## Comparison
@@ -87,86 +88,243 @@ router and its downstream phase prediction under this contract; it does not by
 itself reject long-generation re-budgeting, the storage format, or every
 possible downstream-aware router.
 
-### Why the pending oracle run matters
+### Oracle diagnosis: both calibration and proxy transfer fail
 
-The current deployable router uses one fixed route per budget, layer, and KV
-head, learned by averaging output errors over ten calibration prompts and all
-four tasks. The pending `steps.sh --oracle-submit` run evaluates two routers on
-new prompts:
+Job 979308 completed the P-5 diagnostic on Llama-3.1-8B at 32K and B=2:
+ten new prompts (300--309), disjoint from route calibration (0--9) and the main
+evaluation (100--119), with FP, uniform, eviction, both interiors, the calibrated
+router, and the output-error oracle. All task FP ceilings pass and the bits audit
+has zero overspend.
 
-- `router_calib`: those fixed offline routes;
-- `router_oracle`: for each evaluation prompt and KV head, chooses among
-  `interior`, `uniform`, and `evict` using the actual relative attention-output
-  errors measured on the first eight FP answer queries.
+| task | uniform | calibrated router | output-error oracle | oracle minus calibrated | oracle minus uniform |
+|---|---:|---:|---:|---:|---:|
+| multikey NIAH | 1.000 | 0.300 | 0.600 | +0.300 | -0.400 |
+| multivalue NIAH | 0.950 | 0.175 | 0.625 | +0.450 | -0.325 |
+| single NIAH | 1.000 | 0.600 | 0.900 | +0.300 | -0.100 |
+| variable tracking | 0.900 | 0.780 | 0.920 | +0.140 | +0.020 |
+| **equal-task mean** | **0.963** | **0.464** | **0.761** | **+0.298** | **-0.201** |
 
-`router_oracle` is an oracle for the **output-error proxy**, not for task
-accuracy. It has unavailable evaluation-prompt information, but still chooses
-policies by local output fidelity rather than by whether the final answer is
-correct. It diagnoses the failure as follows:
+A paired bootstrap that resamples whole prompt blocks gives oracle minus
+calibrated **+0.298 [0.139, 0.459]** and oracle minus uniform
+**-0.201 [-0.324, -0.085]**. The oracle therefore recovers about 60% of the
+calibrated router's 0.499-point deficit to uniform, while a substantial and
+statistically clear 0.201-point deficit remains. P-5 predicted an oracle gap of
+only a few points; its mean gap is 0.298 and its largest task gap is 0.450, so
+**P-5 fails**.
 
-| oracle result | diagnosis | next action |
-|---|---|---|
-| oracle approximately matches uniform and clearly beats `router_calib` | the proxy has prompt-specific routing information; averaging it into fixed routes loses that information | build a conditional, conservative router and validate it on a third disjoint prompt block |
-| oracle is also far below uniform | better offline calibration cannot rescue this formulation; the local proxy, independent per-head composition, or both are misaligned with task accuracy | stop threshold sweeps and revise the objective or composition rule |
-| oracle improves only a few points | routing headroom is too small to justify another full grid | report the negative result and redirect effort |
+The failure is especially informative because the oracle achieves the objective
+it is given. Averaged over all measured heads, its relative output error is
+0.135, compared with 0.142 for the calibrated router and 0.652 for uniform.
+Nevertheless, uniform accuracy is 0.963 and oracle accuracy is 0.761. The
+answer-attention-weighted error has the same ordering, so that existing weighting
+does not repair the mismatch on this block.
 
-Even oracle failure would apply specifically to the present relative
-per-head-output error, eight-query measurement, independent KV-head routing,
-and candidate set. It would be strong mechanistic evidence against this
-formulation, not a theorem that all representation-error objectives must fail.
+Both parts of the design need attention:
 
-## How to improve SIEVE
+1. **Calibration loses real prompt-specific information.** Oracle routing gains
+   0.298 over fixed offline routes. Averaging ten prompts and four tasks into one
+   route per model/context/budget/layer/head is too coarse.
+2. **The local output-error proxy remains insufficient for task accuracy.** The
+   oracle has access to the actual evaluation-prompt FP answer queries and still
+   loses clearly to uniform on multikey and multivalue NIAH and on the overall
+   mean. It routes 93% of KV heads to the interior, versus 96% for calibrated
+   routing, even though task accuracy usually favors uniform.
 
-The oracle result decides which improvement path is justified.
+`router_oracle` is still an oracle only for the present proxy. It independently
+chooses among `interior`, `uniform`, and `evict` per KV head using relative
+attention-output error over eight FP answer queries. It does not search policy
+combinations for the final answer score. The result is strong evidence against
+this proxy-and-composition formulation; it is not a statement that every
+representation-error objective must fail.
 
-### If the output-error oracle succeeds
+### Complete-policy end-task envelope: little headroom in the easy block
 
-The problem is mainly route prediction. Improve it without looking at the final
-evaluation block:
+A second diagnostic can be computed from job 979308 without another GPU run.
+For each prompt and task, the **end-task policy oracle** takes the largest stored
+RULER score among complete, budget-matched policies. It sees the answer score,
+retains ties, and is therefore a label-seeing opportunity bound rather than a
+deployable router.
+
+| task | uniform | best of uniform/evict/interior | also allowing interior-cascade |
+|---|---:|---:|---:|
+| multikey NIAH | 1.000 | 1.000 | 1.000 |
+| multivalue NIAH | 0.950 | 0.975 | 0.975 |
+| single NIAH | 1.000 | 1.000 | 1.000 |
+| variable tracking | 0.900 | 0.960 | 1.000 |
+| **equal-task mean** | **0.963** | **0.984** | **0.994** |
+
+The base three-policy envelope gains only **+0.021** over uniform, with a 95%
+prompt-block bootstrap interval **[0.000, 0.044]**. Adding interior-cascade raises
+the point estimate to **+0.031 [0.000, 0.073]**. Most prompt blocks have no gain
+because uniform is already correct. Thus this block has too little complete-policy
+headroom to develop or judge a new router. It motivates the non-ceiling task
+screen; it does not show that a policy-logit selector will achieve these bounds.
+
+The planned policy-logit oracle is a different diagnostic. It will select a
+complete policy by full-vocabulary KL to FP on one shared FP teacher-forced
+trajectory, without seeing task labels. Keeping the two selectors separate will
+show whether failure comes from the downstream proxy or from the candidate set.
+
+### Non-ceiling screen: multikey succeeds; values and hops hit the FP boundary
+
+Jobs 980284 and 980285 screened the preregistered difficulty levels on prompts
+400--409 at Llama 32K/B=2, question-agnostic, with FP and uniform only. Both
+jobs completed all expected rows, used corpus SHA `0a26bc1e05a1eea8`, and spent
+at most exactly 2 bits per token.
+
+| configuration | task | FP | uniform B=2 | gate |
+|---|---|---:|---:|---|
+| k8/v6/h6 | multikey | 1.000 | 0.900 | too easy |
+| k8/v6/h6 | multivalue | 1.000 | 1.000 | too easy |
+| k8/v6/h6 | variable tracking | 1.000 | 0.943 | too easy |
+| k16/v8/h8 | multikey | 1.000 | 0.800 | **passes** |
+| k16/v8/h8 | multivalue | 0.900 | 0.738 | invalid: FP < 0.95 |
+| k16/v8/h8 | variable tracking | 0.911 | 0.933 | **censored:** all incomplete FP rows hit 64 tokens |
+
+Thus `n_keys=16` supplies a valid development operating point for multikey:
+uncompressed accuracy remains 1.00 while uniform reaches the upper edge of the
+planned 0.50--0.80 band. The held-out confirmation reported below passes.
+Multivalue v8 cannot be used even though uniform falls into the target range:
+its FP mean is 0.90, and the failed FP response stopped after one token rather
+than at the generation cap. The VT conclusion is different. Every incomplete
+h8 FP response has `gen_len=64`, so the apparent 0.911 ceiling is a harness
+censoring error rather than evidence that the model cannot solve h8.
+
+The next bounded work was preregistered before rerun. A difficulty-aware answer
+contract preserves the historical limits at 4, then adds 8 tokens per extra
+value and 16 per extra VT hop. It records the limit and cap event per row. The
+cap-fixed k16/v7/h7 job tests multivalue and VT with limits 88/112; a separate
+h8 VT job uses 128. Multivalue is accepted only if FP >=0.95 and uniform reaches
+the target band. VT is judged only after incomplete FP outputs no longer reach
+the cap. A harder multivalue extension is not justified after genuine FP failure
+at v8.
+
+### Cap-fixed development result: only multikey advances
+
+Jobs 980356 and 980355 completed the preregistered cap-fixed follow-up. Their
+sidecars record `difficulty_v1`, the exact limits below, the real corpus SHA,
+and all 60 expected rows; the B=2 audit passes.
+
+| configuration | task | limit | FP | uniform B=2 | decision |
+|---|---|---:|---:|---:|---|
+| k16/v7/h7 | multivalue | 88 | 0.986 | 0.871 | too easy |
+| k16/v7/h7 | variable tracking | 112 | 0.988 | 0.975 | invalid: incomplete FP at cap |
+| k16/v7/h8 | variable tracking | 128 | 1.000 | 0.967 | too easy |
+
+For multivalue, the only incomplete FP answer stops before the cap, while its
+capped FP answer already contains all expected values. Six uniform answers hit
+the cap; extending them can only recover more expected values, so uniform's
+true score cannot move down into the target band. At VT h7, every answer reaches
+112 tokens and one FP answer contains only seven of eight variables, so that
+cell remains censored. At VT h8, all FP answers already contain all nine
+expected variables. Uniform also reaches the cap on every prompt, but its two
+incomplete answers could only increase its already high 0.967 score.
+
+The development block therefore selects only multikey at `n_keys=16`.
+Values and hops return to their canonical defaults because those knobs do not
+affect the multikey task.
+
+### Held-out confirmation passes
+
+Job 980414 confirms k16/v4/h4 on prompts 420--439:
+
+| check | result |
+|---|---:|
+| expected rows | 40/40 |
+| FP | 1.000 (20/20) |
+| uniform B=2 | 0.800 (16/20) |
+| uniform 90% prompt-bootstrap interval | [0.65, 0.95] |
+| paired FP minus uniform, 90% interval | +0.200 [0.05, 0.35] |
+| incomplete capped FP answers | 0 |
+| uniform bit audit | exactly 2.0 bits/token |
+
+The one capped uniform answer already scores 1.0. All four uniform failures are
+uncapped six-token wrong answers; three name a distractor. Thus this is a clean
+retention-failure regime rather than decoding truncation. It passes at the
+prespecified upper boundary and supplies 20 points of recoverable accuracy, but
+only four uniform failures at n=20. Treat it as modest headroom, with 0.05 score
+granularity, rather than a precise estimate.
+
+The exact reader output is
+[confirmation_980414.txt](confirmation_980414.txt), and the source artifact is
+`h0_measurement/results/r8confirm_k16_v4_h4_980414/`. Freeze this task
+configuration and do not tune on prompts 420--439. This validates the harder-task
+interface and operating point; it does not establish that SIEVE or a new router
+is effective.
+
+### Next iteration: complete-policy headroom, then proxy quality
+
+Use fresh prompts 440--459 at the confirmed cell. Run FP plus the primary
+complete candidates uniform, eviction, and interior. Compute two distinct
+diagnostics: the label-seeing end-task envelope and the lowest mean
+full-vocabulary KL policy on the shared first eight FP teacher-forced decisions.
+Join the latter to each policy's independently greedy task score.
+
+Predeclared development quantities are `H`, the end-task-envelope gain over
+uniform, and `G`, the mean-KL selector gain over uniform. Useful candidate
+opportunity requires `H >= 0.10`. Mean KL advances only with
+`G >= 0.05` and `G/H >= 0.5`. Low `H` triggers nested complete-policy
+expansion; useful `H` with failed `G` is evidence against final-logit KL;
+both passing trigger a locked 40-prompt confirmation on prompts 460--499. Do
+not launch a broad model/context grid before that confirmation. The precise
+metrics, artifact boundary, tests, and conditional candidate set are frozen in
+`plan.md` Step 3.
+
+## How to improve SIEVE after the oracle result
+
+### Priority 1: connect the objective to task-relevant computation
+
+Threshold tuning alone cannot establish this. Uniform has roughly five times
+the oracle's mean local output error while producing higher accuracy, so the
+magnitude of local representation distortion is poorly ordered with retrieval
+success.
+
+1. Measure next-token logit or KL divergence, sequence negative log likelihood,
+   or downstream sensitivity from a layer/head output to final logits.
+2. Focus on rare task-critical failures rather than the mean head. Test tail and
+   worst-group objectives and identify which heads retain the requested values
+   or variable-chain links.
+3. Improve answer relevance beyond raw attention mass. The recorded
+   answer-mass-weighted error still ranks the oracle ahead of uniform while task
+   accuracy ranks them oppositely.
+4. Model cross-head and cross-layer interaction. Independently selecting the
+   smallest-error allocation for each KV head need not minimize the composed
+   network's error after residual mixing and later layers.
+5. Rebuild the phase analysis on any revised downstream-linked statistic. If no
+   stable relationship appears, scope the existing phase diagram to output
+   distortion and remove its downstream-prediction claim.
+
+### Priority 2: retain the useful prompt-specific routing signal
+
+The +0.298 oracle gain shows that calibration also leaves substantial value on
+the table. After choosing a better objective:
 
 1. Condition routes on model, context, budget, and task family instead of
    averaging all tasks into one fixed route.
-2. Predict routes from prefill-available features and retain uniform as a
-   conservative fallback when the predicted margin is small or uncertain.
-3. Select the margin threshold on a validation block separate from both route
-   fitting and final evaluation. Report calibration-to-oracle regret.
-4. Test whether routing whole layers or whole allocations is more stable than
-   independently composing every KV head. Independent local choices need not
-   minimize the error of the composed network.
-5. Reconsider the candidate set. The current router chooses only among
-   `interior`, `uniform`, and SnapKV; it cannot select the stronger R9 policies.
-   Add a candidate only where its allocation scope permits a budget-correct
-   composition. LaProx's model-wide allocator, for example, cannot simply be
-   spliced per head without changing the method.
+2. Predict routes from prefill-available features and fall back to uniform when
+   the predicted gain is small or uncertain.
+3. Fit routes on one prompt block, choose thresholds on a second block, and
+   report once on a third block. Report calibration-to-oracle regret.
+4. Test whole-layer or whole-allocation routing against independent KV-head
+   composition.
+5. Reconsider the candidate set. The current router cannot choose the stronger
+   R9 policies. Add a candidate only when its allocation scope permits a
+   budget-correct composition; LaProx's model-wide allocation cannot be spliced
+   per head without changing the method.
 
-### If the output-error oracle fails
+### Experimental requirements before another full grid
 
-The objective needs revision before router engineering:
-
-1. Replace or augment local head-output norm with a signal closer to generation,
-   such as next-token logit/KL divergence, sequence negative log likelihood, or
-   downstream sensitivity from a layer output to final logits.
-2. Test answer-relevance weighting. The harness already records the attention
-   mass each head places on answer tokens; a small number of retrieval heads may
-   matter more than the median head error.
-3. Model cross-layer and cross-head interaction. A collection of locally best
-   choices can be globally poor after residual mixing and later layers.
-4. Re-evaluate the phase claim using the revised downstream-linked statistic.
-   If no reliable relationship appears, present the existing phase diagram as
-   descriptive of output distortion rather than predictive of task value.
-
-### Improvements required in either branch
-
-1. Use a non-ceiling pilot before another grid. Prefer harder tasks at the valid
-   B=2 quantizer width; require FP >=0.95 and uniform accuracy around 0.50--0.80.
-   This improves power to detect gains but does not alter the existing losses.
-2. Add a provenance-safe task-difficulty interface. Record key/value/hop counts
-   in rows, sidecars, route metadata, filenames, completion guards, and reader
-   compatibility checks. Do not change hidden task defaults in place.
-3. Exclude Qwen multivalue NIAH until its FP ceiling passes. Compression results
-   on a task the full-precision model cannot solve are not interpretable.
+1. Use a non-ceiling pilot. Prefer harder tasks at the valid B=2 quantizer width;
+   require FP >=0.95 and uniform accuracy around 0.50--0.80. This improves power
+   to detect gains but does not alter the existing losses.
+2. **Completed 2026-09-23:** the provenance-safe task-difficulty interface
+   records key/value/hop counts in rows, sidecars, route metadata, filenames,
+   completion guards, and reader identities while preserving legacy 4/4/4.
+3. Exclude Qwen multivalue NIAH until its FP ceiling passes.
 4. Isolate scorer and allocator effects for the strongest R9 methods: plain
    OBCache-K versus OBCache-K + Ada-KV, and LaProx global versus layer-only.
+5. Start with one Llama 32K diagnostic cell. Expand only if the revised proxy
+   orders uniform and the routed policy consistently with task accuracy.
 
 ## What remains to validate if a revised SIEVE looks effective
 

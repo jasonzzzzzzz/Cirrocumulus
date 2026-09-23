@@ -1,0 +1,84 @@
+1 file(s), 280 rows, 10 prompt(s), metric = score
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  niah_multikey    n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform                 evict              interior      interior_cascade         router_oracle          router_calib
+      2      1.00 [1.00,1.00]      0.10 [0.00,0.30]      0.20 [0.00,0.40]      0.20 [0.00,0.40]      0.60 [0.30,0.80]      0.30 [0.10,0.50]
+    distractor named: up to 10% (evict B=2) -- the wrong needle survived
+    -> P0: TOO EASY -- uniform still 1.00 at B = 2. Add keys / values / hops before running P1.
+    evict vs uniform, intervals clear at B = [np.int64(2)]
+
+  niah_multivalue  n=10 prompts   FP  0.97 [0.93, 1.00]
+      B               uniform                 evict              interior      interior_cascade         router_oracle          router_calib
+      2      0.95 [0.85,1.00]      0.15 [0.07,0.25]      0.17 [0.03,0.33]      0.05 [0.00,0.10]      0.62 [0.38,0.85]      0.17 [0.03,0.35]
+    -> P0: TOO EASY -- uniform still 0.95 at B = 2. Add keys / values / hops before running P1.
+    evict vs uniform, intervals clear at B = [np.int64(2)]
+
+  niah_single      n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform                 evict              interior      interior_cascade         router_oracle          router_calib
+      2      1.00 [1.00,1.00]      0.40 [0.20,0.70]      0.50 [0.20,0.70]      0.30 [0.10,0.50]      0.90 [0.70,1.00]      0.60 [0.30,0.80]
+    -> P0: TOO EASY -- uniform still 1.00 at B = 2. Add keys / values / hops before running P1.
+    evict vs uniform, intervals clear at B = [np.int64(2)]
+
+  vt               n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform                 evict              interior      interior_cascade         router_oracle          router_calib
+      2      0.90 [0.76,1.00]      0.24 [0.16,0.32]      0.36 [0.20,0.52]      0.44 [0.24,0.64]      0.92 [0.82,1.00]      0.78 [0.60,0.94]
+    -> P0: TOO EASY -- uniform still 0.90 at B = 2. Add keys / values / hops before running P1.
+    evict vs uniform, intervals clear at B = [np.int64(2)]
+
+##############################################################################
+P2 -- plan.md section 7's decision table
+##############################################################################
+
+llama31-8b @ 32,768   [question-AGNOSTIC]   band 34.0%  NARROW
+  share of KV heads routed to the interior: router_calib B=2 96%, router_oracle B=2 93%
+  niah_multikey    B=2  uniform 1.00  evict 0.10  interior 0.20  interior_cascade 0.20  router_oracle 0.60  router_calib 0.30
+      interior          - uniform -0.80 [-1.00,-0.60]   - best fixed (uniform) -0.80 [-1.00,-0.60]  <-- LOSES to uniform
+      router_calib      - uniform -0.70 [-0.90,-0.50]   - best fixed (uniform) -0.70 [-0.90,-0.50]  <-- LOSES to uniform
+  niah_multivalue  B=2  uniform 0.95  evict 0.15  interior 0.17  interior_cascade 0.05  router_oracle 0.62  router_calib 0.17
+      interior          - uniform -0.78 [-0.97,-0.55]   - best fixed (uniform) -0.78 [-0.97,-0.55]  <-- LOSES to uniform
+      router_calib      - uniform -0.78 [-0.97,-0.57]   - best fixed (uniform) -0.78 [-0.97,-0.57]  <-- LOSES to uniform
+  niah_single      B=2  uniform 1.00  evict 0.40  interior 0.50  interior_cascade 0.30  router_oracle 0.90  router_calib 0.60
+      interior          - uniform -0.50 [-0.80,-0.30]   - best fixed (uniform) -0.50 [-0.80,-0.30]  <-- LOSES to uniform
+      router_calib      - uniform -0.40 [-0.70,-0.20]   - best fixed (uniform) -0.40 [-0.70,-0.20]  <-- LOSES to uniform
+  vt               B=2  uniform 0.90  evict 0.24  interior 0.36  interior_cascade 0.44  router_oracle 0.92  router_calib 0.78
+      interior          - uniform -0.54 [-0.74,-0.34]   - best fixed (uniform) -0.54 [-0.74,-0.34]  <-- LOSES to uniform
+      router_calib      - uniform -0.12 [-0.36,+0.10]   - best fixed (uniform) -0.12 [-0.36,+0.10]
+
+------------------------------------------------------------------------------
+P-1  router_calib >= best fixed arm run within noise: 1/4 cells   FAILS at llama31-8b@32768 niah_multikey B=2 vs uniform -0.70; llama31-8b@32768 niah_multivalue B=2 vs uniform -0.78; llama31-8b@32768 niah_single B=2 vs uniform -0.40
+P-2  router_calib - best fixed, mean over tasks and budgets, by cell:
+       llama31-8b  @ 32,768  band  34.0 NARROW       -0.499
+     (1 cells: too few for a rank correlation; read the column)
+P-5  router_oracle - router_calib: mean +0.297, max +0.450 over 4 cells  (P-5 predicts <= a few points)
+P-4  Spearman(per-cell error gain over the reference, per-cell accuracy gain over it;
+     reference = uniform, or evict at budgets with no uniform, e.g. B = 0.5)
+     evict: 4 task/budget cells; accuracy-gain split-half reliability 0.41 -> ceiling ~0.64
+       mean    rho +0.20 [+nan,+nan]  disattenuated +0.31  n=4 cells  too few model/context blocks for an interval
+       median  rho +0.20 [+nan,+nan]  disattenuated +0.31  n=4 cells  too few model/context blocks for an interval
+       p99     rho -0.80 [+nan,+nan]  disattenuated -1.25  n=4 cells  too few model/context blocks for an interval
+       answer  rho +0.80 [+nan,+nan]  disattenuated +1.25  n=4 cells  too few model/context blocks for an interval
+     interior: 4 task/budget cells; accuracy-gain split-half reliability 0.41 -> ceiling ~0.64
+       mean    rho +0.20 [+nan,+nan]  disattenuated +0.31  n=4 cells  too few model/context blocks for an interval
+       median  rho -0.40 [+nan,+nan]  disattenuated -0.62  n=4 cells  too few model/context blocks for an interval
+       p99     rho -0.60 [+nan,+nan]  disattenuated -0.94  n=4 cells  too few model/context blocks for an interval
+       answer  rho +0.80 [+nan,+nan]  disattenuated +1.25  n=4 cells  too few model/context blocks for an interval
+     interior_cascade: 4 task/budget cells; accuracy-gain split-half reliability 0.77 -> ceiling ~0.88
+       mean    rho -0.20 [+nan,+nan]  disattenuated -0.23  n=4 cells  too few model/context blocks for an interval
+       median  rho -0.40 [+nan,+nan]  disattenuated -0.45  n=4 cells  too few model/context blocks for an interval
+       p99     rho -1.00 [+nan,+nan]  disattenuated -1.14  n=4 cells  too few model/context blocks for an interval
+       answer  rho +0.00 [+nan,+nan]  disattenuated +0.00  n=4 cells  too few model/context blocks for an interval
+     router_oracle: 4 task/budget cells; accuracy-gain split-half reliability 0.77 -> ceiling ~0.88
+       mean    rho -0.40 [+nan,+nan]  disattenuated -0.45  n=4 cells  too few model/context blocks for an interval
+       median  rho -0.80 [+nan,+nan]  disattenuated -0.91  n=4 cells  too few model/context blocks for an interval
+       p99     rho -0.80 [+nan,+nan]  disattenuated -0.91  n=4 cells  too few model/context blocks for an interval
+       answer  rho +0.40 [+nan,+nan]  disattenuated +0.45  n=4 cells  too few model/context blocks for an interval
+     router_calib: 4 task/budget cells; accuracy-gain split-half reliability 0.89 -> ceiling ~0.94
+       mean    rho -0.40 [+nan,+nan]  disattenuated -0.42  n=4 cells  too few model/context blocks for an interval
+       median  rho -0.40 [+nan,+nan]  disattenuated -0.42  n=4 cells  too few model/context blocks for an interval
+       p99     rho -1.00 [+nan,+nan]  disattenuated -1.06  n=4 cells  too few model/context blocks for an interval
+       answer  rho +0.00 [+nan,+nan]  disattenuated +0.00  n=4 cells  too few model/context blocks for an interval
+     (Within each arm, a cell = model x ctx x task x B; intervals resample model/context blocks. "HOLDS" = the interval's lower end is above 0.7; "after disattenuation" = rho / ceiling > 0.7 with rho clearly > 0 -- report both, and the ceiling, never the disattenuated value alone)

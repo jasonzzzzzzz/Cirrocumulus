@@ -49,6 +49,9 @@ R8_ARMS="${R8_ARMS:-fp,uniform,evict}"
 R8_BUDGETS="${R8_BUDGETS:-1,2,3,4}"
 R8_N_PROMPTS="${R8_N_PROMPTS:-20}"
 R8_PROMPT_OFFSET="${R8_PROMPT_OFFSET:-0}"
+R8_N_KEYS="${R8_N_KEYS:-4}"
+R8_N_VALUES="${R8_N_VALUES:-4}"
+R8_N_HOPS="${R8_N_HOPS:-4}"
 R8_WINDOW="${R8_WINDOW:-32}"
 # P2 (unset = the P0 path, byte for byte)
 R8_HEAD_ERROR="${R8_HEAD_ERROR:-0}"         # 1 = per-head output errors (P-4's data)
@@ -60,8 +63,11 @@ R8_WRITE_ROUTES="${R8_WRITE_ROUTES:-}"      # calibration run: where to write th
 R8_QA="${R8_QA:-0}"                         # 1 = question-agnostic: compress before the question (plan.md 12)
 
 # pattern checks: fail before the GPU is held, not after
-for _v in R8_CTX R8_N_PROMPTS R8_PROMPT_OFFSET R8_WINDOW R8_N_Q R8_CASCADE_BITS R8_HEAD_ERROR R8_QA; do
+for _v in R8_CTX R8_N_PROMPTS R8_PROMPT_OFFSET R8_N_KEYS R8_N_VALUES R8_N_HOPS R8_WINDOW R8_N_Q R8_CASCADE_BITS R8_HEAD_ERROR R8_QA; do
   [[ "${!_v}" =~ ^[0-9]+$ ]] || { echo "ERROR: $_v must be an integer, got '${!_v}'" >&2; exit 1; }
+done
+for _v in R8_N_KEYS R8_N_VALUES R8_N_HOPS; do
+  (( ${!_v} >= 1 )) || { echo "ERROR: $_v must be positive, got '${!_v}'" >&2; exit 1; }
 done
 [[ "$R8_BUDGETS" =~ ^[0-9]+(\.[0-9]+)?(,[0-9]+(\.[0-9]+)?)*$ ]] || { echo "ERROR: R8_BUDGETS='$R8_BUDGETS'" >&2; exit 1; }
 [[ "$R8_THETA" =~ ^[0-9]+(\.[0-9]+)?$ ]] || { echo "ERROR: R8_THETA='$R8_THETA'" >&2; exit 1; }
@@ -85,7 +91,7 @@ RUN_ID="${R8_RUN_ID:-${R8_RUN_PREFIX:-r8job}${SLURM_JOB_ID:-manual}}"
 OUT_DIR="$PROJECT_ROOT/h0_measurement/results/${RUN_ID}"
 mkdir -p "$OUT_DIR" h0_measurement/logs
 
-echo "host=$(hostname) role=r8 run_id=$RUN_ID model=$R8_MODEL ctx=$R8_CTX arms=$R8_ARMS budgets=$R8_BUDGETS tasks=$R8_TASKS prompts=$R8_N_PROMPTS@$R8_PROMPT_OFFSET window=$R8_WINDOW qa=$R8_QA head_error=$R8_HEAD_ERROR n_q=$R8_N_Q theta=$R8_THETA routes=${R8_ROUTES:-none} write_routes=${R8_WRITE_ROUTES:-none}"
+echo "host=$(hostname) role=r8 run_id=$RUN_ID model=$R8_MODEL ctx=$R8_CTX arms=$R8_ARMS budgets=$R8_BUDGETS tasks=$R8_TASKS difficulty=k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS} prompts=$R8_N_PROMPTS@$R8_PROMPT_OFFSET window=$R8_WINDOW qa=$R8_QA head_error=$R8_HEAD_ERROR n_q=$R8_N_Q theta=$R8_THETA routes=${R8_ROUTES:-none} write_routes=${R8_WRITE_ROUTES:-none}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 python -c "import transformers, torch; print('transformers', transformers.__version__, 'torch', torch.__version__)"
 
@@ -112,5 +118,6 @@ P2_ARGS=(--n-q "$R8_N_Q" --theta "$R8_THETA" --cascade-bits "$R8_CASCADE_BITS")
 srun python h0_measurement/run_r8.py \
   --model "$R8_MODEL" --ctx "$R8_CTX" --tasks "$R8_TASKS" --arms "$R8_ARMS" \
   --budgets "$R8_BUDGETS" --n-prompts "$R8_N_PROMPTS" \
-  --prompt-offset "$R8_PROMPT_OFFSET" --window "$R8_WINDOW" --out-dir "$OUT_DIR" \
-  "${P2_ARGS[@]}"
+  --prompt-offset "$R8_PROMPT_OFFSET" --n-keys "$R8_N_KEYS" \
+  --n-values "$R8_N_VALUES" --n-hops "$R8_N_HOPS" \
+  --window "$R8_WINDOW" --out-dir "$OUT_DIR" "${P2_ARGS[@]}"

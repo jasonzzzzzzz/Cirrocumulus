@@ -33,9 +33,56 @@ from . import prompts
 
 TASKS = ("niah_single", "niah_multikey", "niah_multivalue", "vt")
 
+# These were implicit arguments to build() in every R8 result through
+# 2026-09-22. Keep one canonical record so old sidecars/routes can be treated
+# as this exact legacy configuration, while harder-task runs are explicit.
+DEFAULT_TASK_CONFIG = {"n_keys": 4, "n_values": 4, "n_hops": 4}
+
+
+def task_config(n_keys=4, n_values=4, n_hops=4):
+    """Validate and return the lossless task-difficulty provenance record."""
+    raw = {"n_keys": n_keys, "n_values": n_values, "n_hops": n_hops}
+    out = {}
+    for key, value in raw.items():
+        try:
+            integer = int(value)
+            exact = not isinstance(value, bool) and float(value) == integer
+        except (TypeError, ValueError, OverflowError):
+            exact = False
+        if not exact or integer < 1:
+            raise ValueError(f"task difficulty counts must be positive integers, got {raw}")
+        out[key] = integer
+    return out
+
+
+def task_tag(config, *, include_default=False):
+    """Filesystem-safe tag. Legacy/default runs retain their old filenames."""
+    c = task_config(**config)
+    if not include_default and c == DEFAULT_TASK_CONFIG:
+        return ""
+    return f"k{c['n_keys']}_v{c['n_values']}_h{c['n_hops']}"
+
 # answer length budget per task, in tokens -- enough for the answer, short
 # enough that a model which rambles does not wander into another needle
 MAX_NEW = {"niah_single": 24, "niah_multikey": 24, "niah_multivalue": 64, "vt": 64}
+GENERATION_LIMIT_VERSION = "difficulty_v1"
+
+
+def generation_limit(task, config):
+    """Answer budget that preserves k4/v4/h4 and grows with harder outputs.
+
+    The model often spells VT answers as full assignments rather than a compact
+    name list. Each added hop therefore gets 16 tokens; each added requested
+    value gets 8. These are output limits only and do not alter task prompts.
+    """
+    if task not in TASKS:
+        raise ValueError(f"unknown task {task!r}; one of {TASKS}")
+    c = task_config(**config)
+    if task == "vt":
+        return MAX_NEW[task] + 16 * max(c["n_hops"] - 4, 0)
+    if task == "niah_multivalue":
+        return MAX_NEW[task] + 8 * max(c["n_values"] - 4, 0)
+    return MAX_NEW[task]
 
 _ADJ = ["amber", "arctic", "brass", "cobalt", "crimson", "dusky", "ember", "fallow",
         "gilded", "hollow", "ivory", "jagged", "kindred", "lunar", "mossy", "nimble",
@@ -97,6 +144,8 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
           n_keys=4, n_values=4, n_hops=4):
     """One prompt. Returns (text, meta); `meta['expected']` is what scoring
     looks for, `meta['distractors']` what it must not confuse it with."""
+    cfg = task_config(n_keys, n_values, n_hops)
+    n_keys, n_values, n_hops = (cfg["n_keys"], cfg["n_values"], cfg["n_hops"])
     if task not in TASKS:
         raise ValueError(f"unknown task {task!r}; one of {TASKS}")
     corpus_dir = prompts.resolve_corpus_dir(corpus_dir)
@@ -151,6 +200,7 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
     meta.update(family=f"ruler_{task}", task=task, prompt_idx=prompt_idx,
                 expected=expected, distractors=distractors,
                 needle_depths=[round(d, 4) for d in depths], n_needles=len(needles),
+                task_config=cfg,
                 # text == context + question: the question-agnostic driver
                 # compresses the context before the question exists (plan.md 12)
                 question=question)

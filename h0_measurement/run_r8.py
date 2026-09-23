@@ -45,6 +45,12 @@ from sievelib import baselines as BL  # noqa: E402
 import run_h0  # noqa: E402  (load_cfg, chunked_prefill -- reused, not copied)
 
 
+def result_stem(model: str, ctx: int, task_cfg: dict) -> str:
+    """Stable legacy filename for k4/v4/h4; explicit tag for harder tasks."""
+    tag = TR.task_tag(task_cfg)
+    return f"r8_{model}_{ctx}" + (f"_{tag}" if tag else "")
+
+
 def eos_ids(model, tok) -> set[int]:
     """End-of-sequence ids, the way run_h0 collects them."""
     out = set()
@@ -296,6 +302,14 @@ def load_routes(path, model, ctx, block, *, expected=None):
         got = meta.get(key)
         if key in ("tasks", "candidates"):
             ok = set(got or []) == set(want)
+        elif key == "task_config":
+            # Routes written before this interface had the implicit k4/v4/h4
+            # defaults. They remain valid only for that exact configuration.
+            try:
+                got = TR.task_config(**(got or TR.DEFAULT_TASK_CONFIG))
+                ok = got == TR.task_config(**want)
+            except (TypeError, ValueError):
+                ok = False
         elif key == "budgets":
             ok = {float(x) for x in want} <= {float(x) for x in (got or [])}
         else:
@@ -318,6 +332,12 @@ def main():
     ap.add_argument("--arms", default="fp,uniform,evict,evict_h2o")
     ap.add_argument("--budgets", default="1,2,3,4")
     ap.add_argument("--n-prompts", type=int, default=20)
+    ap.add_argument("--n-keys", type=int, default=TR.DEFAULT_TASK_CONFIG["n_keys"],
+                    help="number of distinct needles in niah_multikey")
+    ap.add_argument("--n-values", type=int, default=TR.DEFAULT_TASK_CONFIG["n_values"],
+                    help="number of values requested in niah_multivalue")
+    ap.add_argument("--n-hops", type=int, default=TR.DEFAULT_TASK_CONFIG["n_hops"],
+                    help="number of links in the variable-tracking chain")
     ap.add_argument("--prompt-offset", type=int, default=0,
                     help="first prompt index; P2's calibration and evaluation "
                          "blocks must be disjoint (R7's prompt_offset)")
@@ -349,12 +369,20 @@ def main():
                     help="CALIBRATION run: derive per-(budget, layer, KV head) routes "
                          "from this run's per-head errors and write them here")
     a = ap.parse_args()
+    try:
+        task_cfg = TR.task_config(a.n_keys, a.n_values, a.n_hops)
+    except ValueError as e:
+        ap.error(str(e))
 
     c = run_h0.load_cfg(a.config, a.model, a.override)
     native = int(c.get("native_ctx", c["ctx"]))
     if a.ctx > native:
         raise SystemExit(f"ctx {a.ctx} exceeds {a.model}'s RoPE window {native}")
     tasks = [t for t in a.tasks.split(",") if t]
+    unknown_tasks = sorted(set(tasks) - set(TR.TASKS))
+    if not tasks or unknown_tasks:
+        raise SystemExit(f"--tasks must name {TR.TASKS}; unknown/empty: {unknown_tasks or tasks}")
+    generation_limits = {task: TR.generation_limit(task, task_cfg) for task in tasks}
     arms = [x for x in a.arms.split(",") if x]
     # R9 baselines: parsed (and refused) before the model loads; each arm from
     # here on is known by its label, which is what the parquet records
@@ -400,6 +428,8 @@ def main():
     print(f"R8  {a.model} @{a.ctx:,}  {cf.num_hidden_layers}L "
           f"{cf.num_attention_heads}q/{getattr(cf,'num_key_value_heads','?')}kv  "
           f"arms={arms} budgets={budgets} tasks={tasks} "
+          f"difficulty={TR.task_tag(task_cfg, include_default=True)} "
+          f"generation_limits={generation_limits} "
           f"prompts={a.n_prompts}@{a.prompt_offset} window={a.window} maxb={maxb} "
           f"compress_at={'context_end (question-agnostic)' if a.question_agnostic else 'question_end'}",
           flush=True)
@@ -418,11 +448,12 @@ def main():
         routes, routes_meta = load_routes(
             a.routes, a.model, a.ctx,
             (a.prompt_offset, a.prompt_offset + a.n_prompts - 1),
-            expected={"theta": a.theta, "prompt_block": [0, 9], "tasks": tasks,
+            expected={"theta": a.theta, "tasks": tasks,
                       "budgets": budgets, "candidates": list(router.ROUTE_CANDIDATES),
                       "question_agnostic": bool(a.question_agnostic),
                       "window": a.window, "observed_queries": [a.window],
-                      "allocator_budget_rule": "feasible", "maxb": maxb})
+                      "allocator_budget_rule": "feasible", "maxb": maxb,
+                      "task_config": task_cfg})
         miss = [router.bkey(B) for B in budgets if router.bkey(B) not in routes]
         if miss:
             raise SystemExit(f"routes {a.routes} have no budget(s) {miss}")
@@ -442,7 +473,7 @@ def main():
     for p in range(a.prompt_offset, a.prompt_offset + a.n_prompts):
         for task in tasks:
             text, meta = TR.build(tok, task, a.ctx, prompt_idx=p, corpus_dir=corpus,
-                                  require_real=require_real)
+                                  require_real=require_real, **task_cfg)
             if a.question_agnostic:
                 # context and question tokenized SEPARATELY, as a prefix cache holds
                 # them: the context's tokens cannot depend on a question not yet asked
@@ -459,8 +490,9 @@ def main():
                 pre_ids = ids
             n = ids.shape[1]
             if n > a.ctx:
-                print(f"  skip p{p} {task}: {n} tokens > ctx {a.ctx}", flush=True)
-                continue
+                raise RuntimeError(
+                    f"p{p} {task} at {TR.task_tag(task_cfg, include_default=True)} "
+                    f"has {n} tokens > ctx {a.ctx}; refusing a partial result")
             t0 = time.time()
             past, _ = prefill(model, pre_ids, a.window, chunk, h2o="evict_h2o" in arms)
             L0 = C.cache_len(past)
@@ -472,14 +504,14 @@ def main():
                 t1 = time.time()
                 if not p2:                                     # the P0 path, unchanged
                     gen, past = run_arm(model, past, ids, arm, B, R, norm_correct, maxb,
-                                        eos, TR.MAX_NEW[task], L0, tok, q_ids)
+                                        eos, generation_limits[task], L0, tok, q_ids)
                 elif arm == "fp":
                     # FP first: the ceiling, and the step-0 query every per-head
                     # error is measured for
                     C.STATE.capture_q = a.n_q if need_err else 0
                     try:
                         gen, past = run_bits(model, past, ids, None, R, norm_correct,
-                                             eos, TR.MAX_NEW[task], L0, tok, q_ids)
+                                             eos, generation_limits[task], L0, tok, q_ids)
                     finally:
                         C.STATE.capture_q = 0
                 else:
@@ -494,7 +526,7 @@ def main():
                             bls=bls, wo=wo)
                         t_pc = time.time() - tp
                     gen, past = run_bits(model, past, ids, bits[(arm, B)], R, norm_correct,
-                                         eos, TR.MAX_NEW[task], L0, tok, q_ids)
+                                         eos, generation_limits[task], L0, tok, q_ids)
                 pred = tok.decode(gen)
                 sc = TR.score(task, pred, meta)
                 au = C.bits_audit() if arm != "fp" else {"bits_per_token": 16.0,
@@ -511,6 +543,10 @@ def main():
                 rows.append(dict(
                     model=a.model, model_id=c["id"], ctx=a.ctx, native_ctx=native,
                     task=task, prompt_idx=p, arm=arm, B=B, **sc, pred=pred[:200],
+                    n_keys=task_cfg["n_keys"], n_values=task_cfg["n_values"],
+                    n_hops=task_cfg["n_hops"], task_n_needles=meta["n_needles"],
+                    max_new_tokens=generation_limits[task],
+                    reached_max_new=len(gen) >= generation_limits[task],
                     gen_len=len(gen), bits_per_token=au["bits_per_token"],
                     evict_frac=au["evict_frac"], n_prompt_tokens=n,
                     ctx_len=C.STATE.ctx_len, window=a.window,
@@ -537,6 +573,8 @@ def main():
                           else np.full(nL * H, np.nan))
                     head_rows.append(pd.DataFrame(dict(
                         prompt_idx=p, task=task, arm=arm, B=B,
+                        n_keys=task_cfg["n_keys"], n_values=task_cfg["n_values"],
+                        n_hops=task_cfg["n_hops"], max_new_tokens=generation_limits[task],
                         layer=np.repeat(lis, H), head=np.tile(np.arange(H), nL),
                         kv_head=np.tile(np.arange(H), nL) // (H // cf.num_key_value_heads),
                         err=M.reshape(-1), ans_mass=AM)))
@@ -548,13 +586,16 @@ def main():
                 torch.cuda.empty_cache()
 
     os.makedirs(a.out_dir, exist_ok=True)
-    stem = f"r8_{a.model}_{a.ctx}"
+    stem = result_stem(a.model, a.ctx, task_cfg)
     df = pd.DataFrame(rows)
     out = os.path.join(a.out_dir, f"{stem}.parquet")
     df.to_parquet(out)
     with open(os.path.join(a.out_dir, f"{stem}.json"), "w") as fh:
         json.dump({"parquet": os.path.basename(out), "model": a.model, "model_id": c["id"],
                    "ctx": a.ctx, "native_ctx": native, "tasks": tasks, "arms": arms,
+                   "task_config": task_cfg,
+                   "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
+                   "generation_limits": generation_limits,
                    "budgets": budgets, "n_prompts": a.n_prompts,
                    "prompt_offset": a.prompt_offset, "window": a.window,
                    "observation_queries": sorted(int(x) for x in df.observed_queries.dropna().unique()),
@@ -601,7 +642,7 @@ def main():
                                     "window": a.window,
                                     "observed_queries": [a.window],
                                     "allocator_budget_rule": "feasible",
-                                    "maxb": maxb,
+                                    "maxb": maxb, "task_config": task_cfg,
                                     "source": os.path.abspath(hout)},
                            "routes": rts}, fh, indent=1)
             share = {B: sum(r_ == "interior" for li in v for r_ in v[li]) /

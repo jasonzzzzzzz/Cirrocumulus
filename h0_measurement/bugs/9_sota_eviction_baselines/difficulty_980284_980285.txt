@@ -1,0 +1,39 @@
+2 file(s), 120 rows, 10 prompt(s), metric = score
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC; k8/v6/h6]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  niah_multikey    n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform
+      2      0.90 [0.70,1.00]
+    distractor named: up to 10% (uniform B=2) -- the wrong needle survived
+    -> P0: TOO EASY -- uniform still 0.90 at B = 2. Add keys / values / hops before running P1.
+
+  niah_multivalue  n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform
+      2      1.00 [1.00,1.00]
+    -> P0: TOO EASY -- uniform still 1.00 at B = 2. Add keys / values / hops before running P1.
+
+  vt               n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform
+      2      0.94 [0.89,0.99]
+    -> P0: TOO EASY -- uniform still 0.94 at B = 2. Add keys / values / hops before running P1.
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC; k16/v8/h8]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  niah_multikey    n=10 prompts   FP  1.00 [1.00, 1.00]
+      B               uniform
+      2      0.80 [0.60,1.00]
+    distractor named: up to 20% (uniform B=2) -- the wrong needle survived
+    -> P0: uniform falls into [0.50, 0.80] at B = [2.0]. R8 runs HERE for niah_multikey.
+
+  niah_multivalue  n=10 prompts   FP  0.90 [0.70, 1.00]   <- INVALID: FP below 0.95; the model cannot do this task uncompressed
+      B               uniform
+      2      0.74 [0.50,0.94]
+
+  vt               n=10 prompts   FP  0.91 [0.86, 0.97]   <- INVALID: FP below 0.95; the model cannot do this task uncompressed
+      B               uniform
+      2      0.93 [0.87,0.98]

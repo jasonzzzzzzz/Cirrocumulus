@@ -1,6 +1,6 @@
 # R8/R9 question-agnostic campaign report
 
-**Run date:** 2026-09-22  
+**Dates:** main campaign 2026-09-22; non-ceiling follow-up 2026-09-23  
 **Jobs audited:** 978479--978489  
 **Status:** all five evaluation cells complete. The results are diagnostic
 because the campaign did not satisfy the P0 budget-selection gate.
@@ -80,7 +80,7 @@ quantization preserves task accuracy much better.
 | P-2: router gain is largest in GO and near zero in STOP | cell gains are -0.321, -0.270, -0.402, +0.087, +0.090 as band falls 54.5 -> 11.5; Spearman = -0.70 | **fails in the opposite direction** |
 | P-3: router beats interior everywhere in STOP | router is higher in all 12 valid Qwen task/budget cells | **holds on the two observed Qwen cells** |
 | P-4: output-error gain predicts accuracy gain with Spearman >0.7 | router point estimates range from -0.62 to +0.20 by error statistic; no statistic establishes >0.7 | **not supported** |
-| P-5: oracle minus calibrated router is small | oracle was not run | untested |
+| P-5: oracle minus calibrated router is small | job 979308: mean +0.298, maximum +0.450; oracle still trails uniform by 0.201 overall | **fails; calibration and proxy both contribute** |
 | P-6: compressed and full observation agree | ablation was not run | untested |
 
 For P-4, prompt split-half reliability is 0.95 for router accuracy gain, so the
@@ -88,6 +88,28 @@ weak relationship cannot be dismissed as an obviously unreliable accuracy
 measurement. The block bootstrap intervals remain wide with five
 model/context blocks. The evidence does not establish the
 prespecified transfer claim or the population correlation.
+
+### P-5 oracle diagnostic (job 979308)
+
+On ten new Llama 32K/B=2 prompts, the output-error oracle improves mean accuracy
+from 0.464 for calibrated routing to 0.761: +0.298 [0.139, 0.459] under a paired
+prompt-block bootstrap. Uniform remains higher at 0.963; oracle minus uniform is
+-0.201 [-0.324, -0.085]. Thus fixed offline calibration loses substantial
+prompt-specific signal, while perfect knowledge of the current local
+output-error proxy still does not recover task accuracy.
+
+The proxy mismatch is direct: mean relative head-output error is 0.135 for the
+oracle and 0.652 for uniform, yet uniform has higher accuracy. The oracle still
+routes 93% of heads to the interior. See
+`../9_sota_eviction_baselines/oracle_979308.txt` and that folder's `report.md`
+for the task table and design implications.
+
+A separate label-seeing oracle over complete policies has little opportunity in
+this ceiling block. Taking the best per-prompt RULER score over uniform, eviction,
+and interior yields 0.984 versus uniform 0.963: +0.021 with a 95% prompt-block
+interval [0.000, 0.044]. Allowing interior-cascade raises this to only +0.031
+[0.000, 0.073]. This supports building the non-ceiling task regime before a
+whole-policy router; it is not a deployable routing result.
 
 ## 5. What the SOTA arms say
 
@@ -119,21 +141,46 @@ remain exact, kept keys use 8 bits, and no packed-cache memory or throughput is
 measured. They should not be described as reproductions of the papers' reported
 end-to-end systems.
 
-## 6. Decision and next run
+## 6. Decision and next design iteration
 
-The current grid is complete. Before extending it, choose a regime that passes
-the existing P0 rule:
+### Confirmed non-ceiling operating point
 
-1. harden the Llama tasks until uniform at B=2 lies in the planned 0.50--0.80
-   range, while FP remains at least 0.95; or
-2. define and test a budget-matched intermediate uniform baseline between the
-   current 1-bit failure and 2-bit ceiling.
+The provenance-safe development screen selected multikey at `n_keys=16`.
+Cap-fixed follow-ups did not select the other tasks: multivalue v7 is too easy
+(FP 0.986, uniform 0.871), VT h7 has an incomplete FP answer at its 112-token
+cap, and VT h8 is valid but too easy (FP 1.000, uniform 0.967). Jobs 980356 and
+980355 contain those follow-ups.
 
-Then run a small Llama/Qwen pilot with `uniform`, `interior_cascade`, and
-`router_calib`. If the router's architecture split remains, add the oracle arm
-before a new full grid; it separates a bad calibration rule from a bad
-interior allocation. The completed grid remains useful as a negative result
-and as the first main-model comparison of the R9 eviction baselines.
+Held-out job 980414 confirms k16/v4/h4 at Llama 32K/B=2 on prompts 420--439.
+All 40 rows and provenance checks pass. FP is 1.000 with no cap hits; uniform is
+0.800 with a 90% interval [0.65,0.95]. The paired FP-minus-uniform difference is
++0.200 [0.05,0.35]. Its four uniform failures are uncapped wrong answers, so
+the point supplies real but modest recoverable headroom. See
+`../9_sota_eviction_baselines/confirmation_980414.txt`. Freeze k16/v4/h4 and
+do not tune on the confirmation prompts.
+
+This result validates the task interface and operating point. It does not
+validate the existing calibrated router, whose negative result remains
+unchanged.
+
+### Ordered next branch
+
+1. On fresh prompts 440--459, run FP plus the complete policies uniform,
+   eviction, and interior. Keep the per-head router arms out.
+2. Compute the label-seeing complete-policy envelope and the complete-policy
+   mean-logit-KL selector over a shared eight-step FP teacher-forced trace.
+3. Let `H` be end-task-envelope gain over uniform and `G` be KL-selector
+   gain. Require `H >= 0.10` for candidate headroom; require
+   `G >= 0.05` and `G/H >= 0.5` for the KL rule to advance.
+4. Low `H` triggers candidate-set revision with complete policies. Useful
+   `H` with failed `G` rejects mean final-logit KL as the proxy. If both
+   pass, lock the candidates and selector and confirm once on prompts 460--499.
+5. Build a deployable prefill-only router and expand models or contexts only
+   after that locked confirmation passes.
+
+The whole-policy diagnostics are separate artifacts and selectors. They are
+not allocation arms or calibration routes. The detailed schema, tests, and
+conditional candidate expansions are in the R9 `plan.md` Step 3.
 
 ## 7. Reproduction
 

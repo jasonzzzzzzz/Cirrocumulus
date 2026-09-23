@@ -7,7 +7,7 @@ untouched. Same PASS/FAIL convention.
     .venv/bin/python tests/test_r8.py            # everything
     .venv/bin/python tests/test_r8.py --fast     # tensor tests only, no model
 """
-import math, os, sys
+import json, math, os, sys, tempfile
 import torch
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,6 +38,91 @@ def _qkv(H=8, Hkv=2, L=300, d=32, seed=0, dtype=torch.float32):
     k = torch.randn(1, Hkv, L, d, generator=g, dtype=dtype)
     v = torch.randn(1, Hkv, L, d, generator=g, dtype=dtype)
     return q, k, v
+
+
+def test_task_provenance():
+    """Difficulty is explicit, filesystem-safe, and route-compatible."""
+    print("\n[R8] task-difficulty validation and provenance")
+    default = TR.task_config()
+    hard = TR.task_config(8, 6, 6)
+    check("implicit task defaults are the historical k4/v4/h4",
+          default == {"n_keys": 4, "n_values": 4, "n_hops": 4})
+    check("default tag is omitted to preserve legacy result filenames",
+          TR.task_tag(default) == "")
+    check("hard-task tag is complete and filesystem-safe",
+          TR.task_tag(hard) == "k8_v6_h6")
+    check("generation limits preserve legacy defaults",
+          TR.generation_limit("niah_multivalue", default) == 64
+          and TR.generation_limit("vt", default) == 64)
+    check("generation limits grow with value/hop answer cardinality",
+          TR.generation_limit("niah_multivalue", hard) == 80
+          and TR.generation_limit("vt", hard) == 96
+          and TR.generation_limit("vt", TR.task_config(16, 8, 8)) == 128)
+
+    import pandas as pd
+    sys.path.insert(0, os.path.join(ROOT, "h0_measurement/bugs/8_router_endtask"))
+    import read_r8
+    cap_row = pd.DataFrame({"task": ["vt"], "gen_len": [64],
+                            "max_new_tokens": [64], "reached_max_new": [True]})
+    normalized = read_r8.normalize_generation_limits(cap_row)
+    check("reader verifies a consistent generation-cap flag",
+          bool(normalized.reached_max_new.iloc[0]))
+    corrupt = cap_row.copy()
+    corrupt["reached_max_new"] = False
+    try:
+        read_r8.normalize_generation_limits(corrupt)
+        check("reader rejects a false cap flag on a capped row", False)
+    except SystemExit:
+        check("reader rejects a false cap flag on a capped row", True)
+
+    rejected = 0
+    for args in ((0, 4, 4), (4, -1, 4), (4, 4, 0), (4.5, 4, 4), (True, 4, 4)):
+        try:
+            TR.task_config(*args)
+        except ValueError:
+            rejected += 1
+    check("nonpositive, fractional, and boolean task counts are rejected", rejected == 5)
+
+    sys.path.insert(0, os.path.join(ROOT, "h0_measurement"))
+    import run_r8 as RR
+    check("default result stem stays backward-compatible",
+          RR.result_stem("m", 32768, default) == "r8_m_32768")
+    check("hard-task result stem carries the exact configuration",
+          RR.result_stem("m", 32768, hard) == "r8_m_32768_k8_v6_h6")
+
+    def route_file(cfg=None):
+        meta = {"model": "m", "ctx": 32768, "prompt_block": [0, 9]}
+        if cfg is not None:
+            meta["task_config"] = cfg
+        fh = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump({"meta": meta, "routes": {}}, fh); fh.close()
+        return fh.name
+
+    legacy, exact = route_file(), route_file(hard)
+    try:
+        # Missing metadata is normalized only to the known historical default.
+        RR.load_routes(legacy, "m", 32768, (100, 109),
+                       expected={"task_config": default})
+        check("legacy route metadata means exactly k4/v4/h4", True)
+        mismatch = False
+        try:
+            RR.load_routes(legacy, "m", 32768, (100, 109),
+                           expected={"task_config": hard})
+        except SystemExit:
+            mismatch = True
+        check("legacy/default route is rejected for a hard task", mismatch)
+        RR.load_routes(exact, "m", 32768, (100, 109),
+                       expected={"task_config": hard})
+        check("an exact hard-task route config is accepted", True)
+        overlap = False
+        try:
+            RR.load_routes(exact, "m", 32768, (5, 14),
+                           expected={"task_config": hard})
+        except SystemExit:
+            overlap = True
+        check("prompt-block overlap is still rejected", overlap)
+    finally:
+        os.unlink(legacy); os.unlink(exact)
 
 
 def test_off_is_the_probe():
@@ -577,9 +662,24 @@ def test_tasks():
                       f" {meta['distractors'][0]}, then {meta['expected'][0]}.", meta)
     check("multikey: string_match credits a ramble, first_ok does not",
           ramble["score"] == 1.0 and ramble["first_ok"] == 0.0)
-    a, _ = TR.build(tok, "vt", ctx, prompt_idx=3, corpus_dir=corpus)
-    b, _ = TR.build(tok, "vt", ctx, prompt_idx=3, corpus_dir=corpus)
-    check("prompts are deterministic", a == b)
+    implicit, im = TR.build(tok, "niah_multikey", ctx, prompt_idx=3, corpus_dir=corpus)
+    explicit, em = TR.build(tok, "niah_multikey", ctx, prompt_idx=3, corpus_dir=corpus,
+                            n_keys=4, n_values=4, n_hops=4)
+    check("implicit defaults are byte-identical to explicit k4/v4/h4",
+          implicit == explicit and im["task_config"] == em["task_config"])
+    _, mk = TR.build(tok, "niah_multikey", ctx, prompt_idx=4, corpus_dir=corpus,
+                     n_keys=8, n_values=6, n_hops=6)
+    _, mv = TR.build(tok, "niah_multivalue", ctx, prompt_idx=4, corpus_dir=corpus,
+                     n_keys=8, n_values=6, n_hops=6)
+    a, vt = TR.build(tok, "vt", ctx, prompt_idx=3, corpus_dir=corpus,
+                     n_keys=8, n_values=6, n_hops=6)
+    b, _ = TR.build(tok, "vt", ctx, prompt_idx=3, corpus_dir=corpus,
+                    n_keys=8, n_values=6, n_hops=6)
+    check("configured tasks have the requested effective cardinalities",
+          mk["n_needles"] == 8 and len(mk["distractors"]) == 7
+          and mv["n_needles"] == len(mv["expected"]) == 6
+          and vt["n_needles"] == len(vt["expected"]) == 7)
+    check("configured prompts are deterministic", a == b)
 
 
 def test_generation_end_to_end():
@@ -702,7 +802,7 @@ def test_question_agnostic_end_to_end():
 
 if __name__ == "__main__":
     fast = "--fast" in sys.argv
-    tests = [test_off_is_the_probe, test_capture_chunking, test_h2o_capture,
+    tests = [test_task_provenance, test_off_is_the_probe, test_capture_chunking, test_h2o_capture,
              test_snapkv_pool, test_mixed_quantize, test_budget_matched,
              test_decode_compressed, test_crop_to, test_p2_interior,
              test_p2_eval_and_route, test_p2_answer_span, test_eval_vectorised,

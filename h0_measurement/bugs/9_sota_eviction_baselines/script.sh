@@ -27,6 +27,9 @@ experiment options:
   --ablations         append snap8, plain OBCache-K, DropKV-PR, LaProx-layer
   --cell=MODEL:CTX    select one of the five R8 cells
   --tasks=LIST        default niah_single,niah_multikey,niah_multivalue,vt
+  --n-keys=N          multikey needle count, default 4
+  --n-values=N        multivalue answer count, default 4
+  --n-hops=N          variable-tracking link count, default 4
 
 submission options:
   --dry  --force  --partition=NAME  --account=NAME  --qos=NAME
@@ -48,7 +51,9 @@ fi
 
 DRY=0 FORCE=0 QA=0 ABLATIONS=0
 BUDGETS="" EVAL_N=20 THETA=1.0 ONLY_CELL=""
-TASKS="niah_single,niah_multikey,niah_multivalue,vt"
+DEFAULT_TASKS="niah_single,niah_multikey,niah_multivalue,vt"
+TASKS="$DEFAULT_TASKS"
+N_KEYS=4 N_VALUES=4 N_HOPS=4
 ARMS_OVERRIDE=""
 SLURM_ARGS=()
 for arg in "$@"; do
@@ -62,6 +67,9 @@ for arg in "$@"; do
     --theta=*) THETA="${arg#--theta=}" ;;
     --cell=*) ONLY_CELL="${arg#--cell=}" ;;
     --tasks=*) TASKS="${arg#--tasks=}" ;;
+    --n-keys=*) N_KEYS="${arg#--n-keys=}" ;;
+    --n-values=*) N_VALUES="${arg#--n-values=}" ;;
+    --n-hops=*) N_HOPS="${arg#--n-hops=}" ;;
     --arms=*) ARMS_OVERRIDE="${arg#--arms=}" ;;
     --partition=*) SLURM_ARGS+=("--partition=${arg#--partition=}") ;;
     --account=*) SLURM_ARGS+=("--account=${arg#--account=}") ;;
@@ -87,15 +95,18 @@ done
 if [[ "$MODE" == --read ]]; then
   # Read evaluation cells only. Calibration and pilot prompts have different
   # arm sets and must not contribute extra samples to the comparison table.
-  mapfile -t RESULTS < <("$PY" - <<'PY'
-import glob, json, os
+  mapfile -t RESULTS < <("$PY" - "$N_KEYS" "$N_VALUES" "$N_HOPS" <<'PY'
+import glob, json, os, sys
+want_cfg = {"n_keys": int(sys.argv[1]), "n_values": int(sys.argv[2]), "n_hops": int(sys.argv[3])}
 for js in sorted(glob.glob("h0_measurement/results/r9job*/r8_*.json")):
     try:
         meta = json.load(open(js))
     except (OSError, json.JSONDecodeError):
         continue
     parquet = js[:-5] + ".parquet"
-    if meta.get("prompt_offset") == 100 and meta.get("baselines") and os.path.isfile(parquet):
+    got_cfg = meta.get("task_config") or {"n_keys": 4, "n_values": 4, "n_hops": 4}
+    if (meta.get("prompt_offset") == 100 and meta.get("baselines")
+            and got_cfg == want_cfg and os.path.isfile(parquet)):
         print(parquet)
 PY
 )
@@ -113,6 +124,10 @@ fi
   echo "ERROR: --cell must be MODEL:CTX" >&2; exit 2; }
 [[ -n "$TASKS" && "$TASKS" != *" "* ]] || {
   echo "ERROR: --tasks must be comma-separated without spaces" >&2; exit 2; }
+for _v in N_KEYS N_VALUES N_HOPS; do
+  [[ "${!_v}" =~ ^[0-9]+$ ]] && (( ${!_v} >= 1 )) || {
+    echo "ERROR: --${_v,,} must be a positive integer" >&2; exit 2; }
+done
 
 # OBCache's headline is OBCache-K scoring plus Ada-KV allocation.
 HEADLINE_ARMS="fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obcache_k:alloc=ada@obck_ada,laprox"
@@ -162,6 +177,12 @@ done
 
 route_file() {
   local model=$1 ctx=$2 file="$ROUTES_DIR/${1}_${2}"
+  if [[ "$N_KEYS:$N_VALUES:$N_HOPS" != "4:4:4" ]]; then
+    file="${file}_k${N_KEYS}_v${N_VALUES}_h${N_HOPS}"
+  fi
+  if [[ "$TASKS" != "$DEFAULT_TASKS" ]]; then
+    file="${file}_tasks_${TASKS//,/_}"
+  fi
   [[ "$THETA" != 1.0 ]] && file="${file}_t${THETA}"
   ((QA)) && file="${file}_qa"
   printf '%s.json\n' "$file"
@@ -195,16 +216,17 @@ submit_job() {
 
 # A result counts only if its resolved configs and corrected R8 provenance match.
 have_result() {
-  "$PY" - "$@" "$BUDGETS" "$TASKS" "$QA" "$THETA" <<'PY'
+  "$PY" - "$@" "$BUDGETS" "$TASKS" "$QA" "$THETA" "$N_KEYS" "$N_VALUES" "$N_HOPS" <<'PY'
 import glob, json, os, sys
 from sievelib import baselines
-model, ctx, n, offset, raw, budgets, tasks, qa, theta = sys.argv[1:]
+model, ctx, n, offset, raw, budgets, tasks, qa, theta, nk, nv, nh = sys.argv[1:]
 ctx, n, offset, qa = int(ctx), int(n), int(offset), bool(int(qa))
+want_task_cfg = {"n_keys": int(nk), "n_values": int(nv), "n_hops": int(nh)}
 want_arms, want_bs = baselines.resolve_arms([x for x in raw.split(",") if x])
 want_cfg = {label: b.config_record() for label, b in want_bs.items()}
 want_b = {float(x) for x in budgets.split(",")}
 want_tasks = set(tasks.split(","))
-for path in glob.glob(f"h0_measurement/results/r9job*/r8_{model}_{ctx}.json"):
+for path in glob.glob(f"h0_measurement/results/r9job*/r8_{model}_{ctx}*.json"):
     try:
         with open(path) as fh:
             meta = json.load(fh)
@@ -218,11 +240,12 @@ for path in glob.glob(f"h0_measurement/results/r9job*/r8_{model}_{ctx}.json"):
     if not all(got_cfg.get(label) == cfg for label, cfg in want_cfg.items()):
         continue
     p2 = meta.get("p2") or {}
-    if (meta.get("n_prompts", 0) >= n
+    if (meta.get("n_prompts") == n
             and meta.get("prompt_offset") == offset
-            and set(want_arms) <= set(meta.get("arms", []))
-            and want_b <= {float(x) for x in meta.get("budgets", [])}
-            and want_tasks <= set(meta.get("tasks", []))
+            and (meta.get("task_config") or {"n_keys": 4, "n_values": 4, "n_hops": 4}) == want_task_cfg
+            and set(want_arms) == set(meta.get("arms", []))
+            and want_b == {float(x) for x in meta.get("budgets", [])}
+            and want_tasks == set(meta.get("tasks", []))
             and bool(meta.get("question_agnostic", False)) == qa
             and meta.get("window") == 32
             and meta.get("observation_queries") == [32]
@@ -236,21 +259,23 @@ PY
 }
 
 route_ok() {
-  "$PY" - "$1" "$2" "$3" "$EVAL_N" "$TASKS" "$BUDGETS" "$QA" "$THETA" <<'PY'
+  "$PY" - "$1" "$2" "$3" "$EVAL_N" "$TASKS" "$BUDGETS" "$QA" "$THETA" "$N_KEYS" "$N_VALUES" "$N_HOPS" <<'PY'
 import sys
 from h0_measurement.run_r8 import load_routes
 from sievelib import router
-path, model, ctx, n, tasks, budgets, qa, theta = sys.argv[1:]
+path, model, ctx, n, tasks, budgets, qa, theta, nk, nv, nh = sys.argv[1:]
+task_cfg = {"n_keys": int(nk), "n_values": int(nv), "n_hops": int(nh)}
 want_b = [float(x) for x in budgets.split(",")]
 try:
     routes, _ = load_routes(
         path, model, int(ctx), (100, 99 + int(n)),
-        expected={"theta": float(theta), "prompt_block": [0, 9],
+        expected={"theta": float(theta),
                   "tasks": tasks.split(","), "budgets": want_b,
                   "candidates": list(router.ROUTE_CANDIDATES),
                   "question_agnostic": bool(int(qa)), "window": 32,
                   "observed_queries": [32],
-                  "allocator_budget_rule": "feasible", "maxb": 8})
+                  "allocator_budget_rule": "feasible", "maxb": 8,
+                  "task_config": task_cfg})
 except (OSError, ValueError, KeyError, TypeError, SystemExit):
     raise SystemExit(1)
 missing = [router.bkey(x) for x in want_b if router.bkey(x) not in routes]
@@ -259,7 +284,7 @@ PY
 }
 
 CAL_ARMS="fp,uniform,evict,interior"
-COMMON=(R8_RUN_PREFIX=r9job R8_TASKS="$TASKS" R8_BUDGETS="$BUDGETS" R8_WINDOW=32 R8_QA="$QA" R8_THETA="$THETA")
+COMMON=(R8_RUN_PREFIX=r9job R8_TASKS="$TASKS" R8_BUDGETS="$BUDGETS" R8_WINDOW=32 R8_QA="$QA" R8_THETA="$THETA" R8_N_KEYS="$N_KEYS" R8_N_VALUES="$N_VALUES" R8_N_HOPS="$N_HOPS")
 mkdir -p h0_measurement/logs "$ROUTES_DIR"
 
 submit_calibration() {

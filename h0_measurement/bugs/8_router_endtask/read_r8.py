@@ -59,11 +59,69 @@ BAND = {("llama31-8b", 8192): (54.5, "GO"), ("llama31-8b", 32768): (34.0, "NARRO
         ("llama31-8b", 131072): (20.2, "NARROW"), ("qwen3-8b", 8192): (16.5, "NARROW/STOP"),
         ("qwen3-8b", 32768): (11.5, "STOP")}
 ROUTERS = ("router_calib", "router_oracle")
+TASK_FIELDS = ("n_keys", "n_values", "n_hops")
+TASK_DEFAULTS = {"n_keys": 4, "n_values": 4, "n_hops": 4}
 ARM_ORDER = ("uniform", "evict", "evict_h2o", "interior", "interior_pool",
              "interior_cascade", "router_oracle", "router_calib")
 # R9 baseline presets (bugs/9_sota_eviction_baselines). Appended, so a parquet
 # without them reads exactly as before; a custom-labelled variant is added below.
 ARM_ORDER += ("snapkv", "adakv", "dropkv", "obcache_v", "obcache_k", "obcache_vk", "laprox")
+
+
+def normalize_task_config(df):
+    """Make the implicit legacy k4/v4/h4 configuration explicit.
+
+    Every R8 parquet written before the difficulty interface used exactly these
+    defaults. New files carry the three columns. Invalid or partial provenance
+    is refused before any grouping or deduplication can mix experiments.
+    """
+    df = df.copy()
+    for field, default in TASK_DEFAULTS.items():
+        if field not in df:
+            df[field] = default
+        df[field] = pd.to_numeric(df[field], errors="raise")
+        if df[field].isna().any() or (df[field] < 1).any() or (df[field] % 1 != 0).any():
+            raise SystemExit(f"invalid {field} provenance in R8 parquet")
+        df[field] = df[field].astype(int)
+    return df
+
+
+def task_label(values):
+    return f"k{int(values[0])}/v{int(values[1])}/h{int(values[2])}"
+
+
+def normalize_generation_limits(df):
+    """Recover legacy fixed limits and expose answer truncation explicitly."""
+    df = df.copy()
+    legacy = df["task"].map({"niah_single": 24, "niah_multikey": 24,
+                              "niah_multivalue": 64, "vt": 64})
+    if legacy.isna().any():
+        raise SystemExit(f"unknown task(s) in R8 parquet: {df.loc[legacy.isna(), 'task'].unique()}")
+    if "max_new_tokens" not in df:
+        df["max_new_tokens"] = legacy
+    else:
+        df["max_new_tokens"] = pd.to_numeric(df["max_new_tokens"], errors="raise").fillna(legacy)
+    if (df.max_new_tokens < 1).any() or (df.max_new_tokens % 1 != 0).any():
+        raise SystemExit("invalid max_new_tokens provenance in R8 parquet")
+    df["max_new_tokens"] = df.max_new_tokens.astype(int)
+    if "gen_len" not in df:
+        raise SystemExit("missing gen_len in R8 parquet")
+    df["gen_len"] = pd.to_numeric(df["gen_len"], errors="raise")
+    if df.gen_len.isna().any() or (df.gen_len < 0).any() or (df.gen_len % 1 != 0).any():
+        raise SystemExit("invalid gen_len provenance in R8 parquet")
+    df["gen_len"] = df.gen_len.astype(int)
+    inferred = df.gen_len >= df.max_new_tokens
+    if "reached_max_new" not in df:
+        df["reached_max_new"] = inferred
+    else:
+        present = df.reached_max_new.notna()
+        if not df.loc[present, "reached_max_new"].isin([True, False, 0, 1]).all():
+            raise SystemExit("invalid reached_max_new provenance in R8 parquet")
+        recorded = df.reached_max_new.where(present, inferred).astype(bool)
+        if (recorded != inferred).any():
+            raise SystemExit("reached_max_new disagrees with gen_len >= max_new_tokens")
+        df["reached_max_new"] = recorded
+    return df
 
 
 def arm_order(present):
@@ -162,14 +220,20 @@ def head_stats(files):
         hf = os.path.join(os.path.dirname(f), os.path.basename(f).replace("r8_", "r8heads_", 1))
         if not os.path.isfile(hf):
             continue
-        r0 = pd.read_parquet(f)
+        r0 = normalize_task_config(pd.read_parquet(f))
         model, ctx = r0[["model", "ctx"]].iloc[0]
+        cfg = tuple(int(r0[x].iloc[0]) for x in TASK_FIELDS)
+        if any(r0[x].nunique(dropna=False) != 1 for x in TASK_FIELDS):
+            raise SystemExit(f"{f}: mixed task difficulty inside one result file")
         qa = bool(r0["question_agnostic"].fillna(False).any()) if "question_agnostic" in r0 else False
         mode = "question-AGNOSTIC" if qa else "question-aware"
-        h = pd.read_parquet(hf)
+        h = normalize_task_config(pd.read_parquet(hf))
+        hcfg = tuple(int(h[x].iloc[0]) for x in TASK_FIELDS)
+        if hcfg != cfg:
+            raise SystemExit(f"{hf}: task difficulty {hcfg} does not match {f}: {cfg}")
         h["w"] = h.ans_mass.where(np.isfinite(h.ans_mass), np.nan)
         h["we"] = h.err * h.w
-        g = h.groupby(["prompt_idx", "task", "arm", "B"])
+        g = h.groupby([*TASK_FIELDS, "prompt_idx", "task", "arm", "B"])
         st = pd.DataFrame({"mean": g.err.mean(), "median": g.err.median(),
                            "p99": g.err.quantile(.99),
                            "answer": g.we.sum(min_count=1) / g.w.sum(min_count=1)})
@@ -183,9 +247,11 @@ def p2_report(df, files, metric, fp_min, verbose=False):
     if not len(hs):
         print("  (no r8heads_*.parquet next to the inputs: P-4 needs R8_HEAD_ERROR=1)")
     cells, p1_fail, dvec = [], [], []
-    for (model, ctx, mode), g in df.groupby(["model", "ctx", "mode"]):
+    for cell, g in df.groupby(["model", "ctx", "mode", *TASK_FIELDS]):
+        model, ctx, mode, n_keys, n_values, n_hops = cell
+        cfg = (n_keys, n_values, n_hops)
         band, phase = BAND.get((model, int(ctx)), (float("nan"), "?"))
-        print(f"\n{model} @ {int(ctx):,}   [{mode}]   band {band}%  {phase}")
+        print(f"\n{model} @ {int(ctx):,}   [{mode}; {task_label(cfg)}]   band {band}%  {phase}")
         if "frac_interior" in g:
             fi = g[g.arm.isin(ROUTERS)].groupby(["arm", "B"]).frac_interior.mean()
             if len(fi):
@@ -193,9 +259,13 @@ def p2_report(df, files, metric, fp_min, verbose=False):
                       + ", ".join(f"{a} B={B} {v:.0%}" for (a, B), v in fi.items()))
         for task, t in g.groupby("task"):
             m = metric if (metric == "score" or task in ("niah_single", "niah_multikey")) else "score"
-            fpm = t[t.arm == "fp"][m].mean()
-            if not fpm >= fp_min:
-                print(f"  {task:16s} skipped: FP {fpm:.2f} < {fp_min}")
+            fp_rows = t[t.arm == "fp"]
+            fpm = fp_rows[m].mean()
+            fp_censored = bool(((fp_rows[m] < 1) & fp_rows.reached_max_new).any())
+            if not fpm >= fp_min or fp_censored:
+                why = (f"FP {fpm:.2f} < {fp_min}" if not fpm >= fp_min
+                       else "incomplete FP answer reached max_new_tokens")
+                print(f"  {task:16s} skipped: {why}")
                 continue
             for B in sorted(b for b in t.B.unique() if b > 0):
                 tb = t[t.B == B]
@@ -224,7 +294,9 @@ def p2_report(df, files, metric, fp_min, verbose=False):
                     if verbose or x in ("interior", "router_calib"):
                         print(f"      {x:17s} - {ref:7s} {d:+.2f} [{lo:+.2f},{hi:+.2f}]"
                           f"   - best fixed ({best}) {db:+.2f} [{lob:+.2f},{hib:+.2f}]{mark}")
-                    row = dict(model=model, ctx=int(ctx), mode=mode, band=band, phase=phase, task=task,
+                    row = dict(model=model, ctx=int(ctx), mode=mode,
+                               n_keys=n_keys, n_values=n_values, n_hops=n_hops,
+                               band=band, phase=phase, task=task,
                                B=B, arm=x, ref=ref, acc=means[x], acc_ref=means[ref],
                                d_acc=d, d_lo=lo, d_hi=hi, n=n, best_fixed=best,
                                d_best=db, d_best_lo=lob, d_best_hi=hib,
@@ -232,7 +304,8 @@ def p2_report(df, files, metric, fp_min, verbose=False):
                                            if "interior" in acc and x != "interior" else np.nan))
                     if len(hs):
                         hc = hs[(hs.model == model) & (hs.ctx == ctx) & (hs["mode"] == mode)
-                                & (hs.task == task) & (hs.B == B)]
+                                & (hs.n_keys == n_keys) & (hs.n_values == n_values)
+                                & (hs.n_hops == n_hops) & (hs.task == task) & (hs.B == B)]
                         for stat in ("mean", "median", "p99", "answer"):
                             ex = hc[hc.arm == x].set_index("prompt_idx")[stat]
                             eu = hc[hc.arm == ref].set_index("prompt_idx")[stat]
@@ -262,11 +335,14 @@ def p2_report(df, files, metric, fp_min, verbose=False):
               + ("" if not len(clear) else "   FAILS at " + "; ".join(
                   f"{r.model}@{r.ctx} {r.task} B={r.B} vs {r.best_fixed} {r.d_best:+.2f}"
                   for r in clear.itertuples())))
-        by = rc.groupby(["model", "ctx", "mode", "band", "phase"]).d_best.mean().reset_index()
+        by = rc.groupby(["model", "ctx", "mode", *TASK_FIELDS,
+                         "band", "phase"]).d_best.mean().reset_index()
         rho, n = spearman(by.band, by.d_best)
         print("P-2  router_calib - best fixed, mean over tasks and budgets, by cell:")
         for r in by.sort_values("band", ascending=False).itertuples():
-            print(f"       {r.model:11s} @{r.ctx:>7,}  band {r.band:5.1f} {r.phase:12s} {r.d_best:+.3f}")
+            print(f"       {r.model:11s} @{r.ctx:>7,}  "
+                  f"{task_label((r.n_keys, r.n_values, r.n_hops)):12s} "
+                  f"band {r.band:5.1f} {r.phase:12s} {r.d_best:+.3f}")
         print(f"     Spearman(band, gain) = {rho:+.2f} over {n} cells "
               f"(P-2 predicts > 0: largest in GO)" if n >= 4 else
               f"     ({n} cells: too few for a rank correlation; read the column)")
@@ -274,8 +350,9 @@ def p2_report(df, files, metric, fp_min, verbose=False):
         if len(st) and st.d_interior.notna().any():
             print(f"P-3  router_calib - interior in STOP cells: mean {st.d_interior.mean():+.3f} over "
                   f"{len(st)} (cell, task, B)  (P-3 predicts > 0)")
-        ro = C[C.arm == "router_oracle"].set_index(["model", "ctx", "mode", "task", "B"]).acc
-        rj = rc.set_index(["model", "ctx", "mode", "task", "B"]).acc
+        oracle_key = ["model", "ctx", "mode", *TASK_FIELDS, "task", "B"]
+        ro = C[C.arm == "router_oracle"].set_index(oracle_key).acc
+        rj = rc.set_index(oracle_key).acc
         gap = (ro - rj).dropna()
         if len(gap):
             print(f"P-5  router_oracle - router_calib: mean {gap.mean():+.3f}, max {gap.max():+.3f} "
@@ -303,7 +380,9 @@ def p2_report(df, files, metric, fp_min, verbose=False):
               f"reliability {rel:.2f} -> ceiling ~{ceil:.2f}")
         for gc in gcols:
             rho, n = spearman(sub[gc], sub.d_acc)
-            clusters = (sub.model.astype(str) + "@" + sub.ctx.astype(str) + ":" + sub["mode"])
+            clusters = (sub.model.astype(str) + "@" + sub.ctx.astype(str) + ":" + sub["mode"]
+                        + ":k" + sub.n_keys.astype(str) + "v" + sub.n_values.astype(str)
+                        + "h" + sub.n_hops.astype(str))
             lo, hi = spearman_ci(sub[gc], sub.d_acc, clusters=clusters)
             dis = rho / ceil if np.isfinite(ceil) and ceil > 0 else float("nan")
             verdict = ("" if not np.isfinite(rho) else
@@ -341,8 +420,12 @@ def main():
     files = sorted({f for p in a.inputs for f in glob.glob(p) if f.endswith(".parquet")})
     if not files:
         sys.exit("no R8 parquet matched")
-    df = pd.concat([pd.read_parquet(f).assign(src=os.path.basename(os.path.dirname(f)))
-                    for f in files], ignore_index=True)
+    df = normalize_generation_limits(normalize_task_config(pd.concat(
+        [pd.read_parquet(f).assign(src=os.path.basename(os.path.dirname(f))) for f in files],
+        ignore_index=True)))
+    for src, block in df.groupby("src"):
+        if any(block[field].nunique(dropna=False) != 1 for field in TASK_FIELDS):
+            raise SystemExit(f"{src}: mixed task difficulty inside one result file")
     # P0 and P2-cal share prompts 0-9 on llama31-8b @32k: one row per (cell, prompt,
     # arm, B), the latest job winning, or every paired comparison double-counts
     # question-aware (P0) and question-agnostic (P0b, --qa) runs are different
@@ -356,7 +439,7 @@ def main():
                               if "observed_queries" in df else df["window"] - 1)
     df["allocator_budget_rule"] = (df["allocator_budget_rule"].fillna("legacy")
                                    if "allocator_budget_rule" in df else "legacy")
-    for cell, block in df.groupby(["model", "ctx", "mode"]):
+    for cell, block in df.groupby(["model", "ctx", "mode", *TASK_FIELDS]):
         for field in ("window", "observed_queries", "allocator_budget_rule",
                       "maxb", "rot_seed", "norm_correct"):
             if field in block and block[field].nunique(dropna=False) > 1:
@@ -367,7 +450,11 @@ def main():
                 if pair.corpus_sha.nunique(dropna=False) > 1:
                     raise SystemExit(f"{cell} {task} prompt {prompt}: arms used different "
                                      "corpus_sha values; paired accuracy is invalid")
-    key = ["model", "ctx", "mode", "task", "prompt_idx", "arm", "B"]
+        for task, tb in block.groupby("task"):
+            if tb.max_new_tokens.nunique(dropna=False) > 1:
+                raise SystemExit(f"{cell} {task}: mixed max_new_tokens values "
+                                 f"{tb.max_new_tokens.unique().tolist()}; read separately")
+    key = ["model", "ctx", "mode", *TASK_FIELDS, "task", "prompt_idx", "arm", "B"]
     dup = df.duplicated(key, keep="last")
     if dup.any():
         print(f"WARNING: {int(dup.sum()):,} duplicate (cell, prompt, arm, B) rows across jobs "
@@ -378,8 +465,10 @@ def main():
           f"{df.prompt_idx.nunique()} prompt(s), metric = {a.metric}")
 
     out = []
-    for (model, ctx, mode), g in df.groupby(["model", "ctx", "mode"]):
-        print(f"\n{'=' * 78}\n{model} @ {int(ctx):,}   [{mode}]")
+    for cell, g in df.groupby(["model", "ctx", "mode", *TASK_FIELDS]):
+        model, ctx, mode, n_keys, n_values, n_hops = cell
+        print(f"\n{'=' * 78}\n{model} @ {int(ctx):,}   "
+              f"[{mode}; {task_label((n_keys, n_values, n_hops))}]")
         # bits audit -- every compressed arm must have spent ~B per context token
         # Every new allocation must spend <= B. Legacy runs that overspent are
         # flagged rather than silently counted as budget-matched.
@@ -393,13 +482,23 @@ def main():
                                   if not len(off) else f"OVERSPENT B: {off.to_dict()}"))
         for task, t in g.groupby("task"):
             m = a.metric if (a.metric == "score" or task in ("niah_single", "niah_multikey")) else "score"
-            fp = t[t.arm == "fp"][m]
+            fp_rows = t[t.arm == "fp"]
+            fp = fp_rows[m]
             fpm, fplo, fphi = boot(fp)
-            valid = fpm >= a.fp_min
+            fp_censored = bool(((fp_rows[m] < 1) & fp_rows.reached_max_new).any())
+            valid = fpm >= a.fp_min and not fp_censored
+            invalid = ("" if valid else
+                       "   <- INVALID: incomplete FP answer reached max_new_tokens"
+                       if fp_censored else
+                       f"   <- INVALID: FP below {a.fp_min}; the model cannot do this task uncompressed")
             print(f"\n  {task:16s} n={t.prompt_idx.nunique()} prompts   FP {fpm:5.2f} "
-                  f"[{fplo:.2f}, {fphi:.2f}]"
-                  + ("" if valid else f"   <- INVALID: FP below {a.fp_min}; the model "
-                                      f"cannot do this task uncompressed"))
+                  f"[{fplo:.2f}, {fphi:.2f}]  max_new={int(t.max_new_tokens.iloc[0])}"
+                  + invalid)
+            capped = t.groupby("arm").reached_max_new.mean()
+            capped = capped[capped > 0]
+            if len(capped):
+                print("    generation cap reached: "
+                      + ", ".join(f"{arm} {100 * rate:.0f}%" for arm, rate in capped.items()))
             budgets = sorted(b for b in t.B.unique() if b > 0)
             arms = arm_order(t.arm)
             print(f"    {'B':>3s}" + "".join(f"{x:>22s}" for x in arms))
@@ -410,6 +509,8 @@ def main():
                     mm, lo, hi = boot(t[(t.arm == x) & (t.B == B)][m])
                     cells.append(f"{mm:6.2f} [{lo:.2f},{hi:.2f}]")
                     out.append(dict(model=model, ctx=ctx, task=task, arm=x, B=B,
+                                    n_keys=n_keys, n_values=n_values, n_hops=n_hops,
+                                    max_new_tokens=int(t.max_new_tokens.iloc[0]),
                                     mean=mm, lo=lo, hi=hi, fp=fpm, metric=m))
                     if x == "uniform":
                         uni[B] = (mm, lo, hi)

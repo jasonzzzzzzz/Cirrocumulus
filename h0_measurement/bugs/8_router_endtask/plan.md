@@ -9,7 +9,10 @@
 > | build + tests (P0 path, P2 path, question-agnostic mode, B = 0.5) | done; `tests/test_r8.py` all pass | §9, §10, §12 |
 > | **P0** question-aware budget pilot, llama31-8b @32k | **done**, job 21529825 | **§11** — SnapKV 1.00 at every budget: with the question in its window, eviction is an oracle on these tasks |
 > | **P0b** question-agnostic + B = 0.5 | **done**, job 978352 | **§12**; uniform jumps from failure at B=1 to near ceiling at B=2 |
-> | P2 + R9 SOTA primary campaign | **5/5 evaluation cells complete**, jobs 978479--978489 | `report.md`; the budget gate failed, P-1/P-2 fail, P-4 is unsupported |
+> | P2 + R9 SOTA primary campaign | **5/5 evaluation cells complete**, jobs 978479--978489 | `report.md`; the budget gate failed, P-1/P-2/P-5 fail, P-4 is unsupported |
+> | next iteration Step 1: task difficulty + provenance | **implemented and tested** | §13 |
+> | next iteration Step 2: non-ceiling Llama 32K/B=2 interface | **complete and held-out confirmed**, job 980414 | §13; results in the R9 `report.md` |
+> | next iteration Step 3: complete-policy oracles | **design frozen; not implemented or run** | §13.3 |
 >
 > The sections below are in the order they were written (§0–§8 the original
 > plan, §9 onward the build and results). The separate `report.md` is current.
@@ -759,3 +762,76 @@ Decision table (written before the run):
 | evict still ~1.00 at B = 0.5 | eviction is not the bottleneck even blind → rethink the task set before P2 |
 | uniform ≪ P0's uniform at the same B | the question now reads compressed keys too; expected, and it moves uniform's cliff — read it per task |
 | FP < 0.95 | the separate tokenization broke the prompt → debug before reading arms |
+
+
+## 13. Post-oracle iteration: Steps 1 and 2 (2026-09-23)
+
+The operational specification, commands, gates, and whole-policy-oracle design
+are in `../9_sota_eviction_baselines/plan.md` §9. This section fixes the R8
+contract they extend.
+
+### 13.1 Task identity
+
+R8 now treats `(n_keys, n_values, n_hops)` as part of experiment identity. The
+CLI/Slurm defaults remain the historical `(4,4,4)`. Nondefault output filenames
+carry `kN_vN_hN`; rows, sidecars, head-error data, routes, completion guards, and
+the reader carry and compare the same values. A legacy artifact missing these
+fields is normalized only to `(4,4,4)`. Route loading requires exact difficulty
+and task-set agreement plus disjoint calibration/evaluation prompts. Oversized
+prompts abort the run, so a partial task grid cannot acquire a valid sidecar.
+
+### 13.2 Non-ceiling screen
+
+Jobs 980284 `(8,6,6)` and 980285 `(16,8,8)` were submitted on 2026-09-23.
+Screen `(8,6,6)` and `(16,8,8)` on prompts 400--409 at Llama 32K/B=2 in
+question-agnostic mode, using only FP and uniform on multikey, multivalue, and
+VT. Each result must have 60 rows. A task advances when FP is at least 0.95 and
+uniform lies in 0.50--0.80 (a screening interval overlapping that band is enough
+to request confirmation). Use `(32,10,10)` only for a task that remains too easy.
+The initial results select `n_keys=16` for multikey (FP 1.00, uniform 0.80).
+At value/hop count 6, uniform is too easy. Multivalue v8 genuinely lowers FP
+to 0.90. VT h8's apparent FP 0.91 is censored because every incomplete answer
+hits the legacy 64-token cap. Job 980342 is therefore legacy-only evidence. The
+cap-fixed reruns use generation contract `difficulty_v1`: k16/v7/h7 for
+multivalue+VT (limits 88/112) and k16/v7/h8 for VT (128). Rows and sidecars stamp
+the limits, and the reader invalidates capped incomplete FP answers. The
+submitted jobs are 980356 (k16/v7/h7) and 980355 (k16/v7/h8). Every
+selected task is confirmed on prompts 420--439 before any router comparison.
+
+Both cap-fixed jobs completed. Multivalue v7 is too easy (FP 0.986, uniform
+0.871); VT h7 remains censored because its incomplete FP answer reaches the
+112-token limit; and VT h8 is valid but too easy (FP 1.000, uniform 0.967).
+The sole development selection is therefore multikey at `n_keys=16`. Its one
+held-out confirmation uses k16/v4/h4, FP+uniform, B=2, and prompts 420--439 (40
+rows). It requires FP >=0.95, no incomplete capped FP answer, and uniform in
+[0.50,0.80]. A failure cannot be tuned on the confirmation prompt block.
+
+Held-out job 980414 passes: all 40 rows and provenance checks are present, FP is
+1.000 with no cap hits, and uniform is 0.800 (90% interval [0.65,0.95]).
+FP minus uniform is +0.200 [0.05,0.35] under the paired 90% bootstrap. Freeze
+k16/v4/h4; prompts 420--439 cannot tune the selector.
+
+### 13.3 Oracle branches
+
+After the difficulty gate, compare two selectors over complete matched-budget
+policies. The policy-logit selector minimizes mean full-vocabulary KL to FP on a
+shared eight-step FP teacher-forced trajectory. The label-seeing end-task upper
+envelope maximizes the stored RULER score and retains ties. Neither selector is
+an executable allocation arm. Diagnostics live in a separate provenance-bearing
+artifact and cannot be loaded as routes.
+
+The existing k4/v4/h4 oracle block has only +0.021 complete-policy end-task
+headroom over uniform for `{uniform, evict, interior}` (+0.031 including
+interior-cascade). This is a ceiling-regime diagnostic and is not the estimate
+used to decide Router v2.
+
+Step 3 uses the confirmed k16/v4/h4 cell and fresh prompts 440--459. Its primary
+complete candidates are uniform, eviction, and interior. Define
+`H = end-task-envelope minus uniform` and
+`G = mean-KL-selector minus uniform`. Advance the candidate set at
+`H >= 0.10`; advance mean KL at `G >= 0.05` and `G/H >= 0.5`.
+Low `H` triggers complete-policy candidate revision; useful `H` with failed
+`G` rejects mean final-logit KL; both passing triggers one locked confirmation
+on prompts 460--499 before any deployable router or broad grid. The detailed
+artifact schema, implementation boundary, and branch rules are in the R9
+`plan.md` Step 3.

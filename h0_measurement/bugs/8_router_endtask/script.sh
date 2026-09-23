@@ -131,13 +131,15 @@ import glob, json, os, sys
 model, ctx, n, off, arms = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
 qa = sys.argv[6] == "1" if len(sys.argv) > 6 else False
 want_b = {float(b) for b in sys.argv[7].split(",")} if len(sys.argv) > 7 else set()
-for js in glob.glob(f"h0_measurement/results/r8job*/r8_{model}_{ctx}.json"):
+for js in glob.glob(f"h0_measurement/results/r8job*/r8_{model}_{ctx}*.json"):
     try:
         j = json.load(open(js))
     except Exception:
         continue
     p = js[:-5] + ".parquet"
+    task_cfg = j.get("task_config") or {"n_keys": 4, "n_values": 4, "n_hops": 4}
     if (j.get("n_prompts", 0) >= n and j.get("prompt_offset") == off
+            and task_cfg == {"n_keys": 4, "n_values": 4, "n_hops": 4}
             and set(arms.split(",")) <= set(j.get("arms", []))
             # a question-aware run never counts as a question-agnostic one, and
             # every requested budget must be in it

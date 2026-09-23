@@ -1,0 +1,12 @@
+1 file(s), 40 rows, 20 prompt(s), metric = score
+
+==============================================================================
+llama31-8b @ 32,768   [question-AGNOSTIC; k16/v4/h4]
+  bits audit: OK, every arm at or below B bits per context token (worst 0.000%)
+
+  niah_multikey    n=20 prompts   FP  1.00 [1.00, 1.00]  max_new=24
+    generation cap reached: uniform 5%
+      B               uniform
+      2      0.80 [0.65,0.95]
+    distractor named: up to 15% (uniform B=2) -- the wrong needle survived
+    -> P0: uniform falls into [0.50, 0.80] at B = [2.0]. R8 runs HERE for niah_multikey.

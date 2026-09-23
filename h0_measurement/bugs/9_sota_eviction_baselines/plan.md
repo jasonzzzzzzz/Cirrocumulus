@@ -3,6 +3,11 @@
 **Implementation audit and run contract:** `audit.md`. **Main-model results:**
 `report.md`. All five evaluation cells completed on 2026-09-22.
 
+**Next iteration status (2026-09-23):** Steps 1 and 2 are complete. The
+provenance-safe task interface is implemented and tested, and held-out job
+980414 confirms Llama 32K/B=2 multikey at k16/v4/h4 as the non-ceiling operating
+point. Step 3's whole-policy diagnostic is specified below and is not yet run.
+
 Today every comparison is against **H2O** (`evict_h2o`, and the H0 `accum` corner)
 and **SnapKV** (`evict`, and the H0 `window` corner). This adds four published
 methods to the same harness, faithfully, so each can be run as an arm next to
@@ -234,7 +239,10 @@ five evaluation cells at Llama 8K/32K/128K and Qwen 8K/32K. See `report.md` for
 the validity exclusions and results. In brief, OBCache-K + Ada-KV and LaProx are
 the strongest new eviction arms, but uniform quantization wins 34/36 valid
 task/budget cells. The grid is ceiling limited and
-must not be presented as satisfying R8's P0 budget gate.
+must not be presented as satisfying R8's P0 budget gate. Oracle diagnostic
+979308 then showed both failures: fixed calibration loses +0.298 accuracy of
+prompt-specific headroom, while the output-error oracle still trails uniform by
+0.201 overall despite much lower measured output error.
 
 
 * `tests/test_baselines.py`: all anchors pass.
@@ -252,3 +260,262 @@ must not be presented as satisfying R8's P0 budget gate.
   only; one easy prompt separates nothing.
 * Run tests with `OMP_NUM_THREADS=8`. This node caps CPU time at 3600 s, and
   192 torch threads exhaust it in seconds.
+
+
+## 9. Next iteration: task provenance, non-ceiling screen, and policy diagnostics
+
+### Step 1 — task-difficulty interface (implemented 2026-09-23)
+
+The public controls are `--n-keys`, `--n-values`, and `--n-hops`, with historical
+defaults 4/4/4. Slurm exposes the matching `R8_N_KEYS`, `R8_N_VALUES`, and
+`R8_N_HOPS` variables. Counts must be positive integers and are validated before
+the model loads.
+
+The exact tuple is now present in:
+
+- every accuracy row and per-head-error row;
+- the result sidecar and route metadata;
+- the first job-log line;
+- nondefault result/head filenames (`..._kN_vN_hN`);
+- route compatibility checks and R8/R9 completion guards; and
+- reader grouping, deduplication, CSV rows, and printed section labels.
+
+Legacy rows and routes with no task metadata mean exactly k4/v4/h4. They remain
+compatible with default runs and are rejected for every harder configuration.
+The runner now fails when a generated prompt exceeds the context instead of
+writing a partial parquet. The fixed `prompt_block=[0,9]` route expectation was
+removed; route calibration and evaluation must still have disjoint prompt
+blocks, and every other route field remains exact.
+
+The initial hard screen exposed a second provenance dimension: incomplete VT
+answers at h8 all stopped at the old 64-token generation cap. The interface now
+uses generation-limit contract `difficulty_v1`, preserves every k4/v4/h4 limit,
+and adds 8 tokens per value and 16 per VT hop above four. Rows record
+`max_new_tokens` and `reached_max_new`; sidecars record the version and per-task
+limits. The reader reconstructs legacy limits, reports cap rates, rejects mixed
+limits, and invalidates any incomplete FP answer that reaches its cap.
+
+Verification before a GPU submission:
+
+- Python compilation passed for the runner, task generator, reader, and tests;
+- `bash -n` passed for the worker and all three R8/R9 drivers;
+- `OMP_NUM_THREADS=8 .venv/bin/python tests/test_r8.py --fast` passed, including
+  legacy-default, filename, positive-count, route-config, and overlap checks;
+- the updated reader reproduced job 979308 while labeling it k4/v4/h4; and
+- the Step 2 dry run prints all three task controls for both jobs.
+
+### Step 2 — find a non-ceiling operating point (completed 2026-09-23)
+
+The old k4/v4/h4 result is the easy lower bracket: at Llama 32K/B=2, uniform is
+1.00 on multikey, 0.95 on multivalue, and 0.90 on variable tracking. Screen these
+two configurations independently on the same development prompt block:
+
+| level | n_keys | n_values | n_hops | prompts | arms | tasks |
+|---|---:|---:|---:|---|---|---|
+| easy-hard | 8 | 6 | 6 | 400--409 | FP, uniform | multikey, multivalue, VT |
+| hard | 16 | 8 | 8 | 400--409 | FP, uniform | multikey, multivalue, VT |
+
+**Completed 2026-09-23:** job 980284 is k8/v6/h6 and job 980285 is
+k16/v8/h8. Both passed the row/provenance/budget gates. Multikey at k16 passes
+(FP 1.00, uniform 0.80). Multivalue at v8 genuinely fails its FP gate (the one
+zero-score FP answer stopped after one token). VT's apparent FP failure is
+censored: every incomplete FP answer reached the legacy 64-token limit, so the
+h8 VT decision is void pending a cap-fixed rerun.
+
+Both use Llama-3.1-8B, 32K, question-agnostic compression, and B=2. Single NIAH
+is omitted because none of the knobs changes it. Each job must contain exactly
+60 rows: 10 prompts x 3 tasks x 2 arms. Preflight tokenization on the real corpus
+put every planned prompt below 32K. Tokenizing the expected answers below 64
+tokens did not bound verbose model generations; the observed VT truncation is
+why the generation contract and row-level cap audit were added.
+
+Acceptance is task-specific:
+
+1. no missing/skipped rows, one real-corpus SHA, and a passing bit audit;
+2. FP mean at least 0.95;
+3. uniform mean in [0.50, 0.80], or its 90% screening interval overlaps that
+   band; and
+4. choose `n_keys`, `n_values`, and `n_hops` independently from the smallest
+   level meeting the gate.
+
+The completed screen selects `n_keys=16` for multikey. For multivalue and VT,
+level 6 is too easy while level 8 has FP below 0.95. Before looking at an
+intermediate result, preregister the only missing integer point:
+
+| follow-up | n_keys | n_values | n_hops | tasks | prompts | expected rows |
+|---|---:|---:|---:|---|---|---:|
+| legacy midpoint | 16 | 7 | 7 | multivalue, VT | 400--409 | 40 |
+
+**Submitted 2026-09-23:** job 980342 used the legacy 64-token cap. Its
+multivalue rows can diagnose direction, but any capped row and the complete VT
+comparison are excluded. The following cap-fixed jobs are preregistered:
+
+| rerun | configuration | tasks | limits | prompts | rows |
+|---|---|---|---|---|---:|
+| midpoint-v1 | k16/v7/h7 | multivalue, VT | 88 / 112 | 400--409 | 40 |
+| vt-hard-v1 | k16/v7/h8 | VT | 128 | 400--409 | 20 |
+
+**Submitted 2026-09-23:** midpoint-v1 is job 980356 and vt-hard-v1 is job
+980355. These are development-screen jobs; their outcomes select the fixed
+task configurations for one held-out confirmation on prompts 420--439.
+
+**Development decision, 2026-09-23:** both jobs completed with their exact
+generation contracts and row counts. Multivalue v7 has FP 0.986 and uniform
+0.871, so it is too easy. VT h7 is invalid because its only incomplete FP
+answer reaches the 112-token limit. VT h8 has FP 1.000 and uniform 0.967, so it
+is valid but too easy. Capped incomplete uniform answers cannot reverse either
+“too easy” decision because additional output can only add expected hits.
+Consequently, multikey at `n_keys=16` is the only task selected by this
+development block.
+
+For multivalue v7: accept only if uncapped FP >=0.95 and uniform is in
+[0.50,0.80] (or its screening interval overlaps); if FP passes and uniform is
+above 0.80, counts 6--8 contain no usable B=2 point because v8 FP fails. For VT,
+apply the same gate separately at h7 and h8 after verifying no incomplete FP
+answer reaches its new cap. Do not run v10/h10 after multivalue FP has already
+failed at 8. Confirm every selected task once on held-out prompts 420--439 before
+a router/SOTA comparison.
+
+The held-out confirmation is preregistered as follows. It uses the canonical
+irrelevant knobs (`n_values=n_hops=4`) so the artifact states only the selected
+multikey difficulty:
+
+| confirmation | configuration | tasks | arms | budget | prompts | rows |
+|---|---|---|---|---:|---|---:|
+| multikey | k16/v4/h4 | multikey | FP, uniform | 2 | 420--439 | 40 |
+
+It passes only if all 40 rows and the real-corpus provenance are present, the
+bit audit passes, FP is at least 0.95 with no incomplete capped FP answer, and
+uniform is in [0.50, 0.80]. If it fails, do not change `n_keys` using prompts
+420--439; any redesign must return to a new development block.
+
+**Completed 2026-09-23:** held-out job 980414 has all 40 rows and exact
+provenance. FP is 1.000 (20/20), with no FP cap hit; uniform B=2 is 0.800
+(16/20), with a 90% prompt-bootstrap interval [0.65, 0.95]. FP minus uniform is
++0.200 [0.05, 0.35] under the paired 90% bootstrap. One uniform answer reaches
+24 tokens but already scores 1.0; all four uniform failures are uncapped. The
+operating point passes at the prespecified upper boundary. Freeze k16/v4/h4 and
+do not tune it on prompts 420--439.
+
+The completed workflow and its reproducible commands are owned by `steps.sh`:
+
+```bash
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-dry
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-submit
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-status JOB [JOB...]
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-read JOB [JOB...]
+```
+
+The post-screen midpoint is:
+
+```bash
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-dry mid
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-submit mid
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-dry vt-hard
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --difficulty-submit vt-hard
+```
+
+The frozen held-out confirmation was run and can be audited in this order:
+
+```bash
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-dry
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-submit
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-status JOB
+bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB
+```
+
+### Step 3 — whole-policy headroom and logit-proxy diagnostic
+
+**State:** design frozen after Step 2; implementation and GPU collection have
+not started. Keep the confirmed cell fixed: Llama-3.1-8B at 32K,
+question-agnostic multikey NIAH, k16/v4/h4, B=2. Prompts 420--439 remain the
+difficulty-confirmation block and cannot be used to tune a policy selector.
+
+#### 3A. Fresh diagnostic-development block
+
+Use prompts 440--459 and the complete policies `fp`, `uniform`, `evict`,
+and `interior`. The primary candidate set is exactly
+`{uniform, evict, interior}`. There are 80 accuracy rows and 60 candidate
+diagnostic rows. Do not include the calibrated router, the per-head output-error
+oracle, or head-error routing in this job.
+
+The two selectors are diagnostics over complete policies, not allocation arms:
+
+- **End-task oracle:** retain every candidate tying for the maximum independently
+  greedy-decoded RULER score on each prompt. This label-seeing envelope measures
+  candidate-set opportunity and costs no extra GPU once the accuracy rows exist.
+- **Policy-logit oracle:** replay up to the first eight FP greedy decisions under
+  the identical FP teacher-forced prefix for every candidate. Stream exact
+  float32 full-vocabulary KL(FP || candidate); never feed a candidate's argmax
+  back into the trace. Select the lowest mean-KL complete policy, with the stable
+  declared candidate order breaking exact numeric ties, then join that policy's
+  independently greedy RULER score.
+
+Raw logits are transient. A separate diagnostic parquet and sidecar store
+mean/max KL, cross entropy on the FP-chosen token (not gold-answer NLL), top-1
+agreement, trace length, selected policy, timing, candidate order, trace-rule
+version, task configuration, prompt block, model/cache configuration, and the
+joined accuracy-artifact identity.
+
+Report, with paired prompt-bootstrap intervals:
+
+- `H = mean(end-task envelope - uniform)`;
+- `G = mean(KL-selected policy - uniform)`;
+- regret `H-G` and captured opportunity `G/H` when `H>0`;
+- uniform failures rescued, uniform successes harmed, selector counts, and
+  whether the KL selection belongs to the end-task-optimal tie set.
+
+The development decisions are fixed before viewing prompts 440--459:
+
+- `H >= 0.10`: the primary candidates have useful complementarity;
+- `H <= 0.05`: revise the candidates; an intermediate result needs more
+  development prompts before a design decision;
+- when `H >= 0.10`, `G >= 0.05` and `G/H >= 0.5` advance the mean-KL rule;
+- `G <= 0` or `G/H < 0.25` with useful `H` is evidence against mean
+  final-logit KL; intermediate proxy outcomes need more development prompts.
+
+At 20 binary multikey prompts, scores move in 0.05 increments. These are
+development gates, not final evidence.
+
+#### 3B. Locked confirmation
+
+If a candidate set and proxy rule advance, freeze both and run once on prompts
+460--499 (40 prompts). Require `H >= 0.10`, `G >= 0.05`,
+`G/H >= 0.5`, and a paired 90% lower bound for `G` of at least zero.
+Do not tune on this block.
+
+#### 3C. Conditional design branches
+
+1. **Little end-task headroom.** On the development block only, add complete
+   policies in nested sets: `interior_pool`, `interior_cascade`, plain
+   `obcache_k`, `obcache_k:alloc=ada@obck_ada`, and `laprox`. Freeze the
+   smallest set reaching `H >= 0.10` before confirmation. Whole-policy
+   selection can use model-wide policies without pretending they are per-head
+   splices. If the expanded envelope still lacks headroom, stop router training
+   and redesign the allocations or retention objective.
+2. **Headroom but mean KL fails.** Explore only the already stored FP-token
+   cross entropy, maximum KL, and top-1 agreement on prompts 440--459. Freeze one
+   justified rule before confirmation. If none transfers, replace the proxy
+   with a task-relevant downstream-sensitivity objective.
+3. **Both diagnostics gain and confirm.** Train a deployable prefill-only
+   selector on new disjoint data. It may imitate the KL selector but cannot use
+   FP decode logits. Keep training, threshold selection, and final testing
+   disjoint, and report regret to both oracle bounds.
+
+Do not launch another model/context/SOTA grid before Step 3B passes.
+
+#### 3D. Clean implementation boundary
+
+Add a small pure `sievelib/policy_diagnostic.py` module for divergence metrics
+and deterministic selection. Make `run_r8.py` opt in through explicit
+`--policy-diagnostic-out`, `--policy-candidates`, and
+`--policy-trace-steps` flags so it can reuse the same prefill and candidate
+allocations. Write `r8policy*.parquet` plus its own sidecar; neither oracle
+becomes an arm, a route, or code in `router.py`. A separate reader performs an
+exact one-to-one join on model, context, task configuration, task, prompt,
+budget, and candidate.
+
+Tests must pin KL numerics, zero KL for FP versus itself, shared teacher-forced
+token IDs, refusal to feed candidate argmax tokens, cache crop isolation,
+deterministic ties, exact row/join provenance, absence of raw logits, and
+completion counts.

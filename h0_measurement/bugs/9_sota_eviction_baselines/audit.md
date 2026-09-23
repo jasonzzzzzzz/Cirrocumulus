@@ -1,6 +1,9 @@
 # R9 baseline audit and R8 comparison contract
 
-Status: code and CPU checks completed; no main-model R8 comparison has run. This audit supplements `plan.md`. It distinguishes a tested implementation of a paper's score from a reproduction of that paper's reported accuracy.
+Status: code and CPU checks completed; all five main-model evaluation cells ran
+on 2026-09-22. See `report.md` for results. This audit
+supplements `plan.md` and distinguishes a tested implementation of a paper's
+score from a reproduction of that paper's reported accuracy.
 
 ## Method fidelity
 
@@ -33,4 +36,14 @@ To isolate DropKV's *score* from its observation/pooling settings, also run `sna
 
 ## Limits of the evidence
 
-The four baselines pass score, allocation, budget, GQA, and tiny-model end-to-end CPU checks. They have **not** been run on the main R8 cells, so relative end-task accuracy is unknown. R8 performs one-shot post-prefill compression and simulates quantized keys in a full-precision cache; it establishes generation accuracy, not packed-cache memory use or throughput. The matched B counts context **key** bits. Values remain exact in this study, and the protected window is excluded from the variable-rate budget. These conventions must accompany any paper table; they are adaptations of the published eviction systems, which normally keep retained KV pairs at full precision.
+The four baselines pass score, allocation, budget, GQA, and tiny-model end-to-end
+CPU checks. All five main-model R8 evaluation cells are now available; their
+relative accuracy is analyzed in `report.md`. Qwen multivalue NIAH fails the FP
+gate, and the remaining grid is ceiling limited.
+R8 performs one-shot post-prefill compression and simulates quantized keys in a
+full-precision cache; it establishes generation accuracy, not packed-cache
+memory use or throughput. The matched B counts context **key** bits. Values
+remain exact in this study, and the protected window is excluded from the
+variable-rate budget. These conventions must accompany any paper table; they
+are adaptations of the published eviction systems, which normally keep
+retained KV pairs at full precision.

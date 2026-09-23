@@ -1,0 +1,70 @@
+[jczhao20@trig-login01 unified-kv-quant-evict-TurboQuant]$ bash h0_measurement/bugs/9_sota_eviction_baselines/script.sh \
+  --campaign \
+  --budgets="2,3" \
+  --qa
+submit CAL llama31-8b @8192 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_8192_qa.json (01:00:00)
+978479
+submit EVAL llama31-8b @8192 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (03:00:00) after 978479
+978480
+submit CAL llama31-8b @32768 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_32768_qa.json (01:30:00)
+978481
+submit EVAL llama31-8b @32768 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (06:00:00) after 978481
+978483
+submit CAL llama31-8b @131072 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_131072_qa.json (05:00:00)
+978484
+submit EVAL llama31-8b @131072 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (20:00:00) after 978484
+SBATCH WARNING: 
+ You have requested over 12 hours of time.  If this jobs does not actually need
+ this amount of time, it may run sooner if you request less time.
+SBATCH: 1 warning was found.
+SBATCH: Job submission will be attempted despite warnings.
+SBATCH: For more info see https://docs.alliancecan.ca/wiki/Trillium_Quickstart
+978485
+submit CAL qwen3-8b @8192 prompts=10@0 -> h0_measurement/results/r8_routes/qwen3-8b_8192_qa.json (01:00:00)
+978486
+submit EVAL qwen3-8b @8192 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (03:00:00) after 978486
+978487
+submit CAL qwen3-8b @32768 prompts=10@0 -> h0_measurement/results/r8_routes/qwen3-8b_32768_qa.json (01:45:00)
+978488
+submit EVAL qwen3-8b @32768 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (06:00:00) after 978488
+978489
+
+Logs:    h0_measurement/logs/r8_<JOBID>.{out,err}
+Results: h0_measurement/results/r9job<JOBID>/
+Read:    bash h0_measurement/bugs/9_sota_eviction_baselines/script.sh --read
+
+The job must print both "ALL R8 TESTS PASSED" and "ALL R9 TESTS PASSED"
+before model loading.
+
+
+
+
+[jczhao20@rorqual3 Cirrocumulus]$ bash h0_measurement/bugs/9_sota_eviction_baselines/script.sh   --campaign   --budgets="2,3"   --qa
+
+submit CAL llama31-8b @8192 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_8192_qa.json (01:00:00)
+21608430
+submit EVAL llama31-8b @8192 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (03:00:00) after 21608430
+21608432
+submit CAL llama31-8b @32768 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_32768_qa.json (01:30:00)
+21608437
+submit EVAL llama31-8b @32768 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (06:00:00) after 21608437
+21608439
+submit CAL llama31-8b @131072 prompts=10@0 -> h0_measurement/results/r8_routes/llama31-8b_131072_qa.json (05:00:00)
+21608445
+submit EVAL llama31-8b @131072 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (20:00:00) after 21608445
+21608446
+submit CAL qwen3-8b @8192 prompts=10@0 -> h0_measurement/results/r8_routes/qwen3-8b_8192_qa.json (01:00:00)
+21608452
+submit EVAL qwen3-8b @8192 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (03:00:00) after 21608452
+21608454
+submit CAL qwen3-8b @32768 prompts=10@0 -> h0_measurement/results/r8_routes/qwen3-8b_32768_qa.json (01:45:00)
+21608456
+submit EVAL qwen3-8b @32768 prompts=20@100 arms=fp,uniform,evict,interior_cascade,router_calib,adakv,dropkv,obck_ada,laprox (06:00:00) after 21608456
+21608457
+
+Logs:    h0_measurement/logs/r8_<JOBID>.{out,err}
+Results: h0_measurement/results/r9job<JOBID>/
+Read:    bash h0_measurement/bugs/9_sota_eviction_baselines/script.sh --read
+
+The job must print both "ALL R8 TESTS PASSED" and "ALL R9 TESTS PASSED"
+before model loading.

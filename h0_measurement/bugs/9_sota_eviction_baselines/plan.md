@@ -1,6 +1,7 @@
 # R9 — four more eviction baselines: Ada-KV, DropKV, OBCache, LaProx
 
-**Implementation audit and run contract:** `audit.md`. It records the baseline-to-paper judgments, the corrected R8 observation window and budget checks, and what still needs a main-model run.
+**Implementation audit and run contract:** `audit.md`. **Main-model results:**
+`report.md`. All five evaluation cells completed on 2026-09-22.
 
 Today every comparison is against **H2O** (`evict_h2o`, and the H0 `accum` corner)
 and **SnapKV** (`evict`, and the H0 `window` corner). This adds four published
@@ -226,7 +227,15 @@ per-head corner loop, and it would be our adaptation (the papers are
 prefill-time). Recommend deciding after R9 shows whether any of them moves R8's
 end-task numbers.
 
-## 8. Status: built and CPU-validated (2026-09-21)
+## 8. Status: main-model comparison complete (2026-09-22)
+
+The implementation checks below still hold. Jobs 978479--978489 completed all
+five evaluation cells at Llama 8K/32K/128K and Qwen 8K/32K. See `report.md` for
+the validity exclusions and results. In brief, OBCache-K + Ada-KV and LaProx are
+the strongest new eviction arms, but uniform quantization wins 34/36 valid
+task/budget cells. The grid is ceiling limited and
+must not be presented as satisfying R8's P0 budget gate.
+
 
 * `tests/test_baselines.py`: all anchors pass.
   * DropKV matches brute-force deletion to rel 1e-6.

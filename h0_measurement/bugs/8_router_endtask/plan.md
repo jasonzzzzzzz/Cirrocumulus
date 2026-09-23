@@ -1,21 +1,21 @@
 # R8 — router-on vs router-off on an end task
 
 
-> **Status 2026-09-22: IN PROGRESS. Next job: P0b** —
-> `bash h0_measurement/bugs/8_router_endtask/script.sh --p0b` (~1 GPU-h, not yet
-> submitted).
+> **Status 2026-09-22: PRIMARY CAMPAIGN COMPLETE; ANALYZED** — all five
+> evaluation cells completed in jobs 978479--978489. See `report.md`.
 >
 > | phase | state | where |
 > |---|---|---|
 > | build + tests (P0 path, P2 path, question-agnostic mode, B = 0.5) | done; `tests/test_r8.py` all pass | §9, §10, §12 |
 > | **P0** question-aware budget pilot, llama31-8b @32k | **done**, job 21529825 | **§11** — SnapKV 1.00 at every budget: with the question in its window, eviction is an oracle on these tasks |
-> | **P0b** question-agnostic + B = 0.5 | **built, next to submit** | **§12** (design, checks, CPU pilot, decision table) |
-> | P2 interior + routers (pilot → calibration → evaluation, 5 cells) | built, waits on P0b's read | §10 |
+> | **P0b** question-agnostic + B = 0.5 | **done**, job 978352 | **§12**; uniform jumps from failure at B=1 to near ceiling at B=2 |
+> | P2 + R9 SOTA primary campaign | **5/5 evaluation cells complete**, jobs 978479--978489 | `report.md`; the budget gate failed, P-1/P-2 fail, P-4 is unsupported |
 >
 > The sections below are in the order they were written (§0–§8 the original
-> plan, §9 onward the build and results). §11–§12 are current.
+> plan, §9 onward the build and results). The separate `report.md` is current.
 
-**Plan, 2026-09-21. P0 is BUILT and CPU-validated (§9); nothing has run on the cluster.** Every file below is NEW; no
+**Original plan status, 2026-09-21 (retained for chronology): P0 was built and
+CPU-validated; nothing had run on the cluster.** Every file below was new; no
 shared file (`run_h0.py`, `alloc.py`, `probe.py`, `quant.py`, `evict.py`,
 `test_units.py`) is edited, because wave 4 is about to run on exactly that code.
 R8 only *imports* from it.
@@ -728,11 +728,14 @@ What this is and is not evidence for:
 - The P2 path ran end to end in this mode (60 rows, uniform correctly absent at
   B = 0.5, 25,088 per-head errors), and `read_r8.py --p2` read it.
 
-**Bits audit tolerance (reader).** The water-fill arms (interior, routers)
-overspend by up to ~0.05% of B: the bisection on λ cannot hit B exactly with
-discrete widths. Eviction and uniform spend ≤ B exactly. `read_r8.py` now flags
-only overspends above 0.2% of B and prints the worst one. `alloc.waterfill_group`
-is left unchanged: H0's campaigns and golden tests depend on it.
+**Bits audit tolerance (reader).** When §12 was written the water-fill arms
+overspent by up to ~0.05% of B (the bisection on λ cannot hit B exactly with
+discrete widths), so `read_r8.py` flags only overspends above 0.2% of B and
+prints the worst one. `alloc.py` has since been changed (2026-09-22, R9 work) to
+return the **feasible** side of the bisection: the interior now spends ≤ B
+exactly (re-checked at B = 0.5/1/2/3), and the runs record
+`allocator_budget_rule: "feasible"`. The reader's tolerance is kept as a guard,
+not as an allowance.
 
 ### 12.4 Known approximation in QA mode (P2 only)
 

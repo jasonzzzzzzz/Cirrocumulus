@@ -65,7 +65,16 @@ if [[ "$MODE" == --p2* ]]; then
     echo "--eval-prompts must be 4..100 (the eval block 100.. must stay clear of the pilot's 200)"; exit 1; }
 fi
 
-cd "${PROJECT_ROOT:-/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant}"
+# PROJECT_ROOT: an explicit absolute path. It defaults to THIS FILE's checkout
+# (bugs/8_router_endtask/ -> the repo root), resolved to an absolute path, so the
+# sheet works in any checkout on any machine -- including a second one whose root
+# is not this machine's. Override it to submit from a different tree:
+#     PROJECT_ROOT=/scratch/jczhao20/Cirrocumulus bash .../script.sh --p0b
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)}"
+export PROJECT_ROOT
+cd "$PROJECT_ROOT" || { echo "PROJECT_ROOT=$PROJECT_ROOT does not exist"; exit 1; }
+[[ -f h0_measurement/run_r8.py ]] || {
+  echo "PROJECT_ROOT=$PROJECT_ROOT is not the project root (no h0_measurement/run_r8.py)"; exit 1; }
 PY="${SIEVE_VENV:-$PWD/.venv}/bin/python"
 [[ -x "$PY" ]] || { echo "no venv python at $PY (set SIEVE_VENV)"; exit 1; }
 

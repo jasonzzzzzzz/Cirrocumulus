@@ -1,0 +1,15 @@
+# Whole-policy diagnostic (paired prompt bootstrap, 90% intervals)
+
+llama31-8b @ 32,768  niah_multikey  [k16/v4/h4; B=2; n=20]
+  accuracy       uniform=1.000  KL-selected=1.000  envelope=1.000
+  H              +0.000 [+0.000, +0.000]
+  G              +0.000 [+0.000, +0.000]
+  H-G (regret)   +0.000 [+0.000, +0.000]
+  G/H captured   NA [NA, NA]
+  behavior       rescues=0  harms=0  tie-hit=20/20 (100.0%)
+  KL selections  uniform=18, evict=0, interior=2
+  oracle ties    uniform=20, evict=5, interior=6  (membership counts; ties retained)
+  decision       revise_candidates
+
+wrote h0_measurement/bugs/9_sota_eviction_baselines/policy_981481_summary.csv (1 summary rows)
+wrote h0_measurement/bugs/9_sota_eviction_baselines/policy_981481_prompts.csv (20 prompt rows)

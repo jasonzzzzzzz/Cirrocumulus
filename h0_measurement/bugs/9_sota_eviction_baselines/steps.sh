@@ -145,6 +145,65 @@
 # Do not submit `confirm` after `revise_candidates`, `reject_mean_kl`, or
 # `more_development_prompts`. Those outcomes return to the matching conditional
 # branch in plan.md using development data only.
+#
+# V2-A: OPERATING-POINT SCREEN (RUN BEFORE THE NEXT POLICY DIAGNOSTIC)
+# -------------------------------------------------------------------
+# The confirmed k16 point leaves only 20% accuracy headroom below FP. Screen
+# two harder, prespecified multikey points on fresh prompts before spending on a
+# second policy diagnostic. Both jobs use Llama 32K, B=2, QA mode, fp+uniform,
+# v4/h4, and prompts 500..539:
+#
+#   k24: n_keys=24 (80 accuracy rows)
+#   k32: n_keys=32 (80 accuracy rows)
+#
+# Run the screen in this order:
+#
+#   1. Inspect both exact commands; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-dry screen
+#      Use `k24` or `k32` instead of `screen` to inspect one cell.
+#
+#   2. Submit both cells and save the two printed OP2_JOB_ID values:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-submit screen
+#      The script authenticates and skips an already complete cell independently.
+#
+#   3. Check all newly submitted IDs without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-status JOB [JOB...]
+#
+#   4. After both cells complete, pass the k24 ID first and k32 ID second:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-read K24_JOB K32_JOB
+#
+# `--op2-read` accepts only this fixed pair. It authenticates each exact job
+# directory, then read_op2.py applies the frozen operating-point selection rule.
+# Do not launch policy V2-B until that report selects an operating point.
+#
+# V2-B: EXPANDED-POLICY DEVELOPMENT (ONLY AFTER V2-A SELECTS K)
+# ----------------------------------------------------------------
+# Every V2-B dry, submit, and read command takes the selected key count and the
+# exact paired V2-A job IDs. The workflow re-authenticates that pair and requires
+# its frozen selection to equal SELECTED_K before it prints, submits, or reads.
+#
+# Run in this order (K24_JOB must precede K32_JOB):
+#
+#   1. Authenticate and record the paired V2-A selection:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-read K24_JOB K32_JOB
+#
+#   2. If that report says `selection: k=K`, inspect the exact V2-B command:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-dry K24_JOB K32_JOB K
+#
+#   3. Submit the one selected-k job and save V2B_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-submit K24_JOB K32_JOB K
+#
+#   4. Check it without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-status V2B_JOB_ID
+#
+#   5. After completion, authenticate, analyze nested prefixes, and write a lock
+#      only if a preregistered selector advances:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-read K24_JOB K32_JOB K V2B_JOB_ID
+#
+# V2-B uses prompts 540..579, fp plus eight ordered complete policies, and an
+# at-most-eight-token FP teacher-forced trace. Expected counts are 360 accuracy
+# rows and 320 diagnostic rows. Its 01:00 walltime allows margin over the roughly
+# 30-minute estimate from the measured four-arm development run.
 
 set -euo pipefail
 
@@ -155,6 +214,8 @@ PY="${SIEVE_VENV:-$PROJECT_ROOT/.venv}/bin/python"
 WORKER="h0_measurement/submit_r8.slurm"
 READER="h0_measurement/bugs/8_router_endtask/read_r8.py"
 POLICY_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_policy.py"
+OP2_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_op2.py"
+V2B_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_policy_v2.py"
 ROUTES="h0_measurement/results/r8_routes/llama31-8b_32768_qa.json"
 REPORT_DIR="h0_measurement/bugs/9_sota_eviction_baselines"
 
@@ -164,6 +225,8 @@ DIFFICULTY_TASKS="niah_multikey,niah_multivalue,vt"
 CONFIRM_TASKS="niah_multikey"
 POLICY_ARMS="fp,uniform,evict,interior"
 POLICY_CANDIDATES="uniform,evict,interior"
+V2B_ARMS="fp,uniform,evict,interior,interior_pool,interior_cascade,obcache_k,obcache_k:alloc=ada@obck_ada,laprox"
+V2B_CANDIDATES="uniform,evict,interior,interior_pool,interior_cascade,obcache_k,obck_ada,laprox"
 
 usage() {
   cat <<'USAGE'
@@ -188,6 +251,16 @@ usage:
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-status JOB_ID [JOB_ID...]
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-read [dev|confirm] JOB_ID
 
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-dry [k24|k32|screen]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-submit [k24|k32|screen]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-status JOB_ID [JOB_ID...]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-read K24_JOB_ID K32_JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-dry K24_JOB_ID K32_JOB_ID SELECTED_K
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-submit K24_JOB_ID K32_JOB_ID SELECTED_K
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-status JOB_ID [JOB_ID...]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-read K24_JOB_ID K32_JOB_ID SELECTED_K V2B_JOB_ID
+
 The default selector "screen" addresses all three tasks at (8,6,6) and
 (16,8,8). The post-screen "mid" selector reruns multivalue and VT at (16,7,7)
 with difficulty-aware answer limits; "vt-hard" does the same for VT at h8.
@@ -196,6 +269,12 @@ held-out prompts 420--439 and cannot accept a difficulty selector.
 The policy development split is prompts 440--459. The policy confirmation split
 is prompts 460--499 and must be run only after the development reader prints
 `decision       advance_mean_kl`.
+The V2-A operating-point screen is prompts 500--539 at k24 and k32. Its `screen`
+selector means both cells. The read interface requires the k24 job first and
+the k32 job second so one cell can never be silently mistaken for the other.
+V2-B is prompts 540--579 at the explicitly selected V2-A key count. Its dry,
+submit, and read modes re-authenticate the exact pair and refuse a mismatched key
+count. The raw adaptive OBCache arm resolves to the stable label `obck_ada`.
 This script intentionally does not rerun the completed five-cell campaign.
 Read the ordered instructions and decision table at the top of the file.
 USAGE
@@ -756,6 +835,376 @@ read_policy_job() {
   echo "saved: $prompt_csv"
 }
 
+
+# V2-A has two fixed operating-point cells. `screen` expands to both in the
+# declared order so dry-run, submission, and the paired reader agree on k.
+op2_specs() {
+  case "${1:-screen}" in
+    k24)    printf '%s\n' "24 r8op2_k24_" ;;
+    k32)    printf '%s\n' "32 r8op2_k32_" ;;
+    screen) printf '%s\n' "24 r8op2_k24_" "32 r8op2_k32_" ;;
+    *) echo "ERROR: operating-point selector must be k24, k32, or screen" >&2; exit 2 ;;
+  esac
+}
+
+op2_command() {
+  local nk=$1 prefix=$2
+  printf '%q ' sbatch --parsable --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=500 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0
+  printf '\n'
+}
+
+# Validate one exact job directory. The standalone audit makes the completion
+# test independent of similarly named runs; read_op2.py then authenticates the
+# parquet/sidecar pair with the same reader used for the scientific report.
+op2_artifact_complete() {
+  local dir=$1 nk=$2
+  local parquet="$dir/r8_llama31-8b_32768_k${nk}_v4_h4.parquet"
+  local sidecar="${parquet%.parquet}.json"
+  [[ -f "$parquet" && -f "$sidecar" ]] || return 1
+
+  "$PY" - "$parquet" "$sidecar" "$nk" <<'PY_OP2_AUDIT' || return 1
+from collections import Counter
+import json
+import os
+import sys
+
+import pandas as pd
+
+parquet, sidecar, raw_nk = sys.argv[1:]
+nk = int(raw_nk)
+with open(parquet, "rb") as handle:
+    handle.seek(-4, os.SEEK_END)
+    assert handle.read() == b"PAR1", f"incomplete parquet footer: {parquet}"
+
+columns = [
+    "model", "ctx", "prompt_idx", "task", "arm", "B", "n_keys",
+    "n_values", "n_hops", "corpus_sha", "synthetic", "bits_per_token",
+    "question_agnostic", "max_new_tokens", "gen_len", "reached_max_new",
+]
+frame = pd.read_parquet(parquet, columns=columns)
+want_prompts = set(range(500, 540))
+want_arms = {"fp", "uniform"}
+assert len(frame) == 80
+assert set(frame.model) == {"llama31-8b"}
+assert set(frame.ctx.astype(int)) == {32768}
+assert set(frame.prompt_idx.astype(int)) == want_prompts
+assert set(frame.task) == {"niah_multikey"}
+assert set(frame.arm) == want_arms
+assert set(frame.n_keys.astype(int)) == {nk}
+assert set(frame.n_values.astype(int)) == {4}
+assert set(frame.n_hops.astype(int)) == {4}
+assert frame.question_agnostic.astype(bool).all()
+assert not frame.synthetic.astype(bool).any()
+assert len(set(frame.corpus_sha)) == 1
+assert frame.corpus_sha.iloc[0] not in ("", "synthetic")
+keys = Counter(zip(frame.prompt_idx.astype(int), frame.task, frame.arm))
+assert set(keys) == {(prompt, "niah_multikey", arm)
+                     for prompt in want_prompts for arm in want_arms}
+assert set(keys.values()) == {1}
+assert all((arm == "fp" and float(budget) == 0.0) or
+           (arm == "uniform" and float(budget) == 2.0)
+           for arm, budget in zip(frame.arm, frame.B))
+assert all(value is None or float(value) <= 2.0 + 1e-6
+           for value, arm in zip(frame.bits_per_token, frame.arm)
+           if arm == "uniform")
+assert set(frame.max_new_tokens.astype(int)) == {24}
+assert all(bool(reached) == (int(length) >= int(limit))
+           for reached, length, limit in zip(
+               frame.reached_max_new, frame.gen_len, frame.max_new_tokens))
+
+with open(sidecar) as handle:
+    meta = json.load(handle)
+assert meta["parquet"] == os.path.basename(parquet)
+assert meta["model"] == "llama31-8b"
+assert int(meta["ctx"]) == 32768
+assert meta["tasks"] == ["niah_multikey"]
+assert meta["arms"] == ["fp", "uniform"]
+assert [float(value) for value in meta["budgets"]] == [2.0]
+assert meta["task_config"] == {"n_keys": nk, "n_values": 4, "n_hops": 4}
+assert int(meta["n_prompts"]) == 40
+assert int(meta["prompt_offset"]) == 500
+assert bool(meta["question_agnostic"])
+assert int(meta["rows"]) == 80
+assert meta["generation_limit_version"] == "difficulty_v1"
+assert meta["generation_limits"] == {"niah_multikey": 24}
+assert meta["corpus_sha"] == frame.corpus_sha.iloc[0]
+PY_OP2_AUDIT
+
+  "$PY" "$OP2_READER" --validate-only "$parquet" >/dev/null 2>&1 || return 1
+}
+
+op2_find_complete() {
+  local nk=$1 prefix=$2 dir base
+  for dir in "h0_measurement/results/${prefix}"*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if op2_artifact_complete "$dir" "$nk"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+op2_job_id_from_dir() {
+  local dir=$1 prefix=$2 base=${1##*/}
+  [[ "$base" =~ ^${prefix}([0-9]+)$ ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+submit_op2_one() {
+  local nk=$1 prefix=$2 label="k${1}" where output job_id
+  if where=$(op2_find_complete "$nk" "$prefix"); then
+    job_id=$(op2_job_id_from_dir "$where" "$prefix") || {
+      echo "ERROR: valid $label artifact has an unexpected directory name: $where" >&2
+      exit 1
+    }
+    echo "operating-point $label already complete: $where"
+    echo "OP2_${label^^}_JOB_ID=$job_id (existing)"
+    echo "result: $where/"
+    return 0
+  fi
+  output=$(sbatch --parsable --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=500 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2; exit 1; }
+  echo "submitted operating-point $label screen"
+  echo "OP2_${label^^}_JOB_ID=$job_id"
+  echo "config=${label}_v4_h4 task=niah_multikey B=2 prompts=500..539 rows=80"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+}
+
+op2_dir_for_job() {
+  local nk=$1 prefix=$2 job_id=$3
+  local dir="h0_measurement/results/${prefix}${job_id}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact k$nk operating-point directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+read_op2_pair() {
+  local k24_job=$1 k32_job=$2 k24_dir k32_dir k24_parquet k32_parquet out summary_csv
+  k24_dir=$(op2_dir_for_job 24 r8op2_k24_ "$k24_job")
+  k32_dir=$(op2_dir_for_job 32 r8op2_k32_ "$k32_job")
+  if ! op2_artifact_complete "$k24_dir" 24; then
+    echo "ERROR: job $k24_job does not satisfy the complete k24 operating-point contract" >&2
+    exit 1
+  fi
+  if ! op2_artifact_complete "$k32_dir" 32; then
+    echo "ERROR: job $k32_job does not satisfy the complete k32 operating-point contract" >&2
+    exit 1
+  fi
+  k24_parquet="$k24_dir/r8_llama31-8b_32768_k24_v4_h4.parquet"
+  k32_parquet="$k32_dir/r8_llama31-8b_32768_k32_v4_h4.parquet"
+  out="$REPORT_DIR/op2_${k24_job}_${k32_job}.txt"
+  summary_csv="$REPORT_DIR/op2_${k24_job}_${k32_job}_summary.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$OP2_READER" "$k24_parquet" "$k32_parquet" \
+    --csv "$summary_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+}
+
+
+need_v2b_n_keys() {
+  [[ "${1:-}" == 24 || "${1:-}" == 32 ]] || {
+    echo "ERROR: SELECTED_K must be exactly 24 or 32, got '${1:-}'" >&2
+    exit 2
+  }
+}
+
+v2b_paths() {
+  local nk=$1 dir=$2
+  printf '%s\n' \
+    "$dir/r8_llama31-8b_32768_k${nk}_v4_h4.parquet" \
+    "$dir/r8policy_llama31-8b_32768_k${nk}_v4_h4.parquet"
+}
+
+# Recompute V2-A's frozen paired decision from the exact job directories. This
+# never trusts a hand-written key count or an unauthenticated/stale CSV.
+v2b_require_op2_selection() {
+  local want_k=$1 k24_job=$2 k32_job=$3 k24_dir k32_dir k24_parquet k32_parquet
+  local recorded_csv gate_csv gate_status
+  k24_dir=$(op2_dir_for_job 24 r8op2_k24_ "$k24_job") || return 1
+  k32_dir=$(op2_dir_for_job 32 r8op2_k32_ "$k32_job") || return 1
+  if ! op2_artifact_complete "$k24_dir" 24; then
+    echo "ERROR: V2-B gate rejected unauthenticated k24 job $k24_job" >&2
+    return 1
+  fi
+  if ! op2_artifact_complete "$k32_dir" 32; then
+    echo "ERROR: V2-B gate rejected unauthenticated k32 job $k32_job" >&2
+    return 1
+  fi
+  k24_parquet="$k24_dir/r8_llama31-8b_32768_k24_v4_h4.parquet"
+  k32_parquet="$k32_dir/r8_llama31-8b_32768_k32_v4_h4.parquet"
+  recorded_csv="$REPORT_DIR/op2_${k24_job}_${k32_job}_summary.csv"
+  [[ -f "$recorded_csv" ]] || {
+    echo "ERROR: missing exact paired V2-A summary: $recorded_csv" >&2
+    echo "run: bash $REPORT_DIR/steps.sh --op2-read $k24_job $k32_job" >&2
+    return 1
+  }
+  gate_csv=$(mktemp "${TMPDIR:-/tmp}/sieve-op2-gate.XXXXXX.csv") || {
+    echo "ERROR: could not create a temporary V2-A gate summary" >&2
+    return 1
+  }
+  if ! "$PY" "$OP2_READER" "$k24_parquet" "$k32_parquet" \
+      --csv "$gate_csv" >/dev/null; then
+    rm -f "$gate_csv"
+    echo "ERROR: V2-B gate could not authenticate the paired V2-A summary" >&2
+    return 1
+  fi
+  if ! cmp -s "$recorded_csv" "$gate_csv"; then
+    rm -f "$gate_csv"
+    echo "ERROR: $recorded_csv does not match the freshly authenticated exact V2-A pair" >&2
+    echo "rerun: bash $REPORT_DIR/steps.sh --op2-read $k24_job $k32_job" >&2
+    return 1
+  fi
+  if "$PY" - "$recorded_csv" "$want_k" <<'PY_V2B_GATE'
+import sys
+import pandas as pd
+
+path, raw_want = sys.argv[1:]
+want = int(raw_want)
+frame = pd.read_csv(path)
+required = {"n_keys", "selected"}
+if not required.issubset(frame.columns):
+    raise SystemExit("ERROR: authenticated V2-A summary lacks n_keys/selected")
+selected_mask = frame.selected.astype(str).str.lower().isin({"true", "1"})
+selected = frame.loc[selected_mask, "n_keys"].astype(int).tolist()
+if selected != [want]:
+    actual = "no selection" if not selected else ",".join(map(str, selected))
+    raise SystemExit(
+        f"ERROR: V2-A selected {actual}; refusing V2-B requested SELECTED_K={want}"
+    )
+PY_V2B_GATE
+  then
+    gate_status=0
+  else
+    gate_status=$?
+  fi
+  rm -f "$gate_csv"
+  return "$gate_status"
+}
+
+v2b_command() {
+  local nk=$1 prefix="r8policy_v2b_k${1}_"
+  printf '%q ' sbatch --parsable --time=01:00:00 "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS="$V2B_ARMS" R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=540 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0 \
+    R8_POLICY_DIAGNOSTIC=1 R8_POLICY_CANDIDATES="$V2B_CANDIDATES" \
+    R8_POLICY_TRACE_STEPS=8
+  printf '\n'
+}
+
+v2b_artifact_complete() {
+  local dir=$1 nk=$2 paths accuracy diagnostic
+  mapfile -t paths < <(v2b_paths "$nk" "$dir")
+  accuracy=${paths[0]}; diagnostic=${paths[1]}
+  [[ -f "$accuracy" && -f "${accuracy%.parquet}.json" \
+     && -f "$diagnostic" && -f "${diagnostic%.parquet}.json" ]] || return 1
+  "$PY" "$V2B_READER" "$accuracy" "$diagnostic" \
+    --n-keys "$nk" --validate-only >/dev/null 2>&1 || return 1
+}
+
+v2b_find_complete() {
+  local nk=$1 prefix="r8policy_v2b_k${1}_" dir base
+  for dir in "h0_measurement/results/${prefix}"*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if v2b_artifact_complete "$dir" "$nk"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+submit_v2b() {
+  local nk=$1 prefix="r8policy_v2b_k${1}_" where output job_id
+  if where=$(v2b_find_complete "$nk"); then
+    job_id=$(op2_job_id_from_dir "$where" "$prefix") || {
+      echo "ERROR: valid V2-B artifact has an unexpected directory name: $where" >&2
+      exit 1
+    }
+    echo "V2-B k$nk already complete: $where"
+    echo "V2B_JOB_ID=$job_id (existing)"
+    echo "result: $where/"
+    return 0
+  fi
+  output=$(sbatch --parsable --time=01:00:00 "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS="$V2B_ARMS" R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=540 R8_QA=1 \
+    R8_N_KEYS="$nk" R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0 \
+    R8_POLICY_DIAGNOSTIC=1 R8_POLICY_CANDIDATES="$V2B_CANDIDATES" \
+    R8_POLICY_TRACE_STEPS=8)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2; exit 1; }
+  echo "submitted expanded-policy V2-B development"
+  echo "V2B_JOB_ID=$job_id"
+  echo "config=k${nk}_v4_h4 task=niah_multikey B=2 prompts=540..579"
+  echo "rows=accuracy:360 diagnostic:320 trace=fp_teacher_forced_v1<=8"
+  echo "estimated_runtime=about_30m walltime=01:00:00"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --v2b-status $job_id"
+}
+
+v2b_dir_for_job() {
+  local nk=$1 job_id=$2
+  local dir="h0_measurement/results/r8policy_v2b_k${nk}_${job_id}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V2-B k$nk directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+read_v2b_job() {
+  local nk=$1 job_id=$2 dir paths accuracy diagnostic out summary_csv prompt_csv lock_out
+  dir=$(v2b_dir_for_job "$nk" "$job_id")
+  if ! v2b_artifact_complete "$dir" "$nk"; then
+    echo "ERROR: job $job_id does not satisfy the complete V2-B k$nk artifact contract" >&2
+    exit 1
+  fi
+  mapfile -t paths < <(v2b_paths "$nk" "$dir")
+  accuracy=${paths[0]}; diagnostic=${paths[1]}
+  out="$REPORT_DIR/policy_v2_${job_id}.txt"
+  summary_csv="$REPORT_DIR/policy_v2_${job_id}_summary.csv"
+  prompt_csv="$REPORT_DIR/policy_v2_${job_id}_prompts.csv"
+  lock_out="$REPORT_DIR/policy_v2_${job_id}_lock.json"
+  env OMP_NUM_THREADS=8 "$PY" "$V2B_READER" "$accuracy" "$diagnostic" \
+    --n-keys "$nk" --csv "$summary_csv" --prompt-csv "$prompt_csv" \
+    --lock-out "$lock_out" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  echo "saved: $prompt_csv"
+  if [[ -f "$lock_out" ]]; then
+    echo "saved: $lock_out"
+  else
+    echo "lock:  none (the authenticated V2-B decision did not advance a selector)"
+  fi
+}
+
 MODE="${1:-}"
 case "$MODE" in
   --oracle-dry)
@@ -849,6 +1298,76 @@ case "$MODE" in
     [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
     need_job_id "${3:-}"
     read_policy_job "${2:-dev}" "$3"
+    ;;
+  --op2-dry)
+    (($# <= 2)) || { echo "ERROR: --op2-dry accepts at most one selector" >&2; exit 2; }
+    need_file "$WORKER"
+    op2_specs "${2:-screen}" >/dev/null
+    echo "DRY RUN; submit nothing:"
+    while read -r nk prefix; do op2_command "$nk" "$prefix"; done \
+      < <(op2_specs "${2:-screen}")
+    ;;
+  --op2-submit)
+    (($# <= 2)) || { echo "ERROR: --op2-submit accepts at most one selector" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$OP2_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    op2_specs "${2:-screen}" >/dev/null
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    while read -r nk prefix; do submit_op2_one "$nk" "$prefix"; done \
+      < <(op2_specs "${2:-screen}")
+    ;;
+  --op2-status)
+    (($# >= 2)) || { echo "ERROR: at least one JOB_ID is required" >&2; exit 2; }
+    status_difficulty "$@"
+    ;;
+  --op2-read)
+    (($# == 3)) || {
+      echo "ERROR: --op2-read requires exactly K24_JOB_ID K32_JOB_ID (in that order)" >&2
+      exit 2
+    }
+    need_job_id "$2"; need_job_id "$3"
+    need_file "$OP2_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_op2_pair "$2" "$3"
+    ;;
+  --v2b-dry)
+    (($# == 4)) || {
+      echo "ERROR: --v2b-dry requires K24_JOB_ID K32_JOB_ID SELECTED_K" >&2
+      exit 2
+    }
+    need_job_id "$2"; need_job_id "$3"; need_v2b_n_keys "$4"
+    need_file "$WORKER"; need_file "$OP2_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    v2b_require_op2_selection "$4" "$2" "$3"
+    echo "DRY RUN; authenticated V2-A selected k=$4; submit nothing:"
+    v2b_command "$4"
+    ;;
+  --v2b-submit)
+    (($# == 4)) || {
+      echo "ERROR: --v2b-submit requires K24_JOB_ID K32_JOB_ID SELECTED_K" >&2
+      exit 2
+    }
+    need_job_id "$2"; need_job_id "$3"; need_v2b_n_keys "$4"
+    need_file "$WORKER"; need_file "$OP2_READER"; need_file "$V2B_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    v2b_require_op2_selection "$4" "$2" "$3"
+    submit_v2b "$4"
+    ;;
+  --v2b-status)
+    (($# >= 2)) || { echo "ERROR: at least one JOB_ID is required" >&2; exit 2; }
+    status_difficulty "$@"
+    ;;
+  --v2b-read)
+    (($# == 5)) || {
+      echo "ERROR: --v2b-read requires K24_JOB_ID K32_JOB_ID SELECTED_K V2B_JOB_ID" >&2
+      exit 2
+    }
+    need_job_id "$2"; need_job_id "$3"; need_v2b_n_keys "$4"; need_job_id "$5"
+    need_file "$OP2_READER"; need_file "$V2B_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    v2b_require_op2_selection "$4" "$2" "$3"
+    read_v2b_job "$4" "$5"
     ;;
   -h|--help|"")
     usage

@@ -1,8 +1,9 @@
 # R9 main-model baseline results
 
 **Dates:** main campaign 2026-09-22; non-ceiling follow-up 2026-09-23  
-**Status:** all five evaluation cells complete; the non-ceiling task interface
-is held-out confirmed in job 980414.  
+**Status:** all five evaluation cells complete. The first whole-policy
+implementation run (job 981481) is authenticated, but its fresh block returned
+to a uniform ceiling; the next harder-task screen is specified below.  
 **Full R8/router analysis:** `../8_router_endtask/report.md`.
 
 ## Comparison
@@ -354,3 +355,74 @@ output-error framework exposes strong model-dependent structure, but its current
 calibrated router does not transfer reliably to end-task accuracy. The R9
 baseline comparison remains useful under its stated key-bit simulation
 contract.
+
+## Whole-policy diagnostic: development job 981481
+
+Job 981481 is the first implementation of the Step 3 whole-policy diagnostic.
+It uses Llama-3.1-8B at 32K, question-agnostic multikey NIAH at k16/v4/h4,
+B=2, and fresh prompts 440--459. The accuracy artifact has exactly 80 rows for
+`fp`, `uniform`, `evict`, and `interior`; the separate diagnostic artifact has
+exactly 60 rows for the three non-FP candidates. Both sidecars, the linked
+accuracy SHA-256, real-corpus identity, row keys, candidate order, shared trace
+hashes, bit budgets, and absence of raw logits pass the strict reader.
+
+| quantity | result |
+|---|---:|
+| FP accuracy | 1.000 (20/20) |
+| uniform accuracy | 1.000 (20/20) |
+| eviction accuracy | 0.250 (5/20) |
+| interior accuracy | 0.300 (6/20) |
+| end-task envelope | 1.000 |
+| `H = envelope - uniform` | **0.000 [0.000, 0.000]** |
+| mean-KL-selected accuracy | 1.000 |
+| `G = KL-selected - uniform` | **0.000 [0.000, 0.000]** |
+| mean-KL selections | uniform 18, eviction 0, interior 2 |
+| selector in end-task-optimal tie | 20/20 |
+| preregistered decision | **`revise_candidates`** |
+
+The result does not test whether mean logit KL can capture useful policy
+opportunity: no such opportunity exists on this block. Uniform is already at
+the normalized maximum on every prompt, so for any expanded candidate set that
+still contains uniform,
+
+`max(candidate score) - uniform score = 1 - 1 = 0`
+
+prompt by prompt. Running the preregistered expanded policies again on prompts
+440--459 therefore cannot make H reach 0.10 and must not be submitted.
+
+The weak candidates are also nested rather than complementary here. All five
+eviction successes are interior successes; interior adds one further success.
+The logit measurements nevertheless look coherent: uniform has the lowest mean
+KL on 18 prompts, interior has it on two prompts where all three candidates are
+correct, trace lengths equal `min(8, FP generation length)`, every candidate in
+a prompt shares one trace hash, and every replay reproduces the FP argmax.
+Within eviction and interior separately, the stored KL statistics cleanly
+separate their successes from their failures. That is descriptive mechanism
+evidence, not evidence for gain over uniform.
+
+### Why the previously confirmed point was not stable enough
+
+The k16/B=2 task produced uniform accuracy 0.80 on prompts 400--409, 0.80 on
+held-out prompts 420--439, and 1.00 on prompts 440--459: 44/50 = 0.88 overall.
+The 0.80-versus-1.00 difference between the two 20-prompt blocks has a
+conditional two-sided exact probability of about 0.106, so the current sample
+does not distinguish a structural block shift from ordinary binary prompt
+variation. Reconstructing the queried needle location also finds no depth
+explanation: mean queried depth is 0.519 versus 0.596, while the four earlier
+uniform failures span depths 0.292--0.900. Provenance, prompt IDs, corpus rows,
+bit spending, generation caps, and task configuration are all correct.
+
+The practical conclusion is that selecting a point at the upper 0.80 boundary
+with 10 prompts and confirming it with only 20 prompts did not leave enough
+headroom for a later oracle test. This is an experimental-design failure, not a
+diagnostic implementation failure and not evidence that the logit proxy works.
+The next iteration must establish a harder point on a larger fresh block before
+collecting any expanded policy diagnostic.
+
+Artifacts:
+
+- `h0_measurement/results/r8policy_dev_981481/`
+- `policy_981481.txt`
+- `policy_981481_summary.csv`
+- `policy_981481_prompts.csv`
+

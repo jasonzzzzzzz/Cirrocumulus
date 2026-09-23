@@ -38,6 +38,12 @@ TASKS = ("niah_single", "niah_multikey", "niah_multivalue", "vt")
 # as this exact legacy configuration, while harder-task runs are explicit.
 DEFAULT_TASK_CONFIG = {"n_keys": 4, "n_values": 4, "n_hops": 4}
 
+# The prompt algorithm and its RNG namespace. Adding target-needle provenance
+# below is metadata-only, so this stays at v1: old and new runs construct the
+# same prompt bytes for a given task/config/prompt index.
+TASK_GENERATION_VERSION = "ruler_pg19_v1"
+TARGET_NEEDLE_PROVENANCE_VERSION = "queried_needle_v1"
+
 
 def task_config(n_keys=4, n_values=4, n_hops=4):
     """Validate and return the lossless task-difficulty provenance record."""
@@ -153,6 +159,7 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
     rng = random.Random(prompts._seed("ruler", task, prompt_idx))
     used_k, used_v = set(), set()
     distractors: list[str] = []
+    target_needle_rank = None
 
     if task in ("niah_single", "niah_multikey"):
         n = 1 if task == "niah_single" else n_keys
@@ -164,6 +171,9 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
         order = list(range(n))
         rng.shuffle(order)                        # the queried needle is not always first
         needles = [needles[i] for i in order]
+        # Zero-based rank in the actual insertion order. This lookup consumes
+        # no randomness and therefore cannot perturb prompt generation.
+        target_needle_rank = order.index(q)
         expected = [vals[q]]
         distractors = [v for i, v in enumerate(vals) if i != q]
         prefix = _NIAH_PREFIX
@@ -197,9 +207,13 @@ def build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False,
     depths = sorted(rng.uniform(0.05, 0.95) for _ in needles)
     body, cuts = _insert(tok, ids, needles, depths)
     text = prefix + body + question
+    target_needle_depth = (round(depths[target_needle_rank], 4)
+                           if target_needle_rank is not None else None)
     meta.update(family=f"ruler_{task}", task=task, prompt_idx=prompt_idx,
                 expected=expected, distractors=distractors,
                 needle_depths=[round(d, 4) for d in depths], n_needles=len(needles),
+                target_needle_rank=target_needle_rank,
+                target_needle_depth=target_needle_depth,
                 task_config=cfg,
                 # text == context + question: the question-agnostic driver
                 # compresses the context before the question exists (plan.md 12)

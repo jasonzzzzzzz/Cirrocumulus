@@ -7,7 +7,7 @@ untouched. Same PASS/FAIL convention.
     .venv/bin/python tests/test_r8.py            # everything
     .venv/bin/python tests/test_r8.py --fast     # tensor tests only, no model
 """
-import json, math, os, sys, tempfile
+import hashlib, json, math, os, sys, tempfile
 import torch
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -123,6 +123,76 @@ def test_task_provenance():
         check("prompt-block overlap is still rejected", overlap)
     finally:
         os.unlink(legacy); os.unlink(exact)
+
+
+def test_target_needle_provenance():
+    """Queried-needle metadata matches the inserted needle without changing
+    any legacy prompt bytes or pre-existing task metadata."""
+    print("\n[R8] queried-needle placement provenance")
+
+    class GoldenTokenizer:
+        @staticmethod
+        def decode(ids):
+            return "".join(f"<{int(i):03d}>" for i in ids)
+
+    old_resolve = TR.prompts.resolve_corpus_dir
+    old_haystack = TR.prompts._build_haystack
+    TR.prompts.resolve_corpus_dir = lambda _: "/fake"
+    TR.prompts._build_haystack = lambda tok, ctx, corpus, p, require: (
+        list(range(1, 201)), {"synthetic": True, "doc": "golden", "offset": p})
+    cases = [
+        ("niah_single", 0, {},
+         "fd217c4c3f34519f3c1b5e29012c19f337d950ccdd8f8ee8203a04741d067cf3",
+         "b434843f374e791b7071cbf37ddb068ff7082f80605add6692561c9fdb721dd6",
+         0, 0.4498),
+        ("niah_multikey", 3, {},
+         "055feec60ee218e36d438a8f546ccd9c4efb4dc5ffa35dc5ba72267895fde88d",
+         "ce03b8f0ff003858575c10364dcef82114c561596f6aa2dcab818c03c53680c2",
+         0, 0.1849),
+        ("niah_multikey", 440, {"n_keys": 16, "n_values": 4, "n_hops": 4},
+         "83025132736b30ee4e36ab55cd8d7518a7932038ad568ec208b753fc63a9e495",
+         "6d5cc89252999c32ec08716c56f28b7e19f02a7f5fd89c3807132b0957001834",
+         8, 0.6753),
+        ("niah_multivalue", 3, {},
+         "71e846930b0f8ee5149b2bfab9cfb26d52d34aef1be79c9bb17606367f5f78eb",
+         "9ff2ec1b7ee8b6f5460c0053e9c0cc835e05b15535d450a8d98a8d4182d2686c",
+         None, None),
+        ("vt", 3, {},
+         "049deb4ba50e947b033b1a30429de186643b721725c8173904e8ac9e5c2a0a01",
+         "5a8335f9f03f6ddd3bb22c1a10bf13fa06cb223cb3b0348aaf33381f3b59f3b8",
+         None, None),
+    ]
+    try:
+        for task, prompt_idx, cfg, golden_sha, golden_meta_sha, rank, depth in cases:
+            text, meta = TR.build(GoldenTokenizer(), task, 2048,
+                                  prompt_idx=prompt_idx, **cfg)
+            sha = hashlib.sha256(text.encode()).hexdigest()
+            check(f"{task} p{prompt_idx}: prompt bytes retain the pre-change hash",
+                  sha == golden_sha, f"({sha})")
+            legacy_meta = {k: v for k, v in meta.items()
+                           if k not in {"target_needle_rank", "target_needle_depth"}}
+            meta_bytes = json.dumps(legacy_meta, sort_keys=True,
+                                    separators=(",", ":")).encode()
+            meta_sha = hashlib.sha256(meta_bytes).hexdigest()
+            check(f"{task} p{prompt_idx}: legacy metadata is unchanged",
+                  meta_sha == golden_meta_sha, f"({meta_sha})")
+            check(f"{task} p{prompt_idx}: target rank/depth are deterministic",
+                  meta["target_needle_rank"] == rank
+                  and meta["target_needle_depth"] == depth)
+            if rank is not None:
+                values = meta["expected"] + meta["distractors"]
+                inserted = sorted(values, key=text.index)
+                reconstructed_rank = inserted.index(meta["expected"][0])
+                check(f"{task} p{prompt_idx}: rank identifies queried insertion",
+                      reconstructed_rank == rank
+                      and meta["needle_depths"][rank] == depth)
+            else:
+                check(f"{task} p{prompt_idx}: no single queried needle is reported",
+                      meta["target_needle_rank"] is None
+                      and meta["target_needle_depth"] is None)
+    finally:
+        TR.prompts.resolve_corpus_dir = old_resolve
+        TR.prompts._build_haystack = old_haystack
 
 
 def test_off_is_the_probe():
@@ -802,7 +872,8 @@ def test_question_agnostic_end_to_end():
 
 if __name__ == "__main__":
     fast = "--fast" in sys.argv
-    tests = [test_task_provenance, test_off_is_the_probe, test_capture_chunking, test_h2o_capture,
+    tests = [test_task_provenance, test_target_needle_provenance,
+             test_off_is_the_probe, test_capture_chunking, test_h2o_capture,
              test_snapkv_pool, test_mixed_quantize, test_budget_matched,
              test_decode_compressed, test_crop_to, test_p2_interior,
              test_p2_eval_and_route, test_p2_answer_span, test_eval_vectorised,

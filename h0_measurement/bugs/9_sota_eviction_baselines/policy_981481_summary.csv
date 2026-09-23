@@ -1,0 +1,2 @@
+model,ctx,task,n_keys,n_values,n_hops,B,n_prompts,uniform_mean,envelope_mean,kl_selected_mean,H,H_lo,H_hi,G,G_lo,G_hi,regret,regret_lo,regret_hi,captured,captured_lo,captured_hi,rescues,harms,tie_hits,tie_hit_rate,selected_uniform,optimal_ties_uniform,selected_evict,optimal_ties_evict,selected_interior,optimal_ties_interior,decision
+llama31-8b,32768,niah_multikey,16,4,4,2.0,20,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,,,,0,0,20,1.0,18,20,0,5,2,6,revise_candidates

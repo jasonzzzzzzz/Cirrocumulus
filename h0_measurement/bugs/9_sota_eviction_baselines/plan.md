@@ -3,10 +3,12 @@
 **Implementation audit and run contract:** `audit.md`. **Main-model results:**
 `report.md`. All five evaluation cells completed on 2026-09-22.
 
-**Next iteration status (2026-09-23):** Steps 1 and 2 are complete. The
-provenance-safe task interface is implemented and tested, and held-out job
-980414 confirms Llama 32K/B=2 multikey at k16/v4/h4 as the non-ceiling operating
-point. Step 3's whole-policy diagnostic is specified below and is not yet run.
+**Next iteration status (2026-09-23):** Steps 1 and 2 are complete. Held-out
+job 980414 initially confirmed Llama 32K/B=2 multikey at k16/v4/h4, but Step 3
+development job 981481 then found uniform at 20/20, leaving zero candidate
+envelope headroom. The V2-A full-cycle operating-point repair below is now
+implemented and locally validated. Jobs 982121 (k24) and 982122 (k32) were
+submitted together on 2026-09-23 and are the only V2-A outcome artifacts.
 
 Today every comparison is against **H2O** (`evict_h2o`, and the H0 `accum` corner)
 and **SnapKV** (`evict`, and the H0 `window` corner). This adds four published
@@ -426,11 +428,13 @@ bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB
 
 ### Step 3 — whole-policy headroom and logit-proxy diagnostic
 
-**State (2026-09-23):** design frozen after Step 2; the isolated implementation
-and CPU contracts pass. Development job **981481** is running on prompts
-440--459. Keep the confirmed cell fixed: Llama-3.1-8B at 32K,
-question-agnostic multikey NIAH, k16/v4/h4, B=2. Prompts 420--439 remain the
-difficulty-confirmation block and cannot be used to tune a policy selector.
+**State (2026-09-23):** implementation and CPU contracts pass. Development
+job **981481** completed and authenticated on prompts 440--459, but uniform was
+1.00 on all 20 prompts, giving H=G=0 and decision `revise_candidates`. Because
+an envelope containing a perfect uniform policy has algebraically zero
+headroom, do not run expanded candidates on this block. Prompts 420--439 remain
+the earlier difficulty-confirmation block and prompts 460--499 remain untouched
+for a future locked policy confirmation.
 
 #### 3A. Fresh diagnostic-development block
 
@@ -558,8 +562,116 @@ artifact identity, shared-trace provenance, and rejection of raw logits.
 
 Development job **981481** was submitted from `trig-login01` with prompts
 440--459, 20 prompts, four accuracy arms, three diagnostic candidates, B=2,
-and an at-most eight-token FP trace. Expected outputs are 80 accuracy rows and
-60 diagnostic rows in `h0_measurement/results/r8policy_dev_981481/`. Do not
-submit the locked confirmation until the authenticated reader applies the
-prespecified H/G gate.
+and an at-most eight-token FP trace. It completed in 5:24 with all 80 accuracy
+rows and 60 diagnostic rows in `h0_measurement/results/r8policy_dev_981481/`.
+The authenticated result is FP 1.00, uniform 1.00, eviction 0.25, interior
+0.30, H=0, G=0, and `revise_candidates`. Mean KL selects uniform 18 times and
+interior twice; every choice belongs to an end-task-optimal tie. No raw logits
+were written and every FP replay argmax check passes.
 
+Do not submit the locked confirmation or the expanded candidate set from 3C on
+prompts 440--459. Since uniform is correct on all 20, adding candidates cannot
+increase the end-task envelope on even one prompt. The next step must repair the
+operating point on fresh data; the result and rationale are recorded in
+`report.md`.
+
+
+#### 3F. V2 operating-point repair after the ceilinged development block
+
+**Frozen before viewing any prompts at 500 or above.** Job 981481 makes the
+planned same-block candidate expansion uninformative: its uniform score is 1 on
+every prompt, so adding policies cannot change H. The earlier k16 selection was
+also made at the upper 0.80 boundary using only 10 prompts. Across all observed
+k16 blocks, uniform is 44/50 = 0.88. Return to task selection on fresh data
+without changing model, context, budget, task family, compression point, or
+scorer.
+
+##### V2-A: one full-corpus-cycle difficulty screen
+
+Run two independent FP+uniform cells on prompts 500--539:
+
+| cell | configuration | model/context | task/budget | prompts | rows |
+|---|---|---|---|---|---:|
+| op2-k24 | k24/v4/h4 | Llama-3.1-8B / 32K | QA multikey / B=2 | 500--539 | 80 |
+| op2-k32 | k32/v4/h4 | Llama-3.1-8B / 32K | QA multikey / B=2 | 500--539 | 80 |
+
+**Implementation record (2026-09-23, before submission).**
+`sievelib/tasks_ruler.py` now records the zero-based queried-needle insertion
+rank and depth without changing prompt bytes or RNG order; `run_r8.py` carries
+these fields into every accuracy/policy/head row and versions them in sidecars.
+`read_op2.py` requires the exact k24+k32 pair before reporting outcomes, checks
+all 80 rows per cell, the full 40-document cycle and identical source offsets,
+the queried needle against `needle_depths`, sidecar versions, task/budget/cap
+provenance, and the gates below. It also reports `first_ok` without using it for
+selection and enforces the k24 FP-stop rule. `steps.sh --op2-*` is the sole
+submission/read interface. Focused reader tests, the full fast R8 suite, policy
+diagnostic/reader tests, Python compilation, shell syntax, and both dry-run
+commands pass. No prompt at or above 500 was scored during implementation.
+The frozen workflow then submitted k24 as Slurm job **982121** and k32 as
+**982122**; reporting remains blocked until both exact artifacts authenticate.
+
+Forty consecutive prompt IDs cover one full 40-book corpus cycle. Authenticate
+both artifacts before examining outcomes. A cell is eligible only if:
+
+1. FP mean is at least 0.95 and no incomplete FP answer reaches its cap;
+2. uniform mean is in [0.50, 0.75];
+3. uniform is in [0.35, 0.85] separately on prompts 500--519 and 520--539;
+4. the paired 90% prompt-bootstrap lower bound for FP minus uniform is greater
+   than 0.05; and
+5. row count, unique keys, real-corpus SHA, B=2 bits, question-agnostic flag,
+   k/v/h configuration, and `difficulty_v1` generation contract all pass.
+
+Choose the smallest eligible `n_keys`. Report standard RULER substring score as
+the primary outcome and `first_ok` as a prespecified secondary safety outcome.
+Do not pool prompts 400--459 into selection. If neither cell passes, do not run
+a policy diagnostic: k24 too hard implies a fresh k20 bracket; both cells too
+easy imply k40; k24 easy and k32 too hard imply k28; an FP failure at k24 stops
+higher-key screening.
+
+##### V2-B: separate expanded-policy development
+
+Only after V2-A freezes `n_keys`, use prompts 540--579. Collect the complete
+ordered superset once:
+
+`uniform, evict, interior, interior_pool, interior_cascade, obcache_k, obck_ada, laprox`
+
+The raw arm for resolved label `obck_ada` is
+`obcache_k:alloc=ada@obck_ada`. Include one FP row per prompt. The full artifact
+has 360 independently decoded accuracy rows and 320 diagnostic rows. Before any
+prefix analysis require FP >= 0.95, no incomplete capped FP, uniform in
+[0.50, 0.80], and all artifact/provenance/budget checks. If this independent
+block misses the operating-point gate, declare the difficulty non-replicating;
+do not interpret H/G or tune `n_keys` on prompts 540--579.
+
+Analyze the authenticated artifact as fixed nested prefixes of size 3 through
+8 in the order above. Filter both frames, discard the full-set recorded
+selection, and recompute each selector with stable candidate-order ties. For
+each prefix, freeze `best_fixed_dev` as the candidate with the largest mean
+independently greedy development score, using candidate order for an exact tie.
+Retain the original uniform-relative H/G for continuity, but use routing-value
+metrics relative to that strongest fixed policy:
+
+- `H_F = mean(end-task envelope - best_fixed_dev)`;
+- `G_F = mean(selector - best_fixed_dev)`.
+
+Freeze the smallest prefix with H_F >= 0.10, a paired 90% lower bound for H_F
+above zero, and H_F >= 0.05 in each fixed 20-prompt half. Mean KL advances only
+with G_F >= 0.05, G_F/H_F >= 0.5, and G_F >= 0 in both halves. If it formally
+fails, apply the preregistered aggregate alternatives from 3C to that same
+prefix. If the full prefix has H_F <= 0.05, stop candidate routing. An
+intermediate result may use one fresh extension at prompts 580--619 and then a
+single pooled n=80 decision; no other repeated extensions are allowed.
+
+Write a lock manifest containing the selected task configuration, ordered
+candidate prefix, `best_fixed_dev`, selector metric/direction, trace rule and
+length, development artifact paths/SHA-256, and the locked confirmation block.
+
+##### V2-C: locked confirmation remains untouched
+
+Prompts 460--499 remain unopened and reserved. Run exactly the frozen manifest.
+For prefix size m, require 40(m+1) accuracy rows and 40m diagnostic rows. The
+primary gates are FP >= 0.95 with no incomplete capped FP, H_F >= 0.10,
+G_F >= 0.05, G_F/H_F >= 0.5, and a paired 90% lower bound for G_F of at least
+zero. Keep `best_fixed_dev` fixed; do not reselect the comparator on
+confirmation. A failure ends this selector iteration with no tuning on these
+prompts.

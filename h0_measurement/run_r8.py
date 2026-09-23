@@ -32,7 +32,7 @@ Budgets may be fractional (e.g. 0.5): eviction and the interior spend any B in
 Design and decision table: h0_measurement/bugs/8_router_endtask/plan.md.
 """
 from __future__ import annotations
-import argparse, json, os, sys, time
+import argparse, hashlib, json, os, sys, time
 
 import torch
 import pandas as pd
@@ -41,6 +41,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 from sievelib import compress as C, quant, router, prompts, tasks_ruler as TR  # noqa: E402
+from sievelib import policy_diagnostic as PD  # noqa: E402
 from sievelib import baselines as BL  # noqa: E402
 import run_h0  # noqa: E402  (load_cfg, chunked_prefill -- reused, not copied)
 
@@ -281,6 +282,37 @@ def run_bits(model, past, ids, bits_by_layer, R, norm_correct, eos, max_new, L0,
     return gen, past
 
 
+
+def replay_policy_logits(model, past, first_token, fp_tokens, bits_by_layer,
+                         R, norm_correct, L0, q_ids=None):
+    """Replay one complete policy on the shared FP teacher-forced trajectory.
+
+    The full cache is cropped back to the same context-only (QA mode) or prompt
+    prefill boundary before every replay. Candidate logits are transient; only
+    scalar summaries leave the caller.
+    """
+    C.crop_to(past, L0)
+    C.STATE.reset_arm()
+    if C.STATE.capture or C.STATE.capture_q:
+        raise RuntimeError("policy replay requires capture and capture_q to be off")
+    try:
+        if bits_by_layer is not None:
+            C.apply_bits(past, {li: b.long() for li, b in bits_by_layer.items()},
+                         R, norm_correct)
+        past = _question(model, past, q_ids)
+        logits, _ = PD.teacher_forced_logits(model, past, first_token, fp_tokens)
+        return logits
+    finally:
+        C.STATE.enabled = False
+
+
+def file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
 def load_routes(path, model, ctx, block, *, expected=None):
     """Load an offline router calibration and reject a mismatched experiment.
 
@@ -368,6 +400,13 @@ def main():
     ap.add_argument("--write-routes", default="",
                     help="CALIBRATION run: derive per-(budget, layer, KV head) routes "
                          "from this run's per-head errors and write them here")
+    # ---- complete-policy diagnostic (separate artifact; never an arm/route) ----
+    ap.add_argument("--policy-diagnostic-out", default="",
+                    help="write whole-policy logit summaries to this .parquet path")
+    ap.add_argument("--policy-candidates", default="",
+                    help="ordered comma-separated complete-policy arm labels")
+    ap.add_argument("--policy-trace-steps", type=int, default=8,
+                    help="maximum shared FP greedy decisions in each teacher-forced trace")
     a = ap.parse_args()
     try:
         task_cfg = TR.task_config(a.n_keys, a.n_values, a.n_hops)
@@ -387,6 +426,37 @@ def main():
     # R9 baselines: parsed (and refused) before the model loads; each arm from
     # here on is known by its label, which is what the parquet records
     arms, bls = BL.resolve_arms(arms)
+    policy_candidates = [x for x in a.policy_candidates.split(",") if x]
+    policy_requested = bool(a.policy_diagnostic_out or policy_candidates)
+    if bool(a.policy_diagnostic_out) != bool(policy_candidates):
+        ap.error("--policy-diagnostic-out and --policy-candidates must be provided together")
+    if a.policy_trace_steps < 1:
+        ap.error("--policy-trace-steps must be positive")
+    if policy_requested:
+        if not a.policy_diagnostic_out.endswith(".parquet"):
+            ap.error("--policy-diagnostic-out must end in .parquet")
+        if len(set(policy_candidates)) != len(policy_candidates):
+            ap.error("--policy-candidates contains duplicates")
+        if "fp" not in arms:
+            ap.error("policy diagnostics require the fp arm")
+        invalid = [x for x in policy_candidates
+                   if x == "fp" or x.startswith("router_") or x not in arms]
+        if invalid:
+            ap.error("policy candidates must be fixed non-FP arms present in --arms; "
+                     f"invalid={invalid}")
+        # read_policy.py treats the diagnostic as the complete arm set and
+        # measures both oracle gains relative to uniform. Refuse an expensive
+        # run that its reader would later reject (or could not define).
+        if "uniform" not in policy_candidates:
+            ap.error("policy diagnostics require uniform in --policy-candidates")
+        extra_arms = [x for x in arms if x != "fp" and x not in policy_candidates]
+        if extra_arms:
+            ap.error("policy diagnostic --arms must be exactly fp plus the declared "
+                     f"candidates; extra={extra_arms}")
+        accuracy_out = os.path.abspath(os.path.join(
+            a.out_dir, f"{result_stem(a.model, a.ctx, task_cfg)}.parquet"))
+        if os.path.abspath(a.policy_diagnostic_out) == accuracy_out:
+            ap.error("--policy-diagnostic-out must not overwrite the accuracy parquet")
     if a.window < 1:
         raise SystemExit("--window must be positive")
     too_long = {lab: b.score_opts["obs"] for lab, b in bls.items()
@@ -397,6 +467,8 @@ def main():
     # ints stay ints (P0's parquet is unchanged); 0.5 stays 0.5
     budgets = [int(float(b)) if float(b).is_integer() else float(b)
                for b in a.budgets.split(",") if b]
+    if policy_requested and len(set(budgets)) != len(budgets):
+        ap.error("policy diagnostics require unique --budgets")
     bit_list = sorted(c.get("bit_list", [1, 2, 3, 4, 5, 6, 8]))
     maxb = max(bit_list)
     bad = [b for b in budgets if not 0 < b <= maxb]
@@ -405,6 +477,9 @@ def main():
     no_uni = [b for b in budgets if not router.is_width(b, maxb, bit_list)]
     if no_uni and "uniform" in arms:
         print(f"uniform skipped at B = {no_uni}: not a quantizer width {bit_list}", flush=True)
+    if policy_requested and "uniform" in policy_candidates and no_uni:
+        ap.error("uniform is a policy candidate but has no quantizer at "
+                 f"budget(s) {no_uni}")
     corpus = prompts.resolve_corpus_dir(os.environ.get("H0_CORPUS"))
     require_real = str(c.get("tier", "main")) in ("main", "large") and not a.allow_synthetic
     if require_real and corpus is None:
@@ -435,12 +510,19 @@ def main():
           flush=True)
 
     want, routers, need_err = p2_wants(arms, a.head_error, a.write_routes)
-    p2 = bool(want - {"uniform", "evict", "evict_h2o"} or routers or need_err or bls)
+    # Diagnostics need reusable complete allocations even for P0-only candidates.
+    # With the flags absent this is the historical P0/P2 decision.
+    p2 = bool(want - {"uniform", "evict", "evict_h2o"} or routers or need_err
+              or bls or policy_requested)
     wo = BL.wo_gram(model) if any(b.needs_wo for b in bls.values()) else None
     if bls:
         print("R9 baselines: " + "; ".join(
             f"{lab} = {b.score_name}{b.score_opts} + {b.alloc_name}{b.alloc_opts or ''}"
             for lab, b in bls.items()), flush=True)
+    if policy_requested:
+        print(f"policy diagnostic: candidates={policy_candidates} "
+              f"trace={PD.TRACE_RULE_VERSION} steps<={a.policy_trace_steps} "
+              f"out={a.policy_diagnostic_out}", flush=True)
     if "router_calib" in arms and not a.routes:
         raise SystemExit("router_calib needs --routes <file from a calibration run>")
     routes, routes_meta = ({}, {})
@@ -470,6 +552,7 @@ def main():
              if not (arm == "uniform" and not router.is_width(B, maxb, bit_list))]
     rows, t_all = [], time.time()
     head_rows = []           # P2 per-head errors, one small frame per (prompt, task)
+    policy_rows = []         # separate whole-policy diagnostic artifact
     for p in range(a.prompt_offset, a.prompt_offset + a.n_prompts):
         for task in tasks:
             text, meta = TR.build(tok, task, a.ctx, prompt_idx=p, corpus_dir=corpus,
@@ -499,6 +582,7 @@ def main():
             t_pre = time.time() - t0
             line = []
             bits = errs = rlog = amass = None
+            fp_gen = None
             t_pc = 0.0
             for arm, B in plan:
                 t1 = time.time()
@@ -527,6 +611,8 @@ def main():
                         t_pc = time.time() - tp
                     gen, past = run_bits(model, past, ids, bits[(arm, B)], R, norm_correct,
                                          eos, generation_limits[task], L0, tok, q_ids)
+                if policy_requested and arm == "fp":
+                    fp_gen = list(gen)
                 pred = tok.decode(gen)
                 sc = TR.score(task, pred, meta)
                 au = C.bits_audit() if arm != "fp" else {"bits_per_token": 16.0,
@@ -561,6 +647,68 @@ def main():
                     **({"question_agnostic": True, "n_question_tokens": int(q_ids.shape[1])}
                        if a.question_agnostic else {}), **extra))
                 line.append(f"{arm}{B if B else ''}:{sc['score']:.2f}")
+            if policy_requested:
+                if fp_gen is None:
+                    raise RuntimeError("policy diagnostic did not observe the FP arm")
+                trace_tokens = fp_gen[:a.policy_trace_steps]
+                if not trace_tokens:
+                    raise RuntimeError(
+                        f"p{p} {task}: FP emitted no non-EOS token; no policy trace")
+                if bits is None:
+                    raise RuntimeError("policy diagnostic needs precomputed candidate bits")
+                reference = replay_policy_logits(
+                    model, past, ids[0, -1], trace_tokens, None,
+                    R, norm_correct, L0, q_ids)
+                if reference.argmax(-1).detach().cpu().tolist() != trace_tokens:
+                    raise RuntimeError(
+                        f"p{p} {task}: replayed FP argmax does not reproduce FP trace")
+                trace_hash = PD.token_hash(trace_tokens)
+                for policy_B in budgets:
+                    block_rows, block_metrics = [], {}
+                    for candidate_order, candidate in enumerate(policy_candidates):
+                        key = (candidate, policy_B)
+                        if key not in bits:
+                            raise RuntimeError(
+                                f"missing complete allocation for policy candidate "
+                                f"{candidate} at B={policy_B}")
+                        tr0 = time.time()
+                        candidate_logits = replay_policy_logits(
+                            model, past, ids[0, -1], trace_tokens, bits[key],
+                            R, norm_correct, L0, q_ids)
+                        metrics = PD.divergence_metrics(
+                            reference, candidate_logits, trace_tokens)
+                        elapsed = time.time() - tr0
+                        del candidate_logits
+                        block_metrics[candidate] = metrics
+                        block_rows.append(dict(
+                            model=a.model, model_id=c["id"], ctx=a.ctx,
+                            native_ctx=native, task=task, prompt_idx=p, B=policy_B,
+                            n_keys=task_cfg["n_keys"],
+                            n_values=task_cfg["n_values"],
+                            n_hops=task_cfg["n_hops"],
+                            candidate=candidate, candidate_order=candidate_order,
+                            trace_rule_version=PD.TRACE_RULE_VERSION,
+                            trace_steps_requested=a.policy_trace_steps,
+                            trace_len=metrics["trace_length"],
+                            trace_token_hash=trace_hash,
+                            vocab_size=int(reference.shape[-1]),
+                            mean_kl=metrics["mean_kl"],
+                            max_kl=metrics["max_kl"],
+                            fp_token_ce=metrics["fp_token_cross_entropy"],
+                            top1_agreement=metrics["top1_agreement"],
+                            fp_argmax_verified=True,
+                            question_agnostic=bool(a.question_agnostic),
+                            window=a.window, maxb=maxb,
+                            allocator_budget_rule="feasible",
+                            corpus_sha=meta.get("corpus_sha") or "",
+                            synthetic=meta["synthetic"],
+                            rot_seed=rot_seed, norm_correct=norm_correct,
+                            t_policy_trace=elapsed))
+                    selected = PD.select_min_mean(block_metrics, policy_candidates)
+                    for policy_row in block_rows:
+                        policy_row["selected_policy"] = selected
+                    policy_rows.extend(block_rows)
+                del reference
             if p2 and errs:
                 # per-head errors for this (prompt, task): one numpy block per (arm, B)
                 import numpy as np
@@ -623,6 +771,55 @@ def main():
                    "elapsed_s": time.time() - t_all,
                    "config": {k: v for k, v in c.items()}}, fh, indent=1, default=str)
     print(f"\nwrote {out}  ({len(df):,} rows, {time.time() - t_all:.0f}s)")
+    if policy_requested:
+        expected_policy_rows = (
+            a.n_prompts * len(tasks) * len(budgets) * len(policy_candidates)
+        )
+        if len(policy_rows) != expected_policy_rows:
+            raise RuntimeError(
+                f"policy diagnostic has {len(policy_rows)} rows, "
+                f"expected {expected_policy_rows}")
+        policy_df = pd.DataFrame(policy_rows)
+        policy_keys = ["model", "ctx", "task", "prompt_idx", "B", "candidate"]
+        if policy_df.duplicated(policy_keys).any():
+            raise RuntimeError("policy diagnostic contains duplicate candidate rows")
+        policy_out = os.path.abspath(a.policy_diagnostic_out)
+        os.makedirs(os.path.dirname(policy_out), exist_ok=True)
+        policy_df.to_parquet(policy_out)
+        policy_sidecar = os.path.splitext(policy_out)[0] + ".json"
+        accuracy_sidecar = os.path.join(a.out_dir, f"{stem}.json")
+        with open(policy_sidecar, "w") as fh:
+            json.dump({
+                "parquet": os.path.basename(policy_out),
+                "model": a.model, "model_id": c["id"],
+                "ctx": a.ctx, "native_ctx": native,
+                "tasks": tasks, "task_config": task_cfg,
+                "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
+                "generation_limits": generation_limits,
+                "budgets": budgets, "n_prompts": a.n_prompts,
+                "prompt_offset": a.prompt_offset,
+                "window": a.window, "maxb": maxb,
+                "question_agnostic": bool(a.question_agnostic),
+                "allocator_budget_rule": "feasible",
+                "candidates": policy_candidates,
+                "trace_rule_version": PD.TRACE_RULE_VERSION,
+                "trace_steps_requested": a.policy_trace_steps,
+                "teacher": "fp_greedy",
+                "metric_dtype": "float32",
+                "vocabulary": "full",
+                "rows": len(policy_df),
+                "expected_rows": expected_policy_rows,
+                "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
+                "rot_seed": rot_seed, "norm_correct": norm_correct,
+                "accuracy_parquet": os.path.basename(out),
+                "accuracy_sidecar": os.path.basename(accuracy_sidecar),
+                "accuracy_sha256": file_sha256(out),
+                "accuracy_rows": len(df),
+                "no_raw_logits": True,
+                "elapsed_s": float(policy_df.t_policy_trace.sum()),
+            }, fh, indent=1, default=str)
+        print(f"wrote {policy_out}  ({len(policy_df):,} policy rows)")
+        print(f"wrote {policy_sidecar}")
     if head_rows:
         hd_df = pd.concat(head_rows, ignore_index=True)
         hout = os.path.join(a.out_dir, f"r8heads_{a.model}_{a.ctx}.parquet")

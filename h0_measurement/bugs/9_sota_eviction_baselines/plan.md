@@ -426,8 +426,9 @@ bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB
 
 ### Step 3 — whole-policy headroom and logit-proxy diagnostic
 
-**State:** design frozen after Step 2; implementation and GPU collection have
-not started. Keep the confirmed cell fixed: Llama-3.1-8B at 32K,
+**State (2026-09-23):** design frozen after Step 2; the isolated implementation
+and CPU contracts pass. Development job **981481** is running on prompts
+440--459. Keep the confirmed cell fixed: Llama-3.1-8B at 32K,
 question-agnostic multikey NIAH, k16/v4/h4, B=2. Prompts 420--439 remain the
 difficulty-confirmation block and cannot be used to tune a policy selector.
 
@@ -488,15 +489,27 @@ Do not tune on this block.
 
 1. **Little end-task headroom.** On the development block only, add complete
    policies in nested sets: `interior_pool`, `interior_cascade`, plain
-   `obcache_k`, `obcache_k:alloc=ada@obck_ada`, and `laprox`. Freeze the
-   smallest set reaching `H >= 0.10` before confirmation. Whole-policy
+   `obcache_k`, `obcache_k:alloc=ada@obck_ada` (resolved label `obck_ada`), and
+   `laprox`. Collect the full superset once on the same prompts, then evaluate
+   the preregistered prefixes offline in exactly that order; this avoids five
+   redundant GPU prefills. For every prefix, discard the full-set recorded
+   selector and recompute its stable selection after filtering. Freeze the
+   smallest prefix reaching `H >= 0.10` before confirmation. Whole-policy
    selection can use model-wide policies without pretending they are per-head
    splices. If the expanded envelope still lacks headroom, stop router training
    and redesign the allocations or retention objective.
-2. **Headroom but mean KL fails.** Explore only the already stored FP-token
-   cross entropy, maximum KL, and top-1 agreement on prompts 440--459. Freeze one
-   justified rule before confirmation. If none transfers, replace the proxy
-   with a task-relevant downstream-sensitivity objective.
+2. **Headroom but mean KL fails.** Use only the already stored aggregates on
+   prompts 440--459: minimize FP-token cross entropy, minimize maximum per-step
+   KL, or maximize top-1 agreement. Each rule resolves exact numeric ties by the
+   declared candidate order and may not use another metric as a hidden
+   tie-breaker. Report the same G, regret, captured opportunity, paired interval,
+   rescue/harm, oracle-hit, selector-count, and selector-tie statistics for all
+   three rules using shared bootstrap draws. An alternate advances at G >= 0.05
+   and G/H >= 0.5. If several pass, freeze the largest-G rule; an exact G tie uses
+   this preregistered order: FP-token cross entropy, maximum KL, top-1 agreement.
+   If none passes, replace the proxy with a task-relevant downstream-sensitivity
+   objective. These three rules need no new GPU data; per-token weighting or a
+   new composite does.
 3. **Both diagnostics gain and confirm.** Train a deployable prefill-only
    selector on new disjoint data. It may imitate the KL selector but cannot use
    FP decode logits. Keep training, threshold selection, and final testing
@@ -519,3 +532,34 @@ Tests must pin KL numerics, zero KL for FP versus itself, shared teacher-forced
 token IDs, refusal to feed candidate argmax tokens, cache crop isolation,
 deterministic ties, exact row/join provenance, absence of raw logits, and
 completion counts.
+
+#### 3E. Implementation and submission record (2026-09-23)
+
+The implementation follows the boundary in 3D:
+
+- `sievelib/policy_diagnostic.py` owns teacher-forced replay metrics and stable
+  selection, with no task, route, allocation, or file logic;
+- `run_r8.py` enables the diagnostic only through the three explicit policy
+  flags, reuses complete precomputed arm allocations, crops to the identical
+  context boundary before every replay, and writes a separate authenticated
+  artifact with no raw logits;
+- `read_policy.py` verifies both sidecars, the linked accuracy SHA-256, exact
+  one-to-one candidate joins, shared trace identity, and declared selection
+  before computing the two oracles; and
+- `submit_r8.slurm` plus `steps.sh` provide opt-in Slurm plumbing, fixed
+  development/confirmation splits, exact completion counts, and a confirmation
+  gate tied to the development decision.
+
+Before submission, Python compilation, shell syntax, the full fast R8 and R9
+baseline suites, seven policy-diagnostic tests, and fifteen reader checks all
+passed. The regression tests include exact full-vocabulary float32 KL, FP zero
+KL, FP-only teacher forcing, deterministic ties, repeated crop isolation,
+artifact identity, shared-trace provenance, and rejection of raw logits.
+
+Development job **981481** was submitted from `trig-login01` with prompts
+440--459, 20 prompts, four accuracy arms, three diagnostic candidates, B=2,
+and an at-most eight-token FP trace. Expected outputs are 80 accuracy rows and
+60 diagnostic rows in `h0_measurement/results/r8policy_dev_981481/`. Do not
+submit the locked confirmation until the authenticated reader applies the
+prespecified H/G gate.
+

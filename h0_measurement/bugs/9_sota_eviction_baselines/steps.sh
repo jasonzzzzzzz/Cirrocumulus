@@ -113,7 +113,38 @@
 # Exact provenance and bits checks pass. FP=1.00, uniform=0.80; FP-uniform
 # is +0.20 with paired 90% interval [+0.05,+0.35]. No incomplete FP row is
 # capped. Do not resubmit; read with --confirm-read 980414. Step 3 is the
-# whole-policy diagnostic specified in plan.md and has not been submitted.
+# whole-policy diagnostic specified in plan.md.
+#
+# STEP 3: WHOLE-POLICY DIAGNOSTIC
+# --------------------------------
+# The development split is fixed to prompts 440..459. It compares independently
+# decoded fp/uniform/evict/interior accuracy and replays one shared, at-most
+# eight-token FP teacher-forced trace for uniform/evict/interior. The replay
+# writes summaries to a separate r8policy parquet; it never makes an oracle an
+# arm or writes raw logits.
+#
+# Run the development split in this order:
+#
+#   1. Inspect the exact command (submits nothing):
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-dry dev
+#   2. Submit and save POLICY_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-submit dev
+#   3. Check it without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-status JOB
+#   4. After COMPLETED, authenticate, analyze, and save all three reports:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-read dev JOB
+#
+# The reader applies the frozen H/G gates in plan.md. Only if its decision is
+# `advance_mean_kl` may the locked prompts 460..499 be submitted:
+#
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-dry confirm
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-submit confirm
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-status JOB
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-read confirm JOB
+#
+# Do not submit `confirm` after `revise_candidates`, `reject_mean_kl`, or
+# `more_development_prompts`. Those outcomes return to the matching conditional
+# branch in plan.md using development data only.
 
 set -euo pipefail
 
@@ -123,6 +154,7 @@ cd "$PROJECT_ROOT"
 PY="${SIEVE_VENV:-$PROJECT_ROOT/.venv}/bin/python"
 WORKER="h0_measurement/submit_r8.slurm"
 READER="h0_measurement/bugs/8_router_endtask/read_r8.py"
+POLICY_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_policy.py"
 ROUTES="h0_measurement/results/r8_routes/llama31-8b_32768_qa.json"
 REPORT_DIR="h0_measurement/bugs/9_sota_eviction_baselines"
 
@@ -130,6 +162,8 @@ ARMS="fp,uniform,evict,interior,interior_cascade,router_calib,router_oracle"
 TASKS="niah_single,niah_multikey,niah_multivalue,vt"
 DIFFICULTY_TASKS="niah_multikey,niah_multivalue,vt"
 CONFIRM_TASKS="niah_multikey"
+POLICY_ARMS="fp,uniform,evict,interior"
+POLICY_CANDIDATES="uniform,evict,interior"
 
 usage() {
   cat <<'USAGE'
@@ -149,11 +183,19 @@ usage:
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-status JOB_ID
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --confirm-read JOB_ID
 
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-dry [dev|confirm]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-submit [dev|confirm]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-status JOB_ID [JOB_ID...]
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --policy-read [dev|confirm] JOB_ID
+
 The default selector "screen" addresses all three tasks at (8,6,6) and
 (16,8,8). The post-screen "mid" selector reruns multivalue and VT at (16,7,7)
 with difficulty-aware answer limits; "vt-hard" does the same for VT at h8.
 The confirmation interface is fixed to the selected k16/v4/h4 multikey cell on
 held-out prompts 420--439 and cannot accept a difficulty selector.
+The policy development split is prompts 440--459. The policy confirmation split
+is prompts 460--499 and must be run only after the development reader prints
+`decision       advance_mean_kl`.
 This script intentionally does not rerun the completed five-cell campaign.
 Read the ordered instructions and decision table at the top of the file.
 USAGE
@@ -499,6 +541,221 @@ read_confirmation() {
   read_grid_jobs confirmation r8confirm "$@"
 }
 
+policy_spec() {
+  case "${1:-dev}" in
+    dev)     printf '%s\n' "20 440 r8policy_dev_ 00:20:00 80 60" ;;
+    confirm) printf '%s\n' "40 460 r8policy_confirm_ 01:30:00 160 120" ;;
+    *) echo "ERROR: policy split must be dev or confirm" >&2; exit 2 ;;
+  esac
+}
+
+policy_command() {
+  local split=$1 n_prompts prompt_offset prefix walltime expected_accuracy expected_policy
+  read -r n_prompts prompt_offset prefix walltime expected_accuracy expected_policy \
+    < <(policy_spec "$split")
+  printf '%q ' sbatch --parsable --time="$walltime" "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS="$POLICY_ARMS" R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS="$n_prompts" R8_PROMPT_OFFSET="$prompt_offset" R8_QA=1 \
+    R8_N_KEYS=16 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0 \
+    R8_POLICY_DIAGNOSTIC=1 R8_POLICY_CANDIDATES="$POLICY_CANDIDATES" \
+    R8_POLICY_TRACE_STEPS=8
+  printf '\n'
+}
+
+policy_artifact_complete() {
+  local dir=$1 n_prompts=$2 prompt_offset=$3 expected_accuracy=$4 expected_policy=$5
+  local accuracy="$dir/r8_llama31-8b_32768_k16_v4_h4.parquet"
+  local diagnostic="$dir/r8policy_llama31-8b_32768_k16_v4_h4.parquet"
+  [[ -f "$accuracy" && -f "${accuracy%.parquet}.json" \
+     && -f "$diagnostic" && -f "${diagnostic%.parquet}.json" ]] || return 1
+
+  # read_policy authenticates the separate sidecars, the linked accuracy SHA,
+  # candidate provenance, shared trace, exact one-to-one join, and raw-logit ban.
+  "$PY" "$POLICY_READER" "$accuracy" "$diagnostic" \
+    --bootstrap 100 >/dev/null 2>&1 || return 1
+
+  "$PY" - "$accuracy" "$diagnostic" "$n_prompts" "$prompt_offset" \
+    "$expected_accuracy" "$expected_policy" <<'PY_AUDIT'
+from collections import Counter
+import json
+import os
+import sys
+
+import pandas as pd
+
+accuracy_path, diagnostic_path = sys.argv[1:3]
+n_prompts, prompt_offset, expected_accuracy, expected_policy = map(int, sys.argv[3:])
+want_prompts = set(range(prompt_offset, prompt_offset + n_prompts))
+want_arms = {"fp", "uniform", "evict", "interior"}
+want_candidates = ["uniform", "evict", "interior"]
+want_cfg = {"n_keys": 16, "n_values": 4, "n_hops": 4}
+
+for path in (accuracy_path, diagnostic_path):
+    with open(path, "rb") as handle:
+        handle.seek(-4, os.SEEK_END)
+        assert handle.read() == b"PAR1", f"incomplete parquet footer: {path}"
+
+accuracy = pd.read_parquet(accuracy_path)
+diagnostic = pd.read_parquet(diagnostic_path)
+assert len(accuracy) == expected_accuracy
+assert len(diagnostic) == expected_policy
+assert set(accuracy.prompt_idx) == want_prompts
+assert set(diagnostic.prompt_idx) == want_prompts
+assert set(accuracy.task) == {"niah_multikey"}
+assert set(diagnostic.task) == {"niah_multikey"}
+assert set(accuracy.arm) == want_arms
+assert set(diagnostic.candidate) == set(want_candidates)
+assert set(zip(diagnostic.candidate, diagnostic.candidate_order)) == \
+       {(name, i) for i, name in enumerate(want_candidates)}
+
+accuracy_keys = Counter(zip(accuracy.prompt_idx, accuracy.task, accuracy.arm))
+assert set(accuracy_keys) == {(p, "niah_multikey", arm) for p in want_prompts for arm in want_arms}
+assert set(accuracy_keys.values()) == {1}
+diagnostic_keys = Counter(zip(diagnostic.prompt_idx, diagnostic.task, diagnostic.B,
+                              diagnostic.candidate))
+assert set(diagnostic_keys) == {(p, "niah_multikey", 2.0, candidate)
+                               for p in want_prompts for candidate in want_candidates}
+assert set(diagnostic_keys.values()) == {1}
+assert all((arm == "fp" and float(B) == 0.0) or
+           (arm != "fp" and float(B) == 2.0)
+           for arm, B in zip(accuracy.arm, accuracy.B))
+assert all(bool(x) for x in accuracy.question_agnostic)
+assert all(bool(x) for x in diagnostic.question_agnostic)
+assert not any(bool(x) for x in accuracy.synthetic)
+assert not any(bool(x) for x in diagnostic.synthetic)
+assert len(set(accuracy.corpus_sha)) == 1 and accuracy.corpus_sha.iloc[0] not in ("", "synthetic")
+assert len(set(diagnostic.corpus_sha)) == 1 and diagnostic.corpus_sha.iloc[0] == accuracy.corpus_sha.iloc[0]
+for field, value in want_cfg.items():
+    assert set(accuracy[field]) == {value}
+    assert set(diagnostic[field]) == {value}
+assert "selected_policy" in diagnostic and "fp_argmax_verified" in diagnostic
+assert diagnostic.fp_argmax_verified.astype(bool).all()
+assert set(diagnostic.selected_policy).issubset(set(want_candidates))
+assert "allocator_budget_rule" in diagnostic
+assert set(diagnostic.allocator_budget_rule) == {"feasible"}
+assert not any("logit" in column.lower() for column in diagnostic.columns)
+for _, group in diagnostic.groupby(["prompt_idx", "task", "B"], sort=False):
+    group = group.sort_values("candidate_order")
+    selected = group.loc[group.mean_kl.idxmin(), "candidate"]
+    assert set(group.selected_policy) == {selected}
+
+accuracy_side = json.load(open(accuracy_path[:-8] + ".json"))
+diagnostic_side = json.load(open(diagnostic_path[:-8] + ".json"))
+assert accuracy_side["arms"] == ["fp", "uniform", "evict", "interior"]
+assert [float(x) for x in accuracy_side["budgets"]] == [2.0]
+assert accuracy_side["n_prompts"] == n_prompts
+assert accuracy_side["prompt_offset"] == prompt_offset
+assert accuracy_side["task_config"] == want_cfg
+assert accuracy_side["generation_limit_version"] == "difficulty_v1"
+assert diagnostic_side["expected_rows"] == expected_policy
+assert diagnostic_side["candidates"] == want_candidates
+assert diagnostic_side["trace_steps_requested"] == 8
+assert diagnostic_side["no_raw_logits"] is True
+PY_AUDIT
+}
+
+policy_find_complete() {
+  local split=$1 n_prompts prompt_offset prefix walltime expected_accuracy expected_policy dir
+  read -r n_prompts prompt_offset prefix walltime expected_accuracy expected_policy \
+    < <(policy_spec "$split")
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    if policy_artifact_complete "$dir" "$n_prompts" "$prompt_offset" \
+        "$expected_accuracy" "$expected_policy"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+policy_dir_for_job() {
+  local split=$1 job_id=$2 n_prompts prompt_offset prefix walltime expected_accuracy expected_policy
+  read -r n_prompts prompt_offset prefix walltime expected_accuracy expected_policy \
+    < <(policy_spec "$split")
+  local dir="h0_measurement/results/${prefix}${job_id}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no $split policy result directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+policy_dev_advances() {
+  local dir accuracy diagnostic
+  dir=$(policy_find_complete dev) || return 1
+  accuracy="$dir/r8_llama31-8b_32768_k16_v4_h4.parquet"
+  diagnostic="$dir/r8policy_llama31-8b_32768_k16_v4_h4.parquet"
+  "$PY" - "$accuracy" "$diagnostic" "$POLICY_READER" <<'PY_GATE'
+import importlib.util
+import sys
+spec = importlib.util.spec_from_file_location("read_policy_gate", sys.argv[3])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+summary, _ = mod.load_pair(sys.argv[1], sys.argv[2], n_boot=100, seed=0)
+raise SystemExit(0 if len(summary) == 1 and summary.iloc[0].decision == "advance_mean_kl" else 1)
+PY_GATE
+}
+
+submit_policy() {
+  local split=$1 n_prompts prompt_offset prefix walltime expected_accuracy expected_policy
+  local where output job_id
+  read -r n_prompts prompt_offset prefix walltime expected_accuracy expected_policy \
+    < <(policy_spec "$split")
+  if where=$(policy_find_complete "$split"); then
+    echo "$split policy diagnostic already complete: $where"
+    echo "read it using the numeric suffix in: bash $REPORT_DIR/steps.sh --policy-read $split JOB"
+    return 0
+  fi
+  if [[ "$split" == confirm ]] && ! policy_dev_advances; then
+    echo "ERROR: locked confirmation requires a complete development artifact with decision=advance_mean_kl" >&2
+    exit 1
+  fi
+  output=$(sbatch --parsable --time="$walltime" "$WORKER" \
+    R8_RUN_PREFIX="$prefix" R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS="$POLICY_ARMS" R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS="$n_prompts" R8_PROMPT_OFFSET="$prompt_offset" R8_QA=1 \
+    R8_N_KEYS=16 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0 \
+    R8_POLICY_DIAGNOSTIC=1 R8_POLICY_CANDIDATES="$POLICY_CANDIDATES" \
+    R8_POLICY_TRACE_STEPS=8)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2; exit 1; }
+  echo "submitted $split whole-policy diagnostic"
+  echo "POLICY_JOB_ID=$job_id"
+  echo "config=k16_v4_h4 task=niah_multikey B=2 prompts=$prompt_offset..$((prompt_offset+n_prompts-1))"
+  echo "rows=accuracy:$expected_accuracy diagnostic:$expected_policy trace=fp_teacher_forced_v1<=8"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --policy-status $job_id"
+}
+
+read_policy_job() {
+  local split=$1 job_id=$2 n_prompts prompt_offset prefix walltime expected_accuracy expected_policy
+  local dir accuracy diagnostic out summary_csv prompt_csv
+  read -r n_prompts prompt_offset prefix walltime expected_accuracy expected_policy \
+    < <(policy_spec "$split")
+  dir=$(policy_dir_for_job "$split" "$job_id")
+  accuracy="$dir/r8_llama31-8b_32768_k16_v4_h4.parquet"
+  diagnostic="$dir/r8policy_llama31-8b_32768_k16_v4_h4.parquet"
+  if ! policy_artifact_complete "$dir" "$n_prompts" "$prompt_offset" \
+      "$expected_accuracy" "$expected_policy"; then
+    echo "ERROR: job $job_id does not satisfy the complete $split policy-artifact contract" >&2
+    exit 1
+  fi
+  out="$REPORT_DIR/policy_${job_id}.txt"
+  summary_csv="$REPORT_DIR/policy_${job_id}_summary.csv"
+  prompt_csv="$REPORT_DIR/policy_${job_id}_prompts.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$POLICY_READER" "$accuracy" "$diagnostic" \
+    --csv "$summary_csv" --prompt-csv "$prompt_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  echo "saved: $prompt_csv"
+}
+
 MODE="${1:-}"
 case "$MODE" in
   --oracle-dry)
@@ -570,6 +827,28 @@ case "$MODE" in
     need_file "$READER"
     [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
     read_confirmation "$@"
+    ;;
+  --policy-dry)
+    need_file "$WORKER"; need_file "$POLICY_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    echo "DRY RUN; submit nothing:"
+    policy_command "${2:-dev}"
+    ;;
+  --policy-submit)
+    need_file "$WORKER"; need_file "$POLICY_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_policy "${2:-dev}"
+    ;;
+  --policy-status)
+    (($# >= 2)) || { echo "ERROR: at least one JOB_ID is required" >&2; exit 2; }
+    status_difficulty "$@"
+    ;;
+  --policy-read)
+    need_file "$POLICY_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    need_job_id "${3:-}"
+    read_policy_job "${2:-dev}" "$3"
     ;;
   -h|--help|"")
     usage

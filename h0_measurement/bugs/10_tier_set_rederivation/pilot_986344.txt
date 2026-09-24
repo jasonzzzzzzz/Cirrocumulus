@@ -1,0 +1,7 @@
+R10 excluded pilot job 986344: PASS
+V1 full identity: PASS
+V2 tier/budget: PASS
+V3 provenance: PASS
+V4 completeness: PASS
+V5 n_rep=1 identity: PASS
+advance lock: h0_measurement/bugs/10_tier_set_rederivation/pilot_advance_lock_986344.json

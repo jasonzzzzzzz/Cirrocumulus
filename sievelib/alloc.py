@@ -810,7 +810,13 @@ def group_prepass(heads: list[dict], n_rep: int, budgets, maxb: int = 8,
     n_rep = max(1, int(n_rep))
     budgets = [int(B) for B in budgets]
     coarse_bits = [int(b) for b in coarse_bits]
-    tier_panel = dict(tier_panel or {})
+    if tier_panel:
+        if not heads:
+            raise ValueError("tier_panel cannot run on an empty head list")
+        tier_panel = resolve_tier_panel(
+            tier_panel, heads[0]["shat"].keys(), maxb=maxb)
+    else:
+        tier_panel = {}
     per: list[dict] = []
     for h in heads:
         sd, Vd = h["s"].double(), h["V"].double()

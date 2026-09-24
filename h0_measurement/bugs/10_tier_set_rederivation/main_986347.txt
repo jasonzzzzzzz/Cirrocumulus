@@ -1,0 +1,87 @@
+R10 tier-set analysis (r10_tier_set_v1)
+Validity: valid_r10 (V1-V5 all passed)
+Bootstrap: 10,000 prompt-resampling draws, PCG64(0)
+
+B=3
+cell | ladder | error/full | routed retention | band delta | mean bits | evict
+llama31-8b@131072 | full | 1.0000 | 1.0000 | 0.0000 | 3.0000 | 0.5047
+llama31-8b@32768 | full | 1.0000 | 1.0000 | 0.0000 | 3.0000 | 0.4653
+qwen3-30b-a3b-2507@8192 | full | 1.0000 | 1.0000 | 0.0000 | 2.9999 | 0.4737
+qwen3-8b@8192 | full | 1.0000 | 1.0000 | 0.0000 | 2.9999 | 0.4882
+llama31-8b@131072 | no1 | 1.0028 | 0.9998 | -0.0003 | 3.0000 | 0.5049
+llama31-8b@32768 | no1 | 0.9822 | 1.0034 | 0.0023 | 3.0000 | 0.4656
+qwen3-30b-a3b-2507@8192 | no1 | 1.0000 | 1.0000 | 0.0000 | 2.9999 | 0.4737
+qwen3-8b@8192 | no1 | 1.0000 | 1.0000 | 0.0000 | 2.9999 | 0.4882
+llama31-8b@131072 | base3_dense | 1.0218 | 0.9928 | -0.0031 | 3.0000 | 0.5057
+llama31-8b@32768 | base3_dense | 1.0022 | 0.9962 | -0.0014 | 3.0000 | 0.4665
+qwen3-30b-a3b-2507@8192 | base3_dense | 1.0007 | 0.9983 | -0.0005 | 2.9999 | 0.4743
+qwen3-8b@8192 | base3_dense | 1.0026 | 0.9993 | -0.0001 | 2.9999 | 0.4885
+llama31-8b@131072 | nested3 | 1.0309 | 0.9854 | -0.0067 | 3.0000 | 0.5092
+llama31-8b@32768 | nested3 | 1.0157 | 0.9856 | -0.0046 | 3.0000 | 0.4707
+qwen3-30b-a3b-2507@8192 | nested3 | 1.0135 | 0.9839 | -0.0125 | 2.9999 | 0.4801
+qwen3-8b@8192 | nested3 | 1.0177 | 0.9871 | -0.0067 | 2.9999 | 0.4927
+llama31-8b@131072 | nested4 | 1.1167 | 0.9527 | -0.0190 | 3.0000 | 0.5152
+llama31-8b@32768 | nested4 | 1.2581 | 0.9102 | -0.0231 | 2.9999 | 0.4825
+qwen3-30b-a3b-2507@8192 | nested4 | 1.0270 | 0.9594 | -0.0235 | 2.9999 | 0.4900
+qwen3-8b@8192 | nested4 | 1.0588 | 0.9638 | -0.0170 | 2.9999 | 0.5010
+
+nested3 frozen gates:
+  G1_median_error_le_1.05: PASS
+  G2_worst_error_le_1.10: PASS
+  G3_macro_gain_retention_ge_0.95: PASS
+  G4_each_gain_retention_ge_0.90: PASS
+  G5_each_band_loss_le_0.05: PASS
+  overall: PASS
+sequential attribution:
+  full->no1: median=1.0000, worst=1.0028 => PASS
+  no1->base3_dense: median=1.0108, worst=1.0203 => PASS
+  base3_dense->nested3: median=1.0132, worst=1.0151 => PASS
+nested4 versus nested3:
+  median_error_le_1.02: FAIL
+  each_error_le_1.05: FAIL
+  macro_gain_retention_ge_0.98: FAIL
+  nested3_tier3_lt_0.05_each_cell: FAIL
+  select_nested4: False
+
+B=2
+cell | ladder | error/full | routed retention | band delta | mean bits | evict
+llama31-8b@131072 | full | 1.0000 | 1.0000 | 0.0000 | 2.0000 | 0.6513
+llama31-8b@32768 | full | 1.0000 | 1.0000 | 0.0000 | 2.0000 | 0.6207
+qwen3-30b-a3b-2507@8192 | full | 1.0000 | 1.0000 | 0.0000 | 1.9999 | 0.6316
+qwen3-8b@8192 | full | 1.0000 | 1.0000 | 0.0000 | 1.9999 | 0.6408
+llama31-8b@131072 | no1 | 1.0085 | 0.9980 | -0.0007 | 2.0000 | 0.6515
+llama31-8b@32768 | no1 | 1.0014 | 1.0010 | 0.0003 | 2.0000 | 0.6212
+qwen3-30b-a3b-2507@8192 | no1 | 1.0000 | 1.0000 | 0.0000 | 1.9999 | 0.6316
+qwen3-8b@8192 | no1 | 1.0000 | 1.0000 | 0.0000 | 1.9999 | 0.6408
+llama31-8b@131072 | base3_dense | 1.0461 | 0.9925 | -0.0025 | 2.0000 | 0.6523
+llama31-8b@32768 | base3_dense | 1.0625 | 0.9913 | -0.0041 | 2.0000 | 0.6224
+qwen3-30b-a3b-2507@8192 | base3_dense | 1.0013 | 0.9980 | -0.0011 | 1.9999 | 0.6322
+qwen3-8b@8192 | base3_dense | 1.0036 | 0.9993 | -0.0003 | 1.9999 | 0.6411
+llama31-8b@131072 | nested3 | 1.0583 | 0.9837 | -0.0065 | 2.0000 | 0.6551
+llama31-8b@32768 | nested3 | 1.0698 | 0.9821 | -0.0081 | 2.0000 | 0.6256
+qwen3-30b-a3b-2507@8192 | nested3 | 1.0101 | 0.9854 | -0.0119 | 1.9999 | 0.6365
+qwen3-8b@8192 | nested3 | 1.0133 | 0.9873 | -0.0096 | 1.9999 | 0.6444
+llama31-8b@131072 | nested4 | 1.2149 | 0.9433 | -0.0282 | 2.0000 | 0.6607
+llama31-8b@32768 | nested4 | 1.3411 | 0.9044 | -0.0462 | 2.0000 | 0.6369
+qwen3-30b-a3b-2507@8192 | nested4 | 1.0309 | 0.9572 | -0.0411 | 1.9999 | 0.6460
+qwen3-8b@8192 | nested4 | 1.0603 | 0.9607 | -0.0299 | 1.9999 | 0.6521
+
+nested3 frozen gates:
+  G1_median_error_le_1.05: PASS
+  G2_worst_error_le_1.10: PASS
+  G3_macro_gain_retention_ge_0.95: PASS
+  G4_each_gain_retention_ge_0.90: PASS
+  G5_each_band_loss_le_0.05: PASS
+  overall: PASS
+sequential attribution:
+  full->no1: median=1.0007, worst=1.0085 => PASS
+  no1->base3_dense: median=1.0204, worst=1.0610 => PASS
+  base3_dense->nested3: median=1.0093, worst=1.0117 => PASS
+nested4 versus nested3:
+  median_error_le_1.02: FAIL
+  each_error_le_1.05: FAIL
+  macro_gain_retention_ge_0.98: FAIL
+  nested3_tier3_lt_0.05_each_cell: PASS
+  select_nested4: False
+
+Frozen decision: retain_nested3_price_4bit_observation_b2_b3

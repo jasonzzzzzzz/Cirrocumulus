@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "V1_full_identity": true,
+    "V2_tier_and_budget": true,
+    "V3_provenance": true,
+    "V4_completeness": true,
+    "V5_mha_identity": true
+  },
+  "decision": "advance_main",
+  "pilot_job": "986344",
+  "protocol": "r10_tier_set_v1",
+  "source_ledger_sha256": "0330be937a920a8c5766e8c9882defc0ebe95791091f4ba0c16c53ca9dba1688",
+  "task_artifacts": {
+    "0": {
+      "parquet": "h0_qwen3-1.7b_2048.parquet",
+      "parquet_sha256": "e3635045bbd4531481f45d42de5c8b2138957948a1ec55cb98613037351f0efc",
+      "sidecar_sha256": "484af4b6f6c8fb8a079544366ceeb38012a8e34585ec30e1e129aff8bedce8dc"
+    },
+    "1": {
+      "parquet": "h0_qwen15-moe-a2.7b_8192.parquet",
+      "parquet_sha256": "22557e16db2ac56257d04687359933a4a41412ea6789c1607978dfbaaccfa515",
+      "sidecar_sha256": "7aea651a980ea047929add5f059c0393d6882842018ba8cb36164e0c19cb83de"
+    }
+  }
+}

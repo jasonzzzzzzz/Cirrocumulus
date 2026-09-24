@@ -321,7 +321,12 @@ def main():
     group_alloc = bool(c.get("group_alloc", False))
     coarse_bits = sorted({int(b) for b in (c.get("coarse_bits") or [])})
     extra_budgets = tuple(int(B) for B in (c.get("extra_budgets") or [3]))
-    codesign = group_alloc or bool(coarse_bits)
+    try:
+        tier_panel = alloc.resolve_tier_panel(
+            c.get("tier_panel"), bit_list, maxb=maxb)
+    except (TypeError, ValueError) as e:
+        raise SystemExit(f"bad tier_panel config: {e}")
+    codesign = group_alloc or bool(coarse_bits) or bool(tier_panel)
     if codesign:
         bad = [b for b in coarse_bits if b not in bit_list]
         if bad:
@@ -335,9 +340,20 @@ def main():
                 f"extra_budgets {bad} are not in budgets {tuple(budgets)}; the "
                 f"co-design columns are defined against err_wf<B>/err_uniform<B>, "
                 f"which only exist for a configured budget.")
+        if tier_panel:
+            if args.validity_only:
+                raise SystemExit("tier_panel needs the quantization sweep and cannot "
+                                 "run under --validity-only")
+            if not group_alloc:
+                raise SystemExit("tier_panel measures a physical shared-KV-head "
+                                 "allocation, so group_alloc=true is required")
+            if 4 not in coarse_bits:
+                raise SystemExit("tier_panel measures the csv_b4_accum path, so "
+                                 "coarse_bits must include 4")
         print(f"co-design columns: group_alloc={group_alloc}  "
               f"coarse_bits={coarse_bits or '(none)'}  budgets={list(extra_budgets)}"
-              f"   [bugs/co-design/plan.md]", flush=True)
+              + (f"  tier_panel={list(tier_panel)}" if tier_panel else "")
+              + "   [bugs/co-design/plan.md]", flush=True)
     # Eviction-corner construction: WHO the corner is (evictors, oracle included
     # by default) and HOW MUCH it may keep (corner_policies). Resolved HERE so a
     # typo fails before the tokenizer, and long before a 4xH100 allocation is
@@ -351,6 +367,9 @@ def main():
         raise SystemExit(f"bad eviction-corner config: {msg}\n"
                          f"  evictors={c.get('evictors')!r}  "
                          f"corner_policies={c.get('corner_policies')!r}")
+    if tier_panel and "accum" not in corner.interior_scores:
+        raise SystemExit("tier_panel measures csv_b4_accum, so 'accum' must be "
+                         "configured as an interior score and practical evictor")
     # The validity probe forms no corners at all (no V, no bit sweep, no lagged
     # state), so announcing them -- or stamping them into the parquet -- would
     # claim a measurement that did not happen.
@@ -715,7 +734,8 @@ def main():
                                 V=Vsl[h // n_rep], raw=raw_g, unseen=unseen_g))
                         extras = alloc.group_prepass(
                             gheads, n_rep, budgets=extra_budgets, maxb=maxb,
-                            coarse_bits=coarse_bits, group=group_alloc)
+                            coarse_bits=coarse_bits, group=group_alloc,
+                            tier_panel=tier_panel)
                         del gheads, Vsl
 
                     for h in range(s_all.shape[0]):
@@ -927,6 +947,8 @@ def main():
                    **({"group_alloc": group_alloc,
                        "coarse_bits": list(coarse_bits),
                        "extra_budgets": list(extra_budgets)} if codesign else {}),
+                   **({"tier_panel": {k: list(v) for k, v in tier_panel.items()},
+                       "tier_panel_score": "csv_b4_accum"} if tier_panel else {}),
                    "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),

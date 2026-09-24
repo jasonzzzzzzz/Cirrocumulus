@@ -54,6 +54,7 @@ TASK_GENERATION_VERSION = "ruler_pg19_v1"
 TARGET_PROVENANCE_VERSION = "queried_needle_v1"
 TRACE_RULE_VERSION = "fp_teacher_forced_v1"
 TRACE_STEPS = 8
+VOCAB_SIZE = 128_256
 BOOTSTRAP_REPLICATES = 10_000
 BOOTSTRAP_SEED = 0
 
@@ -248,8 +249,8 @@ def _parse_needles(frame: pd.DataFrame, n_keys: int, label: str) -> None:
 def validate_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
                     n_keys: int) -> tuple[pd.DataFrame, dict[str, int]]:
     """Strictly validate the two in-memory frames and return their exact join."""
-    if isinstance(n_keys, bool) or not isinstance(n_keys, int) or n_keys < 1:
-        _fail("n_keys must be a positive integer")
+    if isinstance(n_keys, bool) or not isinstance(n_keys, int) or n_keys not in (24, 32):
+        _fail("n_keys must be the V2-A-selected value 24 or 32")
     accuracy, diagnostic = accuracy.copy(), diagnostic.copy()
     _require_columns(accuracy, ACCURACY_COLUMNS, "accuracy parquet")
     _require_columns(diagnostic, DIAGNOSTIC_COLUMNS, "diagnostic parquet")
@@ -307,6 +308,7 @@ def validate_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
                                             "task_n_needles", "observed_queries"}}
     diagnostic_singletons["trace_rule_version"] = TRACE_RULE_VERSION
     diagnostic_singletons["trace_steps_requested"] = TRACE_STEPS
+    diagnostic_singletons["vocab_size"] = VOCAB_SIZE
     for field, expected in diagnostic_singletons.items():
         _same(expected, _only(diagnostic, field, "diagnostic parquet"),
               f"diagnostic parquet.{field}")
@@ -393,6 +395,11 @@ def validate_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
         for field in ("trace_len", "trace_token_hash", "vocab_size"):
             if group[field].nunique(dropna=False) != 1:
                 _fail(f"prompt {prompt} mixes shared FP trace field {field}")
+        fp_gen_len = int(fp.loc[fp.prompt_idx == prompt, "gen_len"].iloc[0])
+        expected_trace_len = min(TRACE_STEPS, fp_gen_len)
+        if int(group.trace_len.iloc[0]) != expected_trace_len:
+            _fail(f"prompt {prompt} trace_len must equal min(8, FP gen_len)="
+                  f"{expected_trace_len}")
         selected = min(CANDIDATES,
                        key=lambda candidate: (float(group.loc[
                            group.candidate == candidate, "mean_kl"].iloc[0]),
@@ -513,7 +520,8 @@ def validate_sidecars(accuracy_path: Path, diagnostic_path: Path,
     expected_p2 = {
         "enabled": True,
         "want": ["evict", "interior", "interior_cascade", "interior_pool", "uniform"],
-        "routers": [], "head_error": False, "routes": None, "routes_meta": None,
+        "routers": [], "head_error": False, "cascade_bits": 4,
+        "routes": None, "routes_meta": None,
     }
     for field, value in expected_p2.items():
         if field not in p2:
@@ -592,7 +600,8 @@ def _ratio_interval(numerator: np.ndarray, denominator: np.ndarray,
 
 
 def _prefix_rows(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
-                 prefix: Sequence[str], mapping: Mapping[str, int]) -> pd.DataFrame:
+                 prefix: Sequence[str], mapping: Mapping[str, int],
+                 metrics: Sequence[str] = ("mean_kl",)) -> pd.DataFrame:
     scores = (accuracy[accuracy.arm.isin(prefix)]
               .pivot(index="prompt_idx", columns="arm", values="score")
               .loc[list(PROMPTS), list(prefix)])
@@ -616,7 +625,7 @@ def _prefix_rows(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
             "H": envelope - float(prompt_scores["uniform"]),
             "H_F": envelope - float(prompt_scores[best_fixed]),
         }
-        for metric in SELECTORS:
+        for metric in metrics:
             selected = _selector(group, prefix, metric, mapping)
             score = float(prompt_scores[selected])
             metric_column, _ = SELECTORS[metric]
@@ -641,10 +650,63 @@ def _prefix_rows(accuracy: pd.DataFrame, diagnostic: pd.DataFrame,
     return pd.DataFrame(rows)
 
 
+def _add_metric_summary(row: dict, prompts: pd.DataFrame, metric: str,
+                        h: np.ndarray, hf: np.ndarray, draws: np.ndarray,
+                        prefix: Sequence[str]) -> None:
+    """Add one preregistered selector's paired metrics to a prefix summary."""
+    g = prompts[f"{metric}_G"].to_numpy(float)
+    gf = prompts[f"{metric}_G_F"].to_numpy(float)
+    g_lo, g_hi = _interval(g, draws)
+    gf_lo, gf_hi = _interval(gf, draws)
+    regret = h - g
+    regret_f = hf - gf
+    regret_lo, regret_hi = _interval(regret, draws)
+    regret_f_lo, regret_f_hi = _interval(regret_f, draws)
+    captured_lo, captured_hi = _ratio_interval(g, h, draws)
+    captured_f_lo, captured_f_hi = _ratio_interval(gf, hf, draws)
+    G, GF = float(g.mean()), float(gf.mean())
+    row[f"{metric}_selected_mean"] = float(prompts[f"{metric}_score"].mean())
+    row[f"{metric}_G"] = G
+    row[f"{metric}_G_lo90"] = g_lo
+    row[f"{metric}_G_hi90"] = g_hi
+    row[f"{metric}_G_F"] = GF
+    row[f"{metric}_G_F_lo90"] = gf_lo
+    row[f"{metric}_G_F_hi90"] = gf_hi
+    row[f"{metric}_regret"] = float(regret.mean())
+    row[f"{metric}_regret_lo90"] = regret_lo
+    row[f"{metric}_regret_hi90"] = regret_hi
+    row[f"{metric}_regret_F"] = float(regret_f.mean())
+    row[f"{metric}_regret_F_lo90"] = regret_f_lo
+    row[f"{metric}_regret_F_hi90"] = regret_f_hi
+    row[f"{metric}_captured"] = G / row["H"] if row["H"] > 0 else math.nan
+    row[f"{metric}_captured_lo90"] = captured_lo
+    row[f"{metric}_captured_hi90"] = captured_hi
+    row[f"{metric}_captured_F"] = GF / row["H_F"] if row["H_F"] > 0 else math.nan
+    row[f"{metric}_captured_F_lo90"] = captured_f_lo
+    row[f"{metric}_captured_F_hi90"] = captured_f_hi
+    row[f"{metric}_G_F_half1"] = float(prompts.iloc[:20][f"{metric}_G_F"].mean())
+    row[f"{metric}_G_F_half2"] = float(prompts.iloc[20:][f"{metric}_G_F"].mean())
+    row[f"{metric}_tie_hits"] = int(prompts[f"{metric}_tie_hit"].sum())
+    row[f"{metric}_rescues"] = int(prompts[f"{metric}_rescued"].sum())
+    row[f"{metric}_harms"] = int(prompts[f"{metric}_harmed"].sum())
+    row[f"{metric}_selector_tied_prompts"] = int(
+        (prompts[f"{metric}_selector_tie_count"] > 1).sum())
+    row[f"{metric}_selector_mean_tie_count"] = float(
+        prompts[f"{metric}_selector_tie_count"].mean())
+    for candidate in prefix:
+        row[f"{metric}_selected_{candidate}"] = int(
+            (prompts[f"{metric}_candidate"] == candidate).sum())
+
+
 def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int,
                    n_boot: int = BOOTSTRAP_REPLICATES,
                    seed: int = BOOTSTRAP_SEED) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Validate frames, analyze all prefixes, and return decision metadata."""
+    """Validate frames, analyze prefixes, and apply the frozen decision order.
+
+    Mean KL is evaluated for every prefix.  The three alternates are not even
+    computed unless mean KL fails on the smallest prefix that passes the
+    headroom gates; they are then evaluated on that prefix alone.
+    """
     _, mapping = validate_frames(accuracy, diagnostic, n_keys)
     if n_boot < 1:
         _fail("bootstrap replicate count must be positive")
@@ -655,15 +717,33 @@ def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int
     incomplete_capped_fp = int(((fp.score < 1.0) & fp.reached_max_new.astype(bool)).sum())
     operating_gate = bool(fp_mean >= .95 and incomplete_capped_fp == 0 and
                           .50 <= uniform_mean <= .80)
+    if not operating_gate:
+        # The preregistration forbids interpreting candidate headroom or proxy
+        # behavior when this independent block misses its operating-point gate.
+        decision = {
+            "operating_point_valid": False,
+            "decision": "difficulty_non_replicating",
+            "prefix_size": None, "prefix": None, "best_fixed_dev": None,
+            "selector_metric": None, "selector_direction": None,
+        }
+        gate_summary = pd.DataFrame([dict(
+            n_keys=n_keys, n_prompts=len(PROMPTS), fp_mean=fp_mean,
+            uniform_mean=uniform_mean, fp_first_ok=float(fp.first_ok.mean()),
+            uniform_first_ok=float(uniform.first_ok.mean()),
+            incomplete_capped_fp=incomplete_capped_fp,
+            gate_operating_point=False,
+        )])
+        return gate_summary, pd.DataFrame(), decision
 
     rng = np.random.default_rng(seed)
     draws = rng.integers(0, len(PROMPTS), size=(n_boot, len(PROMPTS)))
-    all_prompts: list[pd.DataFrame] = []
+    prompt_frames: list[pd.DataFrame] = []
     summaries: list[dict] = []
     for size in PREFIX_SIZES:
         prefix = CANDIDATES[:size]
-        prompts = _prefix_rows(accuracy, diagnostic, prefix, mapping)
-        all_prompts.append(prompts)
+        prompts = _prefix_rows(accuracy, diagnostic, prefix, mapping,
+                               metrics=("mean_kl",))
+        prompt_frames.append(prompts)
         h = prompts.H.to_numpy(float)
         hf = prompts.H_F.to_numpy(float)
         h_lo, h_hi = _interval(h, draws)
@@ -687,52 +767,10 @@ def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int
         row["gate_headroom"] = bool(
             row["H_F"] >= .10 and row["H_F_lo90"] > 0 and
             row["H_F_half1"] >= .05 and row["H_F_half2"] >= .05)
-        for metric in SELECTORS:
-            g = prompts[f"{metric}_G"].to_numpy(float)
-            gf = prompts[f"{metric}_G_F"].to_numpy(float)
-            g_lo, g_hi = _interval(g, draws)
-            gf_lo, gf_hi = _interval(gf, draws)
-            regret = h - g
-            regret_f = hf - gf
-            regret_lo, regret_hi = _interval(regret, draws)
-            regret_f_lo, regret_f_hi = _interval(regret_f, draws)
-            captured_lo, captured_hi = _ratio_interval(g, h, draws)
-            captured_f_lo, captured_f_hi = _ratio_interval(gf, hf, draws)
-            G, GF = float(g.mean()), float(gf.mean())
-            row[f"{metric}_selected_mean"] = float(prompts[f"{metric}_score"].mean())
-            row[f"{metric}_G"] = G
-            row[f"{metric}_G_lo90"] = g_lo
-            row[f"{metric}_G_hi90"] = g_hi
-            row[f"{metric}_G_F"] = GF
-            row[f"{metric}_G_F_lo90"] = gf_lo
-            row[f"{metric}_G_F_hi90"] = gf_hi
-            row[f"{metric}_regret"] = float(regret.mean())
-            row[f"{metric}_regret_lo90"] = regret_lo
-            row[f"{metric}_regret_hi90"] = regret_hi
-            row[f"{metric}_regret_F"] = float(regret_f.mean())
-            row[f"{metric}_regret_F_lo90"] = regret_f_lo
-            row[f"{metric}_regret_F_hi90"] = regret_f_hi
-            row[f"{metric}_captured"] = G / row["H"] if row["H"] > 0 else math.nan
-            row[f"{metric}_captured_lo90"] = captured_lo
-            row[f"{metric}_captured_hi90"] = captured_hi
-            row[f"{metric}_captured_F"] = GF / row["H_F"] if row["H_F"] > 0 else math.nan
-            row[f"{metric}_captured_F_lo90"] = captured_f_lo
-            row[f"{metric}_captured_F_hi90"] = captured_f_hi
-            row[f"{metric}_G_F_half1"] = float(prompts.iloc[:20][f"{metric}_G_F"].mean())
-            row[f"{metric}_G_F_half2"] = float(prompts.iloc[20:][f"{metric}_G_F"].mean())
-            row[f"{metric}_tie_hits"] = int(prompts[f"{metric}_tie_hit"].sum())
-            row[f"{metric}_rescues"] = int(prompts[f"{metric}_rescued"].sum())
-            row[f"{metric}_harms"] = int(prompts[f"{metric}_harmed"].sum())
-            row[f"{metric}_selector_tied_prompts"] = int(
-                (prompts[f"{metric}_selector_tie_count"] > 1).sum())
-            row[f"{metric}_selector_mean_tie_count"] = float(
-                prompts[f"{metric}_selector_tie_count"].mean())
-            for candidate in prefix:
-                row[f"{metric}_selected_{candidate}"] = int(
-                    (prompts[f"{metric}_candidate"] == candidate).sum())
+        _add_metric_summary(row, prompts, "mean_kl", h, hf, draws, prefix)
         summaries.append(row)
     summary = pd.DataFrame(summaries)
-    prompt_audit = pd.concat(all_prompts, ignore_index=True)
+    prompt_audit = pd.concat(prompt_frames, ignore_index=True)
 
     decision = {
         "operating_point_valid": operating_gate,
@@ -750,9 +788,11 @@ def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int
         elif qualifying.empty:
             decision["decision"] = "one_extension_needed"
         else:
-            target = qualifying.sort_values("prefix_size").iloc[0]
-            decision.update(prefix_size=int(target.prefix_size),
-                            prefix=CANDIDATES[:int(target.prefix_size)],
+            target_index = int(qualifying.sort_values("prefix_size").index[0])
+            target = summary.loc[target_index]
+            size = int(target.prefix_size)
+            prefix = CANDIDATES[:size]
+            decision.update(prefix_size=size, prefix=prefix,
                             best_fixed_dev=str(target.best_fixed_dev))
             mean_pass = bool(
                 target.mean_kl_G_F >= .05 and target.mean_kl_captured_F >= .5 and
@@ -761,6 +801,33 @@ def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int
                 decision.update(decision="advance_mean_kl", selector_metric="mean_kl",
                                 selector_direction="min")
             else:
+                # Preregistered alternatives are exposed only here, on this one
+                # frozen prefix.  They cannot influence prefix selection.
+                alternatives = _prefix_rows(
+                    accuracy, diagnostic, prefix, mapping, metrics=ALTERNATE_ORDER)
+                row = summary.loc[target_index].to_dict()
+                h = alternatives.H.to_numpy(float)
+                hf = alternatives.H_F.to_numpy(float)
+                for metric in ALTERNATE_ORDER:
+                    _add_metric_summary(row, alternatives, metric, h, hf, draws, prefix)
+                new_fields = {key: value for key, value in row.items()
+                              if key not in summary.columns}
+                if new_fields:
+                    additions = pd.DataFrame(index=summary.index,
+                                             columns=list(new_fields), dtype=object)
+                    for key, value in new_fields.items():
+                        additions.loc[target_index, key] = value
+                    summary = pd.concat([summary, additions], axis=1)
+                # Add alternate per-prompt fields only to the selected prefix.
+                alt_columns = [column for column in alternatives.columns
+                               if any(column.startswith(metric + "_")
+                                      for metric in ALTERNATE_ORDER)]
+                mask = prompt_audit.prefix_size.eq(size)
+                indexed = alternatives.set_index("prompt_idx")
+                for column in alt_columns:
+                    prompt_audit.loc[mask, column] = prompt_audit.loc[
+                        mask, "prompt_idx"].map(indexed[column])
+                target = summary.loc[target_index]
                 passing = [metric for metric in ALTERNATE_ORDER
                            if target[f"{metric}_G_F"] >= .05 and
                            target[f"{metric}_captured_F"] >= .5]
@@ -774,7 +841,6 @@ def analyze_frames(accuracy: pd.DataFrame, diagnostic: pd.DataFrame, n_keys: int
                 else:
                     decision["decision"] = "no_proxy_advances"
     return summary, prompt_audit, decision
-
 
 def build_lock_manifest(accuracy_path: os.PathLike[str] | str,
                         diagnostic_path: os.PathLike[str] | str,
@@ -864,6 +930,10 @@ def print_summary(summary: pd.DataFrame, decision: Mapping) -> None:
     print(f"operating point: FP={_fmt(first.fp_mean)}  uniform={_fmt(first.uniform_mean)}  "
           f"incomplete-capped-FP={int(first.incomplete_capped_fp)}  "
           f"valid={'yes' if first.gate_operating_point else 'no'}")
+    if not bool(first.gate_operating_point):
+        print("prefix metrics suppressed: independent block failed the operating-point gate")
+        print(f"\ndecision: {decision['decision']}")
+        return
     for row in summary.itertuples(index=False):
         print(f"\nprefix {int(row.prefix_size)}: {row.prefix}")
         print(f"  fixed/envelope  {row.best_fixed_dev}={_fmt(row.best_fixed_mean)}  "
@@ -873,7 +943,10 @@ def print_summary(summary: pd.DataFrame, decision: Mapping) -> None:
               f"halves={_fmt(row.H_F_half1, True)}/{_fmt(row.H_F_half2, True)}  "
               f"gate={'pass' if row.gate_headroom else 'fail'}")
         for metric in SELECTORS:
-            print(f"  {metric:14s} G_F={_fmt(getattr(row, metric + '_G_F'), True)} "
+            metric_value = getattr(row, metric + "_G_F", math.nan)
+            if not math.isfinite(float(metric_value)):
+                continue
+            print(f"  {metric:14s} G_F={_fmt(metric_value, True)} "
                   f"[{_fmt(getattr(row, metric + '_G_F_lo90'), True)}, "
                   f"{_fmt(getattr(row, metric + '_G_F_hi90'), True)}]  "
                   f"regret_F={_fmt(getattr(row, metric + '_regret_F'), True)}  "

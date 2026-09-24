@@ -29,6 +29,7 @@ Two bugs fixed in this pass, either of which could invert the conclusion:
 """
 from __future__ import annotations
 import math
+import re
 import torch
 
 from . import evict as _EV
@@ -39,6 +40,96 @@ _WARNED_RANKED_INTERIOR = False   # one-shot guard, see quant_metrics/interior_r
 BAND_MIN = 2.0   # a head is "in the productive band" if the interior beats the
                  # best corner by at least this factor; below it, routing to the
                  # corner is the right engineering call and SIEVE adds nothing.
+
+
+# R10 tier-set panel. Tier 0 is the allocator's eviction action and therefore
+# does not appear in run_h0.py's `bit_list`; it is explicit here because these
+# tuples are the complete action spaces being compared. The registry lives
+# beside the allocator so every caller shares one definition and result
+# sidecars can record the resolved sets verbatim.
+TIER_PANEL_REGISTRY: dict[str, tuple[int, ...]] = {
+    "full": (0, 1, 2, 3, 4, 5, 6, 8),
+    "no1": (0, 2, 3, 4, 5, 6, 8),
+    "base3_dense": (0, 3, 4, 5, 6, 8),
+    "nested3": (0, 3, 4, 6, 8),
+    "nested4": (0, 4, 6, 8),
+}
+R10_TIER_PANEL = tuple(TIER_PANEL_REGISTRY)
+
+
+def resolve_tier_panel(spec, available_bits, maxb: int = 8
+                       ) -> dict[str, tuple[int, ...]]:
+    """Resolve an opt-in named tier panel and validate measured coverage.
+
+    `spec` may be ``None``/false (disabled), ``"r10"`` (the registered R10
+    panel), a comma-separated string or sequence of registry names, or a mapping
+    from a stable label to a custom tier sequence. Custom sets keep the plumbing
+    reusable without adding campaign-specific branches.
+
+    Tier 0 is inserted when omitted. Every positive tier must have real
+    quantized logits in `available_bits`; interpolation is refused because the
+    panel reports exactly recomputed output error. All sets retain `maxb`, the
+    common top tier used by the physical cache design.
+    """
+    if spec is None or spec is False or spec == "" or spec == [] or spec == {}:
+        return {}
+    available = {int(b) for b in available_bits}
+    if not available:
+        raise ValueError("tier_panel needs a non-empty measured bit_list")
+
+    if spec is True or (isinstance(spec, str) and spec.strip().lower() == "r10"):
+        raw = {name: TIER_PANEL_REGISTRY[name] for name in R10_TIER_PANEL}
+    elif isinstance(spec, str):
+        names = [x.strip() for x in spec.split(",") if x.strip()]
+        raw = {}
+        for name in names:
+            if name not in TIER_PANEL_REGISTRY:
+                raise ValueError(
+                    f"unknown tier_panel entry {name!r}; registered entries are "
+                    f"{list(TIER_PANEL_REGISTRY)}, or pass a label->tiers mapping")
+            raw[name] = TIER_PANEL_REGISTRY[name]
+    elif isinstance(spec, (list, tuple)):
+        raw = {}
+        for item in spec:
+            name = str(item)
+            if name not in TIER_PANEL_REGISTRY:
+                raise ValueError(
+                    f"unknown tier_panel entry {name!r}; registered entries are "
+                    f"{list(TIER_PANEL_REGISTRY)}")
+            raw[name] = TIER_PANEL_REGISTRY[name]
+    elif isinstance(spec, dict):
+        raw = spec
+    else:
+        raise ValueError("tier_panel must be 'r10', a comma list of registered "
+                         "names, or a label->tiers mapping")
+
+    out: dict[str, tuple[int, ...]] = {}
+    for label, tiers0 in raw.items():
+        label = str(label)
+        if not re.fullmatch(r"[a-z][a-z0-9_]*", label):
+            raise ValueError(f"tier_panel label {label!r} must match "
+                             "[a-z][a-z0-9_]* for stable column names")
+        if isinstance(tiers0, str):
+            vals = [x.strip() for x in tiers0.split(",") if x.strip()]
+        elif isinstance(tiers0, (list, tuple, set)):
+            vals = list(tiers0)
+        else:
+            raise ValueError(f"tier_panel[{label!r}] must be a tier sequence")
+        try:
+            tiers = tuple(sorted({int(b) for b in vals} | {0}))
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"tier_panel[{label!r}] contains a non-integer tier") from e
+        if any(b < 0 for b in tiers):
+            raise ValueError(f"tier_panel[{label!r}] contains a negative tier: {tiers}")
+        missing = sorted(set(tiers) - {0} - available)
+        if missing:
+            raise ValueError(f"tier_panel[{label!r}] needs unmeasured tiers {missing}; "
+                             f"available bit_list is {sorted(available)}")
+        if int(maxb) not in tiers:
+            raise ValueError(f"tier_panel[{label!r}] must retain maxb={int(maxb)}; "
+                             f"got {tiers}")
+        out[label] = tiers
+    return out
 
 
 def _cost_vector(sig2: dict[int, float], maxb: int, device) -> torch.Tensor:
@@ -696,7 +787,9 @@ def _rel(w2: torch.Tensor, o_true: torch.Tensor) -> torch.Tensor:
 
 
 def group_prepass(heads: list[dict], n_rep: int, budgets, maxb: int = 8,
-                  coarse_bits=(), group: bool = True) -> list[dict]:
+                  coarse_bits=(), group: bool = True,
+                  tier_panel: dict[str, tuple[int, ...]] | None = None
+                  ) -> list[dict]:
     """Per-head `extra` payloads for one LAYER (plan.md S2).
 
     `heads` is one dict per query head, in head order, each carrying the tensors
@@ -717,6 +810,7 @@ def group_prepass(heads: list[dict], n_rep: int, budgets, maxb: int = 8,
     n_rep = max(1, int(n_rep))
     budgets = [int(B) for B in budgets]
     coarse_bits = [int(b) for b in coarse_bits]
+    tier_panel = dict(tier_panel or {})
     per: list[dict] = []
     for h in heads:
         sd, Vd = h["s"].double(), h["V"].double()
@@ -774,7 +868,10 @@ def group_prepass(heads: list[dict], n_rep: int, budgets, maxb: int = 8,
                 f"KV group {g0 // n_rep} has heads with different live lengths "
                 f"{sorted(Ls)} -- the group cannot share one allocation")
         sig2s = [per[i]["sig2"] for i in grp]
-        bits: dict[str, torch.Tensor] = {}
+        bits: dict[tuple[str, int], torch.Tensor] = {}
+        tier_bits: dict[tuple[str, int], torch.Tensor] = {}
+        tier_controls: dict[tuple[str, int], tuple[int, int]] = {}
+        full_controls: dict[int, tuple[int, int]] = {}
         rank: dict[str, torch.Tensor] = {}
         # _rel is a per-head POSITIVE RESCALE, so for a one-head group it cannot
         # change the argmin -- but waterfill's bisection is a finite search, and
@@ -820,8 +917,54 @@ def group_prepass(heads: list[dict], n_rep: int, budgets, maxb: int = 8,
                     bits[(f"csv_b{bc}_{nm}", B)] = waterfill_group(
                         Wc, sig2s, float(B), maxb, None)
 
+                # R10 measures tier-set effects on the selected physical design:
+                # one allocation per KV group, using the deployable current-query
+                # 4-bit cascade with lagged `o` (`csv_b4_accum`). Restricting the
+                # per-head noise dictionaries makes waterfill_group enumerate
+                # exactly that action space; exact_error later reads the same
+                # measured shat tensors, with no interpolated tier.
+                if bc == 4 and nm == "accum" and tier_panel:
+                    for label, tiers in tier_panel.items():
+                        restricted = [{b: s2[b] for b in tiers} for s2 in sig2s]
+                        for B in budgets:
+                            tier_bits[(label, B)] = waterfill_group(
+                                Wc, restricted, float(B), maxb, None)
+                            # V5 pilot control: at n_rep=1, independently run the
+                            # ordinary per-head solver and persist the allocation
+                            # mismatch, rather than relying on a unit test to
+                            # authenticate the GPU result.
+                            if len(grp) == 1:
+                                hb = waterfill(per[grp[0]]["w2cv"][key],
+                                               restricted[0], float(B), maxb)
+                                delta = (tier_bits[(label, B)] - hb).abs()
+                                tier_controls[(label, B)] = (
+                                    int((delta != 0).sum().item()),
+                                    int(delta.max().item()) if delta.numel() else 0)
+
+        # The explicit full arm is a duplicate control for the new path. Keep
+        # this invariant beside allocation as well as in tests and the reader.
+        if "full" in tier_panel and "accum" in common and 4 in coarse_bits:
+            for B in budgets:
+                ref = bits.get(("csv_b4_accum", B))
+                dup = tier_bits.get(("full", B))
+                if ref is None or dup is None:
+                    raise RuntimeError(
+                        "tier_panel full allocation or existing csv_b4_accum "
+                        f"allocation is absent at budget {B}")
+                delta = (dup - ref).abs()
+                full_controls[B] = (int((delta != 0).sum().item()),
+                                    int(delta.max().item()) if delta.numel() else 0)
+                if full_controls[B] != (0, 0):
+                    raise RuntimeError(
+                        "tier_panel full allocation diverged from the existing "
+                        f"csv_b4_accum path at budget {B}")
+
         for i in grp:
-            out[i]["group"] = dict(bits=bits, rank=rank, size=len(grp))
+            out[i]["group"] = dict(bits=bits, rank=rank, size=len(grp),
+                                    tier_bits=tier_bits,
+                                    tier_panel=tier_panel,
+                                    tier_controls=tier_controls,
+                                    full_controls=full_controls)
     return out
 
 
@@ -924,6 +1067,35 @@ def extra_metrics(s: torch.Tensor, shat: dict[int, torch.Tensor], V: torch.Tenso
                     _emit("grp_or_", bits, None, need_corner=False)
                 else:
                     _emit(f"grp_{name}_", bits, e_grp_practical)
+
+            # R10 paired tier panel. These columns intentionally report only
+            # the physical group + deployable csv_b4_accum allocation. They do
+            # not inherit a corner or gain denominator: the primary outcome is
+            # the paired exact-error ratio between action spaces.
+            panel = grp.get("tier_panel") or {}
+            for (label, Bk), panel_bits in (grp.get("tier_bits") or {}).items():
+                if int(Bk) != int(B):
+                    continue
+                tiers = tuple(int(b) for b in panel[label])
+                prefix = f"grp_tier_{label}_csv_b4_accum_{B}"
+                out[f"err_wf_{prefix}"] = exact_error(
+                    s, shat, V, panel_bits, o)
+                out[f"mean_bits_{prefix}"] = float(
+                    panel_bits.double().mean().item())
+                out[f"evict_frac_{prefix}"] = float(
+                    (panel_bits == 0).double().mean().item())
+                for bit in tiers:
+                    out[f"tier_frac_{prefix}_b{bit}"] = float(
+                        (panel_bits == bit).double().mean().item())
+                ctl = (grp.get("tier_controls") or {}).get((label, B))
+                if ctl is not None:
+                    out[f"alloc_mismatch_grp_vs_head_tier_{label}_csv_b4_accum_{B}"] = int(ctl[0])
+                    out[f"max_bit_diff_grp_vs_head_tier_{label}_csv_b4_accum_{B}"] = int(ctl[1])
+
+            full_ctl = (grp.get("full_controls") or {}).get(B)
+            if full_ctl is not None:
+                out[f"alloc_mismatch_full_vs_existing_csv_b4_accum_{B}"] = int(full_ctl[0])
+                out[f"max_bit_diff_full_vs_existing_csv_b4_accum_{B}"] = int(full_ctl[1])
 
         # ---- C: the cascade -------------------------------------------------
         for bc in coarse_bits:

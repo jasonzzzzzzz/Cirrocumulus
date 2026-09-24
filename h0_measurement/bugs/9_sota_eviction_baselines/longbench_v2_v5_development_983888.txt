@@ -1,0 +1,8 @@
+V5 LongBench-v2 forced-choice development (frozen section 3J)
+provenance      PASS (pinned dataset/manifest/model/prompt/split)
+rows            468 predictions, 416 proxy; 52 items / 44 components
+fixed policy    uniform accuracy 0.365
+competence      FP 0.365 (q05 0.255), F* 0.365 (q05 0.260) [PASS]
+opportunity H   0.058, q05 0.017, halves 0.071/0.042 [FAIL]
+proxy G         suppressed (sequential H gate did not pass)
+decision        stop_no_opportunity

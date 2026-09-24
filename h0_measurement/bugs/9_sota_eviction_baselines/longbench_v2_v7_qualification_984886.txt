@@ -1,0 +1,6 @@
+V7 Qwen qualification (frozen section 3L)
+provenance      PASS (dataset/manifest/model/template/source hashes)
+rows            40 predictions; 20 items / 20 components
+FP              9/20 = 0.450, q05=0.250
+uniform         7/20 = 0.350, q05=0.200
+decision        stop_v7_qualification

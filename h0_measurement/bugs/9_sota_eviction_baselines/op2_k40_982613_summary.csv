@@ -1,0 +1,2 @@
+n_keys,n_prompts,fp_mean,uniform_mean,fp_first_ok,uniform_first_ok,fp_540_559,uniform_540_559,uniform_first_ok_540_559,fp_560_579,uniform_560_579,uniform_first_ok_560_579,delta_fp_minus_uniform,delta_lo90,delta_hi90,incomplete_capped_fp,gate_fp_ge_095,gate_no_incomplete_capped_fp,gate_uniform_050_075,gate_each_half_035_085,gate_delta_lo_gt_005,eligible,selected
+40,40,1.0,0.925,1.0,0.925,1.0,0.95,0.95,1.0,0.9,0.9,0.075,0.025,0.15,0,True,True,False,False,False,False,False

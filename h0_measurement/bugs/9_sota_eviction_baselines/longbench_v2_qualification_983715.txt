@@ -1,0 +1,9 @@
+V4 LongBench-v2 qualification (frozen section 3I.5)
+provenance      PASS (pinned dataset/manifest/model/prompt/parser/chat/split)
+rows            40 accuracy, 20 choice; 20 manifest items
+valid parses    FP 18/20 [PASS], uniform 18/20 [PASS]
+accuracy        FP 0.450 [PASS], uniform 0.450 [PASS]
+FP-uniform      0.000 (descriptive only; no gap gate)
+invalid FP cap  2 [FAIL]
+canonical/direct 17/18 = 0.944 [PASS]
+decision        stop_v4

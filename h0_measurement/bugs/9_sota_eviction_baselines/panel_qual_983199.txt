@@ -1,0 +1,9 @@
+# V3 contrastive multikey-panel qualification
+# primary: first_ok; four queries aggregated within each of 40 contexts
+# paired context bootstrap: 90%, 10000 replicates, seed 0
+FP micro=0.981  uniform prompt mean=0.850  halves=0.863/0.838
+FP slots=1.000/1.000/0.950/0.975  uniform slots=0.950/0.850/0.800/0.800  spread=0.150
+FP-uniform=0.131 [0.087, 0.181]  incomplete-capped-FP=0
+gates: FP=pass, FP-cap=pass, uniform[.50,.75]=fail, halves[.35,.85]=fail, slot-spread<=.25=pass, delta-lo>.05=pass
+decision: stop_panel
+wrote h0_measurement/bugs/9_sota_eviction_baselines/panel_qual_983199_summary.csv

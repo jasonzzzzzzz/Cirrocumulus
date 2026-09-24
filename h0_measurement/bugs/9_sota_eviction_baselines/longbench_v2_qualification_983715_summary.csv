@@ -1,0 +1,2 @@
+split,n_items,accuracy_rows,choice_rows,fp_valid,uniform_valid,fp_accuracy,uniform_accuracy,fp_minus_uniform,invalid_fp_at_cap,fp_canonical_direct_agree_n,fp_canonical_direct_valid_n,fp_canonical_direct_agreement,fp_valid_gate,uniform_valid_gate,fp_accuracy_gate,uniform_accuracy_gate,fp_cap_gate,fp_canonical_direct_gate,decision
+qualification,20,40,20,18,18,0.45,0.45,0.0,2,17,18,0.9444444444444444,True,True,True,True,False,True,stop_v4

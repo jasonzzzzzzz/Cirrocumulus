@@ -53,6 +53,37 @@ def test_fp_against_itself_has_exact_zero_kl_and_no_logit_output():
     assert all(not isinstance(value, torch.Tensor) for value in got.values())
 
 
+def test_choice_kl_uses_all_four_choices_and_emits_only_scalars():
+    ref = torch.tensor([2.0, 1.0, -0.5, 0.25], dtype=torch.float64)
+    cand = torch.tensor([0.0, 1.5, -0.25, 0.75], dtype=torch.float64)
+    got = PD.choice_divergence_metrics(ref, cand)
+    rp = torch.softmax(ref.float(), -1)
+    rlp = torch.log_softmax(ref.float(), -1)
+    clp = torch.log_softmax(cand.float(), -1)
+    expected = (rp * (rlp - clp)).sum(dtype=torch.float32)
+    assert got.keys() == set(PD.CHOICE_METRIC_KEYS)
+    assert got["choice_kl"] == float(expected.item())
+    assert got["fp_choice_index"] == 0
+    assert got["candidate_choice_index"] == 1
+    assert got["choice_top1_agreement"] == 0.0
+    assert all(not isinstance(value, torch.Tensor) for value in got.values())
+
+
+def test_choice_kl_self_is_exact_zero_and_ties_use_candidate_order():
+    logits = torch.tensor([1.0, 0.5, -1.0, 0.0])
+    same = PD.choice_divergence_metrics(logits, logits.clone())
+    assert same["choice_kl"] == 0.0
+    values = {
+        "uniform": {"choice_kl": 0.25},
+        "evict": {"choice_kl": 0.25},
+        "interior": {"choice_kl": 0.4},
+    }
+    assert PD.select_min_choice_kl(values, ["uniform", "evict", "interior"]) == "uniform"
+    assert PD.select_min_choice_kl(values, ["evict", "uniform", "interior"]) == "evict"
+    values["interior"]["choice_kl"] = math.nextafter(0.25, 0.0)
+    assert PD.select_min_choice_kl(values, ["uniform", "evict", "interior"]) == "interior"
+
+
 class _AdversarialCandidate:
     """Every candidate argmax is token 9; the trace must never feed it."""
 

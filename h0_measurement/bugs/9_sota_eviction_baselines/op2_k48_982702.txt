@@ -1,0 +1,9 @@
+# R8 operating-point k48 final bracket
+# primary: standard RULER string_match_all; secondary: first_ok
+# paired prompt bootstrap: 90%, 10000 replicates, seed 0
+k=48  FP=1.000  uniform=0.850  580-599(FP/uniform)=1.000/0.900  600-619(FP/uniform)=1.000/0.800
+  first_ok FP/uniform=1.000/0.850  uniform halves=0.900/0.800
+  FP-uniform=0.150 [0.075, 0.250]  incomplete-capped-FP=0  eligible=no
+  gates: FP>=.95=pass, FP-cap=pass, uniform[.50,.75]=fail, halves[.35,.85]=fail, delta-lo>.05=pass
+selection: no selection
+wrote h0_measurement/bugs/9_sota_eviction_baselines/op2_k48_982702_summary.csv

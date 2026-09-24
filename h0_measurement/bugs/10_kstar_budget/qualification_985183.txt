@@ -1,0 +1,10 @@
+R9 K* QUALIFICATION job=985183
+authentication  PASS (2/2 exact array tasks; source/input provenance sealed)
+Q1 implementation+budget  PASS (G=1 max_abs=1.954e-14, K* match=True)
+Q2 calibration stability  PASS (Llama p0/p1 Spearman=0.751734; minimum=0.50)
+Q3 redistribution         FAIL (movement=0.002319; minimum=0.05)
+Q4 integer resolution     PASS (K*=k0 fraction=0.000000; must be <0.95)
+decision        stop_r9_qualification
+held-out errors are descriptive and did not enter Q1--Q4
+llama31-8b: fixed=0.0142958, kstar_prop_calibrated=0.0144682, kstar_shrink20_calibrated=0.0144284, kappa4_rebalanced_calibrated=0.0232077, kappa4_natural_calibrated=0.0297709, adakv_alpha02_calibrated=0.0147218, layer_flat_calibrated=0.0167884, snapkv_global_calibrated=0.0235684, kappa4_rebalanced_dynamic=0.0254811, kappa4_natural_dynamic=0.0331576, adakv_alpha02_dynamic=0.014491, layer_flat_dynamic=0.0162638, snapkv_global_dynamic=0.0211608
+qwen15-moe-a2.7b: fixed=0.0145262, kstar_prop_calibrated=0.0148715, kstar_shrink20_calibrated=0.0148073, kappa4_rebalanced_calibrated=0.0118461, kappa4_natural_calibrated=0.0216803, adakv_alpha02_calibrated=0.00908941, layer_flat_calibrated=0.0104164, snapkv_global_calibrated=0.0120686, kappa4_rebalanced_dynamic=0.0111946, kappa4_natural_dynamic=0.0225661, adakv_alpha02_dynamic=0.00842807, layer_flat_dynamic=0.00862815, snapkv_global_dynamic=0.00926397

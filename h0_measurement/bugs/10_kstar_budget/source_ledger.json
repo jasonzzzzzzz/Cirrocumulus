@@ -1,0 +1,31 @@
+{
+  "content_sha256": "fcbdeb48d88b16e9026d8a8f36d4b58378f1b5b29095eefbd6d2b041a924336a",
+  "ledger_version": "r9_kstar_budget_source_ledger_v1",
+  "source_sha256": {
+    "h0_measurement/bugs/10_kstar_budget/qualification_input_manifest.json": "2bbc6093c54aebc017d2e69ff3aaef28cd5985b6d7c7fd81f0041a87571f893e",
+    "h0_measurement/bugs/10_kstar_budget/qualification_protocol_frozen.md": "db482b86ad93b1e2e41a99af9e0d69266a219fce35a3facccb1f6d781b623961",
+    "h0_measurement/bugs/10_kstar_budget/read_qualification.py": "fe5ecb4eb78b2a2803950a68ea73641d2722161acf6f4ca539150f29f78f0aaa",
+    "h0_measurement/bugs/10_kstar_budget/steps.sh": "5044319eb62115fef8fbf6c4074fdbb78d2d8cfeac908e94e3db1599dd0b4872",
+    "h0_measurement/models.yaml": "71ac4bad180c6ea7a37d11dfb7bf55fc6a8c6780a3cb9fba3a54055c704afaeb",
+    "h0_measurement/run_h0.py": "df2d4145f4d8e040e634e159c746d9c310954c1b9bef57828c62fc5a5dbd6650",
+    "h0_measurement/run_kstar_budget_qualification.py": "306f0cd132f2578acf3594f0ecfae81bdc71bcd99d5309aad542518920208df4",
+    "h0_measurement/run_r8.py": "0bb8f0296524e5abb047de98684553be201930c1e88a17f4c8f9a26cd15486d9",
+    "h0_measurement/submit_kstar_budget_qualification.slurm": "adf584147658a54a2e642cd2fc4c5261d22e74ddf6c84c49208d8caef2434279",
+    "sievelib/.lloyd_cache.pt": "e2104a1db92d1caccfa2326087c50a867a5949b1757ecabe01be9b996a44cf4f",
+    "sievelib/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sievelib/alloc.py": "2ac2bb5f34cc7d5564b67ca8836ec09fb868ddc0a5308b7c017828445994d746",
+    "sievelib/baselines.py": "f1c4318348af1cd021ee7fc1969d6d1c6a71bcef2fb03f6352506bf949c17639",
+    "sievelib/budget_policies.py": "1e9f920f4a72971bc8c8797f5b4761567b05489340e4b1b4788f192cd753840f",
+    "sievelib/compress.py": "927af1342893599360ffeed1a541bda5526bd8e7892f21decca6669d5f064d80",
+    "sievelib/evict.py": "0188d80b769f11409133aeace2cf8efe835ad1138561c0a5e4d77bb67b8d6b12",
+    "sievelib/group_error_curve.py": "bc05094e0493fd318cfca61e373005de926d59080ee9632cf4a71743da2630f2",
+    "sievelib/policy_diagnostic.py": "686667a7b6f60f2f09aa707c0ee5d5f7b55fbb1e08e8c5ae9ef82da5782661fb",
+    "sievelib/probe.py": "365c15c84645cebb859db8639cf744c01d93470a094a2a530d9042ef308deb19",
+    "sievelib/prompts.py": "9c2ca9822609ac107a5dd36108c7f07a923def4ba6ba1bd55a71965bf6203c53",
+    "sievelib/quant.py": "be446ea246568ac4a2012253ba6b832a7ed45a4a8c9876feb9f288158abde8b0",
+    "sievelib/router.py": "32ed812a3573f023d9cafa92597644f2548bdfe11621aff584668ac4a6973fe4",
+    "sievelib/tasks_ruler.py": "f4f50274344a3b5b50a5d7695224be49e8d306da3f66351fee07696d74ffdecd",
+    "sievelib/validate.py": "08ede14da6585da49d5523f0498585aca7559bfb7c64c6edb3dc86e4de2ee5b4",
+    "sievelib/validity.py": "ec72e918adbdd699cf8af5facd02e5f047a4d208aed18167f53eee31e6b2a54a"
+  }
+}

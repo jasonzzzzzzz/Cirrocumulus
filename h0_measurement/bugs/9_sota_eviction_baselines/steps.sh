@@ -176,6 +176,217 @@
 # directory, then read_op2.py applies the frozen operating-point selection rule.
 # Do not launch policy V2-B until that report selects an operating point.
 #
+# V2-A2: K40 FOLLOW-UP (ONLY AFTER V2-A REPORTS BOTH CELLS TOO EASY)
+# -------------------------------------------------------------------
+# Jobs 982121/982122 completed the fixed k24/k32 screen, but neither cell met
+# every preregistered gate: k24 was perfect and k32 had uniform=0.825, above
+# the [.50,.75] primary band. The frozen branch in plan.md therefore calls
+# for exactly one fresh k40 cell. It uses prompts 540..579; do not reuse these
+# prompts for policy development after inspecting this screen.
+#
+# Run this branch in order:
+#
+#   1. Inspect the exact command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-dry
+#
+#   2. Submit the k40 cell to the short debug queue and save OP2_K40_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-submit
+#
+#   3. Check it without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-status JOB
+#
+#   4. Only after Slurm reports COMPLETED, authenticate and analyze it:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-read JOB
+#
+# The dependency is the completed and recorded paired V2-A decision, produced
+# by `--op2-read 982121 982122`. The k40 reader accepts only the exact k40,
+# prompts 540..579, fp+uniform, B=2 artifact and applies its frozen gates.
+#
+# V2-A3: FINAL K48 BRACKET (ONLY AFTER K40 IS DIRECTIONALLY TOO EASY)
+# ------------------------------------------------------------------------
+# Job 982613 completed the exact k40 screen with FP=1.000 and uniform=0.925;
+# both halves are above the stability upper bound (0.950/0.900). The bounded
+# plan permits one final fresh k48 cell on prompts 580..619. Run in order:
+#
+#   1. Reauthenticate k40 and inspect the exact command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-dry
+#   2. Submit and save OP2_K48_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-submit
+#   3. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-status JOB
+#   4. After COMPLETED, authenticate and apply all original eligibility gates:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-read JOB
+#
+# The guard recomputes and byte-compares the canonical job-982613 summary. It
+# requires valid FP/provenance and both k40 halves >.85; no hand-entered outcome
+# can open this branch. K48 is the last key-count screen. If it fails any gate,
+# stop; do not interpolate, pool adaptive cells, or alter a threshold.
+#
+# RESULT (job 982702, completed 2026-09-23)
+# ---------------------------------------------------------
+# FP=1.000, uniform=.850, halves=.900/.800, FP-uniform=.150 with paired
+# 90% CI [.075,.250], and no incomplete capped FP. The [.50,.75] mean gate and
+# first-half upper bound fail, so there is no selection. Do not resubmit or run
+# V2-B. Reproduce the authenticated report with --op2-k48-read 982702.
+#
+# V3: CONTRASTIVE MULTIKEY-PANEL QUALIFICATION
+# ---------------------------------------------------------
+# The terminal V2 result motivates a new task contract rather than another
+# key-count bracket. Qualification uses one shared 48-needle context and four
+# independently decoded questions per prompt. It is fixed to prompts 700..739,
+# fp+uniform, B=2, and 320 accuracy rows. Run in order:
+#
+#   1. Inspect the exact command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-dry
+#   2. Submit one qualification job and save PANEL_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-submit
+#   3. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-status JOB
+#   4. After COMPLETED, authenticate and apply every frozen gate:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-read JOB
+#
+# Only `decision: advance_policy_development` opens prompts 740..779. A valid
+# `stop_panel` result exits zero and ends V3 without changing this task.
+#
+# RESULT (job 983199, completed 2026-09-23)
+# ---------------------------------------------------------
+# FP=.981, uniform=.850, halves=.863/.838, slots=.950/.850/.800/.800,
+# FP-uniform=.131 with paired 90% CI [.088,.181]. The uniform mean and first
+# half fail the frozen gates, so the reader returns stop_panel. Do not resubmit,
+# alter the panel score/configuration, or open prompts 740..819. Reproduce with:
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-read 983199
+#
+# V4: PINNED LONGBENCH-V2 NATURAL-TASK QUALIFICATION
+# --------------------------------------------------
+# V3 is closed. V4 first runs the CPU-only audit and then exactly one frozen
+# qualification job. Do not run development unless the strict qualification
+# reader prints `decision        advance_development`.
+#
+# Run these commands in order:
+#
+#   1. Rebuild/authenticate the gold-free manifest (idempotent; no GPU):
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-audit
+#   2. Print the exact Slurm command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-dry
+#   3. Submit qualification and save LBV2_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-submit
+#   4. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-status JOB
+#   5. After COMPLETED, authenticate, apply the frozen gates, and save the report:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-read JOB
+#
+# Qualification is the immutable 20-item split, fp+uniform at B=2, greedy
+# EOS-or-128 decode, and the canonical A/B/C/D choice-logit diagnostic. Expected
+# artifacts are 40 accuracy rows and 20 choice rows. A valid `stop_v4` result is
+# a scientific stop, not a pipeline error, and must not be rerun or tuned.
+#
+# RESULT (job 983715): stop_v4. The two capped invalid FP answers bind. Do not
+# rerun V4 or invoke its unused development mode.
+#
+# V5: FORCED-CHOICE OPPORTUNITY + BRANCH-BLIND SCAFFOLD PROXY
+# ----------------------------------------------------------------
+# V5 is a separately frozen protocol. It performed no free generation and
+# opened the then-untouched 52-row development split once. The commands below
+# reproduce or audit the completed workflow in order:
+#
+#   1. Print the exact Slurm command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-dry
+#   2. Submit the one development job and save LBV2_V5_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-submit
+#   3. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-status JOB
+#   4. After COMPLETED, authenticate and apply the competence, H, then G gates:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-read JOB
+#
+# The exact job is FP plus eight B=2 complete policies at Llama 32K. It writes
+# 468 label-free forced-choice prediction rows and 416 branch-blind proxy rows.
+# The primary proxy uses only output positions 0..4 that predict the fixed
+# response scaffold; position 5 predicts A/B/C/D and cannot enter selection.
+# Only decision `advance_confirmation` creates a lock and permits a later
+# confirmation interface. Every other valid decision closes V5 development.
+#
+# RESULT (job 983888, completed 2026-09-23)
+# ---------------------------------------------------------
+# Provenance passed. FP and every compressed arm score 19/52; the candidate
+# oracle scores 22/52, so H=3/52=.058 with q05=.017 and fixed halves
+# .071/.042. The point and second-half gates fail: `stop_no_opportunity`.
+# G is suppressed, no lock exists, and V5 confirmation is closed. Do not
+# resubmit or inspect confirmation. Reproduce the binding read with:
+#   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-read 983888
+#
+# V6: QWEN3-30B FORCED-CHOICE QUALIFICATION
+# -----------------------------------------
+# V5 is closed. V6 changes the model once while retaining B=2. It begins with
+# only FP and uniform on the 20 disclosed qualification items; no development
+# command exists until this gate passes. Run these commands in order:
+#
+#   1. Build/authenticate the gold-free Qwen manifest (CPU only):
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-audit
+#   2. Print the exact Slurm command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-dry
+#   3. Submit the one qualification job and save LBV2_V6_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-submit
+#   4. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-status JOB
+#   5. After COMPLETED, authenticate, apply the frozen gates, and write a lock
+#      only when the decision is `advance_v6_development`:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-read JOB
+#
+# The exact job is Qwen3-30B-A3B-Instruct-2507 revision 0d7cf239 at ctx 40960,
+# W=32 and B=2. It writes 40 label-free forced-choice rows and no proxy artifact.
+#
+# QUALIFICATION RESULT (job 984224, completed 2026-09-23)
+# --------------------------------------------------------
+# FP=12/20=.600 (component-bootstrap q05=.421) and uniform=12/20=.600
+# (q05=.429). Every frozen gate and provenance check passes, yielding
+# `advance_v6_development` and the authenticated lock fixed below.
+#
+# V6 CONDITIONAL DEVELOPMENT (AUTHORIZED BY JOB 984224 ONLY)
+# ----------------------------------------------------------
+# Run this sequence from the project root or any directory:
+#
+#   1. Reauthenticate the lock and print the exact command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-dry
+#   2. Submit the one 52-row development job and save LBV2_V6_DEV_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-submit
+#   3. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-status JOB
+#   4. After COMPLETED, authenticate both artifacts and apply competence, H,
+#      then G in that order:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-read JOB
+#
+# The job is FP plus the frozen eight B=2 candidates on 52 development items in
+# 44 components. It writes 468 prediction rows and 416 branch-blind proxy rows.
+# G is suppressed unless competence and every H gate pass. Only
+# `advance_v6_confirmation` writes a confirmation lock; all other valid decisions
+# close this V6 policy branch without touching the 45 confirmation items.
+#
+# V7: FRESH 128K STRUCTURED-QUERY MECHANISM QUALIFICATION (TERMINAL STOP)
+# -----------------------------------------------------------------------
+# V6 is terminal. V7 proposed changing one upstream mechanism on a source
+# partition disjoint from all V4--V6 exact-context/question components. Its
+# qualification ran only FP and exact all-2 uniform; structured policies were
+# inaccessible unless this gate wrote an authenticated advance lock. Historical
+# reproduction/read sequence:
+#
+#   1. Reproduce the label-free 20/52/45 manifest and semantic token spans:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-audit
+#   2. Print the exact Slurm command; submit nothing:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-dry
+#   3. Submit once and save LBV2_V7_JOB_ID:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-submit
+#   4. Check without blocking:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-status JOB
+#   5. After COMPLETED, authenticate and apply the frozen FP/uniform gates:
+#        bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-read JOB
+#
+# This was Qwen3-30B-A3B-Instruct-2507 at ctx=131072, W=32, B=2,
+# 20 singleton components, 40 label-free rows, and no proxy. Job 984886
+# completed with exit 0:0 and passed provenance. The frozen reader found
+# FP=9/20=0.450 (q05=0.250) and uniform=7/20=0.350 (q05=0.200), yielding
+# stop_v7_qualification. No advance lock exists. V7 is closed: do not resubmit,
+# create a development ledger, or run development/confirmation on this split.
+#
 # V2-B: EXPANDED-POLICY DEVELOPMENT (ONLY AFTER V2-A SELECTS K)
 # ----------------------------------------------------------------
 # Every V2-B dry, submit, and read command takes the selected key count and the
@@ -215,7 +426,31 @@ WORKER="h0_measurement/submit_r8.slurm"
 READER="h0_measurement/bugs/8_router_endtask/read_r8.py"
 POLICY_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_policy.py"
 OP2_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_op2.py"
+OP2_K40_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_op2_k40.py"
+OP2_K48_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_op2_k48.py"
+PANEL_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_panel_qual.py"
 V2B_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_policy_v2.py"
+LBV2_WORKER="h0_measurement/submit_longbench_v2.slurm"
+LBV2_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_longbench_v2.py"
+LBV2_V5_WORKER="h0_measurement/submit_longbench_v2_forced_choice.slurm"
+LBV2_V5_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_longbench_v2_forced_choice.py"
+LBV2_V6_WORKER="h0_measurement/submit_longbench_v2_qwen_qualification.slurm"
+LBV2_V6_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_longbench_v2_qwen_qualification.py"
+LBV2_V6_AUDIT="h0_measurement/audit_longbench_v2_qwen.py"
+LBV2_V6_DEV_RUNNER="h0_measurement/run_longbench_v2_qwen_development.py"
+LBV2_V6_DEV_WORKER="h0_measurement/submit_longbench_v2_qwen_development.slurm"
+LBV2_V6_DEV_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_longbench_v2_qwen_development.py"
+LBV2_V6_QUAL_LOCK="h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_v6_qualification_lock_984224.json"
+LBV2_AUDIT="h0_measurement/audit_longbench_v2.py"
+LBV2_DATA=".h0_corpus/longbench_v2/data-2b48e494.json"
+LBV2_MANIFEST="h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_manifest.json"
+LBV2_V6_MANIFEST="h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_qwen30_manifest.json"
+LBV2_V7_RUNNER="h0_measurement/run_longbench_v2_qwen_v7_qualification.py"
+LBV2_V7_WORKER="h0_measurement/submit_longbench_v2_qwen_v7_qualification.slurm"
+LBV2_V7_READER="h0_measurement/bugs/9_sota_eviction_baselines/read_longbench_v2_qwen_v7_qualification.py"
+LBV2_V7_AUDIT="h0_measurement/audit_longbench_v2_qwen_v7.py"
+LBV2_V7_MANIFEST="h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_qwen30_v7_manifest.json"
+LBV2_V7_LEDGER="h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_qwen_v7_source_ledger.json"
 ROUTES="h0_measurement/results/r8_routes/llama31-8b_32768_qa.json"
 REPORT_DIR="h0_measurement/bugs/9_sota_eviction_baselines"
 
@@ -256,10 +491,53 @@ usage:
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-status JOB_ID [JOB_ID...]
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-read K24_JOB_ID K32_JOB_ID
 
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k40-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --op2-k48-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --panel-read JOB_ID
+
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-dry K24_JOB_ID K32_JOB_ID SELECTED_K
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-submit K24_JOB_ID K32_JOB_ID SELECTED_K
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-status JOB_ID [JOB_ID...]
   bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --v2b-read K24_JOB_ID K32_JOB_ID SELECTED_K V2B_JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-audit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-qual-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v5-dev-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-audit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-qual-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-audit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v7-qual-read JOB_ID
+
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-dry
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-submit
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-status JOB_ID
+  bash h0_measurement/bugs/9_sota_eviction_baselines/steps.sh --lbv2-v6-dev-read JOB_ID
 
 The default selector "screen" addresses all three tasks at (8,6,6) and
 (16,8,8). The post-screen "mid" selector reruns multivalue and VT at (16,7,7)
@@ -272,9 +550,27 @@ is prompts 460--499 and must be run only after the development reader prints
 The V2-A operating-point screen is prompts 500--539 at k24 and k32. Its `screen`
 selector means both cells. The read interface requires the k24 job first and
 the k32 job second so one cell can never be silently mistaken for the other.
+The V2-A2 k40 branch is prompts 540--579 and is eligible only after that paired
+screen reports no selection because both cells are too easy. Its exact k40
+reader is separate so the original two-cell report cannot accept this new split.
+The final k48 bracket is prompts 580--619 and is reachable only from exact k40
+job 982613 when FP/provenance pass and the mean plus both halves are too easy.
+The V3 panel qualification is prompts 700--739 at k48/v4/h4, with four
+questions over each shared context/allocation and exactly 320 rows. Its reader
+uses first_ok, aggregates within 40 contexts, and is the sole gate for panel
+policy development.
 V2-B is prompts 540--579 at the explicitly selected V2-A key count. Its dry,
 submit, and read modes re-authenticate the exact pair and refuse a mismatched key
 count. The raw adaptive OBCache arm resolves to the stable label `obck_ada`.
+V4 uses a separate LongBench-v2 runner, worker, and reader. Its qualification
+split is fixed by the gold-free manifest and ended with `stop_v4`.
+V5 is separately versioned and used forced choice plus a branch-blind scaffold
+proxy on its development split. Job 983888 ended `stop_no_opportunity`; no
+confirmation lock exists, its confirmation split is closed, and this script
+intentionally exposes no V5 confirmation submission.
+V6 uses separate Qwen qualification and development runners, readers, workers,
+and result namespaces. Job 984224 passed qualification; the development modes
+below require and reauthenticate its exact advancing lock before use.
 This script intentionally does not rerun the completed five-cell campaign.
 Read the ordered instructions and decision table at the top of the file.
 USAGE
@@ -1019,6 +1315,417 @@ read_op2_pair() {
 }
 
 
+# V2-A2 is an adaptive branch of the exact completed V2-A pair. Reauthenticate
+# that pair and its recorded result before dry-run, submission, or reporting;
+# comments alone are not a scientific dependency gate.
+op2_k40_require_v2a_branch() {
+  local k24_job=982121 k32_job=982122 k24_dir k32_dir k24_parquet k32_parquet
+  local recorded_csv gate_csv gate_status
+  k24_dir=$(op2_dir_for_job 24 r8op2_k24_ "$k24_job") || return 1
+  k32_dir=$(op2_dir_for_job 32 r8op2_k32_ "$k32_job") || return 1
+  if ! op2_artifact_complete "$k24_dir" 24; then
+    echo "ERROR: k40 prerequisite rejected unauthenticated V2-A k24 job $k24_job" >&2
+    return 1
+  fi
+  if ! op2_artifact_complete "$k32_dir" 32; then
+    echo "ERROR: k40 prerequisite rejected unauthenticated V2-A k32 job $k32_job" >&2
+    return 1
+  fi
+  k24_parquet="$k24_dir/r8_llama31-8b_32768_k24_v4_h4.parquet"
+  k32_parquet="$k32_dir/r8_llama31-8b_32768_k32_v4_h4.parquet"
+  recorded_csv="$REPORT_DIR/op2_${k24_job}_${k32_job}_summary.csv"
+  [[ -f "$recorded_csv" ]] || {
+    echo "ERROR: missing canonical paired V2-A summary: $recorded_csv" >&2
+    echo "run: bash $REPORT_DIR/steps.sh --op2-read $k24_job $k32_job" >&2
+    return 1
+  }
+  gate_csv=$(mktemp "${TMPDIR:-/tmp}/sieve-op2-k40-gate.XXXXXX.csv") || {
+    echo "ERROR: could not create a temporary k40 prerequisite summary" >&2
+    return 1
+  }
+  if "$PY" - "$OP2_READER" "$k24_parquet" "$k32_parquet" \
+      "$recorded_csv" "$gate_csv" <<'PY_K40_GATE'
+import importlib.util
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+reader_path, k24_path, k32_path, recorded_path, gate_path = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("read_op2_k40_gate", reader_path)
+reader = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(reader)
+summary, selected = reader.analyze_artifacts([k24_path, k32_path])
+summary.to_csv(gate_path, index=False)
+if Path(recorded_path).read_bytes() != Path(gate_path).read_bytes():
+    raise SystemExit(
+        "ERROR: canonical paired V2-A summary differs from a fresh authenticated recomputation"
+    )
+if selected is not None or summary.selected.astype(bool).any():
+    raise SystemExit(
+        f"ERROR: k40 branch requires no V2-A selection; recomputation selected {selected!r}"
+    )
+if len(summary) != 2 or set(summary.n_keys.astype(int)) != {24, 32}:
+    raise SystemExit("ERROR: k40 branch requires the exact k24/k32 V2-A pair")
+if summary.k24_fp_stop.astype(bool).any():
+    raise SystemExit("ERROR: k40 branch is forbidden because the V2-A k24 FP-stop fired")
+if not (pd.to_numeric(summary.uniform_mean, errors="raise") > 0.75).all():
+    means = summary.sort_values("n_keys")[["n_keys", "uniform_mean"]].to_dict("records")
+    raise SystemExit(
+        "ERROR: k40 branch requires both V2-A cells to be too easy "
+        f"(uniform_mean > .75); got {means!r}"
+    )
+PY_K40_GATE
+  then
+    gate_status=0
+  else
+    gate_status=$?
+  fi
+  rm -f "$gate_csv"
+  return "$gate_status"
+}
+
+# Keep this path separate from op2_artifact_complete/read_op2.py, whose contract
+# intentionally remains the paired k24/k32 screen on prompts 500..539.
+op2_k40_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX=r8op2_k40_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=540 R8_QA=1 \
+    R8_N_KEYS=40 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0
+  printf '\n'
+}
+
+op2_k40_artifact_complete() {
+  local dir=$1
+  local parquet="$dir/r8_llama31-8b_32768_k40_v4_h4.parquet"
+  local sidecar="${parquet%.parquet}.json"
+  [[ -f "$parquet" && -f "$sidecar" ]] || return 1
+  "$PY" "$OP2_K40_READER" "$parquet" --validate-only >/dev/null 2>&1
+}
+
+op2_k40_find_complete() {
+  local prefix=r8op2_k40_ dir base
+  for dir in "h0_measurement/results/${prefix}"*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if op2_k40_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+submit_op2_k40() {
+  local prefix=r8op2_k40_ where output job_id
+  if where=$(op2_k40_find_complete); then
+    job_id=$(op2_job_id_from_dir "$where" "$prefix") || {
+      echo "ERROR: valid k40 artifact has an unexpected directory name: $where" >&2
+      exit 1
+    }
+    echo "operating-point k40 follow-up already complete: $where"
+    echo "OP2_K40_JOB_ID=$job_id (existing)"
+    echo "result: $where/"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX=r8op2_k40_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=540 R8_QA=1 \
+    R8_N_KEYS=40 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2
+    exit 1
+  }
+  echo "submitted operating-point k40 follow-up"
+  echo "OP2_K40_JOB_ID=$job_id"
+  echo "config=k40_v4_h4 task=niah_multikey B=2 prompts=540..579 rows=80"
+  echo "partition=debug estimated_runtime=about_5m walltime=00:12:00"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/r8op2_k40_${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --op2-k40-status $job_id"
+}
+
+op2_k40_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/r8op2_k40_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact k40 follow-up directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+read_op2_k40_job() {
+  local job_id=$1 dir parquet out summary_csv
+  dir=$(op2_k40_dir_for_job "$job_id")
+  if ! op2_k40_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete k40 follow-up contract" >&2
+    exit 1
+  fi
+  parquet="$dir/r8_llama31-8b_32768_k40_v4_h4.parquet"
+  out="$REPORT_DIR/op2_k40_${job_id}.txt"
+  summary_csv="$REPORT_DIR/op2_k40_${job_id}_summary.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$OP2_K40_READER" "$parquet" \
+    --csv "$summary_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+}
+
+
+# V2-A3 is the single final bracket permitted after the authenticated k40 cell
+# is directionally too easy in both halves. Recompute that exact outcome before
+# dry-run, submission, or reporting so the branch cannot be entered by hand.
+op2_k48_require_k40_branch() {
+  local k40_job=982613 k40_dir k40_parquet recorded_csv gate_csv gate_status
+  k40_dir=$(op2_k40_dir_for_job "$k40_job") || return 1
+  if ! op2_k40_artifact_complete "$k40_dir"; then
+    echo "ERROR: k48 prerequisite rejected unauthenticated k40 job $k40_job" >&2
+    return 1
+  fi
+  k40_parquet="$k40_dir/r8_llama31-8b_32768_k40_v4_h4.parquet"
+  recorded_csv="$REPORT_DIR/op2_k40_${k40_job}_summary.csv"
+  [[ -f "$recorded_csv" ]] || {
+    echo "ERROR: missing canonical k40 summary: $recorded_csv" >&2
+    echo "run: bash $REPORT_DIR/steps.sh --op2-k40-read $k40_job" >&2
+    return 1
+  }
+  gate_csv=$(mktemp "${TMPDIR:-/tmp}/sieve-op2-k48-gate.XXXXXX.csv") || {
+    echo "ERROR: could not create a temporary k48 prerequisite summary" >&2
+    return 1
+  }
+  if "$PY" - "$OP2_K40_READER" "$k40_parquet" \
+      "$recorded_csv" "$gate_csv" <<'PY_K48_GATE'
+import importlib.util
+import sys
+from pathlib import Path
+
+reader_path, k40_path, recorded_path, gate_path = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("read_op2_k48_gate", reader_path)
+reader = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(reader)
+summary, eligible = reader.analyze_artifact(k40_path)
+summary.to_csv(gate_path, index=False)
+if Path(recorded_path).read_bytes() != Path(gate_path).read_bytes():
+    raise SystemExit(
+        "ERROR: canonical k40 summary differs from a fresh authenticated recomputation"
+    )
+if len(summary) != 1 or int(summary.iloc[0].n_keys) != 40:
+    raise SystemExit("ERROR: k48 branch requires the exact k40 prerequisite cell")
+row = summary.iloc[0]
+if eligible or bool(row.selected):
+    raise SystemExit("ERROR: k48 branch is forbidden because k40 was eligible")
+if not bool(row.gate_fp_ge_095) or not bool(row.gate_no_incomplete_capped_fp):
+    raise SystemExit("ERROR: k48 branch is forbidden because k40 failed FP/cap validity")
+if not float(row.uniform_mean) > 0.75:
+    raise SystemExit(
+        f"ERROR: k48 branch requires k40 uniform_mean > .75; got {row.uniform_mean!r}"
+    )
+first = float(row.uniform_540_559)
+second = float(row.uniform_560_579)
+if not (first > 0.85 and second > 0.85):
+    raise SystemExit(
+        "ERROR: k48 branch requires both k40 halves to be directionally too easy "
+        f"(> .85); got {first!r}, {second!r}"
+    )
+PY_K48_GATE
+  then
+    gate_status=0
+  else
+    gate_status=$?
+  fi
+  rm -f "$gate_csv"
+  return "$gate_status"
+}
+
+op2_k48_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX=r8op2_k48_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=580 R8_QA=1 \
+    R8_N_KEYS=48 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0
+  printf '\n'
+}
+
+op2_k48_artifact_complete() {
+  local dir=$1
+  local parquet="$dir/r8_llama31-8b_32768_k48_v4_h4.parquet"
+  local sidecar="${parquet%.parquet}.json"
+  [[ -f "$parquet" && -f "$sidecar" ]] || return 1
+  "$PY" "$OP2_K48_READER" "$parquet" --validate-only >/dev/null 2>&1
+}
+
+op2_k48_find_complete() {
+  local prefix=r8op2_k48_ dir base
+  for dir in "h0_measurement/results/${prefix}"*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if op2_k48_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+submit_op2_k48() {
+  local prefix=r8op2_k48_ where output job_id
+  if where=$(op2_k48_find_complete); then
+    job_id=$(op2_job_id_from_dir "$where" "$prefix") || {
+      echo "ERROR: valid k48 artifact has an unexpected directory name: $where" >&2
+      exit 1
+    }
+    echo "operating-point k48 final bracket already complete: $where"
+    echo "OP2_K48_JOB_ID=$job_id (existing)"
+    echo "result: $where/"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=00:12:00 "$WORKER" \
+    R8_RUN_PREFIX=r8op2_k48_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_N_PROMPTS=40 R8_PROMPT_OFFSET=580 R8_QA=1 \
+    R8_N_KEYS=48 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2
+    exit 1
+  }
+  echo "submitted operating-point k48 final bracket"
+  echo "OP2_K48_JOB_ID=$job_id"
+  echo "config=k48_v4_h4 task=niah_multikey B=2 prompts=580..619 rows=80"
+  echo "partition=debug estimated_runtime=about_5m walltime=00:12:00"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/r8op2_k48_${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --op2-k48-status $job_id"
+}
+
+op2_k48_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/r8op2_k48_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact k48 final-bracket directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+read_op2_k48_job() {
+  local job_id=$1 dir parquet out summary_csv
+  dir=$(op2_k48_dir_for_job "$job_id")
+  if ! op2_k48_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete k48 final-bracket contract" >&2
+    exit 1
+  fi
+  parquet="$dir/r8_llama31-8b_32768_k48_v4_h4.parquet"
+  out="$REPORT_DIR/op2_k48_${job_id}.txt"
+  summary_csv="$REPORT_DIR/op2_k48_${job_id}_summary.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$OP2_K48_READER" "$parquet" \
+    --csv "$summary_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+}
+
+
+
+# V3 qualification is isolated from every legacy R8 task and V2 key-count cell.
+# The strict reader authenticates the exact panel variant and 4-query structure.
+panel_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=00:20:00 "$WORKER" \
+    R8_RUN_PREFIX=r8panel_qual_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_TASK_VARIANT=multikey_panel_v1 R8_N_PROMPTS=40 R8_PROMPT_OFFSET=700 \
+    R8_QA=1 R8_N_KEYS=48 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0
+  printf '\n'
+}
+
+panel_artifact_complete() {
+  local dir=$1
+  local parquet="$dir/r8_llama31-8b_32768_k48_v4_h4_multikey_panel_v1.parquet"
+  local sidecar="${parquet%.parquet}.json"
+  [[ -f "$parquet" && -f "$sidecar" ]] || return 1
+  "$PY" "$PANEL_READER" "$parquet" --validate-only >/dev/null 2>&1
+}
+
+panel_find_complete() {
+  local prefix=r8panel_qual_ dir base
+  for dir in "h0_measurement/results/${prefix}"*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if panel_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+panel_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/r8panel_qual_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact panel qualification directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_panel() {
+  local prefix=r8panel_qual_ where output job_id
+  if where=$(panel_find_complete); then
+    job_id=$(op2_job_id_from_dir "$where" "$prefix") || {
+      echo "ERROR: valid panel artifact has an unexpected directory name: $where" >&2
+      exit 1
+    }
+    echo "panel qualification already complete: $where"
+    echo "PANEL_JOB_ID=$job_id (existing)"
+    echo "result: $where/"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=00:20:00 "$WORKER" \
+    R8_RUN_PREFIX=r8panel_qual_ R8_MODEL=llama31-8b R8_CTX=32768 \
+    R8_ARMS=fp,uniform R8_BUDGETS=2 R8_TASKS=niah_multikey \
+    R8_TASK_VARIANT=multikey_panel_v1 R8_N_PROMPTS=40 R8_PROMPT_OFFSET=700 \
+    R8_QA=1 R8_N_KEYS=48 R8_N_VALUES=4 R8_N_HOPS=4 R8_HEAD_ERROR=0)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2
+    exit 1
+  }
+  echo "submitted V3 contrastive multikey-panel qualification"
+  echo "PANEL_JOB_ID=$job_id"
+  echo "config=k48_v4_h4 variant=multikey_panel_v1 B=2 prompts=700..739 rows=320"
+  echo "partition=debug conservative_walltime=00:20:00"
+  echo "log:    h0_measurement/logs/r8_${job_id}.out"
+  echo "result: h0_measurement/results/r8panel_qual_${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --panel-status $job_id"
+}
+
+read_panel_job() {
+  local job_id=$1 dir parquet out summary_csv
+  dir=$(panel_dir_for_job "$job_id")
+  if ! panel_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete panel qualification contract" >&2
+    exit 1
+  fi
+  parquet="$dir/r8_llama31-8b_32768_k48_v4_h4_multikey_panel_v1.parquet"
+  out="$REPORT_DIR/panel_qual_${job_id}.txt"
+  summary_csv="$REPORT_DIR/panel_qual_${job_id}_summary.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$PANEL_READER" "$parquet" \
+    --csv "$summary_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+}
+
 need_v2b_n_keys() {
   [[ "${1:-}" == 24 || "${1:-}" == 32 ]] || {
     echo "ERROR: SELECTED_K must be exactly 24 or 32, got '${1:-}'" >&2
@@ -1205,8 +1912,886 @@ read_v2b_job() {
   fi
 }
 
+# V4 qualification is isolated from RULER and every prior synthetic campaign.
+# Its strict reader authenticates both cross-linked parquets before a directory
+# can count as complete.
+lbv2_snapshot() {
+  printf '%s\n' "$PROJECT_ROOT/.hf_cache/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659"
+}
+
+lbv2_audit() {
+  local snapshot
+  snapshot=$(lbv2_snapshot)
+  need_file "$LBV2_DATA"
+  need_file "$LBV2_MANIFEST"
+  need_file "$LBV2_AUDIT"
+  [[ -d "$snapshot" ]] || {
+    echo "ERROR: missing pinned Llama snapshot $snapshot" >&2
+    return 1
+  }
+  "$PY" "$LBV2_AUDIT" \
+    --data "$LBV2_DATA" --model-id "$snapshot" --out "$LBV2_MANIFEST"
+}
+
+lbv2_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_WORKER" LBV2_PHASE=qualification \
+    LBV2_RUN_PREFIX=lbv2_qualification_
+  printf '\n'
+}
+
+lbv2_artifact_complete() {
+  local dir=$1
+  local accuracy="$dir/longbench_v2_qualification_llama31-8b_32768.parquet"
+  local choice="$dir/longbench_v2_choice_qualification_llama31-8b_32768.parquet"
+  [[ -f "$accuracy" && -f "${accuracy%.parquet}.json" \
+     && -f "$choice" && -f "${choice%.parquet}.json" ]] || return 1
+  "$PY" "$LBV2_READER" "$accuracy" "$choice" \
+    --manifest "$LBV2_MANIFEST" --dataset "$LBV2_DATA" \
+    --validate-only >/dev/null 2>&1
+}
+
+lbv2_find_complete() {
+  local prefix=lbv2_qualification_ dir base
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if lbv2_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lbv2_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/lbv2_qualification_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V4 qualification directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_lbv2_qualification() {
+  local prefix=lbv2_qualification_ where output job_id
+  if where=$(lbv2_find_complete); then
+    job_id=${where##*/}; job_id=${job_id#${prefix}}
+    echo "V4 LongBench-v2 qualification already complete: $where"
+    echo "LBV2_JOB_ID=$job_id (existing)"
+    echo "read: bash $REPORT_DIR/steps.sh --lbv2-qual-read $job_id"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_WORKER" LBV2_PHASE=qualification \
+    LBV2_RUN_PREFIX=lbv2_qualification_)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job id from: $output" >&2
+    exit 1
+  }
+  echo "submitted V4 LongBench-v2 qualification"
+  echo "LBV2_JOB_ID=$job_id"
+  echo "split=qualification items=20 accuracy_rows=40 choice_rows=20"
+  echo "model=llama31-8b ctx=32768 B=2 arms=fp,uniform max_new=128"
+  echo "partition=debug walltime=02:00:00"
+  echo "log:    h0_measurement/logs/lbv2_${job_id}.out"
+  echo "result: h0_measurement/results/lbv2_qualification_${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --lbv2-qual-status $job_id"
+}
+
+status_lbv2_qualification() {
+  local job_id=$1 log="h0_measurement/logs/lbv2_${1}.out"
+  if command -v squeue >/dev/null 2>&1; then
+    squeue -j "$job_id" || true
+  fi
+  if command -v sacct >/dev/null 2>&1; then
+    sacct -j "$job_id" --format=JobID,State,Elapsed,ExitCode || true
+  fi
+  if [[ -f "$log" ]]; then
+    echo
+    echo "last 30 log lines:"
+    tail -n 30 "$log"
+  else
+    echo "log not created yet: $log"
+  fi
+}
+
+read_lbv2_qualification() {
+  local job_id=$1 dir accuracy choice out summary_csv
+  dir=$(lbv2_dir_for_job "$job_id")
+  if ! lbv2_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete V4 qualification contract" >&2
+    exit 1
+  fi
+  accuracy="$dir/longbench_v2_qualification_llama31-8b_32768.parquet"
+  choice="$dir/longbench_v2_choice_qualification_llama31-8b_32768.parquet"
+  out="$REPORT_DIR/longbench_v2_qualification_${job_id}.txt"
+  summary_csv="$REPORT_DIR/longbench_v2_qualification_${job_id}_summary.csv"
+  env OMP_NUM_THREADS=8 "$PY" "$LBV2_READER" "$accuracy" "$choice" \
+    --manifest "$LBV2_MANIFEST" --dataset "$LBV2_DATA" \
+    --csv "$summary_csv" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+}
+
+# V5 development is a new forced-choice protocol. It cannot reuse V4 output
+# names, and its complete check runs the label-joining reader only after both
+# reciprocal artifacts and sidecars exist.
+lbv2_v5_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V5_WORKER" LBV2_V5_PHASE=development \
+    LBV2_V5_RUN_PREFIX=lbv2_v5_development_
+  printf '\n'
+}
+
+lbv2_v5_artifact_complete() {
+  local dir=$1
+  local predictions="$dir/longbench_v2_v5_forced_choice_development.parquet"
+  local proxy="$dir/longbench_v2_v5_scaffold_proxy_development.parquet"
+  [[ -f "$predictions" && -f "${predictions%.parquet}.json" \
+     && -f "$proxy" && -f "${proxy%.parquet}.json" ]] || return 1
+  "$PY" "$LBV2_V5_READER" "$predictions" "$proxy" \
+    --manifest "$LBV2_MANIFEST" --dataset "$LBV2_DATA" \
+    --validate-only >/dev/null 2>&1
+}
+
+lbv2_v5_find_complete() {
+  local prefix=lbv2_v5_development_ dir base
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if lbv2_v5_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lbv2_v5_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/lbv2_v5_development_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V5 development directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_lbv2_v5_development() {
+  local prefix=lbv2_v5_development_ where output job_id
+  if where=$(lbv2_v5_find_complete); then
+    job_id=${where##*/}; job_id=${job_id#${prefix}}
+    echo "V5 LongBench-v2 forced-choice development already complete: $where"
+    echo "LBV2_V5_JOB_ID=$job_id (existing)"
+    echo "read: bash $REPORT_DIR/steps.sh --lbv2-v5-dev-read $job_id"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V5_WORKER" LBV2_V5_PHASE=development \
+    LBV2_V5_RUN_PREFIX=lbv2_v5_development_)
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job ID from: $output" >&2
+    exit 1
+  }
+  echo "submitted V5 LongBench-v2 forced-choice development"
+  echo "LBV2_V5_JOB_ID=$job_id"
+  echo "split=development items=52 components=44 prediction_rows=468 proxy_rows=416"
+  echo "model=llama31-8b ctx=32768 B=2 arms=fp+8 no_generation=1"
+  echo "partition=debug walltime=02:00:00"
+  echo "log:    h0_measurement/logs/lbv2v5_${job_id}.out"
+  echo "result: h0_measurement/results/lbv2_v5_development_${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --lbv2-v5-dev-status $job_id"
+}
+
+status_lbv2_v5_development() {
+  local job_id=$1 log="h0_measurement/logs/lbv2v5_${1}.out"
+  if command -v squeue >/dev/null 2>&1; then
+    squeue -j "$job_id" || true
+  fi
+  if command -v sacct >/dev/null 2>&1; then
+    sacct -j "$job_id" --format=JobID,State,Elapsed,ExitCode || true
+  fi
+  if [[ -f "$log" ]]; then
+    echo
+    echo "last 30 log lines:"
+    tail -n 30 "$log"
+  else
+    echo "log not created yet: $log"
+  fi
+}
+
+read_lbv2_v5_development() {
+  local job_id=$1 dir predictions proxy out summary_csv lock
+  dir=$(lbv2_v5_dir_for_job "$job_id")
+  if ! lbv2_v5_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete V5 development contract" >&2
+    exit 1
+  fi
+  predictions="$dir/longbench_v2_v5_forced_choice_development.parquet"
+  proxy="$dir/longbench_v2_v5_scaffold_proxy_development.parquet"
+  out="$REPORT_DIR/longbench_v2_v5_development_${job_id}.txt"
+  summary_csv="$REPORT_DIR/longbench_v2_v5_development_${job_id}_summary.csv"
+  lock="$REPORT_DIR/longbench_v2_v5_confirmation_lock_${job_id}.json"
+  env OMP_NUM_THREADS=8 "$PY" "$LBV2_V5_READER" "$predictions" "$proxy" \
+    --manifest "$LBV2_MANIFEST" --dataset "$LBV2_DATA" \
+    --csv "$summary_csv" --lock "$lock" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  if [[ -f "$lock" ]]; then
+    echo "saved: $lock"
+    echo "next: confirmation remains blocked until its lock-checking worker is implemented"
+  else
+    echo "lock:  none (the authenticated V5 decision did not advance)"
+  fi
+}
+
+
+# V6 is an isolated Qwen qualification. These helpers expose only the frozen
+# 20-item FP/uniform screen; there is intentionally no development submission
+# until this reader emits an authenticated advance lock.
+lbv2_v6_snapshot() {
+  printf '%s\n' "$PROJECT_ROOT/.hf_cache/hub/models--Qwen--Qwen3-30B-A3B-Instruct-2507/snapshots/0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe"
+}
+
+lbv2_v6_audit() {
+  local snapshot
+  snapshot=$(lbv2_v6_snapshot)
+  need_file "$LBV2_DATA"
+  need_file "$LBV2_MANIFEST"
+  need_file "$LBV2_V6_MANIFEST"
+  need_file "$LBV2_V6_AUDIT"
+  [[ -d "$snapshot" && ! -L "$snapshot" ]] || {
+    echo "ERROR: missing or symlinked pinned Qwen snapshot $snapshot" >&2
+    return 1
+  }
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$PY" "$LBV2_V6_AUDIT" \
+    --data "$LBV2_DATA" \
+    --source-manifest "$LBV2_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --manifest "$LBV2_V6_MANIFEST"
+}
+
+lbv2_v6_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V6_WORKER"
+  printf '\n'
+}
+
+lbv2_v6_artifact_complete() {
+  local dir=$1 snapshot predictions
+  snapshot=$(lbv2_v6_snapshot)
+  predictions="$dir/longbench_v2_v6_qwen_forced_choice_qualification.parquet"
+  [[ -f "$predictions" && -f "${predictions%.parquet}.json" ]] || return 1
+  [[ -f "$dir/COMPLETE" ]] || return 1
+  [[ $(<"$dir/COMPLETE") == "longbench_v2_v6_qwen_qualification_v1" ]] || return 1
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$PY" "$LBV2_V6_READER" \
+    --predictions "$predictions" \
+    --dataset "$LBV2_DATA" \
+    --source-manifest "$LBV2_MANIFEST" \
+    --manifest "$LBV2_V6_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --config h0_measurement/models.yaml \
+    --runner h0_measurement/run_longbench_v2_qwen_qualification.py \
+    --validate-only >/dev/null 2>&1
+}
+
+lbv2_v6_find_complete() {
+  local prefix=lbv2_v6_qwen_qualification_ dir base
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if lbv2_v6_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lbv2_v6_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/lbv2_v6_qwen_qualification_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V6 qualification directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_lbv2_v6_qualification() {
+  local prefix=lbv2_v6_qwen_qualification_ where output job_id
+  lbv2_v6_audit
+  if where=$(lbv2_v6_find_complete); then
+    job_id=${where##*/}; job_id=${job_id#${prefix}}
+    echo "V6 Qwen qualification already complete: $where"
+    echo "LBV2_V6_JOB_ID=$job_id (existing)"
+    echo "read: bash $REPORT_DIR/steps.sh --lbv2-v6-qual-read $job_id"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V6_WORKER")
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job ID from: $output" >&2
+    exit 1
+  }
+  echo "submitted V6 Qwen LongBench-v2 qualification"
+  echo "LBV2_V6_JOB_ID=$job_id"
+  echo "split=qualification items=20 components=19 prediction_rows=40"
+  echo "model=qwen3-30b-a3b-2507 ctx=40960 B=2 arms=fp,uniform no_generation=1"
+  echo "partition=debug walltime=02:00:00"
+  echo "log:    h0_measurement/logs/lbv2v6q_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --lbv2-v6-qual-status $job_id"
+}
+
+status_lbv2_v6_qualification() {
+  local job_id=$1 log="h0_measurement/logs/lbv2v6q_${1}.out"
+  local err="h0_measurement/logs/lbv2v6q_${1}.err"
+  if command -v squeue >/dev/null 2>&1; then
+    squeue -j "$job_id" || true
+  fi
+  if command -v sacct >/dev/null 2>&1; then
+    sacct -j "$job_id" --format=JobID,State,Elapsed,ExitCode || true
+  fi
+  if [[ -f "$log" ]]; then
+    echo
+    echo "last 40 stdout lines:"
+    tail -n 40 "$log"
+  else
+    echo "stdout log not created yet: $log"
+  fi
+  if [[ -s "$err" ]]; then
+    echo
+    echo "last 40 stderr lines:"
+    tail -n 40 "$err"
+  fi
+}
+
+read_lbv2_v6_qualification() {
+  local job_id=$1 dir predictions snapshot out summary_csv lock
+  dir=$(lbv2_v6_dir_for_job "$job_id")
+  if ! lbv2_v6_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete V6 qualification contract" >&2
+    exit 1
+  fi
+  predictions="$dir/longbench_v2_v6_qwen_forced_choice_qualification.parquet"
+  snapshot=$(lbv2_v6_snapshot)
+  out="$REPORT_DIR/longbench_v2_v6_qualification_${job_id}.txt"
+  summary_csv="$REPORT_DIR/longbench_v2_v6_qualification_${job_id}_summary.csv"
+  lock="$REPORT_DIR/longbench_v2_v6_qualification_lock_${job_id}.json"
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=8 \
+    "$PY" "$LBV2_V6_READER" \
+    --predictions "$predictions" \
+    --dataset "$LBV2_DATA" \
+    --source-manifest "$LBV2_MANIFEST" \
+    --manifest "$LBV2_V6_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --config h0_measurement/models.yaml \
+    --runner h0_measurement/run_longbench_v2_qwen_qualification.py \
+    --csv "$summary_csv" --lock "$lock" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  if [[ -f "$lock" ]]; then
+    echo "saved: $lock"
+    echo "next: implement the lock-authenticating V6 development worker"
+  else
+    echo "lock:  none (the authenticated V6 qualification did not advance)"
+  fi
+}
+
+# V7 is an isolated fresh 128K Qwen qualification. These helpers expose only the frozen
+# 20-item FP/uniform screen; there is intentionally no development submission
+# until this reader emits an authenticated advance lock.
+lbv2_v7_snapshot() {
+  printf '%s\n' "$PROJECT_ROOT/.hf_cache/hub/models--Qwen--Qwen3-30B-A3B-Instruct-2507/snapshots/0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe"
+}
+
+lbv2_v7_audit() {
+  local snapshot
+  snapshot=$(lbv2_v7_snapshot)
+  need_file "$LBV2_DATA"
+  need_file "$LBV2_V6_MANIFEST"
+  need_file "$LBV2_V7_MANIFEST"
+  need_file "$LBV2_V7_AUDIT"
+  need_file "$LBV2_V7_LEDGER"
+  [[ -d "$snapshot" && ! -L "$snapshot" ]] || {
+    echo "ERROR: missing or symlinked pinned Qwen snapshot $snapshot" >&2
+    return 1
+  }
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$PY" -c 'import sys; from h0_measurement import run_longbench_v2_qwen_v7_qualification as r; h=r.executed_source_hashes(sys.argv[1], sys.argv[2]); r.verify_source_ledger(sys.argv[2], h); print("PASS V7 canonical source ledger")' \
+    h0_measurement/models.yaml "$LBV2_V7_LEDGER"
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$PY" "$LBV2_V7_AUDIT" \
+    --data "$LBV2_DATA" \
+    --legacy-manifest "$LBV2_V6_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --manifest "$LBV2_V7_MANIFEST"
+}
+
+lbv2_v7_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V7_WORKER"
+  printf '\n'
+}
+
+lbv2_v7_artifact_complete() {
+  local dir=$1 snapshot predictions
+  snapshot=$(lbv2_v7_snapshot)
+  predictions="$dir/longbench_v2_v7_qwen131072_forced_choice_qualification.parquet"
+  [[ -f "$predictions" && -f "${predictions%.parquet}.json" ]] || return 1
+  [[ -f "$dir/COMPLETE" ]] || return 1
+  [[ $(<"$dir/COMPLETE") == "longbench_v2_sieve_v7_qwen131072_qualification_v1" ]] || return 1
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 "$PY" "$LBV2_V7_READER" \
+    --predictions "$predictions" \
+    --dataset "$LBV2_DATA" \
+    --legacy-manifest "$LBV2_V6_MANIFEST" \
+    --manifest "$LBV2_V7_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --config h0_measurement/models.yaml \
+    --source-ledger "$LBV2_V7_LEDGER" \
+    --runner "$LBV2_V7_RUNNER" \
+    --validate-only >/dev/null 2>&1
+}
+
+lbv2_v7_find_complete() {
+  local prefix=lbv2_v7_qwen_qualification_ dir base
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if lbv2_v7_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lbv2_v7_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/lbv2_v7_qwen_qualification_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V7 qualification directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_lbv2_v7_qualification() {
+  local prefix=lbv2_v7_qwen_qualification_ where output job_id
+  lbv2_v7_audit
+  if where=$(lbv2_v7_find_complete); then
+    job_id=${where##*/}; job_id=${job_id#${prefix}}
+    echo "V7 Qwen qualification already complete: $where"
+    echo "LBV2_V7_JOB_ID=$job_id (existing)"
+    echo "read: bash $REPORT_DIR/steps.sh --lbv2-v7-qual-read $job_id"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V7_WORKER")
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job ID from: $output" >&2
+    exit 1
+  }
+  echo "submitted V7 Qwen LongBench-v2 qualification"
+  echo "LBV2_V7_JOB_ID=$job_id"
+  echo "split=qualification items=20 components=20 prediction_rows=40"
+  echo "model=qwen3-30b-a3b-2507 ctx=131072 B=2 arms=fp,uniform no_generation=1"
+  echo "partition=debug walltime=02:00:00"
+  echo "log:    h0_measurement/logs/lbv2v7q_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --lbv2-v7-qual-status $job_id"
+}
+
+status_lbv2_v7_qualification() {
+  local job_id=$1 log="h0_measurement/logs/lbv2v7q_${1}.out"
+  local err="h0_measurement/logs/lbv2v7q_${1}.err"
+  if command -v squeue >/dev/null 2>&1; then
+    squeue -j "$job_id" || true
+  fi
+  if command -v sacct >/dev/null 2>&1; then
+    sacct -j "$job_id" --format=JobID,State,Elapsed,ExitCode || true
+  fi
+  if [[ -f "$log" ]]; then
+    echo
+    echo "last 40 stdout lines:"
+    tail -n 40 "$log"
+  else
+    echo "stdout log not created yet: $log"
+  fi
+  if [[ -s "$err" ]]; then
+    echo
+    echo "last 40 stderr lines:"
+    tail -n 40 "$err"
+  fi
+}
+
+read_lbv2_v7_qualification() {
+  local job_id=$1 dir predictions snapshot out summary_csv lock
+  dir=$(lbv2_v7_dir_for_job "$job_id")
+  if ! lbv2_v7_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete V7 qualification contract" >&2
+    exit 1
+  fi
+  predictions="$dir/longbench_v2_v7_qwen131072_forced_choice_qualification.parquet"
+  snapshot=$(lbv2_v7_snapshot)
+  out="$REPORT_DIR/longbench_v2_v7_qualification_${job_id}.txt"
+  summary_csv="$REPORT_DIR/longbench_v2_v7_qualification_${job_id}_summary.csv"
+  lock="$REPORT_DIR/longbench_v2_v7_qualification_lock_${job_id}.json"
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=8 \
+    "$PY" "$LBV2_V7_READER" \
+    --predictions "$predictions" \
+    --dataset "$LBV2_DATA" \
+    --legacy-manifest "$LBV2_V6_MANIFEST" \
+    --manifest "$LBV2_V7_MANIFEST" \
+    --tokenizer "$snapshot" \
+    --config h0_measurement/models.yaml \
+    --source-ledger "$LBV2_V7_LEDGER" \
+    --runner "$LBV2_V7_RUNNER" \
+    --csv "$summary_csv" --lock "$lock" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  if [[ -f "$lock" ]]; then
+    echo "saved: $lock"
+    echo "next: create and authenticate the deterministic V7 development ledger"
+  else
+    echo "lock:  none (the authenticated V7 qualification did not advance; V7 is terminal)"
+  fi
+}
+
+# V6 development is authorized only by the exact advancing qualification lock
+# from job 984224. Every dry run, submission, and read reauthenticates it.
+lbv2_v6_dev_authorize() {
+  local snapshot
+  snapshot=$(lbv2_v6_snapshot)
+  need_file "$LBV2_V6_DEV_RUNNER"
+  need_file "$LBV2_V6_DEV_WORKER"
+  need_file "$LBV2_V6_DEV_READER"
+  need_file "$LBV2_V6_QUAL_LOCK"
+  [[ -d "$snapshot" && ! -L "$snapshot" ]] || {
+    echo "ERROR: missing or symlinked pinned Qwen snapshot $snapshot" >&2
+    return 1
+  }
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=8 \
+    "$PY" -c "import sys; from h0_measurement import run_longbench_v2_qwen_development as r; r.authenticate_qualification_lock(sys.argv[1], dataset_path=sys.argv[2], source_manifest_path=sys.argv[3], manifest_path=sys.argv[4], config_path=sys.argv[5], model_source=sys.argv[6]); print('PASS V6 development qualification-lock authorization')" \
+    "$LBV2_V6_QUAL_LOCK" "$LBV2_DATA" "$LBV2_MANIFEST" \
+    "$LBV2_V6_MANIFEST" h0_measurement/models.yaml "$snapshot"
+}
+
+lbv2_v6_dev_command() {
+  printf '%q ' sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V6_DEV_WORKER"
+  printf '\n'
+}
+
+lbv2_v6_dev_artifact_complete() {
+  local dir=$1 snapshot predictions proxy
+  snapshot=$(lbv2_v6_snapshot)
+  predictions="$dir/longbench_v2_v6_qwen_forced_choice_development.parquet"
+  proxy="$dir/longbench_v2_v6_qwen_scaffold_proxy_development.parquet"
+  [[ -f "$predictions" && -f "${predictions%.parquet}.json" ]] || return 1
+  [[ -f "$proxy" && -f "${proxy%.parquet}.json" ]] || return 1
+  [[ -f "$dir/COMPLETE" ]] || return 1
+  [[ $(<"$dir/COMPLETE") == "longbench_v2_v6_qwen_development_v1" ]] || return 1
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=8 \
+    "$PY" "$LBV2_V6_DEV_READER" "$predictions" "$proxy" \
+    --manifest "$LBV2_V6_MANIFEST" \
+    --source-manifest "$LBV2_MANIFEST" \
+    --dataset "$LBV2_DATA" \
+    --model-source "$snapshot" \
+    --qualification-lock "$LBV2_V6_QUAL_LOCK" \
+    --config h0_measurement/models.yaml \
+    --runner "$LBV2_V6_DEV_RUNNER" \
+    --validate-only >/dev/null 2>&1
+}
+
+lbv2_v6_dev_find_complete() {
+  local prefix=lbv2_v6_qwen_development_ dir base
+  for dir in h0_measurement/results/${prefix}*; do
+    [[ -d "$dir" ]] || continue
+    base=${dir##*/}
+    [[ "$base" =~ ^${prefix}[0-9]+$ ]] || continue
+    if lbv2_v6_dev_artifact_complete "$dir"; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  return 1
+}
+
+lbv2_v6_dev_dir_for_job() {
+  local job_id=$1 dir="h0_measurement/results/lbv2_v6_qwen_development_${1}"
+  [[ -d "$dir" ]] || {
+    echo "ERROR: no exact V6 development directory for job $job_id: $dir" >&2
+    return 1
+  }
+  printf '%s\n' "$dir"
+}
+
+submit_lbv2_v6_development() {
+  local prefix=lbv2_v6_qwen_development_ where output job_id
+  lbv2_v6_dev_authorize
+  lbv2_v6_audit
+  if where=$(lbv2_v6_dev_find_complete); then
+    job_id=${where##*/}; job_id=${job_id#${prefix}}
+    echo "V6 Qwen development already complete: $where"
+    echo "LBV2_V6_DEV_JOB_ID=$job_id (existing)"
+    echo "read: bash $REPORT_DIR/steps.sh --lbv2-v6-dev-read $job_id"
+    return 0
+  fi
+  output=$(sbatch --parsable --partition=debug --time=02:00:00 \
+    "$LBV2_V6_DEV_WORKER")
+  job_id="${output%%;*}"; job_id="${job_id##* }"
+  [[ "$job_id" =~ ^[0-9]+$ ]] || {
+    echo "ERROR: could not parse a Slurm job ID from: $output" >&2
+    exit 1
+  }
+  echo "submitted V6 Qwen LongBench-v2 development"
+  echo "LBV2_V6_DEV_JOB_ID=$job_id"
+  echo "split=development items=52 components=44 prediction_rows=468 proxy_rows=416"
+  echo "model=qwen3-30b-a3b-2507 ctx=40960 B=2 arms=fp+8_candidates"
+  echo "partition=debug walltime=02:00:00"
+  echo "log:    h0_measurement/logs/lbv2v6d_${job_id}.out"
+  echo "result: h0_measurement/results/${prefix}${job_id}/"
+  echo "next:   bash $REPORT_DIR/steps.sh --lbv2-v6-dev-status $job_id"
+}
+
+status_lbv2_v6_development() {
+  local job_id=$1 log="h0_measurement/logs/lbv2v6d_${1}.out"
+  local err="h0_measurement/logs/lbv2v6d_${1}.err"
+  if command -v squeue >/dev/null 2>&1; then
+    squeue -j "$job_id" || true
+  fi
+  if command -v sacct >/dev/null 2>&1; then
+    sacct -j "$job_id" --format=JobID,State,Elapsed,MaxRSS,ExitCode || true
+  fi
+  if [[ -f "$log" ]]; then
+    echo
+    echo "last 40 stdout lines:"
+    tail -n 40 "$log"
+  else
+    echo "stdout log not created yet: $log"
+  fi
+  if [[ -s "$err" ]]; then
+    echo
+    echo "last 40 stderr lines:"
+    tail -n 40 "$err"
+  fi
+}
+
+read_lbv2_v6_development() {
+  local job_id=$1 dir predictions proxy snapshot out summary_csv lock
+  dir=$(lbv2_v6_dev_dir_for_job "$job_id")
+  if ! lbv2_v6_dev_artifact_complete "$dir"; then
+    echo "ERROR: job $job_id does not satisfy the complete V6 development contract" >&2
+    exit 1
+  fi
+  predictions="$dir/longbench_v2_v6_qwen_forced_choice_development.parquet"
+  proxy="$dir/longbench_v2_v6_qwen_scaffold_proxy_development.parquet"
+  snapshot=$(lbv2_v6_snapshot)
+  out="$REPORT_DIR/longbench_v2_v6_development_${job_id}.txt"
+  summary_csv="$REPORT_DIR/longbench_v2_v6_development_${job_id}_summary.csv"
+  lock="$REPORT_DIR/longbench_v2_v6_confirmation_lock_${job_id}.json"
+  env HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=8 \
+    "$PY" "$LBV2_V6_DEV_READER" "$predictions" "$proxy" \
+    --manifest "$LBV2_V6_MANIFEST" \
+    --source-manifest "$LBV2_MANIFEST" \
+    --dataset "$LBV2_DATA" \
+    --model-source "$snapshot" \
+    --qualification-lock "$LBV2_V6_QUAL_LOCK" \
+    --config h0_measurement/models.yaml \
+    --runner "$LBV2_V6_DEV_RUNNER" \
+    --csv "$summary_csv" --lock "$lock" > "$out"
+  cat "$out"
+  echo
+  echo "saved: $out"
+  echo "saved: $summary_csv"
+  if [[ -f "$lock" ]]; then
+    echo "saved: $lock"
+    echo "next: implement the lock-authenticating V6 confirmation worker"
+  else
+    echo "lock:  none (the authenticated V6 development decision did not advance)"
+  fi
+}
+
 MODE="${1:-}"
 case "$MODE" in
+  --lbv2-v6-dev-dry)
+    (($# == 1)) || { echo "ERROR: --lbv2-v6-dev-dry accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V6_DEV_RUNNER"; need_file "$LBV2_V6_DEV_WORKER"; need_file "$LBV2_V6_DEV_READER"
+    need_file "$LBV2_V6_QUAL_LOCK"; need_file "$LBV2_V6_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_v6_dev_authorize
+    lbv2_v6_audit
+    echo "DRY RUN; submit nothing:"
+    lbv2_v6_dev_command
+    ;;
+  --lbv2-v6-dev-submit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v6-dev-submit accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V6_DEV_RUNNER"; need_file "$LBV2_V6_DEV_WORKER"; need_file "$LBV2_V6_DEV_READER"
+    need_file "$LBV2_V6_QUAL_LOCK"; need_file "$LBV2_V6_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_lbv2_v6_development
+    ;;
+  --lbv2-v6-dev-status)
+    (($# == 2)) || { echo "ERROR: --lbv2-v6-dev-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_lbv2_v6_development "$2"
+    ;;
+  --lbv2-v6-dev-read)
+    (($# == 2)) || { echo "ERROR: --lbv2-v6-dev-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$LBV2_V6_DEV_RUNNER"; need_file "$LBV2_V6_DEV_READER"; need_file "$LBV2_V6_QUAL_LOCK"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_lbv2_v6_development "$2"
+    ;;
+  --lbv2-v7-audit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v7-audit accepts no arguments" >&2; exit 2; }
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_v7_audit
+    ;;
+  --lbv2-v7-qual-dry)
+    (($# == 1)) || { echo "ERROR: --lbv2-v7-qual-dry accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V7_RUNNER"; need_file "$LBV2_V7_WORKER"; need_file "$LBV2_V7_RUNNER"; need_file "$LBV2_V7_READER"; need_file "$LBV2_V7_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_V6_MANIFEST"; need_file "$LBV2_V7_MANIFEST"; need_file "$LBV2_V7_LEDGER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_v7_audit
+    echo "DRY RUN; submit nothing:"
+    lbv2_v7_command
+    ;;
+  --lbv2-v7-qual-submit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v7-qual-submit accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V7_RUNNER"; need_file "$LBV2_V7_WORKER"; need_file "$LBV2_V7_RUNNER"; need_file "$LBV2_V7_READER"; need_file "$LBV2_V7_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_V6_MANIFEST"; need_file "$LBV2_V7_MANIFEST"; need_file "$LBV2_V7_LEDGER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_lbv2_v7_qualification
+    ;;
+  --lbv2-v7-qual-status)
+    (($# == 2)) || { echo "ERROR: --lbv2-v7-qual-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_lbv2_v7_qualification "$2"
+    ;;
+  --lbv2-v7-qual-read)
+    (($# == 2)) || { echo "ERROR: --lbv2-v7-qual-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$LBV2_V7_RUNNER"; need_file "$LBV2_V7_READER"; need_file "$LBV2_V7_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_V6_MANIFEST"; need_file "$LBV2_V7_MANIFEST"; need_file "$LBV2_V7_LEDGER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_lbv2_v7_qualification "$2"
+    ;;
+  --lbv2-v6-audit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v6-audit accepts no arguments" >&2; exit 2; }
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_v6_audit
+    ;;
+  --lbv2-v6-qual-dry)
+    (($# == 1)) || { echo "ERROR: --lbv2-v6-qual-dry accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V6_WORKER"; need_file "$LBV2_V6_READER"; need_file "$LBV2_V6_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_v6_audit
+    echo "DRY RUN; submit nothing:"
+    lbv2_v6_command
+    ;;
+  --lbv2-v6-qual-submit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v6-qual-submit accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V6_WORKER"; need_file "$LBV2_V6_READER"; need_file "$LBV2_V6_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_lbv2_v6_qualification
+    ;;
+  --lbv2-v6-qual-status)
+    (($# == 2)) || { echo "ERROR: --lbv2-v6-qual-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_lbv2_v6_qualification "$2"
+    ;;
+  --lbv2-v6-qual-read)
+    (($# == 2)) || { echo "ERROR: --lbv2-v6-qual-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$LBV2_V6_READER"; need_file "$LBV2_V6_AUDIT"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"; need_file "$LBV2_V6_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_lbv2_v6_qualification "$2"
+    ;;
+  --lbv2-v5-dev-dry)
+    (($# == 1)) || { echo "ERROR: --lbv2-v5-dev-dry accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V5_WORKER"; need_file "$LBV2_V5_READER"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    echo "DRY RUN; submit nothing:"
+    lbv2_v5_command
+    ;;
+  --lbv2-v5-dev-submit)
+    (($# == 1)) || { echo "ERROR: --lbv2-v5-dev-submit accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_V5_WORKER"; need_file "$LBV2_V5_READER"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_lbv2_v5_development
+    ;;
+  --lbv2-v5-dev-status)
+    (($# == 2)) || { echo "ERROR: --lbv2-v5-dev-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_lbv2_v5_development "$2"
+    ;;
+  --lbv2-v5-dev-read)
+    (($# == 2)) || { echo "ERROR: --lbv2-v5-dev-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$LBV2_V5_READER"; need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_lbv2_v5_development "$2"
+    ;;
+  --lbv2-audit)
+    (($# == 1)) || { echo "ERROR: --lbv2-audit accepts no arguments" >&2; exit 2; }
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    lbv2_audit
+    ;;
+  --lbv2-qual-dry)
+    (($# == 1)) || { echo "ERROR: --lbv2-qual-dry accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_WORKER"; need_file "$LBV2_READER"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    echo "DRY RUN; submit nothing:"
+    lbv2_command
+    ;;
+  --lbv2-qual-submit)
+    (($# == 1)) || { echo "ERROR: --lbv2-qual-submit accepts no arguments" >&2; exit 2; }
+    need_file "$LBV2_WORKER"; need_file "$LBV2_READER"
+    need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_lbv2_qualification
+    ;;
+  --lbv2-qual-status)
+    (($# == 2)) || { echo "ERROR: --lbv2-qual-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_lbv2_qualification "$2"
+    ;;
+  --lbv2-qual-read)
+    (($# == 2)) || { echo "ERROR: --lbv2-qual-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$LBV2_READER"; need_file "$LBV2_DATA"; need_file "$LBV2_MANIFEST"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_lbv2_qualification "$2"
+    ;;
   --oracle-dry)
     need_file "$WORKER"
     need_file "$ROUTES"
@@ -1329,6 +2914,90 @@ case "$MODE" in
     need_file "$OP2_READER"
     [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
     read_op2_pair "$2" "$3"
+    ;;
+  --op2-k40-dry)
+    (($# == 1)) || { echo "ERROR: --op2-k40-dry accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$OP2_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    op2_k40_require_v2a_branch
+    echo "DRY RUN; authenticated V2-A jobs 982121/982122 as the both-too-easy branch; submit nothing:"
+    op2_k40_command
+    ;;
+  --op2-k40-submit)
+    (($# == 1)) || { echo "ERROR: --op2-k40-submit accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$OP2_READER"; need_file "$OP2_K40_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    op2_k40_require_v2a_branch
+    submit_op2_k40
+    ;;
+  --op2-k40-status)
+    (($# == 2)) || { echo "ERROR: --op2-k40-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_difficulty "$@"
+    ;;
+  --op2-k40-read)
+    (($# == 2)) || { echo "ERROR: --op2-k40-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$OP2_READER"; need_file "$OP2_K40_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    op2_k40_require_v2a_branch
+    read_op2_k40_job "$2"
+    ;;
+  --op2-k48-dry)
+    (($# == 1)) || { echo "ERROR: --op2-k48-dry accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$OP2_K40_READER"; need_file "$OP2_K48_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    op2_k48_require_k40_branch
+    echo "DRY RUN; authenticated k40 job 982613 as directionally too easy; submit nothing:"
+    op2_k48_command
+    ;;
+  --op2-k48-submit)
+    (($# == 1)) || { echo "ERROR: --op2-k48-submit accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$OP2_K40_READER"; need_file "$OP2_K48_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    op2_k48_require_k40_branch
+    submit_op2_k48
+    ;;
+  --op2-k48-status)
+    (($# == 2)) || { echo "ERROR: --op2-k48-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_difficulty "$@"
+    ;;
+  --op2-k48-read)
+    (($# == 2)) || { echo "ERROR: --op2-k48-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$OP2_K40_READER"; need_file "$OP2_K48_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    op2_k48_require_k40_branch
+    read_op2_k48_job "$2"
+    ;;
+  --panel-dry)
+    (($# == 1)) || { echo "ERROR: --panel-dry accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$PANEL_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    echo "DRY RUN; submit nothing:"
+    panel_command
+    ;;
+  --panel-submit)
+    (($# == 1)) || { echo "ERROR: --panel-submit accepts no arguments" >&2; exit 2; }
+    need_file "$WORKER"; need_file "$PANEL_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    command -v sbatch >/dev/null 2>&1 || { echo "ERROR: sbatch is unavailable" >&2; exit 1; }
+    submit_panel
+    ;;
+  --panel-status)
+    (($# == 2)) || { echo "ERROR: --panel-status requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    status_difficulty "$@"
+    ;;
+  --panel-read)
+    (($# == 2)) || { echo "ERROR: --panel-read requires exactly one JOB_ID" >&2; exit 2; }
+    need_job_id "$2"
+    need_file "$PANEL_READER"
+    [[ -x "$PY" ]] || { echo "ERROR: missing executable $PY" >&2; exit 1; }
+    read_panel_job "$2"
     ;;
   --v2b-dry)
     (($# == 4)) || {

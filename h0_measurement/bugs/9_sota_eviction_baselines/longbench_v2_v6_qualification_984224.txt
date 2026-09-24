@@ -1,0 +1,7 @@
+V6 Qwen qualification (frozen section 3K)
+provenance      PASS (dataset/manifest/model/template/source hashes)
+rows            40 predictions; 20 items / 19 components
+FP              12/20 = 0.600, q05=0.421
+uniform         12/20 = 0.600, q05=0.429
+decision        advance_v6_development
+lock            /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_v6_qualification_lock_984224.json

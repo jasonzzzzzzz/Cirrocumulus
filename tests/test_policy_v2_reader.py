@@ -86,9 +86,9 @@ def frames(mode="mean", *, laprox_perfect=False, uniform_easy=False, n_keys=24):
             metric_rows.append(dict(
                 **shared, B=2, candidate=candidate, candidate_order=order,
                 trace_rule_version=RP.TRACE_RULE_VERSION,
-                trace_steps_requested=8, trace_len=8,
+                trace_steps_requested=8, trace_len=1,
                 trace_token_hash=hashlib.sha256(f"trace-{prompt}".encode()).hexdigest(),
-                vocab_size=128, mean_kl=mean_kl, max_kl=max_kl,
+                vocab_size=RP.VOCAB_SIZE, mean_kl=mean_kl, max_kl=max_kl,
                 fp_token_ce=fp_ce, top1_agreement=top1,
                 fp_argmax_verified=True, selected_policy="", t_policy_trace=.01,
             ))
@@ -127,7 +127,8 @@ def sidecars(ap: Path, dp: Path, accuracy, diagnostic, n_keys=24):
         p2=dict(enabled=True,
                 want=["evict", "interior", "interior_cascade", "interior_pool",
                       "uniform"],
-                routers=[], head_error=False, routes=None, routes_meta=None),
+                routers=[], head_error=False, cascade_bits=4,
+                routes=None, routes_meta=None),
     )
     diagnostic_side = dict(
         parquet=dp.name, model=RP.MODEL, model_id=RP.MODEL_ID, ctx=RP.CTX,
@@ -166,6 +167,8 @@ def test_analysis_and_prefix_rules():
     check("mean-KL selector advances at the smallest eligible prefix",
           decision["decision"] == "advance_mean_kl" and
           decision["prefix"] == RP.CANDIDATES[:3])
+    check("alternates are not evaluated when mean KL advances",
+          "fp_token_ce_G_F" not in summary.columns)
     check("prefix selector is recomputed and captures all headroom",
           first.mean_kl_G_F == .4 and first.mean_kl_captured_F == 1.0)
 
@@ -174,6 +177,9 @@ def test_analysis_and_prefix_rules():
     check("prespecified CE alternate advances after mean KL fails",
           decision["decision"] == "advance_fp_token_ce" and
           decision["selector_metric"] == "fp_token_ce")
+    check("alternates are evaluated on only the frozen prefix",
+          summary.fp_token_ce_G_F.notna().sum() == 1 and
+          summary.loc[summary.fp_token_ce_G_F.notna(), "prefix_size"].iloc[0] == 3)
 
     accuracy, diagnostic = frames("mean", laprox_perfect=True)
     summary, _, decision = RP.analyze_frames(accuracy, diagnostic, 24, n_boot=100)
@@ -182,9 +188,11 @@ def test_analysis_and_prefix_rules():
           decision["decision"] == "stop_candidate_routing")
 
     accuracy, diagnostic = frames("mean", uniform_easy=True)
-    _, _, decision = RP.analyze_frames(accuracy, diagnostic, 24, n_boot=100)
+    summary, prompts, decision = RP.analyze_frames(
+        accuracy, diagnostic, 24, n_boot=100)
     check("independent block outside the uniform gate is not interpreted",
-          decision["decision"] == "difficulty_non_replicating")
+          decision["decision"] == "difficulty_non_replicating" and
+          prompts.empty and len(summary) == 1 and "H_F" not in summary.columns)
 
 
 def test_integrity_rejections():
@@ -210,6 +218,19 @@ def test_integrity_rejections():
     bad.loc[bad.candidate == "obcache_k", "candidate_order"] = 7
     expect_reject("candidate labels have one frozen order", accuracy, bad,
                   "candidate order")
+
+    bad = diagnostic.copy()
+    bad["trace_len"] = 8
+    expect_reject("trace length is pinned to the FP generation", accuracy, bad,
+                  "min(8, FP gen_len)")
+
+    bad = diagnostic.copy()
+    bad["vocab_size"] = 128
+    expect_reject("Llama vocabulary size is exact", accuracy, bad, "vocab_size")
+
+    bad_accuracy, bad_diagnostic = frames(n_keys=20)
+    expect_reject("only a V2-A selectable key count is accepted",
+                  bad_accuracy, bad_diagnostic, "24 or 32", n_keys=20)
 
 
 def test_file_authentication_and_lock():
@@ -249,8 +270,19 @@ def test_file_authentication_and_lock():
             check("baseline config mutation is rejected", "baselines" in str(exc),
                   f"({exc})")
 
+        accuracy_side["baselines"] = json.loads(json.dumps(RP.EXPECTED_BASELINES))
+        accuracy_side["p2"]["cascade_bits"] = 3
+        ap.with_suffix(".json").write_text(json.dumps(accuracy_side))
+        try:
+            RP.load_pair(ap, dp, 24)
+            check("cascade base tier drift is rejected", False)
+        except RP.PolicyV2ReaderError as exc:
+            check("cascade base tier drift is rejected", "cascade_bits" in str(exc),
+                  f"({exc})")
+
         # Restore the accuracy sidecar, then break the parquet SHA link.
         accuracy_side["baselines"] = json.loads(json.dumps(RP.EXPECTED_BASELINES))
+        accuracy_side["p2"]["cascade_bits"] = 4
         ap.with_suffix(".json").write_text(json.dumps(accuracy_side))
         diagnostic_side["accuracy_sha256"] = "0" * 64
         dp.with_suffix(".json").write_text(json.dumps(diagnostic_side))

@@ -1,0 +1,1848 @@
+{
+  "content_sha256": "c6a951bb5433dd5c918ca6c8c964eb2ed4a4c26f9a079f53fb9111e9a3279f5b",
+  "examples": [
+    {
+      "context_hash": "1288e26ded76df9e1bf3b58e438e51b8aa8fff93948e6f594b8cce72a51b0e30",
+      "group_id": "588c20208a5823701ee0c445f594bfc2515b87062b4eecc139cb1adeb85bdba6",
+      "id": "66eae4de5a08c7b9b35dd12d",
+      "input_tokens": 15323,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "a1a15b0d3933563466bbe7c134783211fe5fee888c6c86c4c67651a887020ea6",
+      "question_hash": "5cfc1b136baa15c043c88422f0121dcb0088807bb46dfa490456852435815db3",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "9397053d2e449a4d71747a8ed9ee2020ae6937b03b966de5a41f449051279f0b",
+      "group_id": "12719d60fa4413dddb6df4343979c58f6931931e16f3a623ffd25a1cce9ac079",
+      "id": "66ebb0e55a08c7b9b35ddd6a",
+      "input_tokens": 19820,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "bd6fb6afaa564b3f74e0ce305e7729965ea5e47282d6ddaa2861721f831920c4",
+      "question_hash": "68986fa6afa0c5fb2a5e5ed9eb0b9362a9354ccabfd295d9117b2ed028bd67dc",
+      "split": "development"
+    },
+    {
+      "context_hash": "f36c292e22de0d5ab49cf3a25296107be2816c4dd24eb863e96e69362ecc3e07",
+      "group_id": "121fd35e78ef9aeae4c8d4fd108d7b97b1565d2eab1969145224dc10b3a37cc6",
+      "id": "66ebbe4f5a08c7b9b35de533",
+      "input_tokens": 18586,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "e76c6c6fa8e059904599eefec7c9efa1c3b6abe886d3bf0f238574cdab5b1588",
+      "question_hash": "3d841894de415111cc1f6d55062eda447fab242d49eaea12792f7bb7776c7e8f",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "d4ec5b91f102a2dbc7e9d1d512df251699b3649a77f4257a8a7111f13e1d143e",
+      "group_id": "508d3a5cd416e23f763f6d10a24052a23c0c1f2ba1fea3d58c8fe6256394665b",
+      "id": "66ebc0c95a08c7b9b35de7f3",
+      "input_tokens": 28956,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "6f2c54ce4927680fe513080aea0cb6ea9bcf3fba36eaabe47477b21ea1be039d",
+      "question_hash": "7eec38b2354b86527d50fc5215f5a8854e57c1c529fcb48ad1c06d0c5ebaf944",
+      "split": "development"
+    },
+    {
+      "context_hash": "0d95c54abc930c2d499523767c00e17067f724f932b4963c9351d46dde99f8d3",
+      "group_id": "dc8187b9d2a42a8b1f65cad918cf0786ced7d2eafd0e54688f26a8218a2df7a9",
+      "id": "66ebc4af5a08c7b9b35dede0",
+      "input_tokens": 23693,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "346f63cce49f4514989cd8ca6c648968eacb7e3276682f51825ca91ab6ee9d1d",
+      "question_hash": "078e0b940a0867d136b413360965216d81c420ab0eac15174e1041403de05c84",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "ce79a2a28cf7ea012d79ba82f0aa0566fa02c222ea6b71e75d5ab30516c7fd54",
+      "group_id": "d5c1bf5350f9593f392fc8da32a0a7d95452ec37635fce447698f1a7c2a8cc94",
+      "id": "66ebc7445a08c7b9b35df155",
+      "input_tokens": 27574,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "79208dd4736c8733441f1bb4fa8833991284575db363ebd017b639a86fad4476",
+      "question_hash": "ab3e452f2c713c6bfe5db006b7f2a7feb26185e52b56754c6be01ba572a0f130",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "898142667ee39ba90695df8412c460b93a5ebd4ae4b59a85171c1dac23da5988",
+      "group_id": "3230763c356cd9874df3adbc8699413d28c6ccee6eccc2c598ebf22e16b99025",
+      "id": "66ebc95f5a08c7b9b35df497",
+      "input_tokens": 30508,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "e0de3f7d125d5033fd2dbc529fadcbdc31621e282c9f0b379d930ee6fe546da9",
+      "question_hash": "59f9e510c0e1db65b455283f0f979358d6a3d3acb737de7c299bf313871de04d",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "c0429e20126d1e29971dd5cde228417ade33a40329e454067c5fc861942b062c",
+      "group_id": "3842508784cce1393cb270639eabcb41fbbc327ac3e2b9aa43dcebb7e7271999",
+      "id": "66ebca1e5a08c7b9b35df5e8",
+      "input_tokens": 17891,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "42c7aab82c24c6b88738097e08b1b2e1eb069072bae32d82ba766f79131964da",
+      "question_hash": "aa19fec20cae0f98a5ba273eeb3c2b6353386148fd4d4bada59b8ff5594632de",
+      "split": "development"
+    },
+    {
+      "context_hash": "aa5e560602c44bfdb89de3fa39f51c368da2e3d45ffbf0801a8aa0e886fd3b8b",
+      "group_id": "02d72ecd9e74092a9f5c8d39eb09a0599cc127b9214aa957a1593038b9fa90bb",
+      "id": "66ebcc1e5a08c7b9b35df87d",
+      "input_tokens": 25332,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "811a5ad33e3ca026232693f5ce4b1085cff18f6bab9cf29248089c13db9353ab",
+      "question_hash": "ce37d08b6aa9a992ac1fcf895443a14691b932f6bf031210ce009db65c83b972",
+      "split": "development"
+    },
+    {
+      "context_hash": "94a2d3c2e6a28c9a6a49d978a2362f2c20a8d93e78a5a9a04ff4b272a7fce814",
+      "group_id": "5aecb5fdbcc1801be0a98dc60c6ab629f22e1a82eccefd01153a45fe4d357436",
+      "id": "66ebce825a08c7b9b35dfc75",
+      "input_tokens": 23837,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "47244d45f32fca71be12613a975307a7df87eb7844763b802d3503a85d8e7668",
+      "question_hash": "235e5218d28147bca9baeaf6aa6239382eea8332d7664152afba50c697dd5000",
+      "split": "development"
+    },
+    {
+      "context_hash": "65b477d40b731f6b7f3732b2dccdbe2c242aaf0a69e8c1617d5cd97645de7f56",
+      "group_id": "be0c9b91bf3d204e83e985315602d8e0e93bb6d5c842aeee6025ada09d22d2b0",
+      "id": "66ebd0825a08c7b9b35dfe9d",
+      "input_tokens": 23378,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "e8e405d479a614abf569453e9e1769234581891d6a322b3c595ced721e7d7e3f",
+      "question_hash": "a2491c3e539bb7f3fca0bf7c309abdf09e79f93e15b1ede08d37084000437c35",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "e3f4cee27f3ab067719229c63ffbbfe4c4dcc8d13c1e45f892894edc629fec88",
+      "group_id": "c5547c36103d63d20e2b65b2f8b739a57c0718c30f629cacf1fc37ed00f088cd",
+      "id": "66ebd22e5a08c7b9b35e0126",
+      "input_tokens": 18387,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "5d511ff0f9c1057313abc7cf4e733a545e7e9b6b830a8a6fcecc1fe703aaa1c0",
+      "question_hash": "1125870c54d06ecfa1700961e3e9c487832bca55b1c9226e335128d002200f5a",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "4198ec4b7650ba6a192e148078e4614e19b420515456642a682f90fd7b8bbf07",
+      "group_id": "bbd880aef26f696fd72199888a2b8d4ec6e4208b6500591a1537ec296d939313",
+      "id": "66ebd3075a08c7b9b35e02bd",
+      "input_tokens": 16283,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "c00002e20b3ba220b1bc68b6eef65b8be447d71e227518029de01c6500c3bc13",
+      "question_hash": "936e8211518cf99807ea5fee4e965b84953c7653616fe2fa91265c05fc430ff8",
+      "split": "development"
+    },
+    {
+      "context_hash": "7ca6b5964cf6d38411a1c51bd90c64196672b1cf034864ddd948407d1b394f06",
+      "group_id": "636ab2a19e1f31c27134ae4dca65d8a28792469a794ed3ca3764fcddedd5e6fb",
+      "id": "66ebd49a5a08c7b9b35e0550",
+      "input_tokens": 17003,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "a2e9089ff4d6c25e5de6b4fe657f78f2ff9541f2ee39bb95021c393b04d1c859",
+      "question_hash": "671b92c9487b2f89be904f21424cc215019dbb8acf3909d1f74bddc48c27761b",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "4d7b849e51e680309c5aaec9287aa69ddae66e5c835b47d94307956023aad4a1",
+      "group_id": "3870673e615b1064dd9ed300df646846b979239b1f97e5c490eeae231bedd782",
+      "id": "66ebd5125a08c7b9b35e0616",
+      "input_tokens": 20188,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "b5afd79ac20209d405792941327ed03b22cb6d2970e70dc7a7c33f00b82acc48",
+      "question_hash": "64abe1de272c26be6225879d91546f18d441a4328c1100ef4d3705593a87b616",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "aa35ef5411ad40b937eefe53af41ddb42bbbc338cadbad27b520031f616e7c25",
+      "group_id": "0b79fceed91f4831f8035e5fffdde625a11b33997e231fe3c0c2814f228be956",
+      "id": "66ebd5675a08c7b9b35e06bf",
+      "input_tokens": 20949,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "50399363bbd089d1ccb9868f14c86c3069021e5d5e68c4b435e874b2bcdeb7b3",
+      "question_hash": "773b21c17e7a79c4ea4de1cd52405826d9063db3a88a3975971de453369c5f6c",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "4e2fe5eabe429c5cf6d2e3aff34842ef5883e22824889205a90959c1d660fe67",
+      "group_id": "99c9c7f76dcf69f9499105e2688958fa86367734ada3c6aa48866301198c35f7",
+      "id": "66ebd92d5a08c7b9b35e0bf0",
+      "input_tokens": 17576,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "11d2823433fb17e19f926035ae45fb450ee61cc15d17af92c5e94901c43d98ca",
+      "question_hash": "2ac7ae97442ba2a222b9c87481917baedc3677c9700c9ec77dcc0774fc2c582a",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "b203132a2db2bdbc2af0850d1de4fc3a7e9b9a532936ea1164901c97a7c890b1",
+      "group_id": "ef39695ef617d9014f0003d9b18c7ae162900f736b02582d3e21bdcce93be0ad",
+      "id": "66ebda775a08c7b9b35e0dcb",
+      "input_tokens": 16466,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "50814fc85c3b6f2a6e8231a69bb6f94b37442c11b245f98208e56b934f158ef6",
+      "question_hash": "ae62b04b893713a9e2dfdbd098882772ab8b3e6e83ccb97bd14f2bf08b1a7370",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "0c013b887a01cdf9051f7eb1f0ffbfc871fce9d05aa5931441ed26b342cc80a5",
+      "group_id": "064458c231d10ca6b05561152d98b4ae5d46da755b77c90619fbd19723469c4d",
+      "id": "66ebde0f5a08c7b9b35e1256",
+      "input_tokens": 21106,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "36b2a85ae099d6eaf5ad6ba04a314080e49e540594ba3c317b265c5fc8bd6de3",
+      "question_hash": "3fcc3d57a9ef72274c814e65270d9786a8382ca59f2f1610584efa0856e0fafb",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "cb3547549532854f561d33ee2c04d4ae0cba18b5dbd1d1208e53133d92d1e88e",
+      "group_id": "84d66c69d40355fa428c629a69d7a0bda4b8509ee2de3c88168e3ada54254d3f",
+      "id": "66ebe0fb5a08c7b9b35e14f5",
+      "input_tokens": 15914,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "064a2a04f94eb79fd20bd70d417794baeac6c294a846246098620aa8222e7b77",
+      "question_hash": "e341056cadee9c2e46038195b974a9316390efbbed6b7612009846337279683b",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "94ac478c1b38581fbf50d756ee47128c719971f51b865ee62db0ce8fa0ede116",
+      "group_id": "bbd880aef26f696fd72199888a2b8d4ec6e4208b6500591a1537ec296d939313",
+      "id": "66ebe30a5a08c7b9b35e1693",
+      "input_tokens": 17482,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "1d93abd86af4d744d0f6fb4207cb5c6513d9b467700943757bfbeb60d59120b0",
+      "question_hash": "936e8211518cf99807ea5fee4e965b84953c7653616fe2fa91265c05fc430ff8",
+      "split": "development"
+    },
+    {
+      "context_hash": "b2e4d8ef6886df9f6fb14867cef6821e0a3706e7bf8f7d0c22f6e4cebc5539ac",
+      "group_id": "3d4f2d0f2cf3e05e8fba6427ae45ba3a4bc8c2a2f364c4538843f817e0243a9b",
+      "id": "66ebe68d5a08c7b9b35e190b",
+      "input_tokens": 17196,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "68a9ec01df315027ca19384e0693405a870d989e060a82a274064d6e079bacbf",
+      "question_hash": "24029322133110eba8a1c66b39037813fb0db978f471ef565c495f75a8cc07b6",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "e1b9a8974a24b85a32174e5c58568f57dc8ccdef5e19d03967aa2a3d5734f4f3",
+      "group_id": "f72cabab0a76f2fcec6f8da2fe13ecc715f788f392b44c34f90340fc98285e80",
+      "id": "66ebed525a08c7b9b35e1cb4",
+      "input_tokens": 24191,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "2a227cd9a43e26127d61d132d74f02887ade0be10dfd8784d781054f33c1ce0d",
+      "question_hash": "bbfaa5a27d241e56819d2ac06dbb2553ade5e5da2c3af4b5a0dd1550b89a0a5b",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "f39d5b9abef2b4cd8b6e268c904ada0caab44128808cda3ca1365f11c1a6161a",
+      "group_id": "0e3a9902b08a2e925cdac68913ab87257c1f54a61b538225ec50c2f66b150fc8",
+      "id": "66ebee0a5a08c7b9b35e1d05",
+      "input_tokens": 30391,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "2353b725bfcd04f2f212e54409e8d3a76eeac56d8604adf668576554adda6b27",
+      "question_hash": "24f33406545d87843fa94d912571e51a347c78dbee0793f04515dc2eaaa8b3bd",
+      "split": "development"
+    },
+    {
+      "context_hash": "069ddb93264d95f93411dcf9fb7a3bfef1f4553d858324bc12b5ed59d804b621",
+      "group_id": "45e04c46da421600d0e61f7e1ed024458b54e8ae5061658ef9d6e90d2dd7a8d9",
+      "id": "66ec09ec821e116aacb19620",
+      "input_tokens": 16160,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "b27149a40f3fb29984d1963cc5a02cd7b551f07443720f89c57589a0681a936f",
+      "question_hash": "9c8ae744911fa31d0307f3b0a037bf0fa5b4a95de81cf73ce74ae6aefc6f57cb",
+      "split": "development"
+    },
+    {
+      "context_hash": "0798ca47b5295468e8d48f81b295fc82129b402b80e232c53f7d7340e2eec183",
+      "group_id": "a3e9cf112973d9128c60e769b95be14f0fce4476e8d03c77ade932727a8c3e33",
+      "id": "66ec0d4b821e116aacb19af8",
+      "input_tokens": 30371,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "511feda03d357d39b210bae27cb938932452a893733c739cbbb5411180a1bf81",
+      "question_hash": "4281216d14384485e96f09d03e3e1f08faf68de04c33836abc7138c9267bb613",
+      "split": "development"
+    },
+    {
+      "context_hash": "c41ef50bc3cc138cb27cec70291a58ad4b827fe14b6109fda201598a41dae019",
+      "group_id": "61fd9b03c07a634a99c292fc7c16165f461a8608733c85b6febe76020bb65ea2",
+      "id": "66ec0d51821e116aacb19b0f",
+      "input_tokens": 24689,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "1ab89d0e2c6b1193d580aa391675176c4ff807251612aeba8b8c012016092d2c",
+      "question_hash": "0c70d5816a9080453bf29b40fa4ac873dc09853c44523fb208b218cfcc87a496",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "464adc08c99c96c0063b6d212ef473be510a968bee31a2e4b2c982c2b4783ce1",
+      "group_id": "9fc6975041131946b1c6cddaac27aa3d850261e4d84b086607d912c16dd974be",
+      "id": "66ec0f3c821e116aacb19d70",
+      "input_tokens": 26411,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "821adcff63a7f02b7a47d5ed49eddd1087fd167b9f7224a4e7b681b62cd96d4f",
+      "question_hash": "80d65a94df66c0a90cfccb87a4330d8153d2e9c0d65f2a223a32cf7c58e9f1b6",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "3b3ee1d9018918af0db453e9ba31d64997e0ab029187726ad5ba111a5188b0ee",
+      "group_id": "a39ccd0f86ccfc797cc04e1b904c7829c187fc520aae4b1fd19cb8a45bbda577",
+      "id": "66ec1db2821e116aacb1ad69",
+      "input_tokens": 26212,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "6b2a4764307cf5ebed82f2c1f1030780c23fde9d28859316b9ec8c77b987354d",
+      "question_hash": "068c9cf5e7cf0a86e0137f0814d18cf70660f73e7b1ab0b528b3c20d3b8fb8fa",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "f29133d2ac91b3e1fd1c32428c8c86a8b39f36cd83380666d602bb6b0661ac97",
+      "group_id": "a6e938f41b2f2696efd642f01d90c6e3d054e92169663643c7ff5070a13c20a6",
+      "id": "66ec1de5821e116aacb1adca",
+      "input_tokens": 15455,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "46a44b9bc65bba0b8aa5dded53ea7ff547acd33903e616dd0e5d1a11f4d54862",
+      "question_hash": "dadc086e9850463dbacf8d2c7bc83061e4e8f3fffdff93313d70a87ffdc3245e",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "d2fad77461c873c0cd5b6b1614e2aa3c4da5cac220b1cdff1cf7aece992071d9",
+      "group_id": "bbd880aef26f696fd72199888a2b8d4ec6e4208b6500591a1537ec296d939313",
+      "id": "66ec1e3f821e116aacb1ae7d",
+      "input_tokens": 18147,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "796ecd89e901ec9bd44f5a10d2c85866240ccab34075096090b4f61b755ed004",
+      "question_hash": "936e8211518cf99807ea5fee4e965b84953c7653616fe2fa91265c05fc430ff8",
+      "split": "development"
+    },
+    {
+      "context_hash": "f9038f1b20db266df6817b8b0378216c601fc32c2b316d95aebe2cf15313eb49",
+      "group_id": "6566a125bafcf7b7e8645606e74e45a7ce055be89e05db3b892700e0313d92d5",
+      "id": "66ec21e6821e116aacb1b2d2",
+      "input_tokens": 24894,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "8e66866ee6a1c4e52c45d75793f3de3a9f297185dd25d00ffd9906056aea04fa",
+      "question_hash": "9c2992268f0d73b160c7f84f57c4924cf3803c153bb103c1688cd7e81c2dc915",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "d07b630b29422be6664ef851384bf4fab39ae240dc2ee6fa99e678eb59decf4e",
+      "group_id": "77bca81b3e74b143cde92c1598cd301c96374d7907fa4d925903a97532486d01",
+      "id": "66ec25a5821e116aacb1b5d1",
+      "input_tokens": 14757,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "4887034f9e8c9001759fd5e2910f6139e6e6c89fbd57bb5c8e434db7949f51ac",
+      "question_hash": "98f38546583be2ce6ab38851d3d77e6efbd4dfe0dde00767ebbc2aa7a350ccec",
+      "split": "development"
+    },
+    {
+      "context_hash": "3619f140376966dd2e6eeb4d972c8d94b1e2197a1b5214cbec188dc6c611bd32",
+      "group_id": "b9053f59a82ad03bc7f9e1c29ccdd2015125694a0a091b08f66f7f88c2d394a1",
+      "id": "66ec2e2a821e116aacb1bb9f",
+      "input_tokens": 22488,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "e804b3690af9b0eb757d53839c8572b652d3bb4a115a117fc1a23772e1ad222a",
+      "question_hash": "b5a7b75aa0c930ecde734899da922e740e68580599188e96662ffc20d437df21",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "e6ee894ef14dd1677478c4c387df0aea5f8dc8e8ace80e5f13b58811a943b34d",
+      "group_id": "1cb97151eed5b2cc81df1edb18efe12032326f27eb93b13b3b5e80330398446a",
+      "id": "66ec2fde821e116aacb1bd18",
+      "input_tokens": 21395,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "f75021b2dabd9a9b37c1987b5d4e4058debc5ef50953e2351cf3b966b2bcd914",
+      "question_hash": "3fdb318547163f935ff47677674572f97b09c37fc2a8d5227f762dc569e8532e",
+      "split": "development"
+    },
+    {
+      "context_hash": "f7e1b2152bc9b2fadf817590c41a9fd7e826816936cb5c5322c4dcb1fe97dda5",
+      "group_id": "bd3df7f67c312bd750612325fbd849043ce2f0f4b882833678fffcf66df4cf8e",
+      "id": "66ec356a821e116aacb1c22b",
+      "input_tokens": 10922,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "47572aaf8130649b27ffa67d27636c96354874bda17997f762f681c8882a8d23",
+      "question_hash": "7f069bf329a82d38177c3241f6df61ae525607e06c9adc0235ab490e000b5e3c",
+      "split": "development"
+    },
+    {
+      "context_hash": "f1ae2cafb9a461c3ae59579c02addbafd15ea34f53474ae17dcecdbc41f2d78d",
+      "group_id": "0a27a435a0a29f23305b5c04731a4f5a20cec8417789183f248543eee0b6ff3a",
+      "id": "66ec3a46821e116aacb1c49f",
+      "input_tokens": 25604,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "44532fab7abefa4f07bd4af377595962962e0830d56fe5f86303eca8670b7126",
+      "question_hash": "d8477d0dbd669a54a2b24e648a27d697ac3d318503a6dcb32bac34ca4b4a3def",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "0a445c8e99023853dd4c9aa51d0a1b249b1bc38b5473e4126e43ae89b8b6343f",
+      "group_id": "afc24755f115ded422cfc79c70e8ee97868caab3e260df06a443594e03b91185",
+      "id": "66ec3d1d821e116aacb1c622",
+      "input_tokens": 18980,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "c315e65e22d3c53c34fb155b4b920b44cd6fd1c3e958fd81a05d0914c2bc9f31",
+      "question_hash": "a07508e35cd5cb031f85d9fbc30e15ad7a5633ffd17ea063b7df4088ac131bdd",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "d6b7cfca8b7b2c723d7acd350461699923a1c7d953ea124abeade690c715e5bb",
+      "group_id": "3448f1a436f3558daf1b50d7f25931eb1d1fd2564eafd7a606f673cd502fbe56",
+      "id": "66ec41d3821e116aacb1c874",
+      "input_tokens": 19311,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "dfbdd115a1055de06937576f715b7c23c396b42be3cecc01ecba62b84a24c95b",
+      "question_hash": "7308712ec5145c9346f10ae5632d75a0cbc4401273272bb842a0fc61e1abb434",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "39173e40021326a043c6b9fc6c215dbba15d49f4eaeeaa97da9a4dbe5a7fa0c0",
+      "group_id": "1a244c3f4a7f4a581c5aaa9034d65b0329871de4d3d25aa4afb6847738ca5f94",
+      "id": "66ece358821e116aacb1dc08",
+      "input_tokens": 29279,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "e1f6c7bd508f8517b3cf70ad1e21c82bea0434f832fe0768de3559c361998ced",
+      "question_hash": "61f930e97444138ae90443d2cf894b86566f995c5dd154b8904e7cc9cefd259c",
+      "split": "development"
+    },
+    {
+      "context_hash": "f431ce64d14dbbb1eff48ae89362b266d42bed386187fad3490bd86c4cbd3d48",
+      "group_id": "ebbb03e31fee8fcd0d5b5cf4f780960549ecb6b62ac732b95c8b5f5ef1f7ac2d",
+      "id": "66ece958821e116aacb1df04",
+      "input_tokens": 30068,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "41613ee5f7ca51dd090286fa75926468bc443198139e6ec66dc4e09684f992be",
+      "question_hash": "344ac955a1889d089ab6f91d1c00319b1e013ccc4180428ed4c0c9648eb24dbd",
+      "split": "development"
+    },
+    {
+      "context_hash": "625262e1ed07b7c0e66d82ab91951ee81e00f3d0528f2a3ee8e4d5420d8485ff",
+      "group_id": "40b14a80154aabf702430f47075b8721292d895885a6cf9f15c7b966f5c15ded",
+      "id": "66ed1556821e116aacb1ea14",
+      "input_tokens": 25019,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "9ace925c6874ab19ab064531ccc6827feb068b7eafc6f5b315822f41f081aeac",
+      "question_hash": "5a382b6334e72e98c78bde095f997bb606b16329a3a6fdb4269ad475a4f22f95",
+      "split": "development"
+    },
+    {
+      "context_hash": "21759bfc1180f4b4ab8141d9e9ab63e334eaa3344b4cebe54f8901bea9fb35bc",
+      "group_id": "90072a12dced35d480056cc96ed1abd51bde21a9fff213f1b0be073eb34c2f95",
+      "id": "66ed2c87821e116aacb1f149",
+      "input_tokens": 19097,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long Structured Data Understanding",
+        "length": "short",
+        "sub_domain": "Table QA"
+      },
+      "prompt_token_hash": "0dc0e27a8b32346ade20793f0a0d55eecf99ae650f059d2f751a88519aed39d9",
+      "question_hash": "83555fce5a97a25f2a004edcc5330eccdea7c3e9d73901776b92fc2117bd1f4a",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "75cd0df6a7f20bdd343a2ab397f2acf3aee4dbe7d51aabcd23132796cb2d65f4",
+      "group_id": "ad1371c3a17d0d96d87bb6545bc00cec855b520d6c75403da690a05cdd7231b8",
+      "id": "66ed910a821e116aacb2033b",
+      "input_tokens": 17524,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "0ddef56c68d83b522c0f6de239e155aabce1a974d5cfd9547b860504353df551",
+      "question_hash": "78adab5e6efe4b58e8e77d2f1d3c46db408a856338a8fc1331e56f0442eb5795",
+      "split": "development"
+    },
+    {
+      "context_hash": "8f637ce5820b5d032f2419d73ea34f45147a9c25224e6f991811b8b1823b22b7",
+      "group_id": "98e63760458f46effc4789a36b3288e7ec0245ecba93eed08914deb1dd7ea446",
+      "id": "66ee490e821e116aacb2149c",
+      "input_tokens": 20385,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "ffe9ee524dd640767139d39cb267036472b3c7ef74b36c37a0e48cb8883cc1aa",
+      "question_hash": "aa89a52268bb859d237eb28004751dc4fa91730a4d23a072644332ee0cde32aa",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "4512f6c73ad180fcc5d033cf297963726ce8bf58e54c8909d78e7408a6df0daa",
+      "group_id": "1def7e85fda32234adbc4516bc0bc54ee8f676fff769cc2b240feb03a35426db",
+      "id": "66ee8bab821e116aacb21e44",
+      "input_tokens": 31848,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "da6731d983c7a3b8f5d1f06dafee2bb9f555d85bcabcce84b4d89fb2c961f9e9",
+      "question_hash": "a8d056babd830bec10142c30105ec1b9a3880d32fcd1c5c36109f3e1444e9322",
+      "split": "development"
+    },
+    {
+      "context_hash": "cd0bbb349f68b31009c1280cbf201daa7cd10a32a6cfcb20c40a52fbfd3c4233",
+      "group_id": "ba2332d08508b219f49198e2adfdabd6177bec9b68b2611ff953e679c0876847",
+      "id": "66eefa2f821e116aacb2284f",
+      "input_tokens": 26172,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "4614d5cc830e3361dc830413d16f42f33a60385d3bc60ded567ff264409ef70a",
+      "question_hash": "3ccc6fb3ee3e253b66bb28b9a791de7999df0128ec9e5b3a6cc716d7565dc4cf",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "ce4436344f5c6644fba62910fdb5f355ae2a6152d830389ca597c4367ab7e7b8",
+      "group_id": "6bb668523a13fedd4f9feabe9a239772216986f2efc7e928b3fdfb115f4e3494",
+      "id": "66eefe85821e116aacb228dc",
+      "input_tokens": 30278,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "ba8e1d58c593016212a5357fd820594534145fceede6ee04f810585a494dbadd",
+      "question_hash": "6ddd1ccbdc2196d4eec37e12fc06b5b742f909935fad42996b656d614957301e",
+      "split": "development"
+    },
+    {
+      "context_hash": "00a923d0777499173da0365b819ce05afedcf6a99c55a933f066d6062613f928",
+      "group_id": "42c20b722de58e7e9be715c5d15b90e8d7d322991a639f9055f98af8530a045c",
+      "id": "66f0ed5a821e116aacb265ab",
+      "input_tokens": 26431,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "27aa1cd902fe4bd71ee4f498ae5948db39fc2a6bf9ef012277a104320d1e23c0",
+      "question_hash": "5a1d0e1cf9eeda211d381806600cd83412522713641f6665f77b3ed2e11e8f5f",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "1a273f05446e03aac01f2fd87050ada9bf4ea4e73a54e0e0b8253d100f70033e",
+      "group_id": "e1e7a94ef35af063261d6af418d6f5fbe51fa548cdd727c65c36aa6f5f5c6776",
+      "id": "66f10d67821e116aacb268d0",
+      "input_tokens": 20120,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "2f641ce4d8ef8962e74d442700a5ba582542bb47907c906c7e8a5572584a348d",
+      "question_hash": "b54de69e6ef2de563acc3ff64ec5729b51456fa5531830b977dc2407490cc8fc",
+      "split": "development"
+    },
+    {
+      "context_hash": "70ced6b21bb7f45c3b5a1b72a90a3e35f01b17bc8075b30c1ddba4e290b21286",
+      "group_id": "ce52a76d6a23c62ccce91648dbb50e3a259e3c136c48a330cdbed6cac559d7ff",
+      "id": "66f120a9821e116aacb26d02",
+      "input_tokens": 17826,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "80998c6ee898dc1c87ce272df79f4f5f1ba98fa68307f01f665dd625f7ac9552",
+      "question_hash": "9e38ab0fb76a11255f80f29f7479d1bf8162d002227f4f5470f660efc507920d",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "43d950fca16b765c8faa7a400bee96858d91eb8ce4778910b4226156db4b9146",
+      "group_id": "9f6be4d2dcbd169ac8c45fb09ee117890c04bb5f09c09e3a4f00002f79b06a30",
+      "id": "66f14c70821e116aacb271ee",
+      "input_tokens": 24603,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "2c67ff3921a2094a61f2534ceca8d71ad489fe25e40744df07d4d2da0dd43a0c",
+      "question_hash": "53020c5b3a9513addc97dceb90fccf4b96b4436392d61bce2716b930b1ce9268",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "bbcd8474a4d33ac44225bf417b1c4e8963ac338ce2e4fe7f53566e0b8a771ba4",
+      "group_id": "09f3655663c0208cf2a757f4c0cce68fd07fe54ed3310161a2b6268ac1e7b544",
+      "id": "66f245cc821e116aacb28698",
+      "input_tokens": 10150,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "c443a13d9c73c9231a82abfbd35da178d23043bfb3711f34af7ccfe59bfcd471",
+      "question_hash": "e6a5e920e945cbc927bc468aca000ffc5a2ab900eb1b1652ffea2b686045f195",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "5b40b2e2dc148fb1a267a06839aa18793d3e32eeef94d87fd4f07c275ba4f4af",
+      "group_id": "6bd291248ad3d27987cf85dca46714368e2c6788f0138420cd9e15aeca2b3cf2",
+      "id": "66f284ff821e116aacb29763",
+      "input_tokens": 19036,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "580143a72c19624715e39287f920aa9adbf3127e690664635a77b5813f3c4577",
+      "question_hash": "8f92a88bd2743919f863c39877b1f8c7542fad3ea3c3a7ed06fac6eafd28c5ba",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "b07132c3cafb4f396d9b46b203206eca30f7e799edd3c4caa24bf4829fbf5c64",
+      "group_id": "b02bb125d6996a4eed7b9623e55872f9cf9d08305e322825a6f9d879936997db",
+      "id": "66f2aac2821e116aacb2a9de",
+      "input_tokens": 15896,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "87280e5458384bf9fe7561c50a6f76c008129f7f2e5f39d8b1cefd6998ae36d4",
+      "question_hash": "5627e1ed5f4ea9df2bc23ba6bd301180d87205f7cc8bbcf98ab8a1bbdbf0141a",
+      "split": "development"
+    },
+    {
+      "context_hash": "1b9d1fed4f3a9277c1105efbf9957d3fccd910074f0ec3027fa002a381de4291",
+      "group_id": "ceb5f25b7dcd37a875f7fcca7b6d7e1b340fddada3dcdeab0968bdca3143d5ba",
+      "id": "66f2b676821e116aacb2b27a",
+      "input_tokens": 13355,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "a458ef5431c1e4525a37c8177f0de4bc1e57b9b34a9d2fa17aeaa8bc1122663c",
+      "question_hash": "dfe5db4703ea10183c188e4b34fa3f51e4118f3f86148fd41692a7813e11d0ca",
+      "split": "development"
+    },
+    {
+      "context_hash": "78dfa60fcea07476893ed2779f9a7905c4cce281b6aef7fedc4a9dc859cebd7f",
+      "group_id": "2dbf15341242ccb8a6de8e97afd04362674ce8b6ad3a8679ec86c973172975f5",
+      "id": "66f2e0bc821e116aacb2bf37",
+      "input_tokens": 10873,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "f7eb803ae3be21968803e2855e312aa00abfe287252993f8011a246b4f96c487",
+      "question_hash": "881426b334e7b799a21d931f05e6128566e3bcd225379b501a86a2e6da21fc09",
+      "split": "development"
+    },
+    {
+      "context_hash": "464e5aeae45144ebd28f4b0524b87d323bc79cfab34fec4c4a73e419d6e24a18",
+      "group_id": "711c310c196342c864676cbacd06e92058d4503957dd34cac90f167d53aa8e4d",
+      "id": "66f37635821e116aacb2d017",
+      "input_tokens": 19351,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "7574a01beaafb957bb2bc3baef37936750bd132d260596791885eb145929e527",
+      "question_hash": "cd29c63d016133c75f21419e1d9f810018aaeeb375b8f26edd7b217fa3a77e62",
+      "split": "development"
+    },
+    {
+      "context_hash": "1465b01e457975657ccfadf0457c4632517f443138fade485ecef3e81718579d",
+      "group_id": "3e62cff234868e1d0ee9f681a6d63c68adb25979f3606e28faec9b6e72154169",
+      "id": "66f37eb9821e116aacb2d295",
+      "input_tokens": 10243,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "9ea7842e22d9ec3575ca426e63bdece3d1baee60b88ed536c10b010c11126393",
+      "question_hash": "6eff0d38cae44aaabc6d2b5550b1a748d5d059f3e512194444f381bb21f58367",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "195f9af7ac2a58e65ddff8f6dc21efe04514d1f6b2d116c8d96a20cf1f4145a7",
+      "group_id": "8d74eac216968f05ff6e950ff7d6e48c58c54f65475d41864b9f32207340fa59",
+      "id": "66f3918f821e116aacb2d8b7",
+      "input_tokens": 18016,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "986443e1355acc54c4111290b127455d4b572b0318af7c0c330f3fd110ead291",
+      "question_hash": "9338d7afdc1a13aa1239bb53a545b44a9de85665db3981a1babebdd1eb7ea5d8",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "20ac03ac3d32175bafa9d6ecebd08e58e6172fd868000bdeb74b2e3e12f7d99d",
+      "group_id": "9cf9f7a5ea4643b6198d520149c3fa3cb38c65186a309023f5c57d2607e8f086",
+      "id": "66f39aa7821e116aacb2da76",
+      "input_tokens": 16644,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "946dc05ce95e2b845fc568103e6b571c39d85c08387ff5bb1224bad9c95406d1",
+      "question_hash": "9c50c041ada7e97101959e07a4b53bc6ab2dc29c1bddd17e2cfadb6a4bfb1793",
+      "split": "development"
+    },
+    {
+      "context_hash": "db56a56a2eda7b7943520a12317536fcbdee791f6251f342dc72d3522036893c",
+      "group_id": "7a36124f1d61be5090998b9b2a16c32850e47b0ba11aed0a812c1e44e684291b",
+      "id": "66f3abe6821e116aacb2e1d2",
+      "input_tokens": 11384,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "75b502cd48baa398e35f8f4c619e82da1d3fcc5c999066f5658bfeda57f48e8d",
+      "question_hash": "93fc6e8e191d0c7f46676a34972a7825aecf37c542e122a73bbb17a77fa09c12",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "2dd9c42c561b893add8a1e8e56053123d56309eace5997fd6a6d82217dd15eb6",
+      "group_id": "8f749962894459f1e528e9cb225fa6deced3b7a975ad92721c1e453dda6fd7d8",
+      "id": "66f3ad93821e116aacb2e29f",
+      "input_tokens": 31261,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "d24348d57baef432ec13c46913fd8868ef47833e0475c42afec803b74745cffd",
+      "question_hash": "ca3c820af469681a43f8fe68e57321e0824a0fb41448e42b8129031dfab16ea8",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "9b2eb81245d0960d7031138add314a560f23ec4ea46ff2ebf6b9e1b201492aa6",
+      "group_id": "deaae005b0bd162c929c915b5b9af41fb7c8d2e5e0b4c251e15ed503e6f35b7b",
+      "id": "66f3b843821e116aacb2e692",
+      "input_tokens": 33438,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "9e94bb4361fcbab2d880de1c2c2bbe8cc5bb73a99027929a86f8a3bb8a86295c",
+      "question_hash": "c08e8e2cac9fccec03dd653113681f5ee4de15b96bda1fdaff5d58f2618a4a9f",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "77fb4396c9420df739c115f2c8eccd7d41a2b1beb7474fc0d58c3b91e5a500a0",
+      "group_id": "2dbf15341242ccb8a6de8e97afd04362674ce8b6ad3a8679ec86c973172975f5",
+      "id": "66f41348821e116aacb30c89",
+      "input_tokens": 12420,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "61a233095911275f1299795520ab7d0c54094021b9737686f168b793ff5b8f53",
+      "question_hash": "881426b334e7b799a21d931f05e6128566e3bcd225379b501a86a2e6da21fc09",
+      "split": "development"
+    },
+    {
+      "context_hash": "a5ccd00597cf3bb1c111ae3d427ce1d8ac8acceaf433d536784cd51396465639",
+      "group_id": "d1b1bc296978ba2e871595e50e139d9fa50533eb573ff0180d987639c2905f4f",
+      "id": "66f41e45821e116aacb30ec3",
+      "input_tokens": 13417,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "2355d40ba19c803379d790774f2685d6862ecf24df2440ccfd37d9f56a6203a1",
+      "question_hash": "e4563e25fbf72cf30337655d16d641623d621fffe938f4d6cd37daf5c8f327eb",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "aa2dc9261a1a9bd38d5afa90dd159a4459c93a7bdcb5e45aacdd322c0b1c3bae",
+      "group_id": "8a269ed1297509c264f80d7e50cbce5566f774d94845f19493232f2b6cc46f3c",
+      "id": "66f52567821e116aacb329bc",
+      "input_tokens": 27094,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "bdbb8b9937da8f67a0a0d274e712d03f40a4cc7cea25ea1e94c5fed0b946752b",
+      "question_hash": "00ff1e768d49f6f5b7df63f03fa2c5e0e4cf66e59e9c3f103393f51949336385",
+      "split": "development"
+    },
+    {
+      "context_hash": "ad96a4a066b05cd16c38e8ebaa78bffa30d8b8421b69e807de72b58ed2bd0459",
+      "group_id": "25a8283f2eb3479991c465de95282a5d9fa4f862a8ce325c53627520bb579207",
+      "id": "66f52c6d821e116aacb32cb0",
+      "input_tokens": 16013,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "ca9c1eefde083c0fbf729c313abba7ac5ab67724ac3e57ea9b4f17711d33a0af",
+      "question_hash": "8867d82eedeccf306feafccaae90a954f6adda18e0fdc76a24ae5dedd7b46184",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "59637141a53fc8e4c34697f7c68a28dec6579e17ba726facb225a2414ea73696",
+      "group_id": "4eac2bbe8034e32a2f363301e2722ecd94fa2473038cc0c777a5bd22d806f9a5",
+      "id": "66f53b9b821e116aacb332fc",
+      "input_tokens": 29849,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "4100e3578e26dc15fae318918d60f8572d9cd70edc70b99b2229cdd175a40fdd",
+      "question_hash": "b3891876aee78eebf84588c8415f9f850de4aad3f98b108aa763cd7867d1a642",
+      "split": "development"
+    },
+    {
+      "context_hash": "2fdd6748e1c0bc77770b5aaa6453a5fd91999e1dc3240ecfe497bde2f2869f6c",
+      "group_id": "bd31dbf3a75dc2c954edbc57b79da4c420ff931175aab3033b7a810129c94667",
+      "id": "66f55729821e116aacb3358b",
+      "input_tokens": 19548,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "546a197fc0835787405027c15b06489210353f9499dbf7a43a8843ad62639b41",
+      "question_hash": "56a07f66b585e1248f589f3e58ede90acfda51cac4ac764067856bbdd97374cd",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "06aa1d4f55794c241e9703892f3db6c843b9b635a2fd78d8a3c3fe16b190699a",
+      "group_id": "9ba7e0444a54097e6bc7b75853d9eabec98822e33a6c189649b1f0e59340c3c5",
+      "id": "66f55d66821e116aacb33734",
+      "input_tokens": 17999,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "ea933cfd1f956b88b0c6839e5bcb0f90e2dd164f41f9323f6383f20c2a0760f1",
+      "question_hash": "77c7a6bc9fa4861b6422bde378917a2004b009cd6b7ba0eb9cd7adbe9c54a967",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "52a43795d00da346a28c3b4594ce492c53e045e4f16bd9bb553e7ac04f41db6f",
+      "group_id": "1347754d4c9ae518a79039a9b89abc2fc95da5d855e7de3d2dea4870867a4af7",
+      "id": "66f56c9c821e116aacb33a45",
+      "input_tokens": 25297,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "663d7c776933a9df407f2fb829b914379963c6bd7c634e66ea1de33083cecd12",
+      "question_hash": "51488b4a7adac9d1d9fa618c545f379f10ea7d759b60089b81bd50a388b56e6f",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "8de4c11d1306afd8805f8a6ebed3e467e8bad60856ccf8cae326305d0c9a30fe",
+      "group_id": "a63d42e05d185a123a1c4e9c414a728771828f46492851e8435c25e288d11de2",
+      "id": "66f578fa821e116aacb33c58",
+      "input_tokens": 26327,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "7e0ee7cc6fc3d211c849c9b54b96d5561fafa918b500c3932483763fb1387ab8",
+      "question_hash": "c8784085d275bdaeaa6915f7b858d057ac8612f9cf3d673d50d4ae40fd4c467b",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "4b257fc7408f67150898f2528f73fa5ede7a65d9d9774e76b5a17b426cac02ff",
+      "group_id": "605da77ae8da4b0ec9091b6fb50a658daf56f1280b3b79746eae48d765f45ab3",
+      "id": "66f58d6c821e116aacb33e76",
+      "input_tokens": 16231,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "1dcf0b1db24928987e5ebf9eebc6fe924aaa233324b8cfe051be9584dcf38987",
+      "question_hash": "b1959de00ace5415264ed474574a9f3f64c5e8347cde3e57b41859a0648ef14d",
+      "split": "development"
+    },
+    {
+      "context_hash": "8db45369ba22a8dd99d9f2db0ed6bbf6c4e55eb1625e4d16f612db7369400ea4",
+      "group_id": "8158acad27099f65373c0303f9f27c6a2994816b3694c9f295a126e8fc045907",
+      "id": "66f618f1bb02136c067c16f9",
+      "input_tokens": 20137,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "2205e638b7337fce0449ee75a5ad04c3785bb8536084a495f9f0e1ec3fe2423b",
+      "question_hash": "64f8a61555bf29b2cce779092fb5c2acbbce93852ffee34f3b23e6376d0fc308",
+      "split": "development"
+    },
+    {
+      "context_hash": "88522210591270b0172a4bf03c8bd3abccb69d15a39280fbd8aa4f9411c61df7",
+      "group_id": "a29a883f6b21e00c5d4991a08970f00f2a72c77762409216fa8ba1dffe0c25e1",
+      "id": "66f67c18bb02136c067c21b8",
+      "input_tokens": 23967,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "bfe94d3d3c4d8b9442e06c7450649dbbcf9eb7ff36be68f9b3eb62e3879e5ef7",
+      "question_hash": "2be84364bf87ee91592cfd6ab2ed839a1c92218a5ce3d24debebafb7754f742d",
+      "split": "development"
+    },
+    {
+      "context_hash": "3f27d41dc1ec0566fdc2590cb504c44b5fb81a236d2653531f8a72505c8647b0",
+      "group_id": "0c0d507cb56da77e672801a9cac6205a2dd35d5cd6c596c27264c12f520e401d",
+      "id": "66f68b33bb02136c067c2303",
+      "input_tokens": 29747,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "826d864a8c11f0656417376327e9e199460c29b342d38b7c5fc7744f15a9c517",
+      "question_hash": "7c46acf014dc8cdccc82995922da420a63fd85ed287cff32ff59984b78c075a7",
+      "split": "development"
+    },
+    {
+      "context_hash": "03bb8e61b29861a2b73c131a537e13060dedf93ce7039a09437075af6615404c",
+      "group_id": "9f70eaaf75cad4cd2743aae0027820fa8b44541d1711b7763182b2909df93e4f",
+      "id": "66f6bcf3bb02136c067c2703",
+      "input_tokens": 11043,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "28360d4193d73379aa6d4370fe485ef84d0a4173fa6b8bce240d8f89e999b285",
+      "question_hash": "8b620607aaf888d4a5d17a4968079c1481c821e216fda713d3055f506ed66595",
+      "split": "development"
+    },
+    {
+      "context_hash": "ce63d39acc72cdd1e680800cb4306aeadfa8164f793297772f681151ffe9cfd3",
+      "group_id": "40c4b00df7f1007da33c71ad470efa846a389239514f2b8181f61003fc818bc7",
+      "id": "66f78ecfbb02136c067c2f12",
+      "input_tokens": 15209,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "6eebc06609c4341cd0ba2e9526816954dcf270baa9f2ce4431cd5d44998e9be6",
+      "question_hash": "79d28316ed9d7db477c05be0be76e3e14c63f1fc0c8c4ab9280a5103ae74807f",
+      "split": "development"
+    },
+    {
+      "context_hash": "048c11de2abcd53ec06570f02f370beae566670458368914d7ee6f781bdd8580",
+      "group_id": "3ad5a89e944894d073c92340ecd1dd191b7f4826781d064146ee0300d074e015",
+      "id": "66f8c6b4bb02136c067c4480",
+      "input_tokens": 13762,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "7ddfd4b49fca7d697e22ae83a8e07ca7904260b6ecd89b46d687a1db8393e560",
+      "question_hash": "3c4458c077079dc0719bfe90c71c318a57e6659b0b73502c2d3a47339c5bf640",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "fb8fb40eed48d844a6bdc6825a12755be725460d1bcffe49b9e8e78535e37033",
+      "group_id": "375c1c115a9160c8d4f2f7b6e1adda87a7ed7e5906ae695eb3f2dcb0e556025f",
+      "id": "66f8d84cbb02136c067c465f",
+      "input_tokens": 27088,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "f93620da7fbf5724ea3f025279fbe490635f4205b7d7dff84cc0c26c67b783fe",
+      "question_hash": "d80a39cc27a92bbe41895da19ea58a79513a958fb13c50037ceea96bb41b4d44",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "cf280ca69fe49e7fad6fb8fba7286aece78340c978bae761e918ce1bee4bef60",
+      "group_id": "ca873a7c4b2319818c9913493fc740b4230342d53056487aabb076606c4624e4",
+      "id": "66f91f2cbb02136c067c4b1e",
+      "input_tokens": 12677,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "d721754be7ae6c87857e5a1aa37f0b6f6ab1c534496cb1c9c698236f979fff2c",
+      "question_hash": "7877dec3f61c36e5347c41578229e8fd056b8411d7983badd669f93db421700f",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "1a9bfd4e49c459fbe1324a3de80978fb3653bfba64ce1b82dd05cc38f1f15ea7",
+      "group_id": "b9e078f6e47c87efe468375307ab6f287e2c3181737475daceb59c5e79546d85",
+      "id": "66f95126bb02136c067c5070",
+      "input_tokens": 28572,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "978eaddf17742a7ee7c7e57e366ec34b46d29c17dbb32c7baeabe7674cca712e",
+      "question_hash": "77943764dda4903793390d546452c0657243c7bea24ab4ee30187bae614081f5",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "0d53054f9e55eab53f293242854b5967f6dc9d53809a0e54fb0272bf77b2ee85",
+      "group_id": "9e5abe050649c0e20dedf124371d9836990b96f7f6db8a7d6609f3bbb7b31c11",
+      "id": "66f958b3bb02136c067c5219",
+      "input_tokens": 24999,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "e012a74d5080e07e20e977efa34115095494dd369a2362865bc32a3ae400febe",
+      "question_hash": "96c6beaa188b9d0f4af6b3a3d4a6623d271f0b6e3a56b88bf6b6a1833e289027",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "031896644f095bc464d85478aaf199592aa6bee851a80a972fbf2d7a2214857b",
+      "group_id": "c1cee7bfd4cbc624269be90ff5f1c3f586d69f71f384e6f7b63360fb47208579",
+      "id": "66f96115bb02136c067c541c",
+      "input_tokens": 22523,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "fa9d80a034186233347eeb45a5dab615b05c2b45e8a691802c97dfeea48f361a",
+      "question_hash": "cbbf973024013ba287d76bdd94306dd7cc94e407bb89b0fdacee753e8ae09406",
+      "split": "development"
+    },
+    {
+      "context_hash": "cb0b0c6d4c5c2174d952be820e2c16eb65e3e8379417dd7ec9a9f52b299ae2af",
+      "group_id": "f5f03387f5ed7e3ef87ba2d442e7ee37ea973609d9793b89de9225de88566f24",
+      "id": "66f9625fbb02136c067c5456",
+      "input_tokens": 13001,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "dc63545b27256331dde6bac51f934812f901092d4bbdee0f111337b5537d8020",
+      "question_hash": "08c9d0872477d5a6b6f59d17eb42de2028e06199b57a00d942227ece4f18f539",
+      "split": "development"
+    },
+    {
+      "context_hash": "06315b7c5e6ef046088f2b4de08e197ddaa3276d92214a6168fa8c26f7f17b98",
+      "group_id": "94dbaef7aaa901955e49f6ab20db7605b674159cbd3b8a5846b9b62e7b88f979",
+      "id": "66fa6867bb02136c067c6b3b",
+      "input_tokens": 24601,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "5cdf12c484ec84c7a80bc2603e1b19aeba3b694af01436085cd2eebbab08a563",
+      "question_hash": "1045af6b85a382147eb083c5626bee64047142035abb6d557e79549acac8dc5a",
+      "split": "development"
+    },
+    {
+      "context_hash": "e75f8eddbf714d86efd0e857130ecafa242aa6268537e349f041a72577e5ff31",
+      "group_id": "7b6c83ba6e4c8a5f5e3b17c1bb8e4010e71130647682d7cc3c03be8317f5af11",
+      "id": "66fa7f1dbb02136c067c6e6b",
+      "input_tokens": 15958,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "7413fb7e9951897901ed1700e00019c2c04dd80f34cbabc749647e2095ece9bd",
+      "question_hash": "1bbd76b92122618e087e889142d7461829dfe9cf936408670e2bc3fe6f5fc3b5",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "b9711e488863f52c84dbc1b8cf9fb9c3ffe8ae9ea86c573e52e7b4e1cfd092f0",
+      "group_id": "384ea2d26f25eec07acc1c32f3b0d0d532d1c6cca88153af14d21cd8c7e34a90",
+      "id": "66fab4bfbb02136c067c754c",
+      "input_tokens": 16812,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "e445a4e4af9618fc61449dcbea33205ee468dd795e612f9d904fc11c3705a705",
+      "question_hash": "abbd48f0539e44f3b36a8c6428dabeebc9907904a6ee80f38f209c6efac78057",
+      "split": "development"
+    },
+    {
+      "context_hash": "fc49df99f60ff46306bc499dcb205399f2c9b45a94e514c4f888f632972d4e66",
+      "group_id": "fd9fb5be8003d9775330a682cca3e1c0eee4f1e6d6d7d52e4a077c0d22388288",
+      "id": "66fb5f73bb02136c067c7ae7",
+      "input_tokens": 23263,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "f0a8751487d2010eb3d1315ffc7936bb0cceae7457da3d70f106ec24bb763171",
+      "question_hash": "cac5e652274c900920724c3d01f1104437b1a0fca2b31e92c0e1518b3c453e83",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "465795ac0e3d04926e87bdfee06dd37dce848e3ac838f879f1dc1d5faf8314e7",
+      "group_id": "0e7f819c7fde33f81f81cbf6f0686154f372a2d51afb025516a4feec6cdf0787",
+      "id": "66fb6d71bb02136c067c7c34",
+      "input_tokens": 27579,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "e1ef265ef13f95b6b4ab80c6ef4689409f7ed9f445d8ef2f03cb42005dddb8bc",
+      "question_hash": "34901b7f914f24cc336a6c4e017b15f1aced66ae288c5cf76628b1bc640689f5",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "acfcec5a7c52a8fe5118ae513b96a0630e4643aa0482ee3133346c56c96f1d37",
+      "group_id": "4f7fa62a610e26a2c2c3a3bb4e0d8010fea17574a4bd2ab144c4eb6584cb4d74",
+      "id": "66fbab85bb02136c067c81dc",
+      "input_tokens": 11470,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "e68c98761fb1b176b8ead8deec023d3908406f9f9d1dbe7b4085a4e21218a26f",
+      "question_hash": "9909a9f2bc7ba6141d8b6bc8986b8cabc4c51b49d560dd0f822c8005b1fec824",
+      "split": "development"
+    },
+    {
+      "context_hash": "5ea641528d039060960be23270452b8cc8af55f5534e8d98f495e2d589416da9",
+      "group_id": "8be99a9f7a739c63023c9820e0bae4a32388aeac9576724bf2129ac21ac04c9d",
+      "id": "66fc0152bb02136c067c8826",
+      "input_tokens": 28233,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "245ef29abd9716490b14e47485991538df970674961e04ced52e35bab8fac053",
+      "question_hash": "977683ad7f90255256b6b50eea9eccc3374670a80ba17a3a755115954b960c09",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "5e8abe5348bfb6ca93dae11a11671e0d2515c46d5a185b47deda24b497f5ace5",
+      "group_id": "195480950739c233a22da0586d496e53acab6cd6973e1bd29c153dfd10a59b7e",
+      "id": "66fcf2f2bb02136c067c9169",
+      "input_tokens": 22929,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "a00bc6965df4d1fcd6f9582088baed18eac2fc1e62f0927c52d9ce5056298928",
+      "question_hash": "56ce7ca880f0a30724e017feadf3e924bfc6313e887d3cd93e9d2c0074a6619c",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "7febd40cff552161b1913596c8c399eee7004d05d02eb159d1f5e570ae9cd449",
+      "group_id": "710cf37ffa28376271d4643a43758190a448161b773f75d8c5d8bbdfceb6b4ce",
+      "id": "66fcfb5fbb02136c067c93ae",
+      "input_tokens": 30359,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "d622ca5ebd34896a957b89eea6072e809ba057c28f012c3e40cf366716db0ebf",
+      "question_hash": "a7a76482b5fd612342c97c9221810dfacab7f1dfb5684fec9cf8863c6cd37bb3",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "cdc58f27b6e3836cd13e8a0ee8785116b38b5ebfdbf9f71926467b282e9b7c63",
+      "group_id": "36fc2e1a33b1d9941658c4d841672414b5aaaa308400b09ec320e83737310494",
+      "id": "66fe8eb3bb02136c067ca35f",
+      "input_tokens": 15668,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "b7b7decee4bae55550395f94a78a59461509320476d5cd537094fa593ca6fbcd",
+      "question_hash": "efc160b01517f1a5890b77ae97141a2bb5471e0e5471c271324a05b70fd4fb5f",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "e4863e2ba975b6c3f934efb2834095980d62d17620141dca40b6d9005626ae2f",
+      "group_id": "981b8eba744da43935654e09f4ddc5ec187e8df88cb2bceb75bfc741b1d941ad",
+      "id": "6701cda0bb02136c067cb6eb",
+      "input_tokens": 17613,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "b0fb89fde545ee20a2f02e0348cc02921cdb8b3a19c8ae34497bd714f46f6284",
+      "question_hash": "3a68f563f47bcf5d111843b74214a16432aa0883e00f258a67252b67759da503",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "70fb3136826f98c691db76d49d3848dc589f434e787ca1b06c854908748acd4d",
+      "group_id": "7f3b5d3a48104eb408cde10a69d2ce6267c5d89ac45c7ed82ef7be181661b361",
+      "id": "6703933bbb02136c067ccd78",
+      "input_tokens": 31754,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "6ada683585725ca8c98687de5fb45a9417f5da2aa35706b95f60942e208d8718",
+      "question_hash": "a6ea1a3a23e87563fcfdf9977e5e04fbe7b6cc7d9516e92834651c4a4e4333e8",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "bf11b7bbd3c78e91842bdf98ddf01415f2560a1b7d6733877808304bb2862be0",
+      "group_id": "400f3d93ab0ce9190d9f3b9e507cb3d6ee4a175adefe6cf99c708610725e4332",
+      "id": "6703fc69bb02136c067cd7c2",
+      "input_tokens": 20746,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "b1c28b722119c4d7b5125d72fe7b998f5774ebc2a6b26ed21ba0c44119d40689",
+      "question_hash": "ed8f4038ae0148936e1bd70b168885f0e4592146b9e6d230086c82d77327d59e",
+      "split": "development"
+    },
+    {
+      "context_hash": "0ada41dd0ac2f2e8010188bb6352a40d9218aa667ce37d3ee904fe66d5a0c84f",
+      "group_id": "0cd0e6c367a0a1be0bbc09e795f4fdf78b127638b599c8ded003d834f252b4b5",
+      "id": "67040276bb02136c067cd8ae",
+      "input_tokens": 14020,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "41757d668db3054d638680c6a379b1176d6ca2c70b4f3c927193f984905d78d2",
+      "question_hash": "7292e8a80b5d43ab024e98e1d14a631cd518e73448da611ffe19fbc4c5e61556",
+      "split": "development"
+    },
+    {
+      "context_hash": "318dc2a2e456f26af9b5c015a293a7993dc94b474451f00776652422f127b404",
+      "group_id": "c042e2225603a39fbc43aa56369fa93d18fa49307615812bd4cced3d93d31367",
+      "id": "6704a442bb02136c067cdd91",
+      "input_tokens": 16798,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "e219d813a9c9bc3e2a6001a06c537ba843633eae1cdb84706800a949598e9653",
+      "question_hash": "b6c27097b49fb460b3608f6255cc66470ca6f909b458f6255d2f82ab6c34e0b4",
+      "split": "development"
+    },
+    {
+      "context_hash": "b75646fd21c4a3cb80943a3f02bc35449e9b3ddff4aa2d1a96106147a6a7029e",
+      "group_id": "5ab5d9729ca1a345bc8fd0e637904a18ce5918f1d1e9911c47e699f02ff20a26",
+      "id": "6704a83dbb02136c067cde1b",
+      "input_tokens": 15647,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "874d46a4f8528447fc3313026a863810df868efe5db06970d640bd797c8ce2c8",
+      "question_hash": "c73f9090c6d4090a25b5b5cc0e88a527934df691368a7132baf449078f04a872",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "2280d3ee3305115e4edda7a78f758429181b6f240532d8e1da790b77b762bf7f",
+      "group_id": "1810c0b0d1b015e2474095f5157a03ec77d5a7f3c78ee28d51b3a7cdee94ed4e",
+      "id": "67062fbfbb02136c067cf66a",
+      "input_tokens": 21276,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "15f247c6934066191ceb8b1ffa4c02d086ee25ed0d67bffe306641ad21ec1256",
+      "question_hash": "ed55c156977f31d995f275954df6d43d962e20a34a7a9af1cf869e29082f6e5b",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "4d948db1afd2645766f2a57d9c393841dd1ac68098fc1d1f05a4a6e5b6b38946",
+      "group_id": "15dd42e2e189d96aeee10cae8799fc2c4b2cbdacc840d88944474a6a0472f961",
+      "id": "6708a096bb02136c067d1789",
+      "input_tokens": 24736,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "01231b26ca2188d5560807149db421dbe2297b02d51a468dfc6182ab4452c573",
+      "question_hash": "c7a1f35b39692d8bb8498ed0525f48347ccfdd8859e1218803a09b70ecfcf802",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "68335611cb8c0919c154bc84be9cee996b827756fb8851f2179180f4eb676d00",
+      "group_id": "6a933f41e6bf158ef653b9eedb506acde968b185573162fb2ae1209a329ac87a",
+      "id": "6709d44abb02136c067d1d5d",
+      "input_tokens": 19121,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Detective"
+      },
+      "prompt_token_hash": "9dc87c3aa90907abfad79bc17412d674049c9a40d107a8945fe426abe4629c79",
+      "question_hash": "4631df11fb90d845130480702072ff5c58b20b9ee59d0af31de48b86f6990b1c",
+      "split": "development"
+    },
+    {
+      "context_hash": "d5bf991f0ef2790cd06320c2b12de17b4e918513ba804273be986d9b8b7fc404",
+      "group_id": "91373ed3e32fef6ca379f24440f27bcdf9359147462e2dc8868fda1c8a417252",
+      "id": "6713066fbb02136c067d3214",
+      "input_tokens": 24514,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "7c6f15c5a0e87edb55b58052b0c321f9057a5a22d8c5da61d35390caa60c70ab",
+      "question_hash": "7773709d990d72d08a27832c4f7576dac6d8edeb7a503f6e4bc5ad3ca2d69a35",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "52fcc0f970c2313d707b63d859593175d0237d6353677a67242e0d7f845c0cb8",
+      "group_id": "2f053a604ba84301bddfa38a919410764cc4d6f375ef392da1e6d6a1590bb31b",
+      "id": "6719b9f1bb02136c067d4389",
+      "input_tokens": 24572,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "3c8b26208ab96b21192a7da360446453c0e33ef81df2ff6abc3279ee887bc3bc",
+      "question_hash": "89d191b59806ef3236223439a16052566f876be7568ce0dac3723be510b533b9",
+      "split": "development"
+    },
+    {
+      "context_hash": "14835c43f0cfda1f57c8141269166aa573e08363edf4559fcaa0604fcc4e9329",
+      "group_id": "2f053a604ba84301bddfa38a919410764cc4d6f375ef392da1e6d6a1590bb31b",
+      "id": "6719bc01bb02136c067d43fa",
+      "input_tokens": 24357,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "00058f22ebfa8a520e70d5b094d027808054108bf8b2cef9af22f92cf67be5f8",
+      "question_hash": "89d191b59806ef3236223439a16052566f876be7568ce0dac3723be510b533b9",
+      "split": "development"
+    },
+    {
+      "context_hash": "47a0122de3e2f959a396149faec29a8bcc6728033e3c856e9bb799ffd81c9103",
+      "group_id": "2f053a604ba84301bddfa38a919410764cc4d6f375ef392da1e6d6a1590bb31b",
+      "id": "6719bce5bb02136c067d4447",
+      "input_tokens": 24543,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "4a91feaee8ac9fa54806d023dca4310dad0bb32a6469c55deb9887ed7431dca4",
+      "question_hash": "89d191b59806ef3236223439a16052566f876be7568ce0dac3723be510b533b9",
+      "split": "development"
+    },
+    {
+      "context_hash": "90f21a496a81f448574cf5ebe14f9f89771de15d56d224c793f53b41abf3274f",
+      "group_id": "be7f9b9ad9403bc3b9f4dbd730eaf059e23624694bca277818960efafb893bfd",
+      "id": "671b08c8bb02136c067d4e19",
+      "input_tokens": 25921,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "f38905e0ebc7e013ea72aeb468e4774063afbdc3bac37e984c28c13d36a41502",
+      "question_hash": "6b045546c861705b9bf94cc272820a605f778dcf16df9afb87be4e874b7528e2",
+      "split": "development"
+    },
+    {
+      "context_hash": "cff637c06c2d63dd4544951e977f3d702ba14699fe931756d2d55458ab0287df",
+      "group_id": "be7f9b9ad9403bc3b9f4dbd730eaf059e23624694bca277818960efafb893bfd",
+      "id": "671b1335bb02136c067d4e88",
+      "input_tokens": 26021,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "d62387797c86efc897c3ce3514cbcc3ccce605a2f912ad0b90a6950d94937600",
+      "question_hash": "6718207b1f5061c588d70cebb38e4079c6afa509e0889469d1d97d8ab47ac323",
+      "split": "development"
+    },
+    {
+      "context_hash": "cff637c06c2d63dd4544951e977f3d702ba14699fe931756d2d55458ab0287df",
+      "group_id": "be7f9b9ad9403bc3b9f4dbd730eaf059e23624694bca277818960efafb893bfd",
+      "id": "671b13f5bb02136c067d4ee3",
+      "input_tokens": 26022,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "53c13776ba80c6d9a1e745f916123c408b7e85e21f6a92a8c6d6171af570349f",
+      "question_hash": "6b045546c861705b9bf94cc272820a605f778dcf16df9afb87be4e874b7528e2",
+      "split": "development"
+    },
+    {
+      "context_hash": "23a8fd1a17b1b71cf406d000d68eaa158573366a8fd928b18ad99cf4a8669050",
+      "group_id": "be7f9b9ad9403bc3b9f4dbd730eaf059e23624694bca277818960efafb893bfd",
+      "id": "671b1480bb02136c067d4f14",
+      "input_tokens": 26602,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "4e4e88383e0a9432d5c02e10ee57f56aaeb10f75d81ef76d2662738960a04fa5",
+      "question_hash": "6718207b1f5061c588d70cebb38e4079c6afa509e0889469d1d97d8ab47ac323",
+      "split": "development"
+    },
+    {
+      "context_hash": "c9c8ec3fecf08255675db3f5aea8563d636045863db41a639d85d234a3ad1b7f",
+      "group_id": "5fd933c24854df76e6241f7ab7954b54162930e4b30bc6f532a465798a12e8e0",
+      "id": "671b3d1bbb02136c067d5283",
+      "input_tokens": 30519,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "8f1335e6ced7256974f7d28b9c3f309be63c2739742a34dfcf3e9f1b589c50d2",
+      "question_hash": "c6ad34d1d712c890a78f981e191c3736990fee558be43e5e39d603bf8c5569db",
+      "split": "qualification"
+    },
+    {
+      "context_hash": "f10c43d99cd2318da7298ada7da4cceeef1be97a3fbff05fb5371b31ea6f5401",
+      "group_id": "7d8ad692b42791e5d928ab330e2f1136e60bc330e540f01b3eb845704eb3f849",
+      "id": "671b3d9fbb02136c067d52b2",
+      "input_tokens": 30456,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "2714c965972261df0c19de6f38246fc683fe771f09981ea85416f28d44f19ed1",
+      "question_hash": "d23230177a2340b5fe3ef1144401b31caeef22715822b9ba5284e747e615055d",
+      "split": "confirmation"
+    },
+    {
+      "context_hash": "c292d974d082f691b7296e365e1d446cfdc7fa4b81330f1bb254083192e51d6a",
+      "group_id": "fd99c5a6849ad212cff25d573637d7f9e11c7e6ab09f86a0f6c3681fa86a6031",
+      "id": "671b3e0cbb02136c067d52e5",
+      "input_tokens": 30352,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "145154110f064c667e73c6a88bfd8bf95eca4f5cb7028ed0ae9d2db878e7942f",
+      "question_hash": "1e16c352aad0f28a44d348326db0d030c7fb1b748545696d878cf36ef005ad63",
+      "split": "development"
+    },
+    {
+      "context_hash": "5b71eb07bec9b260761afe24a7f949e4fbc3ccbd67d78e115d1a634b58a429cd",
+      "group_id": "5fd933c24854df76e6241f7ab7954b54162930e4b30bc6f532a465798a12e8e0",
+      "id": "671b3fa1bb02136c067d5353",
+      "input_tokens": 30588,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "568cc83338f77c72a2758062944f6a54a8c229043850678cb050b7811772f006",
+      "question_hash": "c6ad34d1d712c890a78f981e191c3736990fee558be43e5e39d603bf8c5569db",
+      "split": "qualification"
+    }
+  ],
+  "manifest_version": "longbench_v2_sieve_v6_qwen30_manifest_v1",
+  "protocol": {
+    "dataset": {
+      "bytes": 465490535,
+      "repo": "zai-org/LongBench-v2",
+      "revision": "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9",
+      "sha256": "15d61c22d92c96900b3c4948b6aeea218d3214b676a65df48e7b8555604c7fe2"
+    },
+    "execution": {
+      "context_window": 40960,
+      "no_labels": true,
+      "no_truncation": true,
+      "selection_rule": "reuse_exact_v4_partition_no_row_filtering"
+    },
+    "forced_choice": {
+      "choice_branch_ids": {
+        "A": 32,
+        "B": 33,
+        "C": 34,
+        "D": 35
+      },
+      "scaffold_token_ids": [
+        785,
+        4396,
+        4226,
+        374,
+        320
+      ],
+      "temperature": 1.0
+    },
+    "model": {
+      "add_generation_prompt": true,
+      "chat_template_sha256": "64f85b198065d0fba2a81f37e10ed68161ce2c19a754c7100e67e0ca2ee9c326",
+      "enable_thinking": false,
+      "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+      "revision": "0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe",
+      "tag": "qwen3-30b-a3b-2507",
+      "tokenizer_revision": "0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe",
+      "tokenizers_version": "0.23.1",
+      "transformers_version": "5.16.1"
+    },
+    "official_prompt": {
+      "code_repo": "THUDM/LongBench",
+      "code_revision": "2e00731f8d0bff23dc4325161044d0ed8af94c1e",
+      "prompt_sha256": "68a162252bc9ff71d5d7abca3d69bb31aac3c35f832d657a2866f2018b8a6950"
+    },
+    "source_partition": {
+      "context_hash_version": "sha256_stripped_utf8_v1",
+      "manifest_content_sha256": "ee951a2c7b2c256125e73de4fba6f7e14485a566bbf6096c14c6e4f23e6407ff",
+      "manifest_file_sha256": "bd7b358a91081fd5657a2aa822a4c814ebfeb85f410d55cee25aa9f54223798e",
+      "manifest_version": "longbench_v2_sieve_v4_manifest_v1",
+      "question_hash_version": "sha256_stripped_utf8_v1",
+      "split_namespace_utf8": "longbench_v2_sieve_v4_group_split_v1\u0000",
+      "split_version": "longbench_v2_sieve_v4_context_question_components_v1"
+    }
+  },
+  "source_manifest": "h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_manifest.json",
+  "source_manifest_content_sha256": "ee951a2c7b2c256125e73de4fba6f7e14485a566bbf6096c14c6e4f23e6407ff",
+  "source_manifest_file_sha256": "bd7b358a91081fd5657a2aa822a4c814ebfeb85f410d55cee25aa9f54223798e",
+  "split_counts": {
+    "confirmation": {
+      "components": 45,
+      "id_prompt_sha256": "aa472585be2a840cd69d66a1054f300c1ff2b473a15d6af9b4d47a420c26fbfd",
+      "id_sha256": "31c9cd599df77ba9bada01ce601f1b04fa1e5c0316dd3198e1b20ba147231abe",
+      "id_token_sha256": "3b24f41058ae272268b465f2d4ce7847ed3c38e07684f5fa2322c406eb1344e6",
+      "input_tokens_max": 33438,
+      "input_tokens_min": 12677,
+      "rows": 45
+    },
+    "development": {
+      "components": 44,
+      "id_prompt_sha256": "befd2f05d107a41e8bee2cec59be3ae42cbf0e0f7359c393c1c948df9c49df71",
+      "id_sha256": "98bf6531b62e474a05b66f488b298d51b7c1ecb53e4e0e97c23495e8dacace35",
+      "id_token_sha256": "0e2db1d967d93da4a2f937423f9f330031753f989740252f90b32c68cd691cf8",
+      "input_tokens_max": 31848,
+      "input_tokens_min": 10873,
+      "rows": 52
+    },
+    "qualification": {
+      "components": 19,
+      "id_prompt_sha256": "7b72e05f7a14e295ffda04189cf8bb3842a56b37ce01fc81194f7bbd39555914",
+      "id_sha256": "e1a2b0a72f6e783369af4cb743d91a4725c373e5baa9a8db24b232fa45a3ca38",
+      "id_token_sha256": "bb453f5c5a27694cf2c9214d9752f4af0670f0a33a24ed2881caf78d0f5c2d51",
+      "input_tokens_max": 30588,
+      "input_tokens_min": 10150,
+      "rows": 20
+    }
+  }
+}

@@ -1,0 +1,9 @@
+# R8 operating-point k40 follow-up
+# primary: standard RULER string_match_all; secondary: first_ok
+# paired prompt bootstrap: 90%, 10000 replicates, seed 0
+k=40  FP=1.000  uniform=0.925  540-559(FP/uniform)=1.000/0.950  560-579(FP/uniform)=1.000/0.900
+  first_ok FP/uniform=1.000/0.925  uniform halves=0.950/0.900
+  FP-uniform=0.075 [0.025, 0.150]  incomplete-capped-FP=0  eligible=no
+  gates: FP>=.95=pass, FP-cap=pass, uniform[.50,.75]=fail, halves[.35,.85]=fail, delta-lo>.05=fail
+selection: no selection
+wrote h0_measurement/bugs/9_sota_eviction_baselines/op2_k40_982613_summary.csv

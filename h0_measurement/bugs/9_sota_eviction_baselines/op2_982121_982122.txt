@@ -1,0 +1,12 @@
+# R8 operating-point screen v2
+# paired prompt bootstrap: 90%, 10000 replicates, seed 0
+k=24  FP=1.000  uniform=1.000  500-519(FP/uniform)=1.000/1.000  520-539(FP/uniform)=1.000/1.000
+  first_ok FP/uniform=1.000/1.000  uniform halves=1.000/1.000
+  FP-uniform=0.000 [0.000, 0.000]  incomplete-capped-FP=0  eligible=no
+  gates: FP>=.95=pass, FP-cap=pass, uniform[.50,.75]=fail, halves[.35,.85]=fail, delta-lo>.05=fail
+k=32  FP=1.000  uniform=0.825  500-519(FP/uniform)=1.000/0.800  520-539(FP/uniform)=1.000/0.850
+  first_ok FP/uniform=1.000/0.825  uniform halves=0.800/0.850
+  FP-uniform=0.175 [0.075, 0.275]  incomplete-capped-FP=0  eligible=no
+  gates: FP>=.95=pass, FP-cap=pass, uniform[.50,.75]=fail, halves[.35,.85]=pass, delta-lo>.05=pass
+selection: no selection
+wrote h0_measurement/bugs/9_sota_eviction_baselines/op2_982121_982122_summary.csv

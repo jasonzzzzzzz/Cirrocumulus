@@ -22,12 +22,21 @@ import torch
 
 
 TRACE_RULE_VERSION = "fp_teacher_forced_v1"
+CHOICE_RULE_VERSION = "fp_canonical_abcd_kl_v1"
 METRIC_KEYS = (
     "mean_kl",
     "max_kl",
     "fp_token_cross_entropy",
     "top1_agreement",
     "trace_length",
+)
+CHOICE_METRIC_KEYS = (
+    "choice_kl",
+    "choice_top1_agreement",
+    "fp_choice_index",
+    "candidate_choice_index",
+    "fp_choice_entropy",
+    "candidate_choice_entropy",
 )
 
 
@@ -166,6 +175,47 @@ def divergence_metrics(ref_logits: torch.Tensor, cand_logits: torch.Tensor,
     }
 
 
+def choice_divergence_metrics(ref_choice_logits: torch.Tensor,
+                              candidate_choice_logits: torch.Tensor
+                              ) -> dict[str, float | int]:
+    """KL between FP and one complete policy over the four answer choices.
+
+    Inputs contain only the four A/B/C/D branch logits, in that fixed order.
+    Arithmetic is full float32 over all four choices.  Returned values are
+    scalars so raw model logits never enter an artifact.
+    """
+    if not isinstance(ref_choice_logits, torch.Tensor) or not isinstance(
+            candidate_choice_logits, torch.Tensor):
+        raise TypeError("choice logits must be torch tensors")
+    if ref_choice_logits.ndim != 1 or candidate_choice_logits.ndim != 1:
+        raise ValueError("choice logits must each have shape [4]")
+    if tuple(ref_choice_logits.shape) != (4,) or tuple(candidate_choice_logits.shape) != (4,):
+        raise ValueError(
+            f"choice logits must each have shape [4], got {tuple(ref_choice_logits.shape)} "
+            f"and {tuple(candidate_choice_logits.shape)}")
+    if ref_choice_logits.device != candidate_choice_logits.device:
+        raise ValueError("reference and candidate choice logits must share a device")
+    ref = ref_choice_logits.detach().to(dtype=torch.float32)
+    cand = candidate_choice_logits.detach().to(dtype=torch.float32)
+    if not bool(torch.isfinite(ref).all()) or not bool(torch.isfinite(cand).all()):
+        raise ValueError("choice logits must be finite")
+    ref_logp = torch.log_softmax(ref, dim=-1, dtype=torch.float32)
+    cand_logp = torch.log_softmax(cand, dim=-1, dtype=torch.float32)
+    ref_p, cand_p = ref_logp.exp(), cand_logp.exp()
+    kl = torch.sum(ref_p * (ref_logp - cand_logp), dtype=torch.float32)
+    ref_entropy = -torch.sum(ref_p * ref_logp, dtype=torch.float32)
+    cand_entropy = -torch.sum(cand_p * cand_logp, dtype=torch.float32)
+    ref_choice, cand_choice = int(ref.argmax().item()), int(cand.argmax().item())
+    return {
+        "choice_kl": float(kl.item()),
+        "choice_top1_agreement": float(ref_choice == cand_choice),
+        "fp_choice_index": ref_choice,
+        "candidate_choice_index": cand_choice,
+        "fp_choice_entropy": float(ref_entropy.item()),
+        "candidate_choice_entropy": float(cand_entropy.item()),
+    }
+
+
 def _ordered_values(values: Mapping[str, Any], order: Sequence[str]) -> tuple[str, ...]:
     names = tuple(order)
     if not names:
@@ -207,6 +257,30 @@ def select_min_mean(values: Mapping[str, Any], order: Sequence[str]) -> str:
     return best
 
 
+def select_min_choice_kl(values: Mapping[str, Any], order: Sequence[str]) -> str:
+    """Select the smallest ``choice_kl``; exact ties use declared order."""
+    names = _ordered_values(values, order)
+    best = names[0]
+
+    def get(name: str) -> float:
+        value = values[name]
+        if isinstance(value, Mapping):
+            if "choice_kl" not in value:
+                raise ValueError(f"candidate {name!r} has no choice_kl")
+            value = value["choice_kl"]
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError(f"choice_kl must be finite, got {value!r}")
+        return result
+
+    best_value = get(best)
+    for name in names[1:]:
+        value = get(name)
+        if value < best_value:
+            best, best_value = name, value
+    return best
+
+
 def end_task_ties(scores: Mapping[str, float], order: Sequence[str]) -> tuple[str, ...]:
     """Return every exact end-task-score maximizer in declared order."""
     names = _ordered_values(scores, order)
@@ -218,4 +292,3 @@ def end_task_ties(scores: Mapping[str, float], order: Sequence[str]) -> tuple[st
         vals[name] = value
     maximum = max(vals.values())
     return tuple(name for name in names if vals[name] == maximum)
-

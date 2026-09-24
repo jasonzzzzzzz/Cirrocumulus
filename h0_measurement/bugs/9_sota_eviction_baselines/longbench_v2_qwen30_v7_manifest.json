@@ -1,0 +1,7456 @@
+{
+  "content_sha256": "9692c79c22888820fed069ba45be93fa32059e35a148f4524530e4c6b4dfaa84",
+  "counts": {
+    "all_components": 447,
+    "dataset_rows": 503,
+    "eligible_singletons": 152,
+    "legacy_rows": 117,
+    "selected_rows": 117,
+    "singleton_rows_over_cap": 172,
+    "tainted_components": 108,
+    "tainted_rows": 121,
+    "untainted_singletons": 324
+  },
+  "eligible_id_sha256": "ce307baa9cc34cd0e94ab182a023ded7305b7875931f68f18e696844155c6eb4",
+  "examples": [
+    {
+      "content_token_positions": {
+        "A": [
+          113919,
+          113926,
+          113933,
+          113940,
+          113948,
+          113955,
+          113962,
+          113970
+        ],
+        "B": [
+          113974,
+          113981,
+          113989,
+          113996,
+          114004,
+          114011,
+          114019,
+          114027
+        ],
+        "C": [
+          114030,
+          114038,
+          114046,
+          114054,
+          114063,
+          114071,
+          114079,
+          114088
+        ],
+        "D": [
+          114091,
+          114098,
+          114105,
+          114112,
+          114119,
+          114126,
+          114133,
+          114141
+        ],
+        "question": [
+          113771,
+          113791,
+          113811,
+          113832,
+          113852,
+          113873,
+          113893,
+          113914
+        ]
+      },
+      "context_hash": "76cbd43041c4c0c5b649c3ba1dd8ba5ac115698c8ec6f914500694ec4affba5b",
+      "group_id": "aad450b058c5a9de99a6a8e5fdf87a36a14083a76527e276d67c4dc52ed78c13",
+      "id": "66eb873c5a08c7b9b35dd849",
+      "input_tokens": 114163,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "ada292936e7f184fb77b1b97ea7500ed242e018f88dbb7959e306717e25464ec",
+      "question_hash": "b0a80cef8f50c7d495c9889d8b00fd080c12e3b59ece89eb26b380a574583192",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          69612,
+          69617,
+          69623,
+          69629,
+          69634,
+          69640,
+          69646,
+          69652
+        ],
+        "B": [
+          69655,
+          69660,
+          69666,
+          69672,
+          69678,
+          69684,
+          69690,
+          69696
+        ],
+        "C": [
+          69699,
+          69703,
+          69708,
+          69713,
+          69718,
+          69723,
+          69728,
+          69733
+        ],
+        "D": [
+          69736,
+          69741,
+          69746,
+          69752,
+          69757,
+          69763,
+          69768,
+          69774
+        ],
+        "question": [
+          69536,
+          69546,
+          69556,
+          69566,
+          69576,
+          69586,
+          69596,
+          69607
+        ]
+      },
+      "context_hash": "611e3dd59bd47d5b152d81f774b743d2474ed6c555f036e6b2ff3b7e56112a44",
+      "group_id": "14a5859a75d22599628fb2532f871d52ead4a8113f46d2f8e7d76546b2f7ec59",
+      "id": "66ebc3165a08c7b9b35deb38",
+      "input_tokens": 69796,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "28afbb74fd9d9c8a40cf21a83ae3e134a6c428245ace209bc541988e94d40e9b",
+      "question_hash": "11fbfc10cb955a938a30b5d5eaf567dabac1f82c56bc2bcd1bc79282c7549ee6",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          81419,
+          81423,
+          81427,
+          81431,
+          81435,
+          81439,
+          81443,
+          81447
+        ],
+        "B": [
+          81450,
+          81451,
+          81453,
+          81455,
+          81457,
+          81459,
+          81461,
+          81463
+        ],
+        "C": [
+          81466,
+          81469,
+          81472,
+          81475,
+          81479,
+          81482,
+          81485,
+          81489
+        ],
+        "D": [
+          81492,
+          81494,
+          81496,
+          81499,
+          81501,
+          81504,
+          81506,
+          81509
+        ],
+        "question": [
+          81381,
+          81385,
+          81390,
+          81395,
+          81399,
+          81404,
+          81409,
+          81414
+        ]
+      },
+      "context_hash": "40403e422120464b86e103239f47bdbe191d00c71d381ee39954fb5ac3b99d75",
+      "group_id": "29849012ef426a708d0d453b7d9f9481f98ff0d8736c1bd397d36b5097badb59",
+      "id": "66ebd0ea5a08c7b9b35dff57",
+      "input_tokens": 81532,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "e1de414f3defa51b89319a166a7ce98d7ccea0eab95384873dc259f4c1776e5f",
+      "question_hash": "6f62c714b9b55502f71e09384a3f0b90160dcfe623d7e9a2a09ff9412d236d9d",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          69691,
+          69693,
+          69695,
+          69698,
+          69700,
+          69703,
+          69705,
+          69708
+        ],
+        "B": [
+          69712,
+          69713,
+          69715,
+          69717,
+          69719,
+          69721,
+          69723,
+          69725
+        ],
+        "C": [
+          69729,
+          69731,
+          69733,
+          69736,
+          69738,
+          69741,
+          69743,
+          69746
+        ],
+        "D": [
+          69750,
+          69753,
+          69756,
+          69759,
+          69762,
+          69765,
+          69768,
+          69771
+        ],
+        "question": [
+          69663,
+          69666,
+          69669,
+          69672,
+          69676,
+          69679,
+          69682,
+          69686
+        ]
+      },
+      "context_hash": "4e50a199d40d388f0a548b41897df81c98fe3940e491ab027e035d1e9d5bea06",
+      "group_id": "222a36f59febb9889fa14c7b110eb1e3597205c73aca8d5e80b4b04474921e98",
+      "id": "66ebd2975a08c7b9b35e01e3",
+      "input_tokens": 69794,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "da62997ba1241fb65aa7ebff4f60959383ce112e009f0821414b86f10adc1dbc",
+      "question_hash": "752dda603d94ea8a4a65ef51c31375aae4f55fee343c1476779a9efc28087cc8",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          117583,
+          117593,
+          117603,
+          117613,
+          117623,
+          117633,
+          117643,
+          117654
+        ],
+        "B": [
+          117657,
+          117670,
+          117683,
+          117696,
+          117709,
+          117722,
+          117735,
+          117748
+        ],
+        "C": [
+          117751,
+          117762,
+          117773,
+          117784,
+          117795,
+          117806,
+          117817,
+          117828
+        ],
+        "D": [
+          117831,
+          117840,
+          117850,
+          117859,
+          117869,
+          117878,
+          117888,
+          117898
+        ],
+        "question": [
+          117479,
+          117493,
+          117507,
+          117521,
+          117535,
+          117549,
+          117563,
+          117578
+        ]
+      },
+      "context_hash": "4d93bbc0582e58ae89ef65c53600b7899ace1681e71a2697d024dd586d101a71",
+      "group_id": "ffacf8596eec253c7fd3ee4a7dda12226bb1ec4fe6327f33c07a74f8556ed76b",
+      "id": "66ebd3ba5a08c7b9b35e0446",
+      "input_tokens": 117920,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "medium",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "c6e807b6934865b75a7b3d81fc20bfcd1f88fc9e96845edfa499c2547e0aeec7",
+      "question_hash": "69cfd6d7b3c5de955a024904fa43ad7e6555cfcb429f94c64980df601e12ee67",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          106927,
+          106933,
+          106939,
+          106945,
+          106952,
+          106958,
+          106964,
+          106971
+        ],
+        "B": [
+          106974,
+          106982,
+          106990,
+          106999,
+          107007,
+          107016,
+          107024,
+          107033
+        ],
+        "C": [
+          107036,
+          107041,
+          107047,
+          107052,
+          107058,
+          107063,
+          107069,
+          107075
+        ],
+        "D": [
+          107078,
+          107083,
+          107088,
+          107093,
+          107098,
+          107103,
+          107108,
+          107113
+        ],
+        "question": [
+          106914,
+          106915,
+          106916,
+          106917,
+          106918,
+          106919,
+          106920,
+          106922
+        ]
+      },
+      "context_hash": "2a210da385a55318249afb15ceec024becea73f7e9f15f1d491886da85123300",
+      "group_id": "b46252f92e8c22174f35df1956139df7d6f5aed63bb45f241972f315b1cf0e00",
+      "id": "66ebdfb65a08c7b9b35e140a",
+      "input_tokens": 107135,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "b4f545a78b5f987bd0719516085946056d5a54b2bc262122ba824e7bcfbb1229",
+      "question_hash": "2057943be9b1d32e8ffab98c6f24cec5317d6f67eab5edcc4b7d6401fc43c087",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          52428,
+          52430,
+          52433,
+          52436,
+          52439,
+          52442,
+          52445,
+          52448
+        ],
+        "B": [
+          52451,
+          52453,
+          52455,
+          52458,
+          52460,
+          52463,
+          52465,
+          52468
+        ],
+        "C": [
+          52471,
+          52473,
+          52475,
+          52478,
+          52480,
+          52483,
+          52485,
+          52488
+        ],
+        "D": [
+          52491,
+          52494,
+          52497,
+          52500,
+          52503,
+          52506,
+          52509,
+          52512
+        ],
+        "question": [
+          52382,
+          52387,
+          52393,
+          52399,
+          52405,
+          52411,
+          52417,
+          52423
+        ]
+      },
+      "context_hash": "7cc75d72d3fd9f08b01d5ff5dd251937cb8f1c946b96cf0d844c434ee5643764",
+      "group_id": "afd14661295731b56589aceaa55c5295479ab6c3a0d8685b5e0f3d0e3a2ab11d",
+      "id": "66ebf9bf5a08c7b9b35e1f85",
+      "input_tokens": 52534,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "ae08e7359273734d76d1c295111cb6d063c980939517e6abec6c2a995e34e809",
+      "question_hash": "e60b84f476efc458328c12171dc21b515b4d0a15a87d73dc68e616fad5721144",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          34719
+        ],
+        "B": [
+          34723
+        ],
+        "C": [
+          34727
+        ],
+        "D": [
+          34731
+        ],
+        "question": [
+          34706,
+          34707,
+          34708,
+          34709,
+          34710,
+          34711,
+          34712,
+          34714
+        ]
+      },
+      "context_hash": "843f0343db9f60cd5a199fa6cb8d66ddcc02ce3ad8f3e272c173000fced2d110",
+      "group_id": "9bee7d9ddbe623fca8f919f2c2b91eecc682411583a65ce54becf68d6c8cc7c0",
+      "id": "66ec052a5a08c7b9b35e29c7",
+      "input_tokens": 34754,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "df101aa3484e6301f0a104aa5a2a6fd8df239b57e7d9c954b9e3ba4888539ac5",
+      "question_hash": "85a6f9cc0258820579cec02ab34877048c9ce9894efea54a7171a36c194bc7dc",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          42941,
+          42956,
+          42972,
+          42988,
+          43004,
+          43020,
+          43036,
+          43052
+        ],
+        "B": [
+          43056,
+          43071,
+          43087,
+          43103,
+          43118,
+          43134,
+          43150,
+          43166
+        ],
+        "C": [
+          43170,
+          43186,
+          43202,
+          43218,
+          43234,
+          43250,
+          43266,
+          43283
+        ],
+        "D": [
+          43287,
+          43302,
+          43318,
+          43334,
+          43350,
+          43366,
+          43382,
+          43398
+        ],
+        "question": [
+          42736,
+          42764,
+          42792,
+          42821,
+          42849,
+          42878,
+          42906,
+          42935
+        ]
+      },
+      "context_hash": "ddb77cf856511c256ea17bc606d51d3263cc74af656942400084b86f5bb7a607",
+      "group_id": "d72554811120d3458bf6649ad13eae80656564b31d0f4953d4f5ca476ad72d0d",
+      "id": "66ec0874821e116aacb194a4",
+      "input_tokens": 43420,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "3e471a89b4be29cde381c4817f049506510c3d8c84de3922030a69e3563fcd61",
+      "question_hash": "73771ab1170334b81044ef742028bfb9808e4595f1a995b5bd4e9cf23a71df50",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          40769,
+          40783,
+          40797,
+          40811,
+          40825,
+          40839,
+          40853,
+          40868
+        ],
+        "B": [
+          40871,
+          40884,
+          40898,
+          40912,
+          40925,
+          40939,
+          40953,
+          40967
+        ],
+        "C": [
+          40970,
+          40985,
+          41000,
+          41015,
+          41030,
+          41045,
+          41060,
+          41076
+        ],
+        "D": [
+          41079,
+          41092,
+          41106,
+          41120,
+          41133,
+          41147,
+          41161,
+          41175
+        ],
+        "question": [
+          40630,
+          40649,
+          40668,
+          40687,
+          40706,
+          40725,
+          40744,
+          40764
+        ]
+      },
+      "context_hash": "e10d238d9d394a6f65e28190ec953902611f623c7a063d0dc2350c6bee180a9c",
+      "group_id": "c805f3b612750971936d52f11a1f7f2c00b38026094df679a1f883384af86f7b",
+      "id": "66ec0f7f821e116aacb19dde",
+      "input_tokens": 41197,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "3037b12a5e4b75ec8b38074c973da4e1f3bfce18241043e4cad48fe1e4b09443",
+      "question_hash": "ac0d17dd15e237846ca348258f2260fc59143099aac39fb796ac943167084c6f",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          44641,
+          44642,
+          44643,
+          44644,
+          44645,
+          44646,
+          44647,
+          44649
+        ],
+        "B": [
+          44653,
+          44654,
+          44655,
+          44656,
+          44658,
+          44659,
+          44660,
+          44662
+        ],
+        "C": [
+          44666,
+          44668,
+          44670,
+          44672,
+          44674,
+          44676,
+          44678,
+          44680
+        ],
+        "D": [
+          44684,
+          44685,
+          44686,
+          44687,
+          44688,
+          44689,
+          44690,
+          44691
+        ],
+        "question": [
+          44613,
+          44616,
+          44619,
+          44622,
+          44626,
+          44629,
+          44632,
+          44636
+        ]
+      },
+      "context_hash": "c06ed54e336777fc68a9cb3660995b64b524b6d594e07add9d8c1a60f04b0e1e",
+      "group_id": "d07278bfeca607e51a84aa92e33eeb5821a2a3b8344732c725cee2fbf35a0341",
+      "id": "66ec18a7821e116aacb1a72e",
+      "input_tokens": 44714,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "534a7e4d7ad7bb2c94221c8c9eb29d0bb346df443ce9940d3c32df110ad6f817",
+      "question_hash": "08eb697c32d25b943f66f7ecd0ea376752ba5064b1aaad68ea05a7b3b028de1b",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          61915,
+          61931,
+          61947,
+          61963,
+          61979,
+          61995,
+          62011,
+          62027
+        ],
+        "B": [
+          62030,
+          62048,
+          62066,
+          62085,
+          62103,
+          62122,
+          62140,
+          62159
+        ],
+        "C": [
+          62162,
+          62180,
+          62198,
+          62216,
+          62234,
+          62252,
+          62270,
+          62289
+        ],
+        "D": [
+          62292,
+          62310,
+          62329,
+          62347,
+          62366,
+          62384,
+          62403,
+          62422
+        ],
+        "question": [
+          61755,
+          61777,
+          61799,
+          61821,
+          61843,
+          61865,
+          61887,
+          61910
+        ]
+      },
+      "context_hash": "012079b713faae4a856bbea713c6a7ad288f45f9adcfaa7e1ca1dae632428832",
+      "group_id": "2ec8142706bfac2e87237b9823357aa6a10bb0f30a26f2deac83362afc30c405",
+      "id": "66ec1aef821e116aacb1aa1a",
+      "input_tokens": 62444,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "c0d70df58de794102bc999381695f9cf3d1a4acd22fc70c974b694fed3c92795",
+      "question_hash": "5c1b3ccb864c0482eb3608457e30d78fd3ae116a5c80be9de5111fc5628609c7",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          98554,
+          98555,
+          98557,
+          98559,
+          98560,
+          98562,
+          98564,
+          98566
+        ],
+        "B": [
+          98569,
+          98570,
+          98572,
+          98573,
+          98575,
+          98576,
+          98578,
+          98580
+        ],
+        "C": [
+          98583,
+          98586,
+          98589,
+          98593,
+          98596,
+          98600,
+          98603,
+          98607
+        ],
+        "D": [
+          98610,
+          98614,
+          98618,
+          98622,
+          98627,
+          98631,
+          98635,
+          98640
+        ],
+        "question": [
+          98532,
+          98534,
+          98536,
+          98539,
+          98541,
+          98544,
+          98546,
+          98549
+        ]
+      },
+      "context_hash": "67d40815d51891cef1ec197d928354a13a36f73a416e991796c9503bd2690a55",
+      "group_id": "0ebc1ee6321bde5230458916c67bd0c3814a01588742705b2f31b0be25500f29",
+      "id": "66ec31eb821e116aacb1bf28",
+      "input_tokens": 98663,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "6d4d021b65b042c5e2c4e8d2572f661948d667f6e7ca53032c154fe5820f779a",
+      "question_hash": "acc5a24ca6cf8f8e9433ab929a9e28fd7943e6d6b33c821e6390ec41384b648f",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          54999,
+          55000,
+          55001,
+          55002
+        ],
+        "B": [
+          55007,
+          55008,
+          55009,
+          55010
+        ],
+        "C": [
+          55015,
+          55016,
+          55017,
+          55018
+        ],
+        "D": [
+          55023,
+          55024,
+          55025,
+          55026
+        ],
+        "question": [
+          54896,
+          54909,
+          54923,
+          54937,
+          54951,
+          54965,
+          54979,
+          54993
+        ]
+      },
+      "context_hash": "ae09f9ed360293dc92bd47bd0bdf96375dab17ccac2eafbf0a9c3f83f3d836e0",
+      "group_id": "b391102aea0e1b039088f593ee97089f108fac28842f9fe26cf14554a945b7dd",
+      "id": "66ec332a821e116aacb1c042",
+      "input_tokens": 55049,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "35f7815e49cfd97b45d4c3fdb7dd806a08ea1729fbba76d51fdbe4ed4cde9981",
+      "question_hash": "af3f93eb437912461654a74886dd8765a6573ce47d9876721608e422c97bff9d",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          93604,
+          93616,
+          93628,
+          93640,
+          93652,
+          93664,
+          93676,
+          93689
+        ],
+        "B": [
+          93692,
+          93704,
+          93716,
+          93728,
+          93741,
+          93753,
+          93765,
+          93778
+        ],
+        "C": [
+          93781,
+          93792,
+          93803,
+          93815,
+          93826,
+          93838,
+          93849,
+          93861
+        ],
+        "D": [
+          93864,
+          93876,
+          93889,
+          93902,
+          93914,
+          93927,
+          93940,
+          93953
+        ],
+        "question": [
+          93532,
+          93541,
+          93551,
+          93560,
+          93570,
+          93579,
+          93589,
+          93599
+        ]
+      },
+      "context_hash": "4843afdc1b59ccad818a4a517df09c05939edd09fee3cecb5b116041a57721d2",
+      "group_id": "4bd70aaf07092dc40b8026687c60b1f47fe7d091758b78c0c98a0c5a00f18938",
+      "id": "66ec3644821e116aacb1c312",
+      "input_tokens": 93975,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "3414fb78f4e677072daf8bb599a61a8302ff791ba3d5c9687e5f033462b95368",
+      "question_hash": "95ddea2705ce12adfe9f645298cad4c1893e55046aa6b6605c0a4ea3ef6de955",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          83739,
+          83742,
+          83745,
+          83748,
+          83752,
+          83755,
+          83758,
+          83762
+        ],
+        "B": [
+          83765,
+          83769,
+          83773,
+          83777,
+          83781,
+          83785,
+          83789,
+          83794
+        ],
+        "C": [
+          83797,
+          83798,
+          83799,
+          83800,
+          83802,
+          83803,
+          83804,
+          83806
+        ],
+        "D": [
+          83809,
+          83812,
+          83815,
+          83818,
+          83821,
+          83824,
+          83827,
+          83830
+        ],
+        "question": [
+          83718,
+          83720,
+          83722,
+          83724,
+          83727,
+          83729,
+          83731,
+          83734
+        ]
+      },
+      "context_hash": "352d71d03a46e5a1c2b2da795213cee5f32323603dba1eaa4b68699798aa4a16",
+      "group_id": "30a261876765b501112acdd693c118edf4fd943e26f75fb298dfcdc8bbf043da",
+      "id": "66ec3aff821e116aacb1c52e",
+      "input_tokens": 83852,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "e36e5685d2adb6ecb67a53e06dafdae772a4d0a84f1987f6c67b8dde1a350fe7",
+      "question_hash": "489ebf9eafee7c8f8bcaefbdeec991dcc20af124b495f278c5e846ab9699f4d1",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          87037,
+          87041,
+          87045,
+          87049,
+          87053,
+          87057,
+          87061,
+          87066
+        ],
+        "B": [
+          87069,
+          87073,
+          87078,
+          87082,
+          87087,
+          87091,
+          87096,
+          87101
+        ],
+        "C": [
+          87104,
+          87107,
+          87110,
+          87113,
+          87117,
+          87120,
+          87123,
+          87127
+        ],
+        "D": [
+          87130,
+          87137,
+          87144,
+          87151,
+          87158,
+          87165,
+          87172,
+          87180
+        ],
+        "question": [
+          87000,
+          87004,
+          87009,
+          87013,
+          87018,
+          87022,
+          87027,
+          87032
+        ]
+      },
+      "context_hash": "65036630e4968bea8b662aadcf2eaf152028adfc21fb594fd40662aa36d0bd58",
+      "group_id": "d3cfc6278650c27f99b591fc7673fe4d235ca46458c50d7a74337bde023b1f24",
+      "id": "66ec4370821e116aacb1c905",
+      "input_tokens": 87202,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "82d3ea3024ec685ef67e5c9ae7dc534347ecf17a190062f36896d4e5da65b12b",
+      "question_hash": "1122c2b6a815d301f8f7fd2382c768d8a4cb2d4236b77e015100408018808776",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          126862,
+          126865,
+          126868,
+          126871,
+          126875,
+          126878,
+          126881,
+          126885
+        ],
+        "B": [
+          126888,
+          126892,
+          126896,
+          126900,
+          126904,
+          126908,
+          126912,
+          126916
+        ],
+        "C": [
+          126919,
+          126924,
+          126929,
+          126934,
+          126939,
+          126944,
+          126949,
+          126955
+        ],
+        "D": [
+          126958,
+          126962,
+          126966,
+          126970,
+          126974,
+          126978,
+          126982,
+          126987
+        ],
+        "question": [
+          126847,
+          126848,
+          126849,
+          126851,
+          126852,
+          126854,
+          126855,
+          126857
+        ]
+      },
+      "context_hash": "b0a308669600f6690a41ad15787bd265cb89b68a361f52e1d1a76091876a0e68",
+      "group_id": "fe73ac43776baf44306b164711a15399a663714043ff5ae5b5eed00dea6cd4aa",
+      "id": "66ec4e43821e116aacb1cb54",
+      "input_tokens": 127009,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "be5afc695438ec15e98e7ca23032d9ce8786ccb1c6bcff5be161d3ec6b915480",
+      "question_hash": "ef57cdfa07d2012cce8fbb27ef94cd4f2811a09faf972d5775c9a8e1320ff9bd",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          101485,
+          101487,
+          101490,
+          101493,
+          101495,
+          101498,
+          101501,
+          101504
+        ],
+        "B": [
+          101507,
+          101509,
+          101511,
+          101513,
+          101516,
+          101518,
+          101520,
+          101523
+        ],
+        "C": [
+          101526,
+          101529,
+          101532,
+          101535,
+          101539,
+          101542,
+          101545,
+          101549
+        ],
+        "D": [
+          101552,
+          101555,
+          101558,
+          101562,
+          101565,
+          101569,
+          101572,
+          101576
+        ],
+        "question": [
+          101466,
+          101468,
+          101470,
+          101472,
+          101474,
+          101476,
+          101478,
+          101480
+        ]
+      },
+      "context_hash": "91c1416012b4ec497d77867c730bbd2b17d44a14b55253c5a6a28e679ebebe28",
+      "group_id": "1e958cbc82ee3792075f7f173779a5d137a4eb6c84c010bf28df6ee05fd0d047",
+      "id": "66ec542b821e116aacb1cc87",
+      "input_tokens": 101598,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "101e88ae004497ed29e1a7ae968afe1bff77d5329e0df7a95eed497b66c1e4d0",
+      "question_hash": "2e379a8aaa3f9be27649cd6cfefc457a5f30cc16ecc5896a70b06c3e88507e18",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          39832,
+          39834,
+          39836,
+          39838,
+          39840,
+          39842,
+          39844,
+          39847
+        ],
+        "B": [
+          39851,
+          39854,
+          39858,
+          39862,
+          39865,
+          39869,
+          39873,
+          39877
+        ],
+        "C": [
+          39881,
+          39883,
+          39885,
+          39887,
+          39890,
+          39892,
+          39894,
+          39897
+        ],
+        "D": [
+          39901,
+          39902,
+          39903,
+          39904,
+          39905,
+          39906,
+          39907,
+          39909
+        ],
+        "question": [
+          39814,
+          39815,
+          39817,
+          39819,
+          39820,
+          39822,
+          39824,
+          39826
+        ]
+      },
+      "context_hash": "aeb62b7ffeb228d9287b93681806b4da58a2d084390581763f8eef058299ad7b",
+      "group_id": "34a00a60cef08e25d6d62db806d75d9bf82a1c928be13511e8cbd917e9b10500",
+      "id": "66ec5af0821e116aacb1ce41",
+      "input_tokens": 39932,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "80a4c31bc2c83ae8c856dbd5ebb0d92ccce679ba4c0bd02ee3b287715190142d",
+      "question_hash": "4b2c948f22030bfffd9c40b6582c600055a98862b7e0fbca4fe93a89ccddc7f1",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          96340,
+          96342,
+          96344,
+          96346,
+          96348,
+          96350,
+          96352,
+          96354
+        ],
+        "B": [
+          96357,
+          96360,
+          96363,
+          96367,
+          96370,
+          96374,
+          96377,
+          96381
+        ],
+        "C": [
+          96384,
+          96386,
+          96389,
+          96391,
+          96394,
+          96396,
+          96399,
+          96402
+        ],
+        "D": [
+          96405,
+          96407,
+          96409,
+          96411,
+          96413,
+          96415,
+          96417,
+          96420
+        ],
+        "question": [
+          96317,
+          96319,
+          96322,
+          96324,
+          96327,
+          96329,
+          96332,
+          96335
+        ]
+      },
+      "context_hash": "f830d4f976d4e5e98efded7fef3e8966277fb51174205103defcc0ba08c93b46",
+      "group_id": "a8ade475226a482989220d382758c45f6d90aef2f4ba8895123e47dea416a723",
+      "id": "66ec6582821e116aacb1cf7a",
+      "input_tokens": 96442,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "649a212342a18fbbfb222ba14e4a5509147e0509e7de8d8c27f31b8c116f2b3d",
+      "question_hash": "0af9c24eef27ba1a0669a3a194e8f9f39d96a57dd9000ce9bf9c216191bb85c0",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          54460,
+          54461,
+          54462,
+          54463,
+          54465,
+          54466,
+          54467,
+          54469
+        ],
+        "B": [
+          54472,
+          54473,
+          54474,
+          54475,
+          54477,
+          54478,
+          54479,
+          54481
+        ],
+        "C": [
+          54484,
+          54485,
+          54486,
+          54487,
+          54489,
+          54490,
+          54491,
+          54493
+        ],
+        "D": [
+          54496,
+          54497,
+          54498,
+          54499,
+          54500,
+          54501,
+          54502,
+          54504
+        ],
+        "question": [
+          54437,
+          54439,
+          54442,
+          54444,
+          54447,
+          54449,
+          54452,
+          54455
+        ]
+      },
+      "context_hash": "3b06f08d09873416db7fefae37846e279ca3485d63504c0f137afafe54439d47",
+      "group_id": "152e12026699cd596c7ec6e3f8ef3f7f9f0a4ac95baaf5eef5031a5767226e1e",
+      "id": "66ece28e821e116aacb1db1f",
+      "input_tokens": 54526,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "dbdee4e4d8cfb12bc085dcc7a329d14bbc255e05a1cca3ca830537a8f7fd2eb2",
+      "question_hash": "9571679cdba7a6986a00973632ce919fa9a480c0d26f69b1acf0b634afd17755",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          50476,
+          50478,
+          50480,
+          50483,
+          50485,
+          50488,
+          50490,
+          50493
+        ],
+        "B": [
+          50496,
+          50499,
+          50502,
+          50505,
+          50508,
+          50511,
+          50514,
+          50517
+        ],
+        "C": [
+          50520,
+          50523,
+          50526,
+          50529,
+          50532,
+          50535,
+          50538,
+          50541
+        ],
+        "D": [
+          50544,
+          50548,
+          50553,
+          50557,
+          50562,
+          50566,
+          50571,
+          50576
+        ],
+        "question": [
+          50442,
+          50446,
+          50450,
+          50454,
+          50458,
+          50462,
+          50466,
+          50471
+        ]
+      },
+      "context_hash": "b4aa20078ab9681e6a87213971ad0c3e291e9cc959d57d034e25a717fab6d0ad",
+      "group_id": "b696dcdb520dcb10b2edf15949fd34e01326d22e115edd618cf5667e12839e2a",
+      "id": "66ecf139821e116aacb1e0e1",
+      "input_tokens": 50598,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "eaea9399907a3a6595e06b34d4e37e14f67dd985d3a9ef7db6b6e2f2731d5601",
+      "question_hash": "c9b2f35367634b847c95d00b7b141dafff43eefd763d30a16ad2ab89a2f64797",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          70078,
+          70083,
+          70088,
+          70093,
+          70098,
+          70103,
+          70108,
+          70114
+        ],
+        "B": [
+          70117,
+          70122,
+          70128,
+          70133,
+          70139,
+          70144,
+          70150,
+          70156
+        ],
+        "C": [
+          70159,
+          70164,
+          70170,
+          70175,
+          70181,
+          70186,
+          70192,
+          70198
+        ],
+        "D": [
+          70201,
+          70206,
+          70211,
+          70216,
+          70221,
+          70226,
+          70231,
+          70237
+        ],
+        "question": [
+          70025,
+          70031,
+          70038,
+          70045,
+          70052,
+          70059,
+          70066,
+          70073
+        ]
+      },
+      "context_hash": "c1a7807b4ff81544673c11392d312e9a7b9a77a607c6809cbd01e10b76d3ad26",
+      "group_id": "fd45a5d8ff54d857fb41de3134c4a5291a8e1dd3ee81f3d9290dc78a3942cf8c",
+      "id": "66ecfe1e821e116aacb1e41c",
+      "input_tokens": 70259,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "8d8ec4e70861ed9bb91d690f4e62ae00633f5d057fd5084834daa274f3842247",
+      "question_hash": "c99da10ef1bb209b7d060904660fb1271e05f8fa06627716da7c863565b94660",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          104137,
+          104142,
+          104148,
+          104154,
+          104159,
+          104165,
+          104171,
+          104177
+        ],
+        "B": [
+          104180,
+          104184,
+          104189,
+          104194,
+          104198,
+          104203,
+          104208,
+          104213
+        ],
+        "C": [
+          104216,
+          104221,
+          104226,
+          104231,
+          104237,
+          104242,
+          104247,
+          104253
+        ],
+        "D": [
+          104256,
+          104259,
+          104262,
+          104266,
+          104269,
+          104273,
+          104276,
+          104280
+        ],
+        "question": [
+          104121,
+          104122,
+          104124,
+          104125,
+          104127,
+          104128,
+          104130,
+          104132
+        ]
+      },
+      "context_hash": "8b0cbb946f2b7088d3ef031a86dfbacfe57897a8e80539274e05640d0fa592af",
+      "group_id": "0cdc31c9e48fae3ce899b6f2802030c7a663dbf37508ced5e5f441e3e40707df",
+      "id": "66ed1734821e116aacb1ead5",
+      "input_tokens": 104302,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "61c71720e836d6dc6693d39649dc8901bd428308542b37fa5b06fc4047e1678a",
+      "question_hash": "0d181f417bc2b03643ba1c40493549255063fc832ba131df6966e8ea8f0184ad",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          93624,
+          93626,
+          93628,
+          93630,
+          93632,
+          93634,
+          93636,
+          93638
+        ],
+        "B": [
+          93642,
+          93644,
+          93647,
+          93650,
+          93653,
+          93656,
+          93659,
+          93662
+        ],
+        "C": [
+          93665,
+          93667,
+          93669,
+          93671,
+          93673,
+          93675,
+          93677,
+          93680
+        ],
+        "D": [
+          93684,
+          93686,
+          93688,
+          93690,
+          93693,
+          93695,
+          93697,
+          93700
+        ],
+        "question": [
+          93599,
+          93601,
+          93604,
+          93607,
+          93610,
+          93613,
+          93616,
+          93619
+        ]
+      },
+      "context_hash": "ec40831886d1dee8fe2dbf9b1b2a20f000ba5a2ebe1f585e15ce7ad2c997c84c",
+      "group_id": "f83ecc6074df32ec0e02554177a5e40159e3075bbf5e8f853f84703f4dec03cf",
+      "id": "66ed211f821e116aacb1ee0d",
+      "input_tokens": 93723,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "5dea29a9c0ba0e7dd1a31df7679e5324a07c181ee3f06bbabe9f163f8a119a2a",
+      "question_hash": "fbf77c7bebbd45fc066dfa11857fec272b0a8450465d74d6ff8f38372baacf71",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119296,
+          119299,
+          119302,
+          119306,
+          119309,
+          119313,
+          119316,
+          119320
+        ],
+        "B": [
+          119323,
+          119327,
+          119331,
+          119336,
+          119340,
+          119345,
+          119349,
+          119354
+        ],
+        "C": [
+          119357,
+          119361,
+          119366,
+          119371,
+          119375,
+          119380,
+          119385,
+          119390
+        ],
+        "D": [
+          119393,
+          119398,
+          119403,
+          119408,
+          119413,
+          119418,
+          119423,
+          119429
+        ],
+        "question": [
+          119280,
+          119281,
+          119283,
+          119284,
+          119286,
+          119287,
+          119289,
+          119291
+        ]
+      },
+      "context_hash": "e6613dccd4ab69556e3999121dc3a3ab260422e3a5762d434b66ffb979534413",
+      "group_id": "9bef4484f2843878f28de814fbbca4d8c232c561b85af9b7040ce0eb430f3239",
+      "id": "66ed23ce821e116aacb1ee84",
+      "input_tokens": 119451,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "c56b9972a367fbc0d03c190cdde9c63f8b8f4e31171f199b39561ecf1feb73e5",
+      "question_hash": "e654c85f176a2851dcc6628813d159ed78cd816938b64af2aa6192bae1c07140",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          83736,
+          83737,
+          83738,
+          83739,
+          83740,
+          83741,
+          83742,
+          83744
+        ],
+        "B": [
+          83748,
+          83749,
+          83750,
+          83751,
+          83753,
+          83754,
+          83755,
+          83757
+        ],
+        "C": [
+          83761,
+          83763,
+          83765,
+          83767,
+          83770,
+          83772,
+          83774,
+          83777
+        ],
+        "D": [
+          83781,
+          83783,
+          83785,
+          83788,
+          83790,
+          83793,
+          83795,
+          83798
+        ],
+        "question": [
+          83714,
+          83716,
+          83718,
+          83721,
+          83723,
+          83726,
+          83728,
+          83731
+        ]
+      },
+      "context_hash": "af0528345250c2b4d514fed5e80a23978e0114d5286082ba5f51417ed2fbbed6",
+      "group_id": "6d8f0aad77c984a7e68490f53d234a8e445dfe4cfd62bddb5d7444580b9c637d",
+      "id": "66ed364d821e116aacb1f47e",
+      "input_tokens": 83821,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "b3fd7a15630919273fffb92f3dc7805d6a9b06d0d77f9fec9edb179e38c0c1cd",
+      "question_hash": "3fdc66075d011e400ba620d89897ef29932d7bf2ba143359b515366019e0db7b",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          33455,
+          33483,
+          33511,
+          33539,
+          33568,
+          33596,
+          33624,
+          33653
+        ],
+        "B": [
+          33656,
+          33684,
+          33713,
+          33741,
+          33770,
+          33798,
+          33827,
+          33856
+        ],
+        "C": [
+          33859,
+          33887,
+          33915,
+          33943,
+          33972,
+          34000,
+          34028,
+          34057
+        ],
+        "D": [
+          34060,
+          34088,
+          34116,
+          34144,
+          34173,
+          34201,
+          34229,
+          34258
+        ],
+        "question": [
+          33418,
+          33422,
+          33427,
+          33431,
+          33436,
+          33440,
+          33445,
+          33450
+        ]
+      },
+      "context_hash": "15c8cd2a1795c3030f7c709c84954ca0f2ff9bf689e09f8f35b80bb14e89455a",
+      "group_id": "58b20367b83347d96adce0c4b1373d3d58fc3393ef6a842bbf5c59688354a36b",
+      "id": "66ed3ae5821e116aacb1f729",
+      "input_tokens": 34280,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "4e902ba27f386feb0da66d4de5ce634ea5709333903592f248a17fe842aee538",
+      "question_hash": "548cfbafe76bd777f0c4437474f1d792b999cf32e38ea56f2007f7c314005e31",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          61495,
+          61496
+        ],
+        "B": [
+          61500,
+          61501
+        ],
+        "C": [
+          61505,
+          61506,
+          61507
+        ],
+        "D": [
+          61511,
+          61512
+        ],
+        "question": [
+          61447,
+          61453,
+          61459,
+          61465,
+          61471,
+          61477,
+          61483,
+          61490
+        ]
+      },
+      "context_hash": "ec6734bcce7ba90cb87da58832af6376b7297188d1cde022232d3f67619f1557",
+      "group_id": "4521ae65e1f4770e81d431d60e066488a6fb873a5437221b6a6836336899844b",
+      "id": "66ed3e90821e116aacb1f82f",
+      "input_tokens": 61535,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "22ff3203e7a4b28252aa48f3122201bd2aa43fe9322c44f7224d88d1bcd7b07c",
+      "question_hash": "771b3eb7fe49ac283e52a7941c652c566795e1e6c5bd27cae9fe5fa54f3dd5f6",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          111917,
+          111918,
+          111920,
+          111922,
+          111923,
+          111925,
+          111927,
+          111929
+        ],
+        "B": [
+          111933,
+          111934,
+          111935,
+          111936
+        ],
+        "C": [
+          111940,
+          111941,
+          111943,
+          111944,
+          111946,
+          111947,
+          111949,
+          111951
+        ],
+        "D": [
+          111955,
+          111956,
+          111957,
+          111958,
+          111959,
+          111960
+        ],
+        "question": [
+          111863,
+          111870,
+          111877,
+          111884,
+          111891,
+          111898,
+          111905,
+          111912
+        ]
+      },
+      "context_hash": "7e19f3f119a40910e24c9ce66bd7db42b9e38d0ab194234ea442f3dcb3b21336",
+      "group_id": "c52e321a6e7c6055b5167227fa9ebf5975261dccc04a7f26eb77b7692f0e7dfa",
+      "id": "66ed4274821e116aacb1f8f1",
+      "input_tokens": 111983,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "87a9391591c2c7b749b6aea86516b87ff1b7a4230e4defb763e97525d3109fa3",
+      "question_hash": "e76a3fdb2dec8762b6c67eb668d99be6bb3d4ec652781c1bfcdee20d49149e2e",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          61474,
+          61477,
+          61480,
+          61483,
+          61487,
+          61490,
+          61493,
+          61497
+        ],
+        "B": [
+          61500,
+          61502,
+          61505,
+          61507,
+          61510,
+          61512,
+          61515,
+          61518
+        ],
+        "C": [
+          61521,
+          61523,
+          61525,
+          61527,
+          61529,
+          61531,
+          61533,
+          61535
+        ],
+        "D": [
+          61538,
+          61540,
+          61543,
+          61545,
+          61548,
+          61550,
+          61553,
+          61556
+        ],
+        "question": [
+          61454,
+          61456,
+          61458,
+          61460,
+          61462,
+          61464,
+          61466,
+          61469
+        ]
+      },
+      "context_hash": "cad96f9a76a05c7b025f2ab1085fcaeb8dc387be67e99b96cbe301ae0c611c9f",
+      "group_id": "68f8af33e21d9d711dbef557a849cb2f73445062a29f4f4b197cdc9d02b94a0d",
+      "id": "66ee3c6d821e116aacb20f6f",
+      "input_tokens": 61578,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "904a88ddc614140fd7207bea96755b6abe93658b908e7034bd6c899c29a24f4c",
+      "question_hash": "9249edd11b92941cc80621cb9a82c2a216d47bf11a12f2a8824272d92095105b",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          38919,
+          38928,
+          38937,
+          38946,
+          38956,
+          38965,
+          38974,
+          38984
+        ],
+        "B": [
+          38987,
+          38996,
+          39005,
+          39015,
+          39024,
+          39034,
+          39043,
+          39053
+        ],
+        "C": [
+          39056,
+          39069,
+          39082,
+          39095,
+          39108,
+          39121,
+          39134,
+          39147
+        ],
+        "D": [
+          39150,
+          39160,
+          39170,
+          39180,
+          39191,
+          39201,
+          39211,
+          39222
+        ],
+        "question": [
+          38884,
+          38888,
+          38892,
+          38896,
+          38901,
+          38905,
+          38909,
+          38914
+        ]
+      },
+      "context_hash": "b8c1eafc93efdd12215172c9145b32af4e2ef4e2fb37c8f5d7c9115424253dee",
+      "group_id": "18b30e4772e603144500dec9ea67b6512269f13ac180aadce01f69b66a754be0",
+      "id": "66ee4287821e116aacb21258",
+      "input_tokens": 39244,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "873798f30c8a641bcdd0467a8bc3f392608089efc9d8fbed0761dc3601957e23",
+      "question_hash": "e9d7ceb103803cab0ba174439438e0280d18029b9fbdf7edb6036d3b21763836",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          43598,
+          43605,
+          43613,
+          43621,
+          43629,
+          43637,
+          43645,
+          43653
+        ],
+        "B": [
+          43656,
+          43667,
+          43678,
+          43689,
+          43700,
+          43711,
+          43722,
+          43733
+        ],
+        "C": [
+          43736,
+          43749,
+          43762,
+          43776,
+          43789,
+          43803,
+          43816,
+          43830
+        ],
+        "D": [
+          43833,
+          43844,
+          43856,
+          43868,
+          43880,
+          43892,
+          43904,
+          43916
+        ],
+        "question": [
+          43570,
+          43573,
+          43576,
+          43579,
+          43583,
+          43586,
+          43589,
+          43593
+        ]
+      },
+      "context_hash": "d2b50901f66071fd68996c790eb2d39762530f6ea04c06d3d8b1a8ab76a16e49",
+      "group_id": "0810969c8889f104fed893c71d029c2130100b18d2184b2f157eb718f46c78cf",
+      "id": "66ee496a821e116aacb214d5",
+      "input_tokens": 43938,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "5fe357b3f05120bd89ec7272a4ef0cdf0d0f47df424f6603cfda4e582948ba65",
+      "question_hash": "84afe84fcd5db867b45ebfc7cef593860135ba5d840612ad1ecc5b09bbc4c604",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          45935,
+          45939,
+          45943,
+          45947,
+          45951,
+          45955,
+          45959,
+          45964
+        ],
+        "B": [
+          45967,
+          45973,
+          45980,
+          45986,
+          45993,
+          45999,
+          46006,
+          46013
+        ],
+        "C": [
+          46016,
+          46028,
+          46041,
+          46053,
+          46066,
+          46078,
+          46091,
+          46104
+        ],
+        "D": [
+          46107,
+          46120,
+          46133,
+          46146,
+          46160,
+          46173,
+          46186,
+          46200
+        ],
+        "question": [
+          45903,
+          45906,
+          45910,
+          45914,
+          45918,
+          45922,
+          45926,
+          45930
+        ]
+      },
+      "context_hash": "1595ea48742e549ae6f2c094eaa86874494ff2f72f30d6dc2c180d7b86ef4a2a",
+      "group_id": "e68636a5106aeaa79351cfa55b3952c60c2803c66de10c659459770bc77f4963",
+      "id": "66eecc45821e116aacb225c3",
+      "input_tokens": 46222,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "9f1c602234e32089c5fc0d155aa094e8dd1cb54db426692ae3c2d6ff420de659",
+      "question_hash": "a5247729a1d05c3bba122a12607b5ef2a9ec812e46758ddaa697454c3b5cc2a4",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          75656,
+          75658,
+          75661,
+          75663,
+          75666,
+          75668,
+          75671,
+          75674
+        ],
+        "B": [
+          75677,
+          75680,
+          75683,
+          75687,
+          75690,
+          75694,
+          75697,
+          75701
+        ],
+        "C": [
+          75704,
+          75706,
+          75708,
+          75710,
+          75712,
+          75714,
+          75716,
+          75718
+        ],
+        "D": [
+          75721,
+          75723,
+          75726,
+          75728,
+          75731,
+          75733,
+          75736,
+          75739
+        ],
+        "question": [
+          75634,
+          75636,
+          75638,
+          75641,
+          75643,
+          75646,
+          75648,
+          75651
+        ]
+      },
+      "context_hash": "6be5f4af7c8ae799535973b3ff23f5cc874d085e145b06826d16a104b733ea8d",
+      "group_id": "fdaabae4f1b6a5c0a6a6b7335c8e07bb22b26eaaff4919bff364c93f13686266",
+      "id": "66ef1a4d821e116aacb229d5",
+      "input_tokens": 75762,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "6580ac775601be7d40abec8231e70cff69c8d06df2d24d1e105bf4879cb706de",
+      "question_hash": "c51bb41abd76a92496e3d5cdb0db425d7b399afe4661cae55bd316b749a6e58c",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119032,
+          119034,
+          119037,
+          119040,
+          119042,
+          119045,
+          119048,
+          119051
+        ],
+        "B": [
+          119054,
+          119056,
+          119059,
+          119062,
+          119064,
+          119067,
+          119070,
+          119073
+        ],
+        "C": [
+          119076,
+          119080,
+          119084,
+          119088,
+          119092,
+          119096,
+          119100,
+          119105
+        ],
+        "D": [
+          119108,
+          119110,
+          119113,
+          119115,
+          119118,
+          119120,
+          119123,
+          119126
+        ],
+        "question": [
+          119007,
+          119009,
+          119012,
+          119015,
+          119018,
+          119021,
+          119024,
+          119027
+        ]
+      },
+      "context_hash": "4763a9f76f106ad209f9751e5ee93378d7f1eff424b8429d0706ea6bf2f2d594",
+      "group_id": "2f6a2e00d734047ab7232520f418b8d11276e574b4dfb9935bf3be03a6fd4c8c",
+      "id": "66ef8aa3821e116aacb22db5",
+      "input_tokens": 119148,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "16657e530bebc78da4875af46f49a70e861a81e6eb4158bf9a276ce62ba5fbba",
+      "question_hash": "f24c98ceb2a215164217c1cd31835d90516e3d0d30bb2a5a28fbb2a8bcd3df16",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          56961,
+          56974,
+          56988,
+          57002,
+          57016,
+          57030,
+          57044,
+          57058
+        ],
+        "B": [
+          57061,
+          57081,
+          57102,
+          57123,
+          57144,
+          57165,
+          57186,
+          57207
+        ],
+        "C": [
+          57210,
+          57225,
+          57241,
+          57257,
+          57272,
+          57288,
+          57304,
+          57320
+        ],
+        "D": [
+          57323,
+          57339,
+          57355,
+          57371,
+          57387,
+          57403,
+          57419,
+          57435
+        ],
+        "question": [
+          56931,
+          56934,
+          56938,
+          56941,
+          56945,
+          56948,
+          56952,
+          56956
+        ]
+      },
+      "context_hash": "81e0b1dae587953e80dc22769a03b0050fea4509a47782f978a8f9edd16c1573",
+      "group_id": "1220585c17d3f63846d39d233287e4b37f34d05bc905ed4fc661c7d594b6f483",
+      "id": "66efa466821e116aacb23219",
+      "input_tokens": 57457,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "5ca43a0b6c29ee06fbe2cf90778af5bfd0d467526df6b6eb3be81f65c663868f",
+      "question_hash": "edb0059ddb4b98fa9ef20b1c8c298727ba9c7530e9c5f9d1e9e39be47f0717b4",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          86845,
+          86846,
+          86847
+        ],
+        "B": [
+          86851,
+          86852,
+          86853,
+          86854,
+          86855,
+          86856,
+          86857
+        ],
+        "C": [
+          86861,
+          86862,
+          86863,
+          86864
+        ],
+        "D": [
+          86868,
+          86869,
+          86870,
+          86871,
+          86872,
+          86873,
+          86874,
+          86875
+        ],
+        "question": [
+          86831,
+          86832,
+          86833,
+          86834,
+          86836,
+          86837,
+          86838,
+          86840
+        ]
+      },
+      "context_hash": "7fc1514e4e70c00b61c62addb6c0acb4517de865d369f4a63579fe9b65440099",
+      "group_id": "20de58f0931634139c121eac1f28dccb76641cb4672a8b610a04322675d6892a",
+      "id": "66efa5ea821e116aacb23268",
+      "input_tokens": 86898,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "9479fdaf742663479fb960b0ac8f82ecfe2fb0985568ed89f968cfb739a66322",
+      "question_hash": "698fadb67b9e96622b559c64df3030c4f26988b166b9a6bc7c8d2556dc21d369",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          74816,
+          74819,
+          74822,
+          74826,
+          74829,
+          74833,
+          74836,
+          74840
+        ],
+        "B": [
+          74843,
+          74846,
+          74849,
+          74853,
+          74856,
+          74860,
+          74863,
+          74867
+        ],
+        "C": [
+          74870,
+          74873,
+          74876,
+          74880,
+          74883,
+          74887,
+          74890,
+          74894
+        ],
+        "D": [
+          74897,
+          74901,
+          74905,
+          74909,
+          74914,
+          74918,
+          74922,
+          74927
+        ],
+        "question": [
+          74789,
+          74792,
+          74795,
+          74798,
+          74801,
+          74804,
+          74807,
+          74811
+        ]
+      },
+      "context_hash": "4639f3d07c80ed35008b57909ac9b871f289e4a3730b0433d1a1a808f8dff757",
+      "group_id": "90c758f52143fc996a0252b8f01e5808e67e0e7dee8f6fdb57bc7476c2f4c4e6",
+      "id": "66efaf70821e116aacb234bd",
+      "input_tokens": 74949,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "1fc5993c5a57898e8ef28989c2fe2ab26ec702d7d138271824fde9b7684598c8",
+      "question_hash": "e150f30cdad042808502883d2e769d882e09cc8ad5fa10a22398d83045cfac27",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          115357,
+          115361,
+          115365,
+          115369,
+          115374,
+          115378,
+          115382,
+          115387
+        ],
+        "B": [
+          115390,
+          115394,
+          115398,
+          115402,
+          115406,
+          115410,
+          115414,
+          115418
+        ],
+        "C": [
+          115421,
+          115426,
+          115432,
+          115437,
+          115443,
+          115448,
+          115454,
+          115460
+        ],
+        "D": [
+          115464,
+          115465
+        ],
+        "question": [
+          115318,
+          115322,
+          115327,
+          115332,
+          115337,
+          115342,
+          115347,
+          115352
+        ]
+      },
+      "context_hash": "e20ce36c8b6f15863d139bde8333ced81ef26b975d8c1d7641c3511bce2e6bd0",
+      "group_id": "227293139caa454af4ce86c0d1d9d0d11b782dfc0c52edb59d438e980c7fef36",
+      "id": "66f016e6821e116aacb25497",
+      "input_tokens": 115488,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "650ecbca7a8acb16411458e64e9d13dbe017662ae8d02fe8f3bd9cada4b45f49",
+      "question_hash": "0c0485e9a1520399359284bb706cdce558ccc76ef13f91e661d4d04f9c30ea5d",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          60900,
+          60901,
+          60902
+        ],
+        "B": [
+          60906,
+          60907
+        ],
+        "C": [
+          60911,
+          60912,
+          60913
+        ],
+        "D": [
+          60917
+        ],
+        "question": [
+          60490,
+          60547,
+          60605,
+          60663,
+          60721,
+          60779,
+          60837,
+          60895
+        ]
+      },
+      "context_hash": "ce0339dccda9a663801ca3f70ca2bdc115d7395f46801f6b2c1aa663a658bc39",
+      "group_id": "000219174b5052f1229a0d9a9818f94edde60ab1a8456b4b536a14dd5f71da10",
+      "id": "66f118e1821e116aacb26b79",
+      "input_tokens": 60940,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "0b21fe9355901795810bb1c2a2ed4bf664e22c1e6a1eb598282256fadcded0aa",
+      "question_hash": "734eff48daa801049d16c3001971d5df64a20cf484a7184b039366343019f521",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          88483,
+          88487,
+          88492,
+          88497,
+          88502,
+          88507,
+          88512,
+          88517
+        ],
+        "B": [
+          88520,
+          88525,
+          88530,
+          88536,
+          88541,
+          88547,
+          88552,
+          88558
+        ],
+        "C": [
+          88561,
+          88565,
+          88570,
+          88575,
+          88580,
+          88585,
+          88590,
+          88595
+        ],
+        "D": [
+          88598,
+          88603,
+          88609,
+          88614,
+          88620,
+          88625,
+          88631,
+          88637
+        ],
+        "question": [
+          88468,
+          88469,
+          88470,
+          88472,
+          88473,
+          88475,
+          88476,
+          88478
+        ]
+      },
+      "context_hash": "a6942aa4d217c268c1cda27252e6c9bdfb7f9612413be735f307eae93ffee717",
+      "group_id": "2c00129873be6d9872d5eaa5fae762a324c3e6448b977097da8b09dae104bb3a",
+      "id": "66f19f04821e116aacb27bab",
+      "input_tokens": 88659,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "79b6e74f25a176f7b61c3c77f88823c68e21dbc56d1b24db8621b945c491e5bd",
+      "question_hash": "88cd3bad96162555764425313b2cee0a1ab5617e4cc45d3d317ed9d413dbe2df",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          57029,
+          57032,
+          57035,
+          57038,
+          57042,
+          57045,
+          57048,
+          57052
+        ],
+        "B": [
+          57055,
+          57058,
+          57062,
+          57066,
+          57069,
+          57073,
+          57077,
+          57081
+        ],
+        "C": [
+          57084,
+          57087,
+          57090,
+          57093,
+          57097,
+          57100,
+          57103,
+          57107
+        ],
+        "D": [
+          57110,
+          57112,
+          57114,
+          57116,
+          57118,
+          57120,
+          57122,
+          57125
+        ],
+        "question": [
+          57008,
+          57010,
+          57012,
+          57014,
+          57017,
+          57019,
+          57021,
+          57024
+        ]
+      },
+      "context_hash": "55fea265f38626a2eb28ab52a78effb940f743ca32aa44ee3b33817c72ac8e59",
+      "group_id": "6c29939582c3877570a00bfa5500f0ace6a5365a57e84f40d4ae3cd3e14c547d",
+      "id": "66f2a557821e116aacb2a510",
+      "input_tokens": 57147,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "cc18eb868aaa332777ebab03162c946fad5e10534fed97901c84566526aa0aed",
+      "question_hash": "d07566ff06e679536a9e52699a14eeea2bded9752cc1e950646ef59440e5d972",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          52345,
+          52349,
+          52354,
+          52359,
+          52364,
+          52369,
+          52374,
+          52379
+        ],
+        "B": [
+          52382,
+          52383,
+          52385,
+          52386,
+          52388,
+          52389,
+          52391,
+          52393
+        ],
+        "C": [
+          52396,
+          52398,
+          52401,
+          52404,
+          52406,
+          52409,
+          52412,
+          52415
+        ],
+        "D": [
+          52418,
+          52421,
+          52424,
+          52427,
+          52430,
+          52433,
+          52436,
+          52439
+        ],
+        "question": [
+          52326,
+          52328,
+          52330,
+          52332,
+          52334,
+          52336,
+          52338,
+          52340
+        ]
+      },
+      "context_hash": "92d552b271e3a0fa0e9fa6ba9331d543a00b3b0bd67900e65ecbee533cbd7a2e",
+      "group_id": "f635a1b295ea8e9721c2f037c32c67c02219c480aeb5345e00ce4c9f702a09a0",
+      "id": "66f2a98a821e116aacb2a8bf",
+      "input_tokens": 52461,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "44a4abf233af3093e79ad7a92eb7fa56be85b9770c907831868b0726c1bc475c",
+      "question_hash": "c089860078bb334b1523459c7e1019905df962d20f1cc8da4e2428e58cee463e",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          51532,
+          51533,
+          51534,
+          51535
+        ],
+        "B": [
+          51540,
+          51541,
+          51542,
+          51543
+        ],
+        "C": [
+          51548,
+          51549,
+          51550,
+          51551
+        ],
+        "D": [
+          51556,
+          51557,
+          51558,
+          51559
+        ],
+        "question": [
+          51507,
+          51509,
+          51512,
+          51515,
+          51517,
+          51520,
+          51523,
+          51526
+        ]
+      },
+      "context_hash": "ac0fb7eb6f937aeeb974bf86c034b2f295a38c8cbbb69daf497b56bbc09435e6",
+      "group_id": "d215cbeeb3168870a778fb56d5a1ebe2150319a5ce8cdc65dbd0c880d95e04f3",
+      "id": "66f2ad89821e116aacb2ac92",
+      "input_tokens": 51582,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "be4bd38e05c4c0f02260d3c03a9e9d9ab8c91d5c0c2a2be8c36a9b94c2a5b9e1",
+      "question_hash": "69d3e2fd7243e158ca8895c8f670c6fb3be7db206d27b1b421c406662164f474",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          101511,
+          101514,
+          101517,
+          101520,
+          101523,
+          101526,
+          101529,
+          101532
+        ],
+        "B": [
+          101535,
+          101538,
+          101542,
+          101546,
+          101550,
+          101554,
+          101558,
+          101562
+        ],
+        "C": [
+          101565,
+          101568,
+          101571,
+          101574,
+          101578,
+          101581,
+          101584,
+          101588
+        ],
+        "D": [
+          101591,
+          101595,
+          101600,
+          101605,
+          101609,
+          101614,
+          101619,
+          101624
+        ],
+        "question": [
+          101432,
+          101442,
+          101453,
+          101463,
+          101474,
+          101484,
+          101495,
+          101506
+        ]
+      },
+      "context_hash": "5cfec852b0fbda5716bea95e074b5bf119c7d4b0f3d2e64388606d6f117bcb49",
+      "group_id": "6d9c24a6fc4fe14b6f1474655221997f8b9e0b5ed87642a4d035d5553c762633",
+      "id": "66f2b11c821e116aacb2aeb6",
+      "input_tokens": 101646,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "974fd7ce17c28f491ff681179c0bf74004df3b1ba53fdb9221f63def6b38aaad",
+      "question_hash": "a8badc56258db639d9621fb524463cb8f4417d60a3cf430c6b3004dcf9267ba5",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          111404,
+          111405,
+          111406
+        ],
+        "B": [
+          111410,
+          111411,
+          111412,
+          111413,
+          111414,
+          111415
+        ],
+        "C": [
+          111419,
+          111422,
+          111425,
+          111428,
+          111431,
+          111434,
+          111437,
+          111441
+        ],
+        "D": [
+          111445,
+          111446,
+          111447
+        ],
+        "question": [
+          111367,
+          111371,
+          111376,
+          111380,
+          111385,
+          111389,
+          111394,
+          111399
+        ]
+      },
+      "context_hash": "67c92a3cddc8344161760475e0a817a88126b772ef2ff39f28ea5878131490c2",
+      "group_id": "3b0b20f45f5947b1a37424d09d6fcc2b7a8fcef22ac21689501e179ccc3275ea",
+      "id": "66f2b5ec821e116aacb2b1ec",
+      "input_tokens": 111470,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long Structured Data Understanding",
+        "length": "medium",
+        "sub_domain": "Table QA"
+      },
+      "prompt_token_hash": "674b8ab61c7ae52282153070aee246dfc43b2c428edeff7fb60cfea47da5043e",
+      "question_hash": "0f75097c49e329cb35af38db458e66e25e510b5ea83f7169ee5d958cd78d6192",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          94566,
+          94567,
+          94569,
+          94570,
+          94572,
+          94573,
+          94575,
+          94577
+        ],
+        "B": [
+          94581,
+          94582,
+          94584,
+          94585,
+          94587,
+          94588,
+          94590,
+          94592
+        ],
+        "C": [
+          94596,
+          94597,
+          94598,
+          94599,
+          94600,
+          94601,
+          94602,
+          94604
+        ],
+        "D": [
+          94608,
+          94609,
+          94610,
+          94611,
+          94612,
+          94613
+        ],
+        "question": [
+          94549,
+          94550,
+          94552,
+          94554,
+          94555,
+          94557,
+          94559,
+          94561
+        ]
+      },
+      "context_hash": "4de3997bb18d989204126e66d8e6b0eb9fccac12b1ccb482c6e226d7351919cd",
+      "group_id": "bb0516f9757ef1cd568a1a70705a610f2d54e2f29e903bb32de7bd09f23f4d07",
+      "id": "66f39ac5821e116aacb2da81",
+      "input_tokens": 94636,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "227802028a2c8faeec82bd4b0aafe07128bb19b63237725d4f17bacc6d9c5e2f",
+      "question_hash": "52b8c96d30e76a03b6f4e5f94b9f92f93dd111dd0d52cde13cfd0a66a5eb53c9",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          48056,
+          48062,
+          48069,
+          48076,
+          48083,
+          48090,
+          48097,
+          48104
+        ],
+        "B": [
+          48107,
+          48119,
+          48132,
+          48144,
+          48157,
+          48169,
+          48182,
+          48195
+        ],
+        "C": [
+          48198,
+          48210,
+          48222,
+          48235,
+          48247,
+          48260,
+          48272,
+          48285
+        ],
+        "D": [
+          48288,
+          48300,
+          48312,
+          48325,
+          48337,
+          48350,
+          48362,
+          48375
+        ],
+        "question": [
+          48039,
+          48040,
+          48042,
+          48044,
+          48045,
+          48047,
+          48049,
+          48051
+        ]
+      },
+      "context_hash": "328e33ad7c1b98eaf6fb44d017260e5225f74625979908ec46638a665f5fda26",
+      "group_id": "3f79b8bfd3ccacd35210ee5b3b1fd2915593cff2b7227965de9f3c2781d869a0",
+      "id": "66f3c1ab821e116aacb2ead1",
+      "input_tokens": 48397,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "c8be26c1eb0352ab4ee8da731c290df8105af33c0f417a518b52f78e35c9cbe8",
+      "question_hash": "d28840b7cf0fa7def48949a63a0b502d5ac598be926faa5069b51cd656603ea3",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          33928,
+          33932,
+          33937,
+          33941,
+          33946,
+          33950,
+          33955,
+          33960
+        ],
+        "B": [
+          33963,
+          33968,
+          33973,
+          33978,
+          33984,
+          33989,
+          33994,
+          34000
+        ],
+        "C": [
+          34003,
+          34008,
+          34013,
+          34018,
+          34023,
+          34028,
+          34033,
+          34038
+        ],
+        "D": [
+          34041,
+          34044,
+          34048,
+          34052,
+          34055,
+          34059,
+          34063,
+          34067
+        ],
+        "question": [
+          33905,
+          33907,
+          33910,
+          33912,
+          33915,
+          33917,
+          33920,
+          33923
+        ]
+      },
+      "context_hash": "5bc75e14e3170393a0294e84436ba6c89c78f6b1e727da39ae3afab22a422203",
+      "group_id": "4ce1039bf60731bb26c3fc3cfc7dc5d101dcb379026b6aa9966a6c122f77448a",
+      "id": "66f3c1c3821e116aacb2eaf6",
+      "input_tokens": 34089,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "e561bec1655f6b9e67f0ceb9d7602bd6f49e97bde7f6fe1ee040167cca8fb441",
+      "question_hash": "615e79cbef50fc4e51690b45808240d8a0622d6cf4b23dfeedfcbfcbf753108f",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          76393,
+          76399,
+          76405,
+          76411,
+          76417,
+          76423,
+          76429,
+          76435
+        ],
+        "B": [
+          76438,
+          76444,
+          76450,
+          76456,
+          76463,
+          76469,
+          76475,
+          76482
+        ],
+        "C": [
+          76485,
+          76491,
+          76497,
+          76503,
+          76510,
+          76516,
+          76522,
+          76529
+        ],
+        "D": [
+          76532,
+          76539,
+          76546,
+          76553,
+          76560,
+          76567,
+          76574,
+          76582
+        ],
+        "question": [
+          76356,
+          76360,
+          76365,
+          76369,
+          76374,
+          76378,
+          76383,
+          76388
+        ]
+      },
+      "context_hash": "e50420b329c7b86f08a59292c44743fd596636295b4b3924d4d239369497b132",
+      "group_id": "46eafff8048b7e1ee0ffbaec71ffe26248b8bda14376a82fe7c36db8307a127b",
+      "id": "66f3c806821e116aacb2ed77",
+      "input_tokens": 76604,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "c403388d2437bce6db0f36f70052ac8ba6b1e03101681135b9d4efca01f09821",
+      "question_hash": "f852da2b4aebafba726227fc4310906902d13c0eb394bd1875a6460c59eb745c",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          103045,
+          103054,
+          103063,
+          103072,
+          103082,
+          103091,
+          103100,
+          103110
+        ],
+        "B": [
+          103113,
+          103122,
+          103132,
+          103142,
+          103152,
+          103162,
+          103172,
+          103182
+        ],
+        "C": [
+          103185,
+          103195,
+          103206,
+          103216,
+          103227,
+          103237,
+          103248,
+          103259
+        ],
+        "D": [
+          103262,
+          103270,
+          103279,
+          103287,
+          103296,
+          103304,
+          103313,
+          103322
+        ],
+        "question": [
+          102943,
+          102956,
+          102970,
+          102984,
+          102998,
+          103012,
+          103026,
+          103040
+        ]
+      },
+      "context_hash": "0af41235a17c19ccce5054486509718388e6b74491a8a14d59edd2d2f0beb22e",
+      "group_id": "85d5d70c8c93c5631f7fb8ae0cef785a3b62fd3d6cc6e8f59131133f0244d307",
+      "id": "66f3cca6821e116aacb2ef7c",
+      "input_tokens": 103344,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "4b6b5da877175b7aeede795c902117452ddf3f56eaf4a8ca2661f7968d10f0cb",
+      "question_hash": "f25093bd9caf133740f43aef856f035018c3b9b3c8512252729d6f7e820f269f",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          65703,
+          65707,
+          65711,
+          65716,
+          65720,
+          65725,
+          65729,
+          65734
+        ],
+        "B": [
+          65737,
+          65743,
+          65749,
+          65755,
+          65761,
+          65767,
+          65773,
+          65780
+        ],
+        "C": [
+          65783,
+          65788,
+          65793,
+          65798,
+          65803,
+          65808,
+          65813,
+          65818
+        ],
+        "D": [
+          65821,
+          65826,
+          65831,
+          65836,
+          65842,
+          65847,
+          65852,
+          65858
+        ],
+        "question": [
+          65664,
+          65668,
+          65673,
+          65678,
+          65683,
+          65688,
+          65693,
+          65698
+        ]
+      },
+      "context_hash": "530decfe75e12f13e56f7e74245e1974ccbb229119c9fd4c9f4107a4aa69dc06",
+      "group_id": "8ef567ed8e173bbcab354c0021b96bd7be1a29a86d8d65d75817e214e7944368",
+      "id": "66f3cfa5821e116aacb2f096",
+      "input_tokens": 65880,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "c32faf2b0c6412bdbfe43b3a6ed84b256186a43323fa4263b8252a6605796df7",
+      "question_hash": "0d30cadc8a72eab3802a8d7ec30fa7bb3be0481aa79b7e6c7d01a8c062d2d2ab",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          114897,
+          114901,
+          114906,
+          114911,
+          114916,
+          114921,
+          114926,
+          114931
+        ],
+        "B": [
+          114934,
+          114939,
+          114944,
+          114950,
+          114955,
+          114961,
+          114966,
+          114972
+        ],
+        "C": [
+          114975,
+          114981,
+          114988,
+          114994,
+          115001,
+          115007,
+          115014,
+          115021
+        ],
+        "D": [
+          115024,
+          115029,
+          115035,
+          115041,
+          115046,
+          115052,
+          115058,
+          115064
+        ],
+        "question": [
+          114842,
+          114849,
+          114856,
+          114863,
+          114870,
+          114877,
+          114884,
+          114892
+        ]
+      },
+      "context_hash": "435e07eefc8cbaf646b474202716f3114a41bc470a55b4b2e55ea3bfe9b0a09e",
+      "group_id": "fbdea21378f015395abd1673fff13b5395fb0d3a1925e92882b51514214184f3",
+      "id": "66f3d10b821e116aacb2f14f",
+      "input_tokens": 115086,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "07e5eeaf862b6d026aa96fcd06fc2cb76e88960bdaeafebf4871e56aa72f8d1a",
+      "question_hash": "f3cb0aa5ca6d1735ef8f4e32b21eea6e260a8a4d6700f12dd4cda0f3fa86922d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          79080,
+          79087,
+          79094,
+          79101,
+          79108,
+          79115,
+          79122,
+          79130
+        ],
+        "B": [
+          79133,
+          79140,
+          79147,
+          79155,
+          79162,
+          79170,
+          79177,
+          79185
+        ],
+        "C": [
+          79188,
+          79196,
+          79204,
+          79212,
+          79220,
+          79228,
+          79236,
+          79244
+        ],
+        "D": [
+          79247,
+          79255,
+          79263,
+          79271,
+          79279,
+          79287,
+          79295,
+          79304
+        ],
+        "question": [
+          78893,
+          78919,
+          78945,
+          78971,
+          78997,
+          79023,
+          79049,
+          79075
+        ]
+      },
+      "context_hash": "46d51130244d50ff029f65240d823f11c5d6eba5659de0fee29e2fa2645ef10c",
+      "group_id": "60389a53aa9f63ede6f2f6b6db679204b9ee9722218b6ccec48b419076a98c52",
+      "id": "66f3d738821e116aacb2f446",
+      "input_tokens": 79326,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "a91c9ee497945d7879686804e358ed5ddb3aaef632bf9d86fd60a15ac9469eae",
+      "question_hash": "1654863ba686ce9b1b20535d0709f245a479e30f624ff20a34c3bb34edca8baa",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          45452,
+          45456,
+          45461,
+          45465,
+          45470,
+          45474,
+          45479,
+          45484
+        ],
+        "B": [
+          45487,
+          45496,
+          45505,
+          45514,
+          45523,
+          45532,
+          45541,
+          45551
+        ],
+        "C": [
+          45554,
+          45561,
+          45568,
+          45575,
+          45582,
+          45589,
+          45596,
+          45603
+        ],
+        "D": [
+          45606,
+          45614,
+          45623,
+          45632,
+          45641,
+          45650,
+          45659,
+          45668
+        ],
+        "question": [
+          45419,
+          45423,
+          45427,
+          45431,
+          45435,
+          45439,
+          45443,
+          45447
+        ]
+      },
+      "context_hash": "806442419598352045d143c795518d3336809ea6095c8f502ed353425d6ef5b0",
+      "group_id": "333ef3fda97a47b62ab04027478b769ac67413c4ad8adc180203f8e3aeefdaf5",
+      "id": "66f3e473821e116aacb2fa73",
+      "input_tokens": 45690,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "0e5abe79f223ad1a16bcdbc3bccfeff60d59dc02ee481b40e571f7092de396f2",
+      "question_hash": "b0479dbaff2557561cc9b2fce2279b15ac439a9f7af6580c7288f8ec4694ca02",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          44749,
+          44750,
+          44751,
+          44752,
+          44753,
+          44754,
+          44755,
+          44756
+        ],
+        "B": [
+          44759,
+          44763,
+          44767,
+          44771,
+          44775,
+          44779,
+          44783,
+          44788
+        ],
+        "C": [
+          44791,
+          44793,
+          44795,
+          44798,
+          44800,
+          44803,
+          44805,
+          44808
+        ],
+        "D": [
+          44811,
+          44813,
+          44815,
+          44818,
+          44820,
+          44823,
+          44825,
+          44828
+        ],
+        "question": [
+          44734,
+          44735,
+          44736,
+          44738,
+          44739,
+          44741,
+          44742,
+          44744
+        ]
+      },
+      "context_hash": "ff6a2d4c84cbbc95d2a799a34d77225fd703ce9638c0a9bad334cd8c69e9d369",
+      "group_id": "07c9456b51ab24bd660a99a1b1fb5b9866d8b1d97c2e91e7e5e1ebba40f31bde",
+      "id": "66f3edfb821e116aacb2fc91",
+      "input_tokens": 44850,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "00c09d10db3a82e9fd10fdb6629adcc8aaf5f9f21f39584a0c6981b24a62c75f",
+      "question_hash": "aaa60588c61236684eb5267b0794b17332179066fc51da2aa36b54fc72b059bb",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          75440,
+          75450,
+          75460,
+          75470,
+          75480,
+          75490,
+          75500,
+          75511
+        ],
+        "B": [
+          75514,
+          75522,
+          75530,
+          75538,
+          75546,
+          75554,
+          75562,
+          75571
+        ],
+        "C": [
+          75574,
+          75583,
+          75593,
+          75603,
+          75613,
+          75623,
+          75633,
+          75643
+        ],
+        "D": [
+          75646,
+          75654,
+          75662,
+          75670,
+          75679,
+          75687,
+          75695,
+          75704
+        ],
+        "question": [
+          75384,
+          75391,
+          75398,
+          75405,
+          75413,
+          75420,
+          75427,
+          75435
+        ]
+      },
+      "context_hash": "c2acdfaa1c101721ad5979dae780dabb698dfb4b02169eb43fb46b9efb3b9c62",
+      "group_id": "0f3eb462868deba55a315c831b046c0bd71cec56492bce790b37ff46c7ba5793",
+      "id": "66f4cd2c821e116aacb316ef",
+      "input_tokens": 75726,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "a5d6f4271235d3bf7f08cc7872873e43da8cc6f51aaae5b6691b579747079c45",
+      "question_hash": "d4effba8fb5a57fd661b45fad4a7ec0b813a2c1a0f74c54ecaccb5f72a87f23e",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          127520,
+          127524,
+          127528,
+          127532,
+          127536,
+          127540,
+          127544,
+          127549
+        ],
+        "B": [
+          127552,
+          127556,
+          127560,
+          127564,
+          127569,
+          127573,
+          127577,
+          127582
+        ],
+        "C": [
+          127585,
+          127589,
+          127593,
+          127597,
+          127601,
+          127605,
+          127609,
+          127614
+        ],
+        "D": [
+          127617,
+          127621,
+          127625,
+          127629,
+          127633,
+          127637,
+          127641,
+          127645
+        ],
+        "question": [
+          127487,
+          127491,
+          127495,
+          127499,
+          127503,
+          127507,
+          127511,
+          127515
+        ]
+      },
+      "context_hash": "76ae50ff7e80abd9e305e625935718fd663cc4366281bc8d040827b2aac90671",
+      "group_id": "9f6205c7334763dded54415fd3405aea9f1358fd85fd2599b19a9a50732284d8",
+      "id": "66f4f87b821e116aacb31d62",
+      "input_tokens": 127667,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "7aaa4416b95fc5dc58b99055ed0fa029c98b4c27c2cc1004ec60771d11576bed",
+      "question_hash": "702d3e0e68eea4e8717b53cc7aa80e26cb070c7ceb47cb7674dde109bcf79b21",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          47408,
+          47419,
+          47431,
+          47442,
+          47454,
+          47465,
+          47477,
+          47489
+        ],
+        "B": [
+          47492,
+          47505,
+          47519,
+          47532,
+          47546,
+          47559,
+          47573,
+          47587
+        ],
+        "C": [
+          47590,
+          47608,
+          47626,
+          47644,
+          47662,
+          47680,
+          47698,
+          47716
+        ],
+        "D": [
+          47719,
+          47724,
+          47729,
+          47735,
+          47740,
+          47746,
+          47751,
+          47757
+        ],
+        "question": [
+          47379,
+          47382,
+          47385,
+          47389,
+          47392,
+          47396,
+          47399,
+          47403
+        ]
+      },
+      "context_hash": "2172f4f2016c5f0faccc6a4e621159dab801f8b5816c2c61889040d33db94894",
+      "group_id": "c1a977d920816de959383feeb5b3af8481c428ca80cc9fc0cd495ce9fca01d70",
+      "id": "66f530ce821e116aacb32f09",
+      "input_tokens": 47779,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "09d8c5d09dd1612654efe28827f831e0b57c1e29f07e97a454eb1f4aa933e2c0",
+      "question_hash": "445d5ed31e8a674fa61e55f99f101545e111cb2910d8d37facd0edafabaec04e",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          71661,
+          71663,
+          71666,
+          71669,
+          71672,
+          71675,
+          71678,
+          71681
+        ],
+        "B": [
+          71685,
+          71689,
+          71694,
+          71699,
+          71704,
+          71709,
+          71714,
+          71719
+        ],
+        "C": [
+          71723,
+          71727,
+          71732,
+          71737,
+          71742,
+          71747,
+          71752,
+          71757
+        ],
+        "D": [
+          71761,
+          71767,
+          71773,
+          71779,
+          71785,
+          71791,
+          71797,
+          71803
+        ],
+        "question": [
+          71638,
+          71640,
+          71643,
+          71645,
+          71648,
+          71650,
+          71653,
+          71656
+        ]
+      },
+      "context_hash": "6e5f2b0f79ff0aa83f29ec4153ed9e13964984ceccec84aba8436219c078fb23",
+      "group_id": "3b167248fa53a788b4d815b2fa85bba15f34a88cd636aced0832da8dd82b167a",
+      "id": "66f53892821e116aacb33225",
+      "input_tokens": 71825,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "8b321edb65c1f82d9728771ae0bda65077919de5b424cf0f9de351abfa664ed1",
+      "question_hash": "24a2c2050fa9ec7b8da89231fa58b18a963e2dcadc2ac9b39088bad2f49d3b00",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          67962,
+          67968,
+          67974,
+          67980,
+          67986,
+          67992,
+          67998,
+          68005
+        ],
+        "B": [
+          68008,
+          68019,
+          68030,
+          68042,
+          68053,
+          68065,
+          68076,
+          68088
+        ],
+        "C": [
+          68091,
+          68097,
+          68104,
+          68110,
+          68117,
+          68123,
+          68130,
+          68137
+        ],
+        "D": [
+          68140,
+          68149,
+          68158,
+          68168,
+          68177,
+          68187,
+          68196,
+          68206
+        ],
+        "question": [
+          67932,
+          67935,
+          67939,
+          67942,
+          67946,
+          67949,
+          67953,
+          67957
+        ]
+      },
+      "context_hash": "d18404ceb7906d58dd6ce95478aa5159b8acf9ae1bfa9003df86bd1288db8a22",
+      "group_id": "6449b97a9b890a8a56b2238e055aaf07a8038f14a1c71d46952a7c53c2897e73",
+      "id": "66f56630821e116aacb3392b",
+      "input_tokens": 68228,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "b7a34e230c93d72c16d045f4d43024ab5ed130a62287fc10fc0436e15eabc711",
+      "question_hash": "a37176563becb52d4ab5f13e887f51248c3bce30c76e06f50a45a833ffcda791",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          130129,
+          130133,
+          130137,
+          130142,
+          130146,
+          130151,
+          130155,
+          130160
+        ],
+        "B": [
+          130163,
+          130168,
+          130173,
+          130178,
+          130183,
+          130188,
+          130193,
+          130198
+        ],
+        "C": [
+          130201,
+          130205,
+          130210,
+          130215,
+          130219,
+          130224,
+          130229,
+          130234
+        ],
+        "D": [
+          130237,
+          130241,
+          130246,
+          130250,
+          130255,
+          130259,
+          130264,
+          130269
+        ],
+        "question": [
+          130085,
+          130090,
+          130096,
+          130101,
+          130107,
+          130112,
+          130118,
+          130124
+        ]
+      },
+      "context_hash": "b20666ec33a0e48e1b6dc2c210dfe36513fd9b0ddbe5b44102f042b1db08b0e4",
+      "group_id": "d47920f1e6fd8fa51b1bab143b385fba1215c870e783ae47cd882d151552369b",
+      "id": "66f568dc821e116aacb33995",
+      "input_tokens": 130291,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "9db7d505eadcf3fd017ce97c0a5c81d2ca3036d3b61d95d8a257f85af378bcc1",
+      "question_hash": "2add80d49333edcd2fe9977839ca0577fb624bb76174948247b1881e4247703a",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          70176,
+          70177,
+          70179,
+          70181,
+          70183,
+          70185,
+          70187,
+          70189
+        ],
+        "B": [
+          70193,
+          70194,
+          70195,
+          70196,
+          70198,
+          70199,
+          70200,
+          70202
+        ],
+        "C": [
+          70206,
+          70208,
+          70211,
+          70214,
+          70216,
+          70219,
+          70222,
+          70225
+        ],
+        "D": [
+          70229,
+          70231,
+          70233,
+          70235,
+          70237,
+          70239,
+          70241,
+          70244
+        ],
+        "question": [
+          70147,
+          70150,
+          70153,
+          70157,
+          70160,
+          70164,
+          70167,
+          70171
+        ]
+      },
+      "context_hash": "c21dade139dae1cb857e0937409d819def4e741cbce897ffb1d43a56bde93d94",
+      "group_id": "68ec8fbb62d2156f7f0511eb802fb3011e341ca80bb2fd168776004edef9f476",
+      "id": "66f590fa821e116aacb33f35",
+      "input_tokens": 70267,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "20bae702a74a43107dde9b07ce84e524914db85aadd61ad31b063339f94d2e93",
+      "question_hash": "5b376ad1f59c517b1f8bdde1195d34d03a853d729020505f68ec3a20d6afe0b6",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          64306,
+          64311,
+          64316,
+          64321,
+          64327,
+          64332,
+          64337,
+          64343
+        ],
+        "B": [
+          64346,
+          64350,
+          64355,
+          64360,
+          64364,
+          64369,
+          64374,
+          64379
+        ],
+        "C": [
+          64382,
+          64384,
+          64386,
+          64388,
+          64390,
+          64392,
+          64394,
+          64397
+        ],
+        "D": [
+          64400,
+          64404,
+          64408,
+          64412,
+          64416,
+          64420,
+          64424,
+          64428
+        ],
+        "question": [
+          64289,
+          64290,
+          64292,
+          64294,
+          64295,
+          64297,
+          64299,
+          64301
+        ]
+      },
+      "context_hash": "c89a26a70799356682e508be1de4558f170f1c7b577cf1e7eb5a61f67cb53033",
+      "group_id": "0f42c7164e60535b491ed42bdde8381365877f30db4c90b5afc6be830661aeb1",
+      "id": "66f59d31821e116aacb340f6",
+      "input_tokens": 64450,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "b6ac147bbdae2138a9bea1a4204fcf61cbfac5a29c652825d9f784de32406a08",
+      "question_hash": "75470845ff27ab35138700c4e42de18b4120d7e37fa1615c8c5876564e1369d4",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          40031,
+          40043,
+          40055,
+          40068,
+          40080,
+          40093,
+          40105,
+          40118
+        ],
+        "B": [
+          40121,
+          40140,
+          40159,
+          40178,
+          40197,
+          40216,
+          40235,
+          40255
+        ],
+        "C": [
+          40258,
+          40265,
+          40273,
+          40281,
+          40289,
+          40297,
+          40305,
+          40313
+        ],
+        "D": [
+          40316,
+          40323,
+          40330,
+          40337,
+          40344,
+          40351,
+          40358,
+          40366
+        ],
+        "question": [
+          39991,
+          39996,
+          40001,
+          40006,
+          40011,
+          40016,
+          40021,
+          40026
+        ]
+      },
+      "context_hash": "0f30d4be54e61672cbb3fbbd5437cca2964b7c0633d668dbdafb5cb707ce2ce7",
+      "group_id": "c9a943ae11d96119e286699330f1475ffd7c1512bb4c94786e85266ad3f3e788",
+      "id": "66f67c1bbb02136c067c21b9",
+      "input_tokens": 40388,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "c71c38b3707945b6e5e4a082bd101421da62ac79dc1c2caec17691f848ad6a50",
+      "question_hash": "31681a213208042f5ab2f7661ce9b9a2d901365d696039c8d8e7539730184456",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          41441,
+          41453,
+          41465,
+          41477,
+          41490,
+          41502,
+          41514,
+          41527
+        ],
+        "B": [
+          41530,
+          41539,
+          41548,
+          41557,
+          41566,
+          41575,
+          41584,
+          41594
+        ],
+        "C": [
+          41597,
+          41606,
+          41615,
+          41624,
+          41633,
+          41642,
+          41651,
+          41660
+        ],
+        "D": [
+          41663,
+          41671,
+          41679,
+          41687,
+          41695,
+          41703,
+          41711,
+          41719
+        ],
+        "question": [
+          41399,
+          41404,
+          41409,
+          41414,
+          41420,
+          41425,
+          41430,
+          41436
+        ]
+      },
+      "context_hash": "0fedd1b1590e2bd83c555061bda53ab3f5fdf48f5a7050292ff28ddf88dd5534",
+      "group_id": "5e55876169951d4624a70b9216026ca9a10141a3c63ae9ee238fa1dabab2d71f",
+      "id": "66f6909bbb02136c067c2380",
+      "input_tokens": 41741,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "3c593f39aa78cdd5a4ebab7fca88e81f74bb8204b4331f6610946b5ea22fab4e",
+      "question_hash": "44e0dc69b627c5d5b0278697a85512ff8a1c7694765f5214f6e8a39cabf97b5c",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          34763,
+          34776,
+          34790,
+          34804,
+          34817,
+          34831,
+          34845,
+          34859
+        ],
+        "B": [
+          34862,
+          34869,
+          34876,
+          34883,
+          34891,
+          34898,
+          34905,
+          34913
+        ],
+        "C": [
+          34916,
+          34922,
+          34929,
+          34936,
+          34943,
+          34950,
+          34957,
+          34964
+        ],
+        "D": [
+          34967,
+          34982,
+          34998,
+          35014,
+          35030,
+          35046,
+          35062,
+          35078
+        ],
+        "question": [
+          34701,
+          34709,
+          34717,
+          34725,
+          34733,
+          34741,
+          34749,
+          34758
+        ]
+      },
+      "context_hash": "8badee5c86066dfdec6c74473cf329ed602a2618179ca9293365be97536c5f2f",
+      "group_id": "65af592963e70347ffa2d1cfb72242457000fb96ea9ef9dfdc0472db52bee452",
+      "id": "66f6a14dbb02136c067c2453",
+      "input_tokens": 35100,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "short",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "6ca6b3f924788e28c2821cd8e239057a1191651823ae09b2c0fbfe85ca647dc3",
+      "question_hash": "1f30dd871081f0b33e3f44caed91a9ffe07be34ffb321926d2cd5c4cae6bab89",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          54992,
+          54993,
+          54994,
+          54995,
+          54996,
+          54997
+        ],
+        "B": [
+          55001,
+          55002,
+          55003,
+          55004,
+          55005,
+          55006,
+          55007
+        ],
+        "C": [
+          55011,
+          55012,
+          55013,
+          55014,
+          55015,
+          55016
+        ],
+        "D": [
+          55020,
+          55021,
+          55022,
+          55023,
+          55024
+        ],
+        "question": [
+          54968,
+          54970,
+          54973,
+          54976,
+          54978,
+          54981,
+          54984,
+          54987
+        ]
+      },
+      "context_hash": "e9b0e72a21233b0abb47162fc9bd04460088fd6a73ce5c738e49539db7e224a2",
+      "group_id": "ecb4341682c8c423f2acc8e22018b6604290ca7d13f7d25cc463f658124cbae0",
+      "id": "66f6b623bb02136c067c2646",
+      "input_tokens": 55047,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "f63c9720b45cd17df0ad03fe00a6f40e82f6660a999ca8e258f7421cf5121285",
+      "question_hash": "152b8731800fad913efbac02a9658f3bea7c98a9ff03da08b03b3d3cb0faff55",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          89448,
+          89449
+        ],
+        "B": [
+          89453,
+          89454
+        ],
+        "C": [
+          89458,
+          89459,
+          89460,
+          89461
+        ],
+        "D": [
+          89465,
+          89466
+        ],
+        "question": [
+          89434,
+          89435,
+          89436,
+          89437,
+          89439,
+          89440,
+          89441,
+          89443
+        ]
+      },
+      "context_hash": "194b064e989dbd5c6044b071dddd240305cdbb585fbdbd6b7a4386f1f8c93d58",
+      "group_id": "b4229f20d069ed0da5d7e8563a9ed93fb7ab00845d18729b64d51507fd40ad0d",
+      "id": "66f793f4bb02136c067c306e",
+      "input_tokens": 89489,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "792ac0cde26752be0ce342b62d7c55f40920f2b8dc7fe697804662123397960e",
+      "question_hash": "c9ea1f72419a42b59155871de67b640e1262d2d0e6200359e6b6a430fba8663d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          45656,
+          45658,
+          45660,
+          45662,
+          45665,
+          45667,
+          45669,
+          45672
+        ],
+        "B": [
+          45675,
+          45677,
+          45679,
+          45681,
+          45684,
+          45686,
+          45688,
+          45691
+        ],
+        "C": [
+          45694,
+          45696,
+          45698,
+          45700,
+          45702,
+          45704,
+          45706,
+          45708
+        ],
+        "D": [
+          45711,
+          45713,
+          45715,
+          45717,
+          45719,
+          45721,
+          45723,
+          45725
+        ],
+        "question": [
+          45629,
+          45632,
+          45635,
+          45638,
+          45641,
+          45644,
+          45647,
+          45651
+        ]
+      },
+      "context_hash": "ab57a4abed07f0b26f00709fe7f1185a5b468be02aa70401c34bf51104f9f765",
+      "group_id": "234c5847c035a6af21dc5b35950b87eb546c97e1a8eba40536490920e4848749",
+      "id": "66f7a96cbb02136c067c3255",
+      "input_tokens": 45747,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "6d61d701d9e828975fb667dc3c1fc6bdc446aabfbf4a1cf9c4c130ff7ac76d68",
+      "question_hash": "f3d277b53a4a09f4aa8713a4c314b940a0cf50c1345ec5631203b6c1e4068e3c",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          42069,
+          42074,
+          42080,
+          42085,
+          42091,
+          42096,
+          42102,
+          42108
+        ],
+        "B": [
+          42111,
+          42115,
+          42119,
+          42123,
+          42128,
+          42132,
+          42136,
+          42141
+        ],
+        "C": [
+          42144,
+          42149,
+          42155,
+          42161,
+          42167,
+          42173,
+          42179,
+          42185
+        ],
+        "D": [
+          42188,
+          42193,
+          42198,
+          42203,
+          42209,
+          42214,
+          42219,
+          42225
+        ],
+        "question": [
+          42042,
+          42045,
+          42048,
+          42051,
+          42054,
+          42057,
+          42060,
+          42064
+        ]
+      },
+      "context_hash": "f00ceeeccebfe65360470698e392f755e442074d1ea9099f1c4eb33bc22e77ad",
+      "group_id": "238efbc73e233d2613d96a8c8df0779638222296edf74c9ba1cd3f5dbde1c506",
+      "id": "66f7aa19bb02136c067c327e",
+      "input_tokens": 42247,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "c5324cd5eb429c2130903df010b00ffef68b6607eabcc968a16a1f6577a2523d",
+      "question_hash": "d28bdcb537a37c4439fe8677a3b2c7251f259c27267093a8b91ba85299bdc616",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          74059,
+          74073,
+          74087,
+          74102,
+          74116,
+          74131,
+          74145,
+          74160
+        ],
+        "B": [
+          74163,
+          74176,
+          74189,
+          74202,
+          74215,
+          74228,
+          74241,
+          74255
+        ],
+        "C": [
+          74258,
+          74271,
+          74285,
+          74299,
+          74313,
+          74327,
+          74341,
+          74355
+        ],
+        "D": [
+          74358,
+          74371,
+          74384,
+          74397,
+          74410,
+          74423,
+          74436,
+          74450
+        ],
+        "question": [
+          73993,
+          74001,
+          74010,
+          74019,
+          74027,
+          74036,
+          74045,
+          74054
+        ]
+      },
+      "context_hash": "34f0c0f1e55366b5dd55548d90a3ceb44e020223d0ded82e0e7632d9fbbd08b1",
+      "group_id": "0188d1acca969cd06de3d51631ce4bce93b9cfdee6b014bd268df30bd9c3e837",
+      "id": "66f8c783bb02136c067c44b8",
+      "input_tokens": 74472,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "274dfe6fbc64db594a310449a130f4191eee4bc442874a08045ebacab3785a7b",
+      "question_hash": "a86dca6c6217ce344188a5ab6b4700e717b97da6f41fa537825be2daa7d9b697",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          85266,
+          85267,
+          85268,
+          85269,
+          85270
+        ],
+        "B": [
+          85274,
+          85275,
+          85276,
+          85277,
+          85278,
+          85279,
+          85280,
+          85282
+        ],
+        "C": [
+          85286,
+          85287,
+          85288,
+          85289,
+          85290,
+          85291
+        ],
+        "D": [
+          85295,
+          85296
+        ],
+        "question": [
+          85247,
+          85249,
+          85251,
+          85253,
+          85255,
+          85257,
+          85259,
+          85261
+        ]
+      },
+      "context_hash": "8ac9e499ffb895955736d29ebce1cf8f785ed8505d760a99ebf67c5b234aad53",
+      "group_id": "0bab5117e747a7691210df548a51db6b38119b78869bcc4ed19ba8539bf537d5",
+      "id": "66f920d8bb02136c067c4b81",
+      "input_tokens": 85319,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "ebb8cec81faad33f61c1740a7f27b2e184ab8b3a708bb5b42fa773feb90fe1d2",
+      "question_hash": "5cd7380de625e89872f46987b078d2a30668fc5a1dd39a53ebd8568a4549d6f7",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          70721,
+          70725,
+          70730,
+          70735,
+          70739,
+          70744,
+          70749,
+          70754
+        ],
+        "B": [
+          70757,
+          70760,
+          70764,
+          70768,
+          70772,
+          70776,
+          70780,
+          70784
+        ],
+        "C": [
+          70787,
+          70791,
+          70796,
+          70800,
+          70805,
+          70809,
+          70814,
+          70819
+        ],
+        "D": [
+          70822,
+          70826,
+          70830,
+          70834,
+          70838,
+          70842,
+          70846,
+          70851
+        ],
+        "question": [
+          70666,
+          70673,
+          70680,
+          70687,
+          70694,
+          70701,
+          70708,
+          70716
+        ]
+      },
+      "context_hash": "5fcc0a35cba93e9ab2a55f9a4736cce315804e83719de653ad49951b080391d4",
+      "group_id": "bd0de627d631d1da8f614f960a3fde754fe4a0268866b942eb8e5f5438c47bfb",
+      "id": "66f950acbb02136c067c5021",
+      "input_tokens": 70873,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Governmental"
+      },
+      "prompt_token_hash": "5edb34d68454297f7d62a6f7e528d5a97d99cb11f323a71a7a561f3e2965e467",
+      "question_hash": "b6cebbda090971f4778d1dc1d08a289d6406f780a7a1826f99717e074b6f4030",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          35574,
+          35579,
+          35585,
+          35591,
+          35596,
+          35602,
+          35608,
+          35614
+        ],
+        "B": [
+          35617,
+          35622,
+          35628,
+          35633,
+          35639,
+          35644,
+          35650,
+          35656
+        ],
+        "C": [
+          35659,
+          35666,
+          35674,
+          35681,
+          35689,
+          35696,
+          35704,
+          35712
+        ],
+        "D": [
+          35715,
+          35721,
+          35727,
+          35733,
+          35739,
+          35745,
+          35751,
+          35758
+        ],
+        "question": [
+          35510,
+          35518,
+          35526,
+          35535,
+          35543,
+          35552,
+          35560,
+          35569
+        ]
+      },
+      "context_hash": "220376e7a426ea7e676e47d11967c0c33c919ba07c4fbcc4dbc43e038bae5246",
+      "group_id": "d0e8e6b781fa9f69a93fc9bf9ed7e1ddb38c30434369c550629055d48444ba68",
+      "id": "66f95c18bb02136c067c52e1",
+      "input_tokens": 35780,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "8844f6ec2642a35d7c8c65ae86e5264770d68cb88593c8a547d143a5b3154328",
+      "question_hash": "710e3c69df462c4199f6d1a53cfe367d97117d3166f80b876a2ae1ef74972ce4",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          53357,
+          53364,
+          53371,
+          53378,
+          53385,
+          53392,
+          53399,
+          53407
+        ],
+        "B": [
+          53410,
+          53414,
+          53419,
+          53424,
+          53429,
+          53434,
+          53439,
+          53444
+        ],
+        "C": [
+          53447,
+          53452,
+          53458,
+          53464,
+          53470,
+          53476,
+          53482,
+          53488
+        ],
+        "D": [
+          53491,
+          53496,
+          53501,
+          53506,
+          53511,
+          53516,
+          53521,
+          53526
+        ],
+        "question": [
+          53335,
+          53337,
+          53339,
+          53342,
+          53344,
+          53347,
+          53349,
+          53352
+        ]
+      },
+      "context_hash": "78f1ceb13d775ef6e72c1cc42a5631b8305a282b74ddd608cd8182dac0ef28d8",
+      "group_id": "6e2992200c9c32bd491e119cc1a550490e033204cf491f2f850c93cd80b99658",
+      "id": "66f97d7fbb02136c067c56b2",
+      "input_tokens": 53548,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Financial"
+      },
+      "prompt_token_hash": "beb7817ae74239090408733603d44f16368a8907258d271359d15f9fc75433a4",
+      "question_hash": "3ce6e60ca6efa7ba90ae3b8b9f2aa227ded1e3da40f7b72d67abfcb85ca428f0",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          76695,
+          76697,
+          76700,
+          76703,
+          76706,
+          76709,
+          76712,
+          76715
+        ],
+        "B": [
+          76718,
+          76721,
+          76725,
+          76729,
+          76732,
+          76736,
+          76740,
+          76744
+        ],
+        "C": [
+          76747,
+          76751,
+          76755,
+          76759,
+          76763,
+          76767,
+          76771,
+          76776
+        ],
+        "D": [
+          76779,
+          76781,
+          76784,
+          76787,
+          76789,
+          76792,
+          76795,
+          76798
+        ],
+        "question": [
+          76678,
+          76679,
+          76681,
+          76683,
+          76684,
+          76686,
+          76688,
+          76690
+        ]
+      },
+      "context_hash": "02a33510b8c05623c876ab81cf8db53fa0030b8fdc5ec50a53133c6724024118",
+      "group_id": "f951a75feead3ce3e3d5b6d4c31cc450851df6d6796ec7f9113eb9c4846cdb90",
+      "id": "66fa50acbb02136c067c6827",
+      "input_tokens": 76821,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "a08e6b27edb4cf631665b40eb6f9229492b1b88d5069740c58e6917ba012f4a1",
+      "question_hash": "0d4b7222eee5e793bbadb65925a0b292ad2792f66282261cef8d987535332e22",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          82485,
+          82486,
+          82487,
+          82488,
+          82489,
+          82490,
+          82491,
+          82493
+        ],
+        "B": [
+          82496,
+          82497,
+          82498,
+          82499,
+          82500,
+          82501,
+          82502
+        ],
+        "C": [
+          82505,
+          82506,
+          82508,
+          82510,
+          82511,
+          82513,
+          82515,
+          82517
+        ],
+        "D": [
+          82520,
+          82521,
+          82522,
+          82523,
+          82524,
+          82525
+        ],
+        "question": [
+          82468,
+          82469,
+          82471,
+          82473,
+          82474,
+          82476,
+          82478,
+          82480
+        ]
+      },
+      "context_hash": "82b635bb8264bfd948c185cfca59c2bf5a0aee6833f1c03b2605de28cc27ff6b",
+      "group_id": "17d8ecbc0061ca74805fa43adc99ce23afc8f51cf51dc11e7b7c7a5eb45664f7",
+      "id": "66fa9ff6bb02136c067c71e0",
+      "input_tokens": 82547,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "0d882a826b000b678ca861dc2dfc75927ef555f5bd801757368aaf5a9459063e",
+      "question_hash": "ecc986dde219fea3d0f9e71af1c4a903ad840e7201ae2e643f26fc91cda5f860",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          70720,
+          70730,
+          70741,
+          70751,
+          70762,
+          70772,
+          70783,
+          70794
+        ],
+        "B": [
+          70797,
+          70803,
+          70810,
+          70817,
+          70823,
+          70830,
+          70837,
+          70844
+        ],
+        "C": [
+          70847,
+          70856,
+          70866,
+          70875,
+          70885,
+          70894,
+          70904,
+          70914
+        ],
+        "D": [
+          70917,
+          70925,
+          70933,
+          70941,
+          70949,
+          70957,
+          70965,
+          70974
+        ],
+        "question": [
+          70664,
+          70671,
+          70678,
+          70685,
+          70693,
+          70700,
+          70707,
+          70715
+        ]
+      },
+      "context_hash": "f0e6e74b0a8235cdcf8b1794f2ce36aacbc86726c831dba92bc2f21db31aa910",
+      "group_id": "9c1c3bdd31aa5bf08c723f63008c30e66e6eeacd2702accdb6bf0c9931394902",
+      "id": "66faa8efbb02136c067c7357",
+      "input_tokens": 70996,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "1fe3ccdbe5f13e31032400b3fd123d6e94974ab9538c30f5440a9764254c683b",
+      "question_hash": "9fb348e251cfa00f1891630f438511df7b1f6b518ed5e77bb1b857429c452720",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          41405,
+          41410,
+          41415,
+          41420,
+          41425,
+          41430,
+          41435,
+          41440
+        ],
+        "B": [
+          41443,
+          41450,
+          41457,
+          41464,
+          41472,
+          41479,
+          41486,
+          41494
+        ],
+        "C": [
+          41497,
+          41503,
+          41510,
+          41517,
+          41524,
+          41531,
+          41538,
+          41545
+        ],
+        "D": [
+          41548,
+          41550,
+          41552,
+          41554,
+          41556,
+          41558,
+          41560,
+          41563
+        ],
+        "question": [
+          41386,
+          41388,
+          41390,
+          41392,
+          41394,
+          41396,
+          41398,
+          41400
+        ]
+      },
+      "context_hash": "4d479cfa0c758f6de87b91e016187c3c81050ad890353338ec22e58397909f47",
+      "group_id": "e9109d08e34c59be3fff1eb72029d9b4d2eac42642c63c31acc5c20e2f77a0fa",
+      "id": "66faac15bb02136c067c73f3",
+      "input_tokens": 41585,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "3776483d7d9f72c9505b84f4a18d8d4737a2918bd7ec1740734594c6a06315b8",
+      "question_hash": "12dd18be08a871f09f9e212a50f38e9470ff5591cfcd03d179ec531635032a5c",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          128609,
+          128611,
+          128614,
+          128616,
+          128619,
+          128621,
+          128624,
+          128627
+        ],
+        "B": [
+          128630,
+          128632,
+          128635,
+          128638,
+          128641,
+          128644,
+          128647,
+          128650
+        ],
+        "C": [
+          128653,
+          128655,
+          128657,
+          128660,
+          128662,
+          128665,
+          128667,
+          128670
+        ],
+        "D": [
+          128673,
+          128677,
+          128681,
+          128685,
+          128689,
+          128693,
+          128697,
+          128701
+        ],
+        "question": [
+          128577,
+          128580,
+          128584,
+          128588,
+          128592,
+          128596,
+          128600,
+          128604
+        ]
+      },
+      "context_hash": "606ca37f1ad8078e39f50616b8db6aa5ea543e44b85adedd5533e360c0b4e5a8",
+      "group_id": "4311e0a45f1cb7d7bdb10c9a299634cb0a3aee2eb629ef76e682d26f27a151cf",
+      "id": "66fad00bbb02136c067c76ce",
+      "input_tokens": 128723,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long In-context Learning",
+        "length": "medium",
+        "sub_domain": "User guide QA"
+      },
+      "prompt_token_hash": "46a26a1daebc466941b8da7b0edb71c312c24a13209b60aca28f6690d2d595b4",
+      "question_hash": "511bbec510bce3193ac5c6f953308d8ed5f407ff1d03afead7e210b64dcf795e",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          50648,
+          50649,
+          50650,
+          50651,
+          50652,
+          50653
+        ],
+        "B": [
+          50658,
+          50659,
+          50660,
+          50661,
+          50662,
+          50663
+        ],
+        "C": [
+          50668,
+          50669,
+          50670,
+          50671,
+          50672,
+          50673
+        ],
+        "D": [
+          50678,
+          50679,
+          50680,
+          50681,
+          50682,
+          50683
+        ],
+        "question": [
+          50462,
+          50487,
+          50513,
+          50539,
+          50564,
+          50590,
+          50616,
+          50642
+        ]
+      },
+      "context_hash": "f4aec5312458b46221a455c737e7956dc6413f42aebdbb2a181454db23d7e561",
+      "group_id": "6b38ea88cd7a4be630c70362184fc4a7197a0fac188daf91ce52c92cfb909776",
+      "id": "66fba2bcbb02136c067c8112",
+      "input_tokens": 50706,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "61e8da52114e24af1a5cd43be562f3bd5f488a3963a25644905d1a17e8742a8a",
+      "question_hash": "8780da49f6176dd6ae26fe5fec4a0346dcc6dd79f91dfa59b9f758b7280ef1be",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          60013,
+          60021,
+          60030,
+          60038,
+          60047,
+          60055,
+          60064,
+          60073
+        ],
+        "B": [
+          60076,
+          60079,
+          60083,
+          60086,
+          60090,
+          60093,
+          60097,
+          60101
+        ],
+        "C": [
+          60104,
+          60114,
+          60125,
+          60136,
+          60146,
+          60157,
+          60168,
+          60179
+        ],
+        "D": [
+          60182,
+          60189,
+          60196,
+          60203,
+          60210,
+          60217,
+          60224,
+          60231
+        ],
+        "question": [
+          59983,
+          59986,
+          59990,
+          59993,
+          59997,
+          60000,
+          60004,
+          60008
+        ]
+      },
+      "context_hash": "61e97242f40d5de37d1630c4383c333b8cda63766b5623d7e5f0c45e21b4952e",
+      "group_id": "395c7c71c173440bd032d659d3d6bddbb90c38482fd8c8331ddb7898baaec034",
+      "id": "66fbe00fbb02136c067c84c8",
+      "input_tokens": 60253,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "c2a6c514c7d7a01503086a95fd6bc54e38f56a18f7ce98716c971b4e849d76d0",
+      "question_hash": "1ca67de3d85da9648b0a08e62d5ef19d4a3dcbe3e0376f357b1186f1347c11a4",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          70652,
+          70663,
+          70674,
+          70686,
+          70697,
+          70709,
+          70720,
+          70732
+        ],
+        "B": [
+          70735,
+          70745,
+          70756,
+          70766,
+          70777,
+          70787,
+          70798,
+          70809
+        ],
+        "C": [
+          70812,
+          70820,
+          70829,
+          70838,
+          70846,
+          70855,
+          70864,
+          70873
+        ],
+        "D": [
+          70876,
+          70887,
+          70899,
+          70911,
+          70922,
+          70934,
+          70946,
+          70958
+        ],
+        "question": [
+          70603,
+          70609,
+          70615,
+          70621,
+          70628,
+          70634,
+          70640,
+          70647
+        ]
+      },
+      "context_hash": "c23dec0077e7680c37a5622d0f1ad79d5adff998f542ac6c58d32317bafea879",
+      "group_id": "470c9af2b690b6bcb37a4ccb1ae92bbe179e5870eab431c50dbbc4a2bc2748ba",
+      "id": "66fc05b6bb02136c067c88e4",
+      "input_tokens": 70980,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Academic"
+      },
+      "prompt_token_hash": "a301d8330c944a75c7d900276209b0dc6be2ac6d6287ee4a5d342ebfbf91fdbe",
+      "question_hash": "515a776910929fd8047d787a1d77a18021bda351f4a70388bb7b697c779c1e9c",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          68498,
+          68503,
+          68509,
+          68515,
+          68521,
+          68527,
+          68533,
+          68539
+        ],
+        "B": [
+          68542,
+          68549,
+          68556,
+          68564,
+          68571,
+          68579,
+          68586,
+          68594
+        ],
+        "C": [
+          68597,
+          68605,
+          68613,
+          68621,
+          68629,
+          68637,
+          68645,
+          68654
+        ],
+        "D": [
+          68657,
+          68670,
+          68683,
+          68696,
+          68710,
+          68723,
+          68736,
+          68750
+        ],
+        "question": [
+          68431,
+          68439,
+          68448,
+          68457,
+          68466,
+          68475,
+          68484,
+          68493
+        ]
+      },
+      "context_hash": "ccf38b8b29dd964b9f80d9c78e38964a383acd83cef7634c047774e581942c74",
+      "group_id": "78ba2177f33b17788d6ac8fdf3fceceeb6f11577bc9f9de2f8a90ac5c7dcfea2",
+      "id": "66fcf36fbb02136c067c919e",
+      "input_tokens": 68772,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Code Repository Understanding",
+        "length": "short",
+        "sub_domain": "Code repo QA"
+      },
+      "prompt_token_hash": "a1a2968e8f0c63b1b6b7948087480654125695eba98d5012508c904e77ed5c3a",
+      "question_hash": "b1d56035c857755987a6b04e1d3f84c36036b96c8a8014b53e6e049e52d747a8",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          82342,
+          82350,
+          82358,
+          82366,
+          82374,
+          82382,
+          82390,
+          82399
+        ],
+        "B": [
+          82402,
+          82408,
+          82415,
+          82422,
+          82428,
+          82435,
+          82442,
+          82449
+        ],
+        "C": [
+          82452,
+          82456,
+          82460,
+          82464,
+          82468,
+          82472,
+          82476,
+          82481
+        ],
+        "D": [
+          82484,
+          82495,
+          82506,
+          82518,
+          82529,
+          82541,
+          82552,
+          82564
+        ],
+        "question": [
+          82313,
+          82316,
+          82319,
+          82323,
+          82326,
+          82330,
+          82333,
+          82337
+        ]
+      },
+      "context_hash": "5326036f633cf28e781142e7d3b6ab0ad188b37c02c4de094f5125ef123f8468",
+      "group_id": "896eac63d91ff2d6f99778aba74cfc66f9d7bc1e81d81cb2cfa5619711c19c93",
+      "id": "66fd4f54bb02136c067c9987",
+      "input_tokens": 82586,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "37e73e0cef82fe4a9b03b13adfc7777aba88d9d8d66dfab76ff17c87b2283fd7",
+      "question_hash": "17d03cc31a6cc5cac2c356932977159b4d5a545c7884e824f4a595e4490fd18d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          55629,
+          55636,
+          55644,
+          55652,
+          55659,
+          55667,
+          55675,
+          55683
+        ],
+        "B": [
+          55686,
+          55695,
+          55705,
+          55715,
+          55724,
+          55734,
+          55744,
+          55754
+        ],
+        "C": [
+          55757,
+          55766,
+          55776,
+          55786,
+          55795,
+          55805,
+          55815,
+          55825
+        ],
+        "D": [
+          55828,
+          55829
+        ],
+        "question": [
+          55576,
+          55582,
+          55589,
+          55596,
+          55603,
+          55610,
+          55617,
+          55624
+        ]
+      },
+      "context_hash": "458d481b0f5f96b9b81aa429aae82f867a9d6abc64a46a0e7972309f0231ff5f",
+      "group_id": "983c96ee1709d19b8e7cffc0868ffd21e4ab357a08593d98bc949b2fd5b8b80f",
+      "id": "66fe81dcbb02136c067ca2de",
+      "input_tokens": 55852,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "52750906bf3d762314c5e82911d32ed08723d0a882cd08caaf4249ac3c9b0e5e",
+      "question_hash": "6e9be8521bce482bf8fd5b70b6751f4d972e37e3c70c9c39e904a7d82267aa88",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          45546,
+          45551,
+          45556,
+          45561,
+          45567,
+          45572,
+          45577,
+          45583
+        ],
+        "B": [
+          45586,
+          45590,
+          45594,
+          45598,
+          45602,
+          45606,
+          45610,
+          45615
+        ],
+        "C": [
+          45618,
+          45621,
+          45625,
+          45629,
+          45632,
+          45636,
+          45640,
+          45644
+        ],
+        "D": [
+          45647,
+          45648,
+          45649,
+          45650
+        ],
+        "question": [
+          45484,
+          45492,
+          45500,
+          45508,
+          45516,
+          45524,
+          45532,
+          45541
+        ]
+      },
+      "context_hash": "05b7a493b735ed24422c1a5f2c027897aef8a32b5beb1d069fa2e7f0bc784cfe",
+      "group_id": "1e8e7511bc5e591e8c14530756157989b5993619a03500e64adc888feae10bfa",
+      "id": "66fea153bb02136c067ca3e7",
+      "input_tokens": 45673,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "b2a8b8ee8910f71f9e8c6d8123ef3de21ab5cef6a637997542c3cb33b548aeca",
+      "question_hash": "0df49b0dfc598bab6e3027da61c0a8f581e926affdf8e69a7c4efe1596c6957b",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          75666,
+          75670,
+          75675,
+          75679,
+          75684,
+          75688,
+          75693,
+          75698
+        ],
+        "B": [
+          75701,
+          75707,
+          75714,
+          75721,
+          75728,
+          75735,
+          75742,
+          75749
+        ],
+        "C": [
+          75752,
+          75757,
+          75762,
+          75767,
+          75772,
+          75777,
+          75782,
+          75788
+        ],
+        "D": [
+          75791,
+          75795,
+          75800,
+          75805,
+          75810,
+          75815,
+          75820,
+          75825
+        ],
+        "question": [
+          75600,
+          75608,
+          75617,
+          75626,
+          75634,
+          75643,
+          75652,
+          75661
+        ]
+      },
+      "context_hash": "0033306e7a7310246c002a208c42561b9f1c62ae2bb87762825cfffd05589eea",
+      "group_id": "3800fa3e3ee58fe1dc3b712df448197de900ef852d0a0df7087bf415a0d92cfe",
+      "id": "6703a0ecbb02136c067cd11b",
+      "input_tokens": 75847,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long Structured Data Understanding",
+        "length": "short",
+        "sub_domain": "Table QA"
+      },
+      "prompt_token_hash": "658e2022b05814469be48095083155359ccba5890c54c9a66b219ac5144f957e",
+      "question_hash": "f062ce3d50666270b70e3f9c2ed58ab68d1ec9123e4b335e764deed14e369a3d",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          41992,
+          41993,
+          41994,
+          41995,
+          41996
+        ],
+        "B": [
+          42000,
+          42001,
+          42002,
+          42003,
+          42004,
+          42005
+        ],
+        "C": [
+          42009,
+          42010,
+          42011,
+          42012,
+          42013,
+          42014,
+          42015
+        ],
+        "D": [
+          42019,
+          42020,
+          42021,
+          42022,
+          42023
+        ],
+        "question": [
+          41968,
+          41970,
+          41973,
+          41976,
+          41978,
+          41981,
+          41984,
+          41987
+        ]
+      },
+      "context_hash": "9bcda5b174762bcf6b168526d7019060ff03648533b200c1a144372a5f928c71",
+      "group_id": "8ab418d3a11588f838375473de2dfb5426cab9a0a24ac5c3163389e39df39303",
+      "id": "670493d4bb02136c067cdcd9",
+      "input_tokens": 42046,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Literary"
+      },
+      "prompt_token_hash": "dac64d5b9c7d0a8e961efd3f302846f682ee0a00be3203f5dd0f017fab573469",
+      "question_hash": "d75eba651517facceb85a4041545276aca53233aeab0ea0612a9f90b5d0019f3",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          58415,
+          58418,
+          58422,
+          58426,
+          58430,
+          58434,
+          58438,
+          58442
+        ],
+        "B": [
+          58445,
+          58449,
+          58453,
+          58457,
+          58461,
+          58465,
+          58469,
+          58474
+        ],
+        "C": [
+          58477,
+          58481,
+          58485,
+          58489,
+          58493,
+          58497,
+          58501,
+          58506
+        ],
+        "D": [
+          58509,
+          58512,
+          58516,
+          58520,
+          58524,
+          58528,
+          58532,
+          58536
+        ],
+        "question": [
+          58369,
+          58374,
+          58380,
+          58386,
+          58392,
+          58398,
+          58404,
+          58410
+        ]
+      },
+      "context_hash": "495b925ad5fbbd8098b33bbd5ffd78a9e433b4ebdb3c7ef1af496cd1e34cdb82",
+      "group_id": "e55649b446ebcb56abd620ae2e075d50ecf11cc246172f7f2dbf76352d5fedbd",
+      "id": "67062a63bb02136c067cf5ac",
+      "input_tokens": 58558,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long Structured Data Understanding",
+        "length": "short",
+        "sub_domain": "Table QA"
+      },
+      "prompt_token_hash": "99aae619bf9bb28ac99f1c1a798b43c3423467ab4adab2cf48e4d228ea4da417",
+      "question_hash": "562e8c4c379156f1511be6242d4ad8801de7315a31dfd3b7c192bb4a71945259",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          113437,
+          113441,
+          113445,
+          113449,
+          113454,
+          113458,
+          113462,
+          113467
+        ],
+        "B": [
+          113470,
+          113474,
+          113479,
+          113484,
+          113488,
+          113493,
+          113498,
+          113503
+        ],
+        "C": [
+          113506,
+          113510,
+          113515,
+          113520,
+          113525,
+          113530,
+          113535,
+          113540
+        ],
+        "D": [
+          113543,
+          113548,
+          113553,
+          113559,
+          113564,
+          113570,
+          113575,
+          113581
+        ],
+        "question": [
+          113380,
+          113387,
+          113394,
+          113402,
+          113409,
+          113417,
+          113424,
+          113432
+        ]
+      },
+      "context_hash": "fffc9cce03590e442e03977e1a34840c74c9ffb684c33f2a2dc684137a64eb25",
+      "group_id": "42270951dc8104efc5ba4b31483fa1339df2d83f5d828484f59995093a187b3c",
+      "id": "670646aebb02136c067cf85a",
+      "input_tokens": 113603,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "medium",
+        "sub_domain": "Multi-news"
+      },
+      "prompt_token_hash": "0ab1f25bc83e06f1bcb1495ca767a4e1765e343a9f3a6f503fccf7725b5dce46",
+      "question_hash": "06da8244796542ef050671a2461e71c85c34071e5262b13ccef7ab60eb80a8da",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          46609,
+          46613,
+          46618,
+          46622,
+          46627,
+          46631,
+          46636,
+          46641
+        ],
+        "B": [
+          46644,
+          46648,
+          46653,
+          46657,
+          46662,
+          46666,
+          46671,
+          46676
+        ],
+        "C": [
+          46679,
+          46683,
+          46688,
+          46692,
+          46697,
+          46701,
+          46706,
+          46711
+        ],
+        "D": [
+          46714,
+          46719,
+          46725,
+          46731,
+          46736,
+          46742,
+          46748,
+          46754
+        ],
+        "question": [
+          46546,
+          46554,
+          46562,
+          46570,
+          46579,
+          46587,
+          46595,
+          46604
+        ]
+      },
+      "context_hash": "89300fac87c9fc192b8265781efd9a5320660f6e47346c3e280a3e16b02a1fc4",
+      "group_id": "dab2bea6f298a1e4e20f7ce0fcc40260f71574f6c89295aa9722eb4b0bbd91c3",
+      "id": "67078ecabb02136c067d0b89",
+      "input_tokens": 46776,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Multi-Document QA",
+        "length": "short",
+        "sub_domain": "Legal"
+      },
+      "prompt_token_hash": "8d8e5abaf5dc7c5caabb0921ac2dc7d60e49d8ab388728d98d86649772864a9f",
+      "question_hash": "ae479a58930f186c50de226a37053af598463fed680b33557cdc0d064bc4d67c",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          106282,
+          106283,
+          106284,
+          106285,
+          106286,
+          106287
+        ],
+        "B": [
+          106291,
+          106292,
+          106293,
+          106294,
+          106295,
+          106296
+        ],
+        "C": [
+          106300,
+          106301,
+          106302,
+          106303,
+          106304,
+          106305
+        ],
+        "D": [
+          106309
+        ],
+        "question": [
+          106248,
+          106252,
+          106256,
+          106260,
+          106264,
+          106268,
+          106272,
+          106277
+        ]
+      },
+      "context_hash": "0a58b8ac7664997ead3cc896179e23ceb1799126caf0015f3fd14932b60f851f",
+      "group_id": "cb6b8a430a3b7f59ae783430acbf748bf0e93a0c4a7daef72d4ef83c6038af76",
+      "id": "670c090bbb02136c067d2404",
+      "input_tokens": 106332,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Detective"
+      },
+      "prompt_token_hash": "88071c5cfb9aba88262961440f74e1e3371ee57eac91e4a9df538e5b786f9eae",
+      "question_hash": "c8a6c2f67c763c0a8e1c1a928931075ebb5db899c4590e86f65b2bd65f1b154d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          75299,
+          75300,
+          75301,
+          75302,
+          75303,
+          75304
+        ],
+        "B": [
+          75308,
+          75309,
+          75310,
+          75311,
+          75312,
+          75313,
+          75314
+        ],
+        "C": [
+          75318,
+          75319,
+          75320,
+          75321,
+          75322,
+          75323,
+          75324,
+          75326
+        ],
+        "D": [
+          75330,
+          75331,
+          75333,
+          75335,
+          75337,
+          75339,
+          75341,
+          75343
+        ],
+        "question": [
+          75261,
+          75265,
+          75270,
+          75275,
+          75279,
+          75284,
+          75289,
+          75294
+        ]
+      },
+      "context_hash": "80a7de6dd024d587ba3e497268382caf03603e973366d06b61c990cffc1f0857",
+      "group_id": "ecff3d26abcf93f7f25911d0607967846644a2ca93ca0f71015612c960e705c5",
+      "id": "670fb813bb02136c067d2bec",
+      "input_tokens": 75366,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Detective"
+      },
+      "prompt_token_hash": "1c81f0864978c901e8f2a716961c8ff92fdae85b8c4d82fdb6438697999193ca",
+      "question_hash": "daf48d789053aaa2cb288a453a97bc917b9eec76db93ca35ed6b6b8fcebe8931",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          118755,
+          118756,
+          118757
+        ],
+        "B": [
+          118761,
+          118762,
+          118763,
+          118764
+        ],
+        "C": [
+          118768,
+          118769,
+          118770
+        ],
+        "D": [
+          118774,
+          118775,
+          118776
+        ],
+        "question": [
+          118734,
+          118736,
+          118738,
+          118740,
+          118743,
+          118745,
+          118747,
+          118750
+        ]
+      },
+      "context_hash": "308a2d5bb57bc8499f8bdb6a175657cbd62aa4f04026c3c6657eba856b80ad3f",
+      "group_id": "687f06d970a92fac73db72a17cde0c8567da9137ced45d32c325903dcec28407",
+      "id": "67191791bb02136c067d406c",
+      "input_tokens": 118799,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "9d29f28285c013342113addcd752bdf97402ea5fb474da718d20c9a2402dc51a",
+      "question_hash": "2b4bf71220ee3068bf1991633b735f0a37edd73ec5e04f0463c2843e6183e06c",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          120859,
+          120860
+        ],
+        "B": [
+          120864,
+          120865
+        ],
+        "C": [
+          120869,
+          120870,
+          120871
+        ],
+        "D": [
+          120875,
+          120876,
+          120877
+        ],
+        "question": [
+          120845,
+          120846,
+          120847,
+          120848,
+          120850,
+          120851,
+          120852,
+          120854
+        ]
+      },
+      "context_hash": "3e86943099fc3b2d84a96e2c03515a1504a902031f6996edd88a2ae665d97ca7",
+      "group_id": "e7cd7bf1afb481bdc0510ec10e3bc6d5c9fda4c309b1d486552212ab68104577",
+      "id": "6719185cbb02136c067d40ab",
+      "input_tokens": 120900,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "5068469d20358a80907a217a4b7583726722fd8c1b51a2a414bdf2d516f50fd2",
+      "question_hash": "d3156c456b1865a9a67b3373ea030b3cd25a2f9b3163bfcd5481939af5f9dc3c",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119519,
+          119520
+        ],
+        "B": [
+          119525,
+          119526
+        ],
+        "C": [
+          119531,
+          119532
+        ],
+        "D": [
+          119537,
+          119538
+        ],
+        "question": [
+          119500,
+          119501,
+          119503,
+          119505,
+          119507,
+          119509,
+          119511,
+          119513
+        ]
+      },
+      "context_hash": "1a803f759a7363ee4af00306f222ebcf42422a360c0590d6cb77e4b60c2dd122",
+      "group_id": "0be8113ab65d730f39b3fd51670f43ec839dc49c439466630f329019b2f1c683",
+      "id": "67192057bb02136c067d41b4",
+      "input_tokens": 119561,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "c1c087b2ceee274e57d57a4f3158ba5653384e634c7baed2eb687fc3a38ad08a",
+      "question_hash": "59132d2ef1f90532841e5cf6a0dc7a7d319a6f4402d4661171920035ce2804a6",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          121187,
+          121188,
+          121189
+        ],
+        "B": [
+          121193,
+          121194,
+          121195
+        ],
+        "C": [
+          121199,
+          121200,
+          121201
+        ],
+        "D": [
+          121205,
+          121206,
+          121207
+        ],
+        "question": [
+          121174,
+          121175,
+          121176,
+          121177,
+          121178,
+          121179,
+          121180,
+          121182
+        ]
+      },
+      "context_hash": "2a0e7e2431831c3f2d1263eec77b1389a44470273c643510bdc318654f34c113",
+      "group_id": "2fb3b93cbc3110b2c817dbcd27f1dcaacc06a30997d73c88f7adb48a944e29b3",
+      "id": "67192e81bb02136c067d427f",
+      "input_tokens": 121230,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "59ab5cc8be69b79b697662feead4d531563575bbdcc4fed4235e83e961fbb7d0",
+      "question_hash": "bec727485e7f9081739daf824b54703c85cf8b91614fbd39ad49105839de438a",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          117280,
+          117281,
+          117282,
+          117283,
+          117284,
+          117285
+        ],
+        "B": [
+          117289,
+          117290,
+          117291,
+          117292,
+          117293,
+          117294,
+          117295
+        ],
+        "C": [
+          117299,
+          117300,
+          117301,
+          117302,
+          117303,
+          117304,
+          117305,
+          117306
+        ],
+        "D": [
+          117310,
+          117311,
+          117312,
+          117313,
+          117314,
+          117315,
+          117316
+        ],
+        "question": [
+          117255,
+          117257,
+          117260,
+          117263,
+          117266,
+          117269,
+          117272,
+          117275
+        ]
+      },
+      "context_hash": "9399707d915d059be7dfea1f81c0ec150a6578b9445b0f8843895f152bacb701",
+      "group_id": "9342a03747e2767a12e31f034049a631a750e5a275b24354f7c980cb2a92c0ae",
+      "id": "6719c1febb02136c067d44db",
+      "input_tokens": 117339,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "9868c803d513097fd83ac7545564ed4915dc0d9f8845c2a9628d5ee00d690628",
+      "question_hash": "82a1eccd06a930429b962ac4eff1c10896ada2a1d13451c4b81e2f64c6b1908b",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          118873,
+          118874,
+          118875
+        ],
+        "B": [
+          118879,
+          118880,
+          118881,
+          118882,
+          118883
+        ],
+        "C": [
+          118887,
+          118888
+        ],
+        "D": [
+          118892,
+          118893
+        ],
+        "question": [
+          118830,
+          118835,
+          118840,
+          118846,
+          118851,
+          118857,
+          118862,
+          118868
+        ]
+      },
+      "context_hash": "693c24d680cf7632a96f94c258228644ba66782e1e7f64c1e7fb136424121819",
+      "group_id": "5c3e63980ed1bc8dd7744465851b1d125ef3c2298447b8c18b623275a18badd3",
+      "id": "6719d65ebb02136c067d45dc",
+      "input_tokens": 118916,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "36c5c4b064274a57c6dc90597ee613a231bc4962834f37f6af6bd0e11417625d",
+      "question_hash": "e58b1a2d975499208b610de4ebc9631b47d54a24e446e1e59ae80ee6cfadd032",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          125392,
+          125394,
+          125397,
+          125399,
+          125402,
+          125404,
+          125407,
+          125410
+        ],
+        "B": [
+          125413,
+          125415,
+          125418,
+          125420,
+          125423,
+          125425,
+          125428,
+          125431
+        ],
+        "C": [
+          125434,
+          125436,
+          125438,
+          125441,
+          125443,
+          125446,
+          125448,
+          125451
+        ],
+        "D": [
+          125454,
+          125456,
+          125458,
+          125460,
+          125462,
+          125464,
+          125466,
+          125469
+        ],
+        "question": [
+          125362,
+          125365,
+          125369,
+          125372,
+          125376,
+          125379,
+          125383,
+          125387
+        ]
+      },
+      "context_hash": "191e6e975305ac6eeae6348492abbe2ada7a987b79ba5348f7529333ec89babd",
+      "group_id": "e891a0ac48ea36d075b606127814fb5cef2b3c0fec1bf8509296796bfc42e7fc",
+      "id": "6719dc46bb02136c067d470b",
+      "input_tokens": 125491,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "92a08b763e3abf48ac5f43e6c0fdc83a2a9473f8fb5969576cc7b079fcaf769d",
+      "question_hash": "944be4b130364fb2a4a5720ee581afb47434df0a689115ce3a9a84646d302acc",
+      "split": "qualification"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          118907,
+          118908,
+          118909,
+          118911,
+          118912,
+          118914,
+          118915,
+          118917
+        ],
+        "B": [
+          118920,
+          118922,
+          118924,
+          118926,
+          118928,
+          118930,
+          118932,
+          118935
+        ],
+        "C": [
+          118938,
+          118939,
+          118941,
+          118943,
+          118944,
+          118946,
+          118948,
+          118950
+        ],
+        "D": [
+          118953,
+          118955,
+          118957,
+          118959,
+          118961,
+          118963,
+          118965,
+          118968
+        ],
+        "question": [
+          118877,
+          118880,
+          118884,
+          118887,
+          118891,
+          118894,
+          118898,
+          118902
+        ]
+      },
+      "context_hash": "621b36e6d201b9679062b96485227649f77ef268f478e637b93d8a5b883ff273",
+      "group_id": "b10a4390ea964841551b7bc74737a5a6bb3b7b000fc49914a46e6cc285dfec7d",
+      "id": "6719ef50bb02136c067d4911",
+      "input_tokens": 118990,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "55b7995bfbe835ce8133562613c27588acb8bf88d0c9f4f82a2a99b87e4cdf71",
+      "question_hash": "8490cff386868a8fde768bd811ed52547cf02dc7bf3b270ed875d250046f90da",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119910,
+          119911,
+          119912,
+          119913,
+          119914
+        ],
+        "B": [
+          119918,
+          119919,
+          119920,
+          119921,
+          119922
+        ],
+        "C": [
+          119926,
+          119927,
+          119928,
+          119929,
+          119930,
+          119931,
+          119932,
+          119933
+        ],
+        "D": [
+          119937,
+          119938,
+          119939,
+          119940,
+          119941,
+          119942,
+          119943
+        ],
+        "question": [
+          119897,
+          119898,
+          119899,
+          119900,
+          119901,
+          119902,
+          119903,
+          119905
+        ]
+      },
+      "context_hash": "fa31ffac2729f4eae1fb9b29004443c4d5258e856cb36219628702691587ca7f",
+      "group_id": "690b63988e4dafbe71d0baf6c833b29199a1216fdd9b8715a89c2b9039cd1604",
+      "id": "671b2822bb02136c067d5020",
+      "input_tokens": 119966,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "71b18c96cfeb5d37695824b4d50d456c370485f109d8b39313384c632cc1aef6",
+      "question_hash": "4dc2e5d39db4ab5f8a7aac69d8cf4e0817b55b9b2485df32abe999f24487f7f1",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          41860,
+          41861,
+          41862
+        ],
+        "B": [
+          41866,
+          41867,
+          41868
+        ],
+        "C": [
+          41872,
+          41873,
+          41874
+        ],
+        "D": [
+          41878,
+          41879,
+          41880
+        ],
+        "question": [
+          41846,
+          41847,
+          41848,
+          41849,
+          41851,
+          41852,
+          41853,
+          41855
+        ]
+      },
+      "context_hash": "8716f882f9b4d9d09c478157342ee8751e9a089e0300db63613a65e5eafdc3ee",
+      "group_id": "a369f27159a5979ce29c7eaa77986a75331c91e54fb5c58c66c434e3bf6c5dd0",
+      "id": "671b2b57bb02136c067d508b",
+      "input_tokens": 41903,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "62b3960f54941743169546094b3cd28a8bc4e65fe5bfccc8e1684d219c1bbbe3",
+      "question_hash": "c1573f6b550ccf23880d741ed2a094b4fe89aa09ad667d8614250eca0a57a1d6",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          41928,
+          41929,
+          41930
+        ],
+        "B": [
+          41934,
+          41935,
+          41936
+        ],
+        "C": [
+          41940,
+          41941,
+          41942
+        ],
+        "D": [
+          41946,
+          41947,
+          41948
+        ],
+        "question": [
+          41913,
+          41914,
+          41915,
+          41917,
+          41918,
+          41920,
+          41921,
+          41923
+        ]
+      },
+      "context_hash": "31458db1d53213fd5fd7c1c1eac433eb9fc65bb9a0163e5e2fa616fcb13a0e24",
+      "group_id": "d7198996a0b923a06b27ab0ab335b103b47a0a513441070a9e35c734b9a372b2",
+      "id": "671b2c67bb02136c067d50f7",
+      "input_tokens": 41971,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "8088ce617d78ae8e1ae60f9adbfcbdcfd7e8f0d562b5b6f30a81d2ea636d4e41",
+      "question_hash": "ae4c43f328c816c5c23ad8d52470593745c7743096f404092aa2cd7038fd8750",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          120602,
+          120603,
+          120605,
+          120606,
+          120608,
+          120609,
+          120611,
+          120613
+        ],
+        "B": [
+          120617,
+          120618,
+          120619,
+          120620,
+          120621,
+          120622,
+          120623,
+          120624
+        ],
+        "C": [
+          120628,
+          120629,
+          120630,
+          120631,
+          120632,
+          120633,
+          120634
+        ],
+        "D": [
+          120638,
+          120639,
+          120640,
+          120641,
+          120642,
+          120643,
+          120644,
+          120646
+        ],
+        "question": [
+          120591,
+          120592,
+          120593,
+          120594,
+          120595,
+          120596,
+          120597
+        ]
+      },
+      "context_hash": "c02fdf3af7caad647f633c7afcfaf993a5e1de838e1204c16fa8dcf19077a0bf",
+      "group_id": "9fbb1fa8e2bf66ab36039327261032bad9866dd6a0c2044cfd297cc80bd7f00e",
+      "id": "671b2e2dbb02136c067d515b",
+      "input_tokens": 120669,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "51355eb561e07ef4f29e251fb50d03a0cdb32c02963ac112f26f57d5bed13d3d",
+      "question_hash": "97d2afaff63c79e79b9997be4f2812c4fe46d81f1e4a86633d661baf232bd8c2",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          43211,
+          43212,
+          43213
+        ],
+        "B": [
+          43217,
+          43218,
+          43219
+        ],
+        "C": [
+          43223,
+          43224,
+          43225
+        ],
+        "D": [
+          43229,
+          43230,
+          43231
+        ],
+        "question": [
+          43197,
+          43198,
+          43199,
+          43200,
+          43202,
+          43203,
+          43204,
+          43206
+        ]
+      },
+      "context_hash": "8bf33af80ce013fcd00486b7af451d4a502add0012cf2fc2deb1fffc32e113dc",
+      "group_id": "da92a9cfbe3e839b4ac997ea1a7df0838b70f127edb3b0387ef35f435693f817",
+      "id": "671b3cabbb02136c067d5252",
+      "input_tokens": 43254,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "short",
+        "sub_domain": "Agent history QA"
+      },
+      "prompt_token_hash": "5c8eb3dab8732804082bd934190d42917537cbec514dd34b3a6f528aa9b2a5b5",
+      "question_hash": "8213547d934603240f491531c12845857d06e131fe250d892f0f4ed889de9e84",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          117105
+        ],
+        "B": [
+          117110
+        ],
+        "C": [
+          117115
+        ],
+        "D": [
+          117120
+        ],
+        "question": [
+          117087,
+          117088,
+          117090,
+          117092,
+          117093,
+          117095,
+          117097,
+          117099
+        ]
+      },
+      "context_hash": "f417a85b35b9b100f24fc4c4cb91339fae19d2ffcde9d67cc06c690e5aed5733",
+      "group_id": "cc16cdfd77aa3ef471170122df46363fd653cd768cd23f233b1af6152c5fd504",
+      "id": "671b530dbb02136c067d5454",
+      "input_tokens": 117143,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "e34e1033d2bdf7e8b0eb7dcf1f4a0afaf5c8fa29b67fe1e3d6877d161695276c",
+      "question_hash": "9c8b7531c58895f45e769eb407c00bd6c9031ea47428d8fe1046990cc44c209d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          117469,
+          117470,
+          117471,
+          117472
+        ],
+        "B": [
+          117476,
+          117477,
+          117478,
+          117479,
+          117480
+        ],
+        "C": [
+          117484,
+          117485,
+          117486,
+          117487,
+          117488
+        ],
+        "D": [
+          117492,
+          117493,
+          117494,
+          117495,
+          117496
+        ],
+        "question": [
+          117446,
+          117448,
+          117451,
+          117453,
+          117456,
+          117458,
+          117461,
+          117464
+        ]
+      },
+      "context_hash": "6e6e74cc99fe0959a5b8b867ab794ba96ad6bc428b10c030f95a25ba3fe06323",
+      "group_id": "4bdc6109e7424f188e32c018d871fb29dcdee32abd5a192c4437ea4ca05cdc25",
+      "id": "671b56cfbb02136c067d54e9",
+      "input_tokens": 117519,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "c45a9d7cc69d51efe672e7ec2b157e9a42ee14fb4efbc9eb58639b5560b76867",
+      "question_hash": "93412f058cd5a67b4b393527c32920dac4c026dde4398fc97704239f26343ffd",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119744
+        ],
+        "B": [
+          119749,
+          119750
+        ],
+        "C": [
+          119755,
+          119756
+        ],
+        "D": [
+          119761,
+          119762
+        ],
+        "question": [
+          119727,
+          119728,
+          119730,
+          119731,
+          119733,
+          119734,
+          119736,
+          119738
+        ]
+      },
+      "context_hash": "1d9e6edc1d3bb4fd15c0c05674eec4d67a24f6c82028c66d63abe9e10e0d99b3",
+      "group_id": "93719798d3aa11420697a3b51977b93ce1290c5314726513b4838c8425bf4f1c",
+      "id": "671b58e8bb02136c067d5525",
+      "input_tokens": 119785,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "bd2421ba02cc412955dc68b4a693be2cfc066270f7cb6eb39ed522d3df4abe47",
+      "question_hash": "82da0e2025bb62fc6fc29aae37b3ca891d11722adea2eca11c549c90d491f211",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          119968,
+          119969,
+          119970,
+          119971,
+          119972,
+          119973
+        ],
+        "B": [
+          119977,
+          119978,
+          119979,
+          119981,
+          119982,
+          119984,
+          119985,
+          119987
+        ],
+        "C": [
+          119990,
+          119991,
+          119992,
+          119993,
+          119994,
+          119995,
+          119996
+        ],
+        "D": [
+          120000,
+          120001,
+          120002,
+          120003,
+          120004,
+          120005,
+          120006
+        ],
+        "question": [
+          119954,
+          119955,
+          119956,
+          119957,
+          119959,
+          119960,
+          119961,
+          119963
+        ]
+      },
+      "context_hash": "ffbcdb75e876248376be23371ff2fdb57b31e3df84ff215b629725a1a0206a13",
+      "group_id": "33fd988a2daf88baebbc83148f7d390c0f3ccf69fcff7c1525d8fe8317426949",
+      "id": "671b5d49bb02136c067d55fb",
+      "input_tokens": 120029,
+      "metadata": {
+        "difficulty": "easy",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "7776c220c0eca99b0676d4153efc567adbec0a92b2071a3dd133142bb5559e78",
+      "question_hash": "eef6d939d171aedfb3c62bcc6aeed9ba8864fbfeae5459f0f2f413b6ae8d775d",
+      "split": "development"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          120023,
+          120024,
+          120025,
+          120026,
+          120027,
+          120028,
+          120029,
+          120030
+        ],
+        "B": [
+          120033,
+          120034,
+          120035,
+          120036
+        ],
+        "C": [
+          120039,
+          120040,
+          120041,
+          120042
+        ],
+        "D": [
+          120045,
+          120046,
+          120047,
+          120048,
+          120049,
+          120050,
+          120051,
+          120052
+        ],
+        "question": [
+          120005,
+          120006,
+          120008,
+          120010,
+          120012,
+          120014,
+          120016,
+          120018
+        ]
+      },
+      "context_hash": "02e0a0116095034c0378536a7f4cadfded8a51177dcb6530a15d737594cf33e3",
+      "group_id": "09e7fbc014b68407f4f880a238323c8cd5925b9691c15f3fe2810998072a4b07",
+      "id": "671b99e5bb02136c067d583d",
+      "input_tokens": 120074,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Long-dialogue History Understanding",
+        "length": "medium",
+        "sub_domain": "Dialogue history QA"
+      },
+      "prompt_token_hash": "f06b4ff5a65d1810cfe45a7d1f9d8cca9315fd49fd41f2238db8d38b81adef8d",
+      "question_hash": "1cbb2bf3b7efc367694d01f1be8650ab1997dd604f6b2f89892a830a067d3072",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          121280,
+          121281,
+          121282,
+          121283
+        ],
+        "B": [
+          121288,
+          121289,
+          121290,
+          121291
+        ],
+        "C": [
+          121296,
+          121297,
+          121298,
+          121299
+        ],
+        "D": [
+          121304,
+          121305,
+          121306,
+          121307
+        ],
+        "question": [
+          121098,
+          121123,
+          121148,
+          121173,
+          121198,
+          121223,
+          121248,
+          121274
+        ]
+      },
+      "context_hash": "025c8f4b9cfcf5e06612db81854c9c1274d13d0d56f0a32388d4d86dff144342",
+      "group_id": "081c4c3d6bd0c0d3c35b48914f9ef706b07f2c80f6816f42c585d6e4a1a016e1",
+      "id": "6723a770bb02136c067d7233",
+      "input_tokens": 121330,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "medium",
+        "sub_domain": "Event ordering"
+      },
+      "prompt_token_hash": "49d40725e434fe6f0185179ebcb1ea6ad7f9b64cc54c7ea97ff0a8f6ff82944e",
+      "question_hash": "437c8339e8f60c8a327a3a2d946aa625fe30ea4bd0e2ef3b9322bc5474edf3c3",
+      "split": "confirmation"
+    },
+    {
+      "content_token_positions": {
+        "A": [
+          36855,
+          36856,
+          36857,
+          36858
+        ],
+        "B": [
+          36863,
+          36864,
+          36865,
+          36866
+        ],
+        "C": [
+          36871,
+          36872,
+          36873,
+          36874
+        ],
+        "D": [
+          36879,
+          36880,
+          36881,
+          36882
+        ],
+        "question": [
+          36665,
+          36691,
+          36717,
+          36743,
+          36770,
+          36796,
+          36822,
+          36849
+        ]
+      },
+      "context_hash": "2005306cb0bd29d4111b22c3ed09d6ba3594bda6d407de3f57fa9544662eba33",
+      "group_id": "50912f0d04530ea26adfbb699b45703fb52511fa50f8b2008254613fc82108f6",
+      "id": "6725e2febb02136c067d8717",
+      "input_tokens": 36905,
+      "metadata": {
+        "difficulty": "hard",
+        "domain": "Single-Document QA",
+        "length": "short",
+        "sub_domain": "Event ordering"
+      },
+      "prompt_token_hash": "26a4e75ef61f893c01af6c134c40c55131ef366209a2968c6d6cfe0583fee163",
+      "question_hash": "f1ade92f14d7a5cdb0b0783fce621488d679a9002a9cc78b089eb0939bd594a3",
+      "split": "confirmation"
+    }
+  ],
+  "legacy_manifest": "h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_qwen30_manifest.json",
+  "legacy_manifest_content_sha256": "c6a951bb5433dd5c918ca6c8c964eb2ed4a4c26f9a079f53fb9111e9a3279f5b",
+  "legacy_manifest_file_sha256": "a85b94fe636ce00ccddbc4ffa0f371f4d666aa0aa02750841444a811250a1946",
+  "manifest_version": "longbench_v2_sieve_v7_qwen131072_manifest_v1",
+  "protocol": {
+    "content_tokens": {
+      "final_uncached_prompt_token_excluded": true,
+      "groups": [
+        "question",
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "maximum_per_group": 8,
+      "overlap": "token_offset_start < content_end and token_offset_end > content_start",
+      "sampling": "floor(j*(n-1)/(m-1)); m=min(8,n); singleton_index=0"
+    },
+    "dataset": {
+      "bytes": 465490535,
+      "repo": "zai-org/LongBench-v2",
+      "revision": "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9",
+      "sha256": "15d61c22d92c96900b3c4948b6aeea218d3214b676a65df48e7b8555604c7fe2"
+    },
+    "eligibility": {
+      "complete_input_rule": "chat_input_tokens + 5 <= 131072",
+      "component_rule": "untainted_singleton_in_all_503_row_component_graph",
+      "context_window": 131072,
+      "required_suffix_tokens": 5
+    },
+    "forced_choice": {
+      "choice_branch_ids": {
+        "A": 32,
+        "B": 33,
+        "C": 34,
+        "D": 35
+      },
+      "scaffold_token_ids": [
+        785,
+        4396,
+        4226,
+        374,
+        320
+      ]
+    },
+    "legacy_exclusion": {
+      "manifest": "h0_measurement/bugs/9_sota_eviction_baselines/longbench_v2_qwen30_manifest.json",
+      "manifest_content_sha256": "c6a951bb5433dd5c918ca6c8c964eb2ed4a4c26f9a079f53fb9111e9a3279f5b",
+      "manifest_file_sha256": "a85b94fe636ce00ccddbc4ffa0f371f4d666aa0aa02750841444a811250a1946",
+      "manifest_version": "longbench_v2_sieve_v6_qwen30_manifest_v1",
+      "rule": "exclude_full_transitive_exact_context_or_question_component"
+    },
+    "model": {
+      "add_generation_prompt": true,
+      "chat_template_sha256": "64f85b198065d0fba2a81f37e10ed68161ce2c19a754c7100e67e0ca2ee9c326",
+      "enable_thinking": false,
+      "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+      "revision": "0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe",
+      "tag": "qwen3-30b-a3b-2507",
+      "tokenizer_revision": "0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe",
+      "tokenizers_version": "0.23.1",
+      "transformers_version": "5.16.1"
+    },
+    "official_prompt": {
+      "code_repo": "THUDM/LongBench",
+      "code_revision": "2e00731f8d0bff23dc4325161044d0ed8af94c1e",
+      "prompt_sha256": "68a162252bc9ff71d5d7abca3d69bb31aac3c35f832d657a2866f2018b8a6950"
+    },
+    "partition": {
+      "component_id_namespace_utf8": "longbench_v2_sieve_v7_qwen131072_component_v1\u0000",
+      "selection": "first_117_by_sha256(namespace_plus_item_id_ascii)",
+      "selection_namespace_utf8": "longbench_v2_sieve_v7_qwen131072_selection_v1\u0000",
+      "split_order": "same_selection_order_first_20_next_52_last_45",
+      "split_rows": {
+        "confirmation": 45,
+        "development": 52,
+        "qualification": 20
+      }
+    }
+  },
+  "selected_id_sha256": "de5369bd3429728167bee0ee0159a0a719c6f74f3c1c65b94a0819ae7e99ba58",
+  "selection_order_sha256": "c1e654c82431921ff0b89f783ab8477993d5ea0ecb493becafbe1cd04e0a4ea9",
+  "split_counts": {
+    "confirmation": {
+      "components": 45,
+      "id_positions_sha256": "9c1074beb65222d8be27c491397a2d8a531e3e91b43cf1dffc4a50c8964506c4",
+      "id_prompt_sha256": "f895dacb86e5b982d104c443d0e9eab937f4f4a300f8da137beadf541fb76523",
+      "id_sha256": "21ef32a14ce1759220bef70bc96329c52d443ab036c96200a4db86b3f84336b5",
+      "id_token_sha256": "bb967a04026d998e1696981f14478cb73797346cf054ec619c58a304600b2109",
+      "input_tokens_max": 130291,
+      "input_tokens_min": 35780,
+      "ordered_id_sha256": "7fa48077464830452e66f050ded1be8726bb8ac5cd96c58a48c86de43c5177fc",
+      "rows": 45
+    },
+    "development": {
+      "components": 52,
+      "id_positions_sha256": "d431ed562c3d78889a50f4f53c846de55a0c02eb21f8a020671080ab52154ed4",
+      "id_prompt_sha256": "b16f314d57fe323010737507d060f7407f83282006a8c604cd82e8f31964e245",
+      "id_sha256": "bd6e0af3b87d9c36f31aeb608d69cbd625139b44945fd54d84282040784d4f09",
+      "id_token_sha256": "28499e693563d22463f7a1563ef4ec65fe4cc1fa8b003d523f0e5c94ea785863",
+      "input_tokens_max": 120669,
+      "input_tokens_min": 34089,
+      "ordered_id_sha256": "b613e954483add55fb2e15c2259d6320fb09d9714cf7af8f5018a734ea5b53d2",
+      "rows": 52
+    },
+    "qualification": {
+      "components": 20,
+      "id_positions_sha256": "5d71a8c3cbdfb2c4c017575e1f74aab022a0b09d23d5bd5202ed0d76cb86557d",
+      "id_prompt_sha256": "e2e77068b44a1371968d3516ae8041b0b051657b4e8c683f7eec9040fd87ab35",
+      "id_sha256": "9d6273f60e38df9b5ae7f35bfa40171470c4f73463c562c2fe1cefe4ea9a7dd9",
+      "id_token_sha256": "0ae1e9ca447ca5a0959d5a798061fa4d97cdc6e64e70deead1b70b4aae6d11a8",
+      "input_tokens_max": 125491,
+      "input_tokens_min": 35100,
+      "ordered_id_sha256": "bf095ff6ece61d26f7a75a6d13ea6dfb19ce6bedc07ef7e4611b91bb14735834",
+      "rows": 20
+    }
+  }
+}

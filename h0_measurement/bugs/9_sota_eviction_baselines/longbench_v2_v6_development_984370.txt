@@ -1,0 +1,9 @@
+V6 Qwen LongBench-v2 forced-choice development (frozen section 3K)
+provenance      PASS (pinned dataset/manifest/model/prompt/split)
+rows            468 predictions, 416 proxy; 52 items / 44 components
+fixed policy    uniform accuracy 0.519
+answer vectors  3 classes [["fp","evict","interior","interior_pool","interior_cascade","obcache_k","obck_ada"],["uniform"],["laprox"]]
+competence      FP 0.462 (q05 0.340), F* 0.519 (q05 0.404) [FAIL]
+opportunity H   0.038, q05 0.000, halves 0.036/0.042 [FAIL]
+proxy G         suppressed (sequential H gate did not pass)
+decision        stop_v6_invalid_operating_point

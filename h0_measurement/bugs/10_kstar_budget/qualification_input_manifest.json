@@ -1,0 +1,470 @@
+{
+  "content_sha256": "33e6e064970085571db3e4e2e041316b97c160cd537d24b2286cd0d7deaeb8c2",
+  "corpus": {
+    "file_count": 40,
+    "files": [
+      {
+        "bytes": 421536,
+        "path": "pg19_00084_frankenstein.txt",
+        "sha256": "bde72e6909fb0caebf375b81f7a63140d2b6ffab49a473c670a498dee96934a8"
+      },
+      {
+        "bytes": 771503,
+        "path": "pg19_00098_tale-of-two-cities.txt",
+        "sha256": "d614b101548dd9271afa7f63f0899640cf0b91ccf3daae0ac46e5bf09d62105c"
+      },
+      {
+        "bytes": 469407,
+        "path": "pg19_00105_persuasion.txt",
+        "sha256": "363b7657367596bb3bab9cf4a5878422d3104832418c540d38d545279ad8d66b"
+      },
+      {
+        "bytes": 440229,
+        "path": "pg19_00121_northanger-abbey.txt",
+        "sha256": "90b5c714851bd45957871b9efe30ccfb0c7df0acc9a73c4eb7735aadbc89711c"
+      },
+      {
+        "bytes": 3276195,
+        "path": "pg19_00135_les-miserables.txt",
+        "sha256": "3790b506959d4d8e91083ade2d91092cf56e93ca9027418e6bedbe8b34386ed7"
+      },
+      {
+        "bytes": 893690,
+        "path": "pg19_00141_mansfield-park.txt",
+        "sha256": "74590df7cef7953789113ee5dfe2886b290a724ea509f9a1286140c52baa2999"
+      },
+      {
+        "bytes": 1812691,
+        "path": "pg19_00145_middlemarch.txt",
+        "sha256": "db33091e5dfb388041d13c5037409b0b08833628d3b06c24ab7fd9f522249923"
+      },
+      {
+        "bytes": 897480,
+        "path": "pg19_00158_emma.txt",
+        "sha256": "17df39a0375ebac2959aef48ab763bd68f69557a6004aede94d43cc91e04b85a"
+      },
+      {
+        "bytes": 680411,
+        "path": "pg19_00161_sense-and-sensibility.txt",
+        "sha256": "4580a4a8a5814b20909e9eaf542fc62cdebc4f6dc1e7f6659e3a41d5397bb5c2"
+      },
+      {
+        "bytes": 437456,
+        "path": "pg19_00174_picture-of-dorian-gray.txt",
+        "sha256": "aa8346331b9532dab86d8ab25a4a4ad598dc1c79e7ec2ed66157db9881861236"
+      },
+      {
+        "bytes": 855074,
+        "path": "pg19_00345_dracula.txt",
+        "sha256": "27ff3ad852dccfe9edc06a56b7f5936520148f66bf358ab2e229a576cd076c1b"
+      },
+      {
+        "bytes": 1187757,
+        "path": "pg19_00507_adam-bede.txt",
+        "sha256": "dc611ac798881e6a5a7750d1737226a9f41d191dd4d699ad5ae16d3bc8bd351b"
+      },
+      {
+        "bytes": 1798693,
+        "path": "pg19_00580_pickwick-papers.txt",
+        "sha256": "98c7dbacaf10b3878eb34030ab8b3863b9971c8caa9a99415de2ded77133b2ee"
+      },
+      {
+        "bytes": 1716055,
+        "path": "pg19_00599_vanity-fair.txt",
+        "sha256": "b1e6377580d58d01c697dc9be5a39d5999102ba846a643f11ebb877cc3d28b3b"
+      },
+      {
+        "bytes": 917255,
+        "path": "pg19_00730_oliver-twist.txt",
+        "sha256": "bd74c7181288de82a2ad726dbb267abee316173cefe9f412563c73bd56049213"
+      },
+      {
+        "bytes": 1975229,
+        "path": "pg19_00766_david-copperfield.txt",
+        "sha256": "58d9656b4201ae294770edfe654c5abc81d096cf02cecc8469361aed0b0ce366"
+      },
+      {
+        "bytes": 661711,
+        "path": "pg19_00768_wuthering-heights.txt",
+        "sha256": "6ed5d10a515e2e025b0941dbccf22f291b2212a22226b3c2e442ce27ba93d71a"
+      },
+      {
+        "bytes": 2038335,
+        "path": "pg19_00821_dombey-and-son.txt",
+        "sha256": "b0fd75bad6d8a458fc927189a2e9d906c7ccb42e699a7a509391ea588075349b"
+      },
+      {
+        "bytes": 1865747,
+        "path": "pg19_00883_our-mutual-friend.txt",
+        "sha256": "bd8122ac18b7e32907097b9da97a87d6449eb2c6e992f3a0c03e88e6aab73816"
+      },
+      {
+        "bytes": 1916622,
+        "path": "pg19_00963_little-dorrit.txt",
+        "sha256": "d169d4de23d725df2cad16a3dab238a8f53aca14e779aa48668ab27e3678e639"
+      },
+      {
+        "bytes": 1894176,
+        "path": "pg19_00967_nicholas-nickleby.txt",
+        "sha256": "18ee545d138885d6c5c21587251cd2eddc4a491af0090078c1c3df36a41fa420"
+      },
+      {
+        "bytes": 1925434,
+        "path": "pg19_00968_martin-chuzzlewit.txt",
+        "sha256": "f91310651775d89e8db0ff5b8766fbb9c75e634169eaeabc18af3dc0fb8bdc6c"
+      },
+      {
+        "bytes": 2328990,
+        "path": "pg19_00996_don-quixote.txt",
+        "sha256": "a7448c4d9cad4012b277854a603096e088d8fb5640b56d54d5c9fe1be343f32c"
+      },
+      {
+        "bytes": 1985097,
+        "path": "pg19_01023_bleak-house.txt",
+        "sha256": "4690f2d6ded2ebc6715bd11a009fd635b9b0be411dfe6bbe583a9d55437ed42b"
+      },
+      {
+        "bytes": 2705948,
+        "path": "pg19_01184_count-of-monte-cristo.txt",
+        "sha256": "a3176714cd94d01778f5022f3e2678b07a881e0149096bdeac6903f37a883389"
+      },
+      {
+        "bytes": 1337847,
+        "path": "pg19_01257_three-musketeers.txt",
+        "sha256": "c5069c9b0354b2d32ce99d38443a0112116581b6056f641d7fbb059165055742"
+      },
+      {
+        "bytes": 1043963,
+        "path": "pg19_01260_jane-eyre.txt",
+        "sha256": "a535895cbb7c9bd50f8ae3f30e001ac5c0f25ce5925d61e6277e2a597102d6ca"
+      },
+      {
+        "bytes": 737914,
+        "path": "pg19_01342_pride-and-prejudice.txt",
+        "sha256": "97acc34c1adc6ccf16a7c99fb41000e7b2182cfefb74fa9d6a5c858d86e1eddc"
+      },
+      {
+        "bytes": 2008297,
+        "path": "pg19_01399_anna-karenina.txt",
+        "sha256": "8c17942439a37d85838cea7f079a8eaec081e43e91b60334d18ec3cc70cccef9"
+      },
+      {
+        "bytes": 1018009,
+        "path": "pg19_01400_great-expectations.txt",
+        "sha256": "b8ed36381a778163bb64691e827e629dbccead1f978f66a2d033e1a018a5a3cf"
+      },
+      {
+        "bytes": 661676,
+        "path": "pg19_02413_madame-bovary.txt",
+        "sha256": "7402f2c5a294c93a33bf253c240a18ea14f4d63528945ecd981c514e47447710"
+      },
+      {
+        "bytes": 1159819,
+        "path": "pg19_02554_crime-and-punishment.txt",
+        "sha256": "c4d63bce8518705e6538faf9662e4dc47e4006636dfc5d932acefc34370e0a6c"
+      },
+      {
+        "bytes": 3274124,
+        "path": "pg19_02600_war-and-peace.txt",
+        "sha256": "c7156148ecaa12b6416cf816540d8dede2014982554a835e61076f0dd8bf0c2d"
+      },
+      {
+        "bytes": 1234505,
+        "path": "pg19_02701_moby-dick.txt",
+        "sha256": "394d2f43bd8241a7a3792ad824a70dba916cc422a29c01a7999fb4a3b44f0408"
+      },
+      {
+        "bytes": 2414440,
+        "path": "pg19_03300_wealth-of-nations.txt",
+        "sha256": "e452e5762908c46b9fde1fa07f74112d341bad5259b848d1e87e6cd3e1ba365f"
+      },
+      {
+        "bytes": 1533770,
+        "path": "pg19_04300_ulysses.txt",
+        "sha256": "bff261b23c123680ecdb4ee5ea5d20184a27ab0aec6615de378155d483f47e90"
+      },
+      {
+        "bytes": 1978515,
+        "path": "pg19_06593_tom-jones.txt",
+        "sha256": "4cd300efb6604397436205bf972fcff9dd9fcec80a3786a581f8f49033377b22"
+      },
+      {
+        "bytes": 1171361,
+        "path": "pg19_06688_mill-on-the-floss.txt",
+        "sha256": "cb1c299aaa2fd0a5c57de5c5a5663f729447d259bf82ea3fa8f0cbb98fdcd2da"
+      },
+      {
+        "bytes": 1769408,
+        "path": "pg19_07469_daniel-deronda.txt",
+        "sha256": "8cbca1649d98bb40be0bf459b5d66b1911091ae9a4d07827d8e387b2fb4f31de"
+      },
+      {
+        "bytes": 1982095,
+        "path": "pg19_28054_brothers-karamazov.txt",
+        "sha256": "69b5e1787382af813781e6f875cfbb6f05f78e61ca41f599c6c7ef042ef5e42d"
+      }
+    ],
+    "inventory_sha256": "827e5010520255f9d194b8f93ac6ffd1037a7813960618c0d910e709368d27bf",
+    "manifest": {
+      "bytes": 9883,
+      "declared_corpus_sha": "0a26bc1e05a1eea8",
+      "declared_n_books": 40,
+      "declared_total_chars": 58101444,
+      "path": ".h0_corpus/pg19/MANIFEST.json",
+      "sha256": "64f3b2cd00e1718d5a4f184070f332c3ac3574c34cbaad389537f1f2b41d30a5"
+    },
+    "root": ".h0_corpus/pg19",
+    "total_bytes": 59198464
+  },
+  "manifest_version": "r9_kstar_budget_qualification_input_manifest_v1",
+  "model_snapshots": {
+    "llama31-8b": {
+      "directories": [
+        "original"
+      ],
+      "file_count": 12,
+      "files": [
+        {
+          "bytes": 855,
+          "content_blob_id": "0bb6fd75b3ad2fe988565929f329945262c2814e",
+          "kind": "symlink",
+          "path": "config.json",
+          "sha256": "29e4c210b0d6ac178b16b2a255a568bdb23b581e50ca1ef6a6d071dd85704e6e",
+          "symlink_target": "../../blobs/0bb6fd75b3ad2fe988565929f329945262c2814e"
+        },
+        {
+          "bytes": 184,
+          "content_blob_id": "cc7276afd599de091142c6ed3005faf8a74aa257",
+          "kind": "symlink",
+          "path": "generation_config.json",
+          "sha256": "189fb0c0d7fd8a527db217c0a60a0e013f0394cd8800f9697a666a9e75e5f7fd",
+          "symlink_target": "../../blobs/cc7276afd599de091142c6ed3005faf8a74aa257"
+        },
+        {
+          "bytes": 4976698672,
+          "content_blob_id": "2b1879f356aed350030bb40eb45ad362c89d9891096f79a3ab323d3ba5607668",
+          "kind": "symlink",
+          "path": "model-00001-of-00004.safetensors",
+          "sha256": "2b1879f356aed350030bb40eb45ad362c89d9891096f79a3ab323d3ba5607668",
+          "symlink_target": "../../blobs/2b1879f356aed350030bb40eb45ad362c89d9891096f79a3ab323d3ba5607668"
+        },
+        {
+          "bytes": 4999802720,
+          "content_blob_id": "09d433f650646834a83c580877bd60c6d1f88f7755305c12576b5c7058f9af15",
+          "kind": "symlink",
+          "path": "model-00002-of-00004.safetensors",
+          "sha256": "09d433f650646834a83c580877bd60c6d1f88f7755305c12576b5c7058f9af15",
+          "symlink_target": "../../blobs/09d433f650646834a83c580877bd60c6d1f88f7755305c12576b5c7058f9af15"
+        },
+        {
+          "bytes": 4915916176,
+          "content_blob_id": "fc1cdddd6bfa91128d6e94ee73d0ce62bfcdb7af29e978ddcab30c66ae9ea7fa",
+          "kind": "symlink",
+          "path": "model-00003-of-00004.safetensors",
+          "sha256": "fc1cdddd6bfa91128d6e94ee73d0ce62bfcdb7af29e978ddcab30c66ae9ea7fa",
+          "symlink_target": "../../blobs/fc1cdddd6bfa91128d6e94ee73d0ce62bfcdb7af29e978ddcab30c66ae9ea7fa"
+        },
+        {
+          "bytes": 1168138808,
+          "content_blob_id": "92ecfe1a2414458b4821ac8c13cf8cb70aed66b5eea8dc5ad9eeb4ff309d6d7b",
+          "kind": "symlink",
+          "path": "model-00004-of-00004.safetensors",
+          "sha256": "92ecfe1a2414458b4821ac8c13cf8cb70aed66b5eea8dc5ad9eeb4ff309d6d7b",
+          "symlink_target": "../../blobs/92ecfe1a2414458b4821ac8c13cf8cb70aed66b5eea8dc5ad9eeb4ff309d6d7b"
+        },
+        {
+          "bytes": 23950,
+          "content_blob_id": "0fd8120f1c6acddc268ebc2583058efaf699a771",
+          "kind": "symlink",
+          "path": "model.safetensors.index.json",
+          "sha256": "146776fce3f6db1103aa6f249e65ee5544c5923ce6f971b092eee79aa6e5d37b",
+          "symlink_target": "../../blobs/0fd8120f1c6acddc268ebc2583058efaf699a771"
+        },
+        {
+          "bytes": 199,
+          "content_blob_id": "f1131204e79d0c09d2bac93f11569a8a655d68ba",
+          "kind": "symlink",
+          "path": "original/params.json",
+          "sha256": "b15b6b31b2043c0400b028ecc25c8946e21d76ac260e9ac6a357ed8727c8865f",
+          "symlink_target": "../../../blobs/f1131204e79d0c09d2bac93f11569a8a655d68ba"
+        },
+        {
+          "bytes": 2183982,
+          "content_blob_id": "82e9d31979e92ab929cd544440f129d9ecd797b69e327f80f17e1c50d5551b55",
+          "kind": "symlink",
+          "path": "original/tokenizer.model",
+          "sha256": "82e9d31979e92ab929cd544440f129d9ecd797b69e327f80f17e1c50d5551b55",
+          "symlink_target": "../../../blobs/82e9d31979e92ab929cd544440f129d9ecd797b69e327f80f17e1c50d5551b55"
+        },
+        {
+          "bytes": 296,
+          "content_blob_id": "02ee80b6196926a5ad790a004d9efd6ab1ba6542",
+          "kind": "symlink",
+          "path": "special_tokens_map.json",
+          "sha256": "6f38c73729248f6c127296386e3cdde96e254636cc58b4169d3fd32328d9a8ec",
+          "symlink_target": "../../blobs/02ee80b6196926a5ad790a004d9efd6ab1ba6542"
+        },
+        {
+          "bytes": 9085657,
+          "content_blob_id": "5cc5f00a5b203e90a27a3bd60d1ec393b07971e8",
+          "kind": "symlink",
+          "path": "tokenizer.json",
+          "sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+          "symlink_target": "../../blobs/5cc5f00a5b203e90a27a3bd60d1ec393b07971e8"
+        },
+        {
+          "bytes": 55351,
+          "content_blob_id": "db88166e2bc4c799fd5d1ae643b75e84d03ee70e",
+          "kind": "symlink",
+          "path": "tokenizer_config.json",
+          "sha256": "177c7b61e616fecb84c17ce0591acb92c6c4d60e9ac5ababfb940ff23bbcd424",
+          "symlink_target": "../../blobs/db88166e2bc4c799fd5d1ae643b75e84d03ee70e"
+        }
+      ],
+      "inventory_sha256": "7c87347bf1629bc308709853aace9c41348d4cc118c13fa90d4e19995e240315",
+      "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+      "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+      "root": ".hf_cache/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+      "total_bytes": 16071906850
+    },
+    "qwen15-moe-a2.7b": {
+      "directories": [],
+      "file_count": 16,
+      "files": [
+        {
+          "bytes": 920,
+          "content_blob_id": "24dd49de4140249c8fceaaaee7777960db19006b",
+          "kind": "symlink",
+          "path": "config.json",
+          "sha256": "b3e9fc1ad643d12f6536dee80a66c5ea045b571856165a598252720b6f2c553e",
+          "symlink_target": "../../blobs/24dd49de4140249c8fceaaaee7777960db19006b"
+        },
+        {
+          "bytes": 38,
+          "content_blob_id": "24ff93c212d3d254a77730c1e0c94eb7123c2a77",
+          "kind": "symlink",
+          "path": "configuration.json",
+          "sha256": "f625873f5df26193fae3ff45d3054667f5a9e91d644156add3310f258c495383",
+          "symlink_target": "../../blobs/24ff93c212d3d254a77730c1e0c94eb7123c2a77"
+        },
+        {
+          "bytes": 248,
+          "content_blob_id": "281213f5a09f1391720f4cf9be97e8c6ea17d83a",
+          "kind": "symlink",
+          "path": "generation_config.json",
+          "sha256": "bb1ace90ba308b9e8b3c823849aca96c3428773c715b38493ebcd9ccef4c6cac",
+          "symlink_target": "../../blobs/281213f5a09f1391720f4cf9be97e8c6ea17d83a"
+        },
+        {
+          "bytes": 1671839,
+          "content_blob_id": "20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0",
+          "kind": "symlink",
+          "path": "merges.txt",
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+          "symlink_target": "../../blobs/20024bfe7c83998e9aeaf98a0cd6a2ce6306c2f0"
+        },
+        {
+          "bytes": 3999614664,
+          "content_blob_id": "a51a84c031e0f6c8808bc284106c488ab3db6069a3f6f5a231be1e963206d020",
+          "kind": "symlink",
+          "path": "model-00001-of-00008.safetensors",
+          "sha256": "a51a84c031e0f6c8808bc284106c488ab3db6069a3f6f5a231be1e963206d020",
+          "symlink_target": "../../blobs/a51a84c031e0f6c8808bc284106c488ab3db6069a3f6f5a231be1e963206d020"
+        },
+        {
+          "bytes": 3999385424,
+          "content_blob_id": "02a9f530c526ac09e5d26cdece113d62b030ebc6f137ea69cd2754bea1287121",
+          "kind": "symlink",
+          "path": "model-00002-of-00008.safetensors",
+          "sha256": "02a9f530c526ac09e5d26cdece113d62b030ebc6f137ea69cd2754bea1287121",
+          "symlink_target": "../../blobs/02a9f530c526ac09e5d26cdece113d62b030ebc6f137ea69cd2754bea1287121"
+        },
+        {
+          "bytes": 3988628968,
+          "content_blob_id": "200116fdf90ea17c2dae53594a87b9efbbe199e4c4e487fb25aba9c65e674112",
+          "kind": "symlink",
+          "path": "model-00003-of-00008.safetensors",
+          "sha256": "200116fdf90ea17c2dae53594a87b9efbbe199e4c4e487fb25aba9c65e674112",
+          "symlink_target": "../../blobs/200116fdf90ea17c2dae53594a87b9efbbe199e4c4e487fb25aba9c65e674112"
+        },
+        {
+          "bytes": 3999386088,
+          "content_blob_id": "41296f5c77188a4182c87f9bc5958222897ed5fe1bde6912755df050f1222b8d",
+          "kind": "symlink",
+          "path": "model-00004-of-00008.safetensors",
+          "sha256": "41296f5c77188a4182c87f9bc5958222897ed5fe1bde6912755df050f1222b8d",
+          "symlink_target": "../../blobs/41296f5c77188a4182c87f9bc5958222897ed5fe1bde6912755df050f1222b8d"
+        },
+        {
+          "bytes": 3988629648,
+          "content_blob_id": "a613a2c68f18630beb1eb681627d34110cec36a615a35c4d7f35f72e0df5b2e4",
+          "kind": "symlink",
+          "path": "model-00005-of-00008.safetensors",
+          "sha256": "a613a2c68f18630beb1eb681627d34110cec36a615a35c4d7f35f72e0df5b2e4",
+          "symlink_target": "../../blobs/a613a2c68f18630beb1eb681627d34110cec36a615a35c4d7f35f72e0df5b2e4"
+        },
+        {
+          "bytes": 3999386104,
+          "content_blob_id": "44de056d0f2c4375685ec7545a987c20d59cd8ee75c1802e04a11e7dcd7a84f1",
+          "kind": "symlink",
+          "path": "model-00006-of-00008.safetensors",
+          "sha256": "44de056d0f2c4375685ec7545a987c20d59cd8ee75c1802e04a11e7dcd7a84f1",
+          "symlink_target": "../../blobs/44de056d0f2c4375685ec7545a987c20d59cd8ee75c1802e04a11e7dcd7a84f1"
+        },
+        {
+          "bytes": 3988629648,
+          "content_blob_id": "fbc95c8fc0842c425168c21e933629cde22fc156ef9b4af927ad2787fe4d33a1",
+          "kind": "symlink",
+          "path": "model-00007-of-00008.safetensors",
+          "sha256": "fbc95c8fc0842c425168c21e933629cde22fc156ef9b4af927ad2787fe4d33a1",
+          "symlink_target": "../../blobs/fbc95c8fc0842c425168c21e933629cde22fc156ef9b4af927ad2787fe4d33a1"
+        },
+        {
+          "bytes": 668484400,
+          "content_blob_id": "9a5e51c0a101292c249032382f20d912677e1c0c4b5b0c78e951450fedb820ee",
+          "kind": "symlink",
+          "path": "model-00008-of-00008.safetensors",
+          "sha256": "9a5e51c0a101292c249032382f20d912677e1c0c4b5b0c78e951450fedb820ee",
+          "symlink_target": "../../blobs/9a5e51c0a101292c249032382f20d912677e1c0c4b5b0c78e951450fedb820ee"
+        },
+        {
+          "bytes": 416452,
+          "content_blob_id": "8058add31525101e7da55a6e62fcb6dae493114d",
+          "kind": "symlink",
+          "path": "model.safetensors.index.json",
+          "sha256": "ece1b223efe32f4349d0dfa2a522249ac10bcb89369ed25b222c35175cd90b53",
+          "symlink_target": "../../blobs/8058add31525101e7da55a6e62fcb6dae493114d"
+        },
+        {
+          "bytes": 7028015,
+          "content_blob_id": "33ea6c72ebb92a237fa2bdf26c5ff16592efcdae",
+          "kind": "symlink",
+          "path": "tokenizer.json",
+          "sha256": "f7c9b2dba4a296b1aa76c16a34b8225c0c118978400d4bb66bff0902d702f5b8",
+          "symlink_target": "../../blobs/33ea6c72ebb92a237fa2bdf26c5ff16592efcdae"
+        },
+        {
+          "bytes": 1289,
+          "content_blob_id": "fa84582187a90af2895fab14e47bf3b8a3bbb9c5",
+          "kind": "symlink",
+          "path": "tokenizer_config.json",
+          "sha256": "3ec7934124b5e81aaa9c0977b95299b8ca3911b91bf8114494023fbbb22a515f",
+          "symlink_target": "../../blobs/fa84582187a90af2895fab14e47bf3b8a3bbb9c5"
+        },
+        {
+          "bytes": 2776833,
+          "content_blob_id": "4783fe10ac3adce15ac8f358ef5462739852c569",
+          "kind": "symlink",
+          "path": "vocab.json",
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+          "symlink_target": "../../blobs/4783fe10ac3adce15ac8f358ef5462739852c569"
+        }
+      ],
+      "inventory_sha256": "96c90f38988b38e5b884ac67f0515126791399126f0fc78a83326b42ade4b995",
+      "model_id": "Qwen/Qwen1.5-MoE-A2.7B-Chat",
+      "revision": "ec052fda178e241c7c443468d2fa1db6618996be",
+      "root": ".hf_cache/hub/models--Qwen--Qwen1.5-MoE-A2.7B-Chat/snapshots/ec052fda178e241c7c443468d2fa1db6618996be",
+      "total_bytes": 28644040578
+    }
+  }
+}

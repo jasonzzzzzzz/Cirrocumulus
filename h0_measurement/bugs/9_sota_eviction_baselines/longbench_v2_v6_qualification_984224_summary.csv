@@ -1,0 +1,2 @@
+protocol_version,split,n_items,n_components,prediction_rows,fp_correct,fp_accuracy,fp_bootstrap_q05,uniform_correct,uniform_accuracy,uniform_bootstrap_q05,fp_point_gate,fp_bootstrap_gate,uniform_point_gate,uniform_bootstrap_gate,decision
+longbench_v2_sieve_v6_qwen_qualification_v1,qualification,20,19,40,12,0.6,0.42105263157894735,12,0.6,0.42857142857142855,True,True,True,True,advance_v6_development

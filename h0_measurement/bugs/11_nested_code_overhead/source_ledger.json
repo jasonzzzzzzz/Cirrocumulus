@@ -1,0 +1,16 @@
+{
+  "protocol": "r11_nested_code_v1",
+  "source_sha256": {
+    ".h0_corpus/pg19/MANIFEST.json": "64f3b2cd00e1718d5a4f184070f332c3ac3574c34cbaad389537f1f2b41d30a5",
+    "h0_measurement/bugs/11_nested_code_overhead/plan.md": "3a3572bc779ac34f2fef8439db90f23088abd23171c93535fe06c45cbabcf19e",
+    "h0_measurement/bugs/11_nested_code_overhead/read_nested_code.py": "89352dd6e4807c7c68617e20617646754044b38cd0a0ad3d0115e6cca29c2c59",
+    "h0_measurement/models.yaml": "71ac4bad180c6ea7a37d11dfb7bf55fc6a8c6780a3cb9fba3a54055c704afaeb",
+    "h0_measurement/run_h0.py": "c178643ff1cbbba741c71b10ef7d81a0b499d1096904af501af025761c453236",
+    "h0_measurement/submit_r11_nested_code.slurm": "6d1d099c88164786edc4c855f188236ca6e8fe6bc9171b391a50e82caa5b0fb9",
+    "sievelib/alloc.py": "a83f61af543a5078be9a4ec6a8e6f2a4a4d2e24bfa06def0d8ebdbab9ce7953f",
+    "sievelib/evict.py": "0188d80b769f11409133aeace2cf8efe835ad1138561c0a5e4d77bb67b8d6b12",
+    "sievelib/probe.py": "365c15c84645cebb859db8639cf744c01d93470a094a2a530d9042ef308deb19",
+    "sievelib/prompts.py": "9c2ca9822609ac107a5dd36108c7f07a923def4ba6ba1bd55a71965bf6203c53",
+    "sievelib/quant.py": "3ded046426d093c77b4d6413a279f57d397ccec41feaf76c80fd6c9323da71c6"
+  }
+}

@@ -551,6 +551,15 @@ def main():
     R = quant.random_rotation(head_dim, dev, torch.float32, seed=rot_seed)
     softcap = getattr(cf, "attn_logit_softcapping", None)
     norm_correct = bool(c.get("norm_correct", True))
+    # R11: key codebook. 'lloyd' (default) is the monolithic path unchanged; a
+    # registered nested chain replaces its non-base widths only (quant.py).
+    codebook = quant.check_codebook(c.get("codebook"))
+    if codebook != "lloyd":
+        print(f"codebook: {codebook} chain={list(quant.NESTED_CHAINS[codebook])} "
+              f"(other widths monolithic Lloyd-Max)  [bugs/11_nested_code_overhead]",
+              flush=True)
+        for b in quant.NESTED_CHAINS[codebook][1:]:
+            quant.nested_codebook(codebook, b, "cpu")   # design once, before GPU work
     if softcap:
         print(f"note: attn_logit_softcapping={softcap} will be applied to "
               f"recomputed logits", flush=True)
@@ -676,7 +685,8 @@ def main():
                     shat_all = {}
                     if do_quant:
                         for b in bit_list:
-                            Kq = quant.quantize_keys(K, b, R, norm_correct)
+                            Kq = quant.quantize_keys(K, b, R, norm_correct,
+                                                     codebook=codebook)
                             shat_all[b] = quant.apply_softcap(
                                 quant.logits_gqa(qd, Kq, scl), softcap)
                             del Kq
@@ -949,6 +959,11 @@ def main():
                        "extra_budgets": list(extra_budgets)} if codesign else {}),
                    **({"tier_panel": {k: list(v) for k, v in tier_panel.items()},
                        "tier_panel_score": "csv_b4_accum"} if tier_panel else {}),
+                   # R11: present only for a non-default codebook, so every
+                   # monolithic sidecar before and after is unchanged.
+                   **({"codebook": codebook,
+                       "codebook_chain": list(quant.NESTED_CHAINS[codebook])}
+                      if codebook != "lloyd" else {}),
                    "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),

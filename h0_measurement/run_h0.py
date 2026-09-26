@@ -560,6 +560,36 @@ def main():
               flush=True)
         for b in quant.NESTED_CHAINS[codebook][1:]:
             quant.nested_codebook(codebook, b, "cpu")   # design once, before GPU work
+    # R11 amendment A2: an IN-PROCESS second codebook. The same captured q/K/V,
+    # evictor scores and mask are measured under `codebook_ab` as well, and its
+    # head_metrics columns are written with the suffix `__<codebook_ab>`. Two
+    # separate runs cannot be row-paired: the forward pass is not bit-
+    # reproducible run to run (bugs/11 report section 2). Widths the two
+    # codebooks quantize identically reuse the primary logits, so those columns
+    # match exactly by construction. Off unless set.
+    codebook_ab = c.get("codebook_ab")
+    codebook_ab = (None if codebook_ab in (None, "", "none", False)
+                   else quant.check_codebook(codebook_ab))
+    ab_suffix, ab_widths = "", []
+    if codebook_ab is not None:
+        if codebook_ab == codebook:
+            raise SystemExit(f"codebook_ab={codebook_ab} equals codebook; nothing "
+                             f"to compare")
+        if args.validity_only:
+            raise SystemExit("codebook_ab needs the quantization sweep and cannot "
+                             "run under --validity-only")
+        ab_suffix = f"__{codebook_ab}"
+        ab_widths = [b for b in bit_list
+                     if quant.codebook_differs(codebook, codebook_ab, b)]
+        if not ab_widths:
+            raise SystemExit(f"codebook_ab={codebook_ab} quantizes every width in "
+                             f"bit_list {bit_list} exactly like {codebook}")
+        if codebook_ab != "lloyd":
+            for b in quant.NESTED_CHAINS[codebook_ab][1:]:
+                quant.nested_codebook(codebook_ab, b, "cpu")
+        print(f"codebook A/B in one pass: primary={codebook}  second={codebook_ab} "
+              f"(columns suffixed '{ab_suffix}'; re-quantized widths {ab_widths}, "
+              f"others shared)  [bugs/11_nested_code_overhead A2]", flush=True)
     if softcap:
         print(f"note: attn_logit_softcapping={softcap} will be applied to "
               f"recomputed logits", flush=True)
@@ -695,6 +725,22 @@ def main():
                         s_all = s_all + msk
                         for b in shat_all:
                             shat_all[b] = shat_all[b] + msk
+                    # A2: the second codebook, from the SAME K/q/mask. Shared
+                    # widths reuse the primary (already masked) tensors.
+                    shat_ab = {}
+                    if do_quant and codebook_ab is not None:
+                        for b in bit_list:
+                            if b not in ab_widths:
+                                shat_ab[b] = shat_all[b]
+                                continue
+                            Kq = quant.quantize_keys(K, b, R, norm_correct,
+                                                     codebook=codebook_ab)
+                            v_ab = quant.apply_softcap(
+                                quant.logits_gqa(qd, Kq, scl), softcap)
+                            del Kq
+                            if P.STATE.mask[li] is not None:
+                                v_ab = v_ab + msk
+                            shat_ab[b] = v_ab
 
                     # ---- co-design PRE-PASS (plan.md S4b) -------------------
                     # A group allocation is shared by the n_rep query heads of a
@@ -708,6 +754,7 @@ def main():
                     # idempotent) and only observe(), which still runs once in
                     # the loop below, advances an evictor.
                     extras = None
+                    extras_ab = None
                     if codesign and do_quant and not warm and V is not None:
                         fin0 = torch.isfinite(s_all[0])
                         allfin = bool(fin0.all())
@@ -716,7 +763,7 @@ def main():
                         # head, or a 32-head layer at ctx 131072 carries ~2 GB.
                         Vsl = {g: (V[g] if allfin else V[g][fin0])
                                for g in range(V.shape[0])}
-                        gheads = []
+                        gheads, gheads_ab = [], []
                         for h in range(s_all.shape[0]):
                             fin = torch.isfinite(s_all[h])
                             if not bool(torch.equal(fin, fin0)):
@@ -742,11 +789,23 @@ def main():
                                 s=s_all[h][fin],
                                 shat={b: v[h][fin] for b, v in shat_all.items()},
                                 V=Vsl[h // n_rep], raw=raw_g, unseen=unseen_g))
+                            if shat_ab:
+                                gheads_ab.append(dict(
+                                    s=s_all[h][fin],
+                                    shat={b: v[h][fin] for b, v in shat_ab.items()},
+                                    V=Vsl[h // n_rep], raw=raw_g, unseen=unseen_g))
                         extras = alloc.group_prepass(
                             gheads, n_rep, budgets=extra_budgets, maxb=maxb,
                             coarse_bits=coarse_bits, group=group_alloc,
                             tier_panel=tier_panel)
-                        del gheads, Vsl
+                        # A2: same inputs, second codebook. group_prepass does
+                        # not mutate its inputs (tests/test_r11_nested_codebook).
+                        if gheads_ab:
+                            extras_ab = alloc.group_prepass(
+                                gheads_ab, n_rep, budgets=extra_budgets,
+                                maxb=maxb, coarse_bits=coarse_bits,
+                                group=group_alloc, tier_panel=tier_panel)
+                        del gheads, gheads_ab, Vsl
 
                     for h in range(s_all.shape[0]):
                         fin = torch.isfinite(s_all[h])
@@ -819,6 +878,19 @@ def main():
                                 interior_raw=raw_scores,
                                 interior_unseen=unseen,
                                 extra=(extras[h] if extras is not None else None))
+                            if shat_ab:
+                                # A2: identical inputs except the codebook;
+                                # before observe(), so both see one history.
+                                rec_ab = head_metrics(
+                                    sh, {b: v[h][fin] for b, v in shat_ab.items()},
+                                    Vh, budgets=budgets, maxb=maxb,
+                                    practical_scores=scores, corner=corner,
+                                    interior_raw=raw_scores,
+                                    interior_unseen=unseen,
+                                    extra=(extras_ab[h] if extras_ab is not None
+                                           else None))
+                                rec.update({f"{k}{ab_suffix}": v
+                                            for k, v in rec_ab.items()})
                             a_cpu = a_h.float().cpu()
                             for ev in pack.values():
                                 ev.observe(a_cpu, finc)
@@ -865,7 +937,7 @@ def main():
                                        needle_start=n_start, needle_end=n_end,
                                        needle_mass=nmass)
                             rows.append(rec)
-                    del K, V, s_all, shat_all
+                    del K, V, s_all, shat_all, shat_ab, extras, extras_ab
                     torch.cuda.empty_cache()
             # Task-gate decode extension. n_decode is a MEASUREMENT parameter (how
             # many steps get metrics rows) and stays untouched -- but 8 tokens is
@@ -964,6 +1036,11 @@ def main():
                    **({"codebook": codebook,
                        "codebook_chain": list(quant.NESTED_CHAINS[codebook])}
                       if codebook != "lloyd" else {}),
+                   **({"codebook_ab": codebook_ab,
+                       "codebook_ab_chain": list(quant.NESTED_CHAINS.get(codebook_ab, ())),
+                       "codebook_ab_suffix": ab_suffix,
+                       "codebook_ab_widths": list(ab_widths)}
+                      if codebook_ab is not None else {}),
                    "decode_seed": int(c.get("decode_seed", 0)),
                    "norm_correct": norm_correct, "synthetic": bool(pf["synthetic"]),
                    "corpus_sha": pf.get("corpus_sha"),

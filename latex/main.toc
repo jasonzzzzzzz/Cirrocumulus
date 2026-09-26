@@ -1,25 +1,39 @@
 \contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
-\contentsline {section}{\numberline {2}One objective: eviction is quantization at zero rate}{2}{section.2}%
-\contentsline {section}{\numberline {3}Measuring the phase diagram}{2}{section.3}%
-\contentsline {section}{\numberline {4}From map to method: \textsc {Sieve}{}}{3}{section.4}%
-\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}%
-\contentsline {section}{\numberline {A}Introduction: The KV-Cache Compression Dilemma}{6}{appendix.A}%
-\contentsline {section}{\numberline {B}Output Distortion and the Equivalence Principle}{7}{appendix.B}%
-\contentsline {subsection}{\numberline {B.1}Standard Attention Formulation}{7}{subsection.B.1}%
-\contentsline {subsection}{\numberline {B.2}Quantization Perturbation Model}{7}{subsection.B.2}%
-\contentsline {subsection}{\numberline {B.3}First-Order Taylor Approximation of Output Error}{7}{subsection.B.3}%
-\contentsline {subsection}{\numberline {B.4}Eviction as Zero-Bit Quantization}{7}{subsection.B.4}%
-\contentsline {section}{\numberline {C}Optimal Rate Allocation via Reverse Water-Filling}{8}{appendix.C}%
-\contentsline {subsection}{\numberline {C.1}The Constrained Optimization Problem}{8}{subsection.C.1}%
-\contentsline {subsection}{\numberline {C.2}Lagrangian Solution}{8}{subsection.C.2}%
-\contentsline {subsection}{\numberline {C.3}The Value-Free Simplification}{8}{subsection.C.3}%
-\contentsline {section}{\numberline {D}Tier Extinction and the Order Parameter}{8}{appendix.D}%
-\contentsline {subsection}{\numberline {D.1}The Convexity Condition}{8}{subsection.D.1}%
-\contentsline {subsection}{\numberline {D.2}The Two Asymptotic Regimes}{8}{subsection.D.2}%
-\contentsline {subsection}{\numberline {D.3}The Dead-Tier Fraction ($D_2$)}{9}{subsection.D.3}%
-\contentsline {section}{\numberline {E}Empirical Evaluation Methodology}{9}{appendix.E}%
-\contentsline {subsection}{\numberline {E.1}Experimental Architecture}{9}{subsection.E.1}%
-\contentsline {subsection}{\numberline {E.2}Quantization Engine and Scoring Integrity}{9}{subsection.E.2}%
-\contentsline {subsection}{\numberline {E.3}Matched-Budget Comparative Baselines ($B = 3$ bits/token)}{9}{subsection.E.3}%
-\contentsline {subsection}{\numberline {E.4}Evaluation Metrics}{9}{subsection.E.4}%
-\contentsline {section}{\numberline {F}Summary of Key Takeaways}{9}{appendix.F}%
+\contentsline {section}{\numberline {2}Joint token-rate allocation as a common foundation}{2}{section.2}%
+\contentsline {paragraph}{Scope and local quantization surrogate.}{2}{section*.1}%
+\contentsline {paragraph}{Exact eviction versus a zero-rate surrogate.}{2}{section*.2}%
+\contentsline {paragraph}{The implemented discrete allocation.}{3}{section*.3}%
+\contentsline {paragraph}{Two coordinates, not one universal phase boundary.}{3}{section*.4}%
+\contentsline {section}{\numberline {3}Measurement protocol}{3}{section.3}%
+\contentsline {paragraph}{Models, contexts, and statistical units.}{3}{section*.5}%
+\contentsline {paragraph}{Compression and budget.}{3}{section*.6}%
+\contentsline {paragraph}{Information contract and endpoints.}{3}{section*.7}%
+\contentsline {paragraph}{Exact response and metrics.}{4}{section*.8}%
+\contentsline {section}{\numberline {4}When does the interior pay?}{4}{section.4}%
+\contentsline {paragraph}{The advantage survives a fair information comparison.}{4}{section*.9}%
+\contentsline {paragraph}{Tier extinction orders value, but the crossing is model-conditioned.}{4}{section*.10}%
+\contentsline {paragraph}{Context traverses the map.}{5}{section*.11}%
+\contentsline {paragraph}{The surrogate is useful, not exact.}{5}{section*.12}%
+\contentsline {section}{\numberline {5}Deployment implications and limits}{5}{section.5}%
+\contentsline {paragraph}{End-task transfer.}{5}{section*.13}%
+\contentsline {section}{\numberline {6}Related and concurrent work}{6}{section.6}%
+\contentsline {paragraph}{Quantization, eviction, and hybrid token storage.}{6}{section*.14}%
+\contentsline {paragraph}{Output-aware eviction.}{6}{section*.15}%
+\contentsline {paragraph}{Rate allocation along complementary axes.}{6}{section*.16}%
+\contentsline {section}{\numberline {7}Limitations and conclusion}{6}{section.7}%
+\contentsline {section}{\numberline {A}Some Basics}{9}{appendix.A}%
+\contentsline {section}{\numberline {B}Scope of the common rate-allocation view}{10}{appendix.B}%
+\contentsline {section}{\numberline {C}Output distortion and the zero-rate approximation}{10}{appendix.C}%
+\contentsline {subsection}{\numberline {C.1}Attention and finite-bit key perturbations}{10}{subsection.C.1}%
+\contentsline {subsection}{\numberline {C.2}Exact set eviction}{11}{subsection.C.2}%
+\contentsline {subsection}{\numberline {C.3}The planning approximation}{11}{subsection.C.3}%
+\contentsline {section}{\numberline {D}Discrete rate allocation and regime coordinates}{11}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}The implemented optimizer}{11}{subsection.D.1}%
+\contentsline {subsection}{\numberline {D.2}Tier extinction}{12}{subsection.D.2}%
+\contentsline {subsection}{\numberline {D.3}Why the regime map needs two coordinates}{12}{subsection.D.3}%
+\contentsline {section}{\numberline {E}Measurement protocol and accounting}{12}{appendix.E}%
+\contentsline {subsection}{\numberline {E.1}Grid and independent units}{12}{subsection.E.1}%
+\contentsline {subsection}{\numberline {E.2}Matched information and budget}{13}{subsection.E.2}%
+\contentsline {subsection}{\numberline {E.3}Responses}{13}{subsection.E.3}%
+\contentsline {section}{\numberline {F}Additional robustness and deployment evidence}{13}{appendix.F}%
+\contentsline {section}{\numberline {G}Claim boundary}{13}{appendix.G}%

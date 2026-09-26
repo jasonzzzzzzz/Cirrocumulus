@@ -1,9 +1,19 @@
-\begin{thebibliography}{20}
+\begin{thebibliography}{25}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[An et~al.(2026)An, Lu, Zhu, Yu, Zhao, Wu, Tang, and
+  Wang]{an2026restkv}
+Yongqi An, Chang Lu, Kuan Zhu, Tao Yu, Chaoyang Zhao, Hong Wu, Ming Tang, and
+  Jinqiao Wang.
+\newblock {ReST-KV}: Robust {KV} cache eviction with layer-wise output
+  reconstruction and spatial-temporal smoothing.
+\newblock In \emph{International Conference on Learning Representations}, 2026.
+\newblock URL
+  \url{https://proceedings.iclr.cc/paper_files/paper/2026/hash/8be9c134bb193d8bd3827d4df8488228-Abstract-Conference.html}.
 
 \bibitem[Cai et~al.(2024)Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu,
   and Xiao]{cai2024pyramidkv}
@@ -13,22 +23,22 @@ Zefan Cai, Yichi Zhang, Bofei Gao, Yuliang Liu, Tianyu Liu, Keming Lu, Wayne
   information funneling.
 \newblock \emph{arXiv preprint arXiv:2406.02069}, 2024.
 
-\bibitem[Cover \& Thomas(2006)Cover and Thomas]{cover2006elements}
-Thomas~M. Cover and Joy~A. Thomas.
-\newblock \emph{Elements of Information Theory}.
-\newblock Wiley, 2nd edition, 2006.
-
-\bibitem[Equitz \& Cover(1991)Equitz and Cover]{equitz1991successive}
-William H.~R. Equitz and Thomas~M. Cover.
-\newblock Successive refinement of information.
-\newblock \emph{IEEE Transactions on Information Theory}, 37\penalty0
-  (2):\penalty0 269--275, 1991.
-
-\bibitem[Feng et~al.(2024)Feng, Lv, Cao, Xie, and Zhou]{feng2024adakv}
+\bibitem[Feng et~al.(2025)Feng, Lv, Cao, Xie, and Zhou]{feng2024adakv}
 Yuan Feng, Junlin Lv, Yukun Cao, Xike Xie, and S.~Kevin Zhou.
 \newblock {Ada-KV}: Optimizing {KV} cache eviction by adaptive budget
   allocation for efficient {LLM} inference.
-\newblock \emph{arXiv preprint arXiv:2407.11550}, 2024.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~38, 2025.
+\newblock \doi{10.52202/085713-3773}.
+
+\bibitem[Goel et~al.(2025)Goel, Park, Gagrani, Jones, Morse, Langston, Lee, and
+  Lott]{goel2025caote}
+Raghavv Goel, Junyoung Park, Mukul Gagrani, Dalton Jones, Matthew Morse, Harper
+  Langston, Mingu Lee, and Chris Lott.
+\newblock {CAOTE}: {KV} cache selection for {LLM}s via attention output
+  error-based token eviction.
+\newblock \emph{arXiv preprint arXiv:2504.14051}, 2025.
+\newblock URL \url{https://arxiv.org/abs/2504.14051}.
 
 \bibitem[Grattafiori et~al.(2024)]{grattafiori2024llama3}
 Aaron Grattafiori et~al.
@@ -49,18 +59,18 @@ Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael~W. Mahoney,
   {KV} cache quantization.
 \newblock In \emph{Advances in Neural Information Processing Systems}, 2024.
 
-\bibitem[Hsieh et~al.(2024)Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and
-  Ginsburg]{hsieh2024ruler}
-Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shantanu Acharya, Dima Rekesh, Fei
-  Jia, and Boris Ginsburg.
-\newblock {RULER}: What's the real context size of your long-context language
-  models?
-\newblock In \emph{Conference on Language Modeling}, 2024.
-
 \bibitem[Jiang et~al.(2023)]{jiang2023mistral}
 Albert~Q. Jiang et~al.
 \newblock {Mistral} {7B}.
 \newblock \emph{arXiv preprint arXiv:2310.06825}, 2023.
+
+\bibitem[Laus et~al.(2026)Laus, Mayrink~Verdun, Wang, du~Pin~Calmon, and
+  Krahmer]{laus2026aatc}
+Hannah Laus, Claudio Mayrink~Verdun, Hao Wang, Flavio du~Pin~Calmon, and Felix
+  Krahmer.
+\newblock {KV} cache compression through the lens of transform coding.
+\newblock \emph{arXiv preprint arXiv:2608.14191}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2608.14191}.
 
 \bibitem[Li et~al.(2024)Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis,
   and Chen]{li2024snapkv}
@@ -90,10 +100,27 @@ Stuart Lloyd.
 \newblock \emph{IEEE Transactions on Information Theory}, 28\penalty0
   (2):\penalty0 129--137, 1982.
 
+\bibitem[{Qwen Team}(2024)]{qwen2024moe}
+{Qwen Team}.
+\newblock {Qwen1.5-MoE}: Matching 7b model performance with 1/3 activated
+  parameters, 2024.
+\newblock URL \url{https://qwenlm.github.io/blog/qwen-moe/}.
+
 \bibitem[Rae et~al.(2020)Rae, Potapenko, Jayakumar, and Lillicrap]{rae2020pg19}
 Jack~W. Rae, Anna Potapenko, Siddhant~M. Jayakumar, and Timothy~P. Lillicrap.
 \newblock Compressive transformers for long-range sequence modelling.
 \newblock In \emph{International Conference on Learning Representations}, 2020.
+
+\bibitem[Wang et~al.(2026)Wang, Gu, Li, Wang, Liu, Wang, Li, and
+  Yu]{wang-etal-2026-hqekv}
+He~Wang, Yu~Gu, Fangfang Li, Zhigang Wang, Zhenghao Liu, Ning Wang, Xiaohua Li,
+  and Ge~Yu.
+\newblock {H}qe{KV}: Towards hybrid quantization and eviction for {KV} cache in
+  long-context {LLM} inference.
+\newblock In \emph{Findings of the Association for Computational Linguistics:
+  ACL 2026}, pp.\  4138--4153. Association for Computational Linguistics, 2026.
+\newblock \doi{10.18653/v1/2026.findings-acl.201}.
+\newblock URL \url{https://aclanthology.org/2026.findings-acl.201/}.
 
 \bibitem[Xiao et~al.(2024)Xiao, Tian, Chen, Han, and
   Lewis]{xiao2024streamingllm}
@@ -127,6 +154,21 @@ Amir Zandieh, Majid Daliri, Majid Hadian, and Vahab Mirrokni.
   rate.
 \newblock \emph{arXiv preprint arXiv:2504.19874}, 2025.
 
+\bibitem[Zhang et~al.(2026)Zhang, Guo, Benini, and Li]{zhang2026rdkv}
+Junkai Zhang, Hang Guo, Luca Benini, and Yawei Li.
+\newblock {RDKV}: Rate-distortion bit allocation for joint eviction and
+  quantization of the {KV} cache.
+\newblock \emph{arXiv preprint arXiv:2605.08317}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2605.08317}.
+
+\bibitem[Zhang et~al.(2025)Zhang, Hu, Zhao, Lui, and Chen]{zhang2025diffkv}
+Yanqi Zhang, Yuwei Hu, Runyuan Zhao, John C.~S. Lui, and Haibo Chen.
+\newblock {DiffKV}: Differentiated memory management for large language models
+  with parallel {KV} compaction.
+\newblock In \emph{Proceedings of the ACM SIGOPS 31st Symposium on Operating
+  Systems Principles}, pp.\  431--445. ACM, 2025.
+\newblock \doi{10.1145/3731569.3764810}.
+
 \bibitem[Zhang et~al.(2023)Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian,
   R{\'e}, Barrett, Wang, and Chen]{zhang2023h2o}
 Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai,
@@ -135,5 +177,12 @@ Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai,
 \newblock {H2O}: Heavy-hitter oracle for efficient generative inference of
   large language models.
 \newblock In \emph{Advances in Neural Information Processing Systems}, 2023.
+
+\bibitem[Zuo et~al.(2026)Zuo, Zhou, Cong, Xi, and Leung]{zuo2026ratequant}
+Fei Zuo, Zikang Zhou, Hao Cong, Xiaoyan Xi, and Ho~Fai Leung.
+\newblock {RateQuant}: Optimal mixed-precision {KV} cache quantization via
+  rate-distortion theory.
+\newblock \emph{arXiv preprint arXiv:2605.06675}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2605.06675}.
 
 \end{thebibliography}

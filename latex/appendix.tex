@@ -1,201 +1,294 @@
-%\section{Appendix (planned)}
-\tbd{A.1 Measurement integrity: the validity gates (real-corpus enforcement, needle retrieval, probe/chunking equivalence) and the defects they catch.
-A.2 The $\tau/\ln2$ ladder identity as a consistency check; the 2-bit quantizer acts as a universal logit temperature ($\alpha=0.941$--$0.944$).
-A.3 Findings and negative results: why $\tau$ and $n_{95}/L$ fail as regime variables; the refuted absolute-support eviction budget; H2 (2-bit score ranking, $\rho=0.52$--$0.77$) and the move to a 3-bit base layer; Gaussian-logit simulation as a qualitatively wrong regime map.
-A.4 Per-model tables at every context.}
-
-
 \tableofcontents
 \vspace{1em}
 \hrule
 \vspace{1em}
 
-\section{Introduction: The KV-Cache Compression Dilemma}
-In autoregressive Transformer generation, storing key and value vectors across long context windows consumes substantial GPU high-bandwidth memory (HBM). Prior research has largely diverged into two competing paradigms:
-\begin{enumerate}
-    \item \textbf{Token Eviction (Sparsification):} Discarding tokens perceived to be uninformative (e.g., StreamingLLM, $\text{H}_2\text{O}$, SnapKV) while retaining retained tokens at full precision.
-    \item \textbf{Uniform Quantization:} Lowering the numerical bit-width of all cached key and value vectors uniformly across the context (e.g., 3-bit or 4-bit uniform quantization).
-\end{enumerate}
-The theory presented here unifies these two disparate strategies under a single information-theoretic rate-distortion framework, proving that token eviction is not an ad-hoc heuristic, but rather the boundary case of zero-bit quantization.
+\section{Some Basics}
+
+The tasks are synthetic retrieval (RULER): find a random number planted somewhere in 8K–128K tokens of text, with distractor numbers nearby. There are 20 prompts per cell.
+\begin{itemize}
+    \item Synthetic Retrieval: This means the test is artificially constructed rather than being a natural real-world task (like summarizing a real book). A piece of data is intentionally hidden inside a massive wall of text just to see if the AI can find it. 
+    \item RULER: This is the specific name of the benchmark framework (developed by researchers to evaluate long-context LLMs). It stands for Retrieval, Understanding, and Long-context Evaluation Robustness.
+    \item 8K-128K tokens: This indicates the length of the text context that the model has to process. A token is roughly a word or part of a word, so 8K tokens is about 8,000 words, and 128K tokens is about 128,000 words. The model has to search through this large amount of text to find the hidden number.
+    \item Distractor numbers: These are other numbers placed in the text that are not the target number. They are meant to confuse the model and make the task harder. The model has to correctly identify the planted number and ignore the distractors.
+    \item 20 prompts per cell: The Matrix (Cells): When testing LLMs, researchers usually create a grid or matrix. For example, the horizontal axis might be the context length (8K, 16K, 32K, 64K, 128K) and the vertical axis might be the depth of where the needle is hidden (0\% depth = top of the document, 50\% = middle, 100\% = bottom). Each intersection on this grid is a "cell." This means that for each configuration or "cell" of the experiment (which could be a specific model, context length, or other parameter), there are 20 different test cases (prompts) that the model is evaluated on. Each prompt is a separate instance of the retrieval task. 
+\end{itemize}
+
+Some metrics
+\begin{itemize}
+    \item valid mean task score
+\end{itemize}
+
+10 promots -> 100prompts or 1000 prompts? 
+not  head-output error but task score.  The task score is the final evaluation metric that measures how well the model performed on the retrieval task. It is calculated based on whether the model correctly identified the planted number in each prompt. The valid mean task score is the average score across all valid prompts (those that were not filtered out due to errors or other issues). This metric gives an overall sense of the model's performance on the retrieval task across different configurations and contexts.
 
 
-\section{Output Distortion and the Equivalence Principle}
+\section{Scope of the common rate-allocation view}
+\label{app:scope}
 
-\subsection{Standard Attention Formulation}
-For a query vector $q \in \mathbb{R}^d$, key vectors $\{k_i\}_{i=1}^L \subset \mathbb{R}^d$, and value vectors $\{v_i\}_{i=1}^L \subset \mathbb{R}^{d_v}$:
+This appendix expands the derivation and measurement contract used in the main
+paper.  The common action space is deliberately narrow: it allocates
+\emph{key-token} rates within an attention head, leaves values exact, and measures
+attention-output error.  Prior work already combines quantization and eviction
+in deployable systems.  Our claim is instead that a common local surrogate makes
+it possible to ask a different empirical question: when does the discrete
+interior improve over uniform quantization and eviction under matched
+information and key-bit budgets?
+
+Throughout, \emph{zero rate} means a zero-bit action in the separable planning
+surrogate.  It does not mean that set eviction is exactly identical to
+independent additive logit noise.  Section~\ref{app:derivation} makes this
+distinction explicit.
+
+\section{Output distortion and the zero-rate approximation}
+\label{app:derivation}
+
+\subsection{Attention and finite-bit key perturbations}
+
+For a query $q\in\mathbb R^d$, keys $k_i\in\mathbb R^d$, and values
+$v_i\in\mathbb R^{d_v}$, define
 \begin{align}
-    s_i &= \frac{q^\top k_i}{\sqrt{d}} \quad \text{(Pre-softmax logits)}, \\
-    a_i &= \frac{\exp(s_i)}{\sum_j \exp(s_j)} = [\mathrm{softmax}(s)]_i \quad \text{(Attention weights)}, \\
-    o &= \sum_{i=1}^L a_i v_i \quad \text{(Attention head output)}.
+ s_i &= q^\top k_i/\sqrt d, &
+ a_i &= \frac{\exp(s_i)}{\sum_j\exp(s_j)}, &
+ o &= \sum_i a_i v_i .
 \end{align}
-
-\subsection{Quantization Perturbation Model}
-When key $k_i$ is quantized using $b_i$ bits, the resulting logit $s_i$ undergoes a perturbation $\delta_i$:
+Quantizing key $i$ changes its logit by $\delta_i$.  Because
+\[
+ \frac{\partial o}{\partial s_i}=a_i(v_i-o),
+\]
+the first-order output perturbation is
 \begin{equation}
-    \tilde{s}_i = s_i + \delta_i, \quad \mathrm{Var}(\delta_i) = \tau^2 c_{b_i},
+ \Delta o \approx \sum_i a_i(v_i-o)\delta_i .
+ \label{eq:app-linear}
 \end{equation}
-where:
-\begin{itemize}
-    \item $\tau$ denotes the \textbf{head logit spread} (the dynamic range or standard deviation of the logits for that specific attention head).
-    \item $c_{b_i}$ is the \textbf{relative distortion factor} of the quantizer at bit-width $b_i$. For standard quantizers, distortion decays exponentially: $c_b \propto 4^{-b} = 2^{-2b}$.
-    \item Any constant bias in the perturbation is completely neutralized because the softmax operator is shift-invariant: $\mathrm{softmax}(s + C \cdot \mathbf{1}) = \mathrm{softmax}(s)$. Thus, mean shift costs nothing, and only the variance $\mathrm{Var}(\delta_i)$ induces output error.
-\end{itemize}
+Consequently,
+\begin{align}
+ \mathbb E\|\Delta o\|^2
+ &\approx
+ \sum_i a_i^2\|v_i-o\|^2\operatorname{Var}(\delta_i)
+ \nonumber\\
+ &\quad+
+ \sum_{i\ne j}a_i a_j
+ (v_i-o)^\top(v_j-o)\operatorname{Cov}(\delta_i,\delta_j).
+ \label{eq:app-covariance}
+\end{align}
+Equation~\eqref{eq:surrogate} follows only when the residual perturbations are
+zero mean and the cross-token covariance contribution vanishes.  Softmax
+invariance removes a \emph{common} shift,
+$\operatorname{softmax}(s+c\mathbf 1)=\operatorname{softmax}(s)$; it does not
+remove arbitrary token-dependent bias.
 
-\subsection{First-Order Taylor Approximation of Output Error}
-Differentiating the output vector $o$ with respect to logit $s_i$:
+\subsection{Exact set eviction}
+
+Let $E$ be an evicted token set and $A_E=\sum_{i\in E}a_i$.  Renormalizing the
+remaining attention weights yields
+\begin{align}
+ o_{\setminus E}
+ &=\frac{o-\sum_{i\in E}a_i v_i}{1-A_E},\\
+ o_{\setminus E}-o
+ &=-\frac{\sum_{i\in E}a_i(v_i-o)}{1-A_E},\\
+ \|o_{\setminus E}-o\|^2
+ &=\frac{\left\|\sum_{i\in E}a_i(v_i-o)\right\|^2}
+ {(1-A_E)^2}.
+ \label{eq:app-exact-eviction}
+\end{align}
+The denominator and cross-token inner products prevent an exact token-separable
+representation.  For one evicted token $j$, the exact error magnitude is
+\[
+ \frac{a_j}{1-a_j}\|v_j-o\|,
+\]
+which connects directly to the CAOTE singleton score.  ReST-KV further models
+attention redistribution and output reconstruction; our local planner does not
+subsume those effects.
+
+\subsection{The planning approximation}
+
+When the evicted mass is small and cross terms are neglected,
+Eq.~\eqref{eq:app-exact-eviction} motivates
+\[
+ \widetilde D_0(E)=\sum_{i\in E} w_i,
+ \qquad
+ w_i=a_i^2\|v_i-o\|^2.
+\]
+We choose units in which the absolute zero-rate distortion is $d_0=1$ and write
+the finite-rate costs as $d_b=\operatorname{Var}(\delta_b)$ in the same logit
+units.  Thus
+\[
+ \widetilde D(\mathbf b)=\sum_i w_i d_{b_i},
+ \qquad b_i\in\mathcal B,\quad 0\in\mathcal B.
+\]
+This convention keeps relative quantizer factors separate from the absolute zero-rate
+cost.  It is a local approximation used to choose an allocation; every
+reported response is obtained by recomputing attention with the actual
+quantized/evicted cache.
+
+\section{Discrete rate allocation and regime coordinates}
+\label{app:allocation}
+
+\subsection{The implemented optimizer}
+
+At average key budget $B$, the discrete problem is
 \begin{equation}
-    \frac{\partial o}{\partial s_i} = \sum_{j} \frac{\partial a_j}{\partial s_i} v_j = a_i (v_i - o).
+ \min_{b_i\in\mathcal B}\sum_i w_i d_{b_i}
+ \quad\text{subject to}\quad
+ \sum_i b_i\le BL.
+ \label{eq:app-discrete}
 \end{equation}
-Assuming independent perturbations across tokens, the expected squared distortion in the head output vector $o$ to first order is:
+Introducing multiplier $\lambda\ge0$ separates the token decisions:
 \begin{equation}
-    \label{eq:distortion}
-    \mathbb{E}\|\Delta o\|^2 \approx \sum_{i=1}^L a_i^2 \|v_i - o\|^2 \tau^2 c_{b_i}.
+ b_i^\star(\lambda)
+ =\arg\min_{b\in\mathcal B}\{w_i d_b+\lambda b\}.
+ \label{eq:app-lagrange}
 \end{equation}
+We search $\lambda$ to satisfy the budget and use the discrete tiers in
+Eq.~\eqref{eq:app-lagrange}; the continuous expression is explanatory, not the
+experimental optimizer.
 
-\subsection{Eviction as Zero-Bit Quantization}
-If a subset of tokens $E$ is evicted entirely and the remaining attention weights are renormalized, the leading-order output perturbation is:
-\begin{equation}
-    \|\Delta o_{\mathrm{evict}}\|^2 \approx \sum_{i \in E} a_i^2 \|v_i - o\|^2.
-\end{equation}
-Comparing this directly to Equation~\eqref{eq:distortion}, eviction precisely matches the quantization error formula when:
-\begin{equation}
-    \tau^2 c_0 = 1 \implies c_0 = \frac{1}{\tau^2}.
-\end{equation}
-\begin{remark}[\textbf{Fundamental Result}]
-Eviction is identical to a quantizer rung at $b_i = 0$. Its cost constant $c_0$ is mathematically derived from the curvature of the softmax operator rather than being hand-tuned as an empirical penalty.
-\end{remark}
+For the relaxation $d_b=\kappa 4^{-b}$,
+\[
+ b_i^\star
+ =\frac12\log_2w_i+c
+ =\log_2a_i+\log_2\|v_i-o\|+c.
+\]
+The measured $0.035$-bit result is the maximum observed change in an
+\emph{aggregate ladder-width statistic} after adding the value term.  It is not
+a uniform per-token bound and does not establish that attention-only allocation
+is optimal.  A direct value-aware versus attention-only allocation ablation is
+therefore retained as an explicit evidence anchor.
 
+\subsection{Tier extinction}
 
-\section{Optimal Rate Allocation via Reverse Water-Filling}
+If $d_b\ge d_0$, tier $b$ consumes positive bits without improving the local
+surrogate relative to zero rate and is dominated.  This is a sufficient
+extinction condition.  The converse is not sufficient: a tier with $d_b<d_0$
+can still lie above the lower convex envelope of the other rate--distortion
+points.  For the 2-bit tier we report
+\[
+ D_2=\frac1H\sum_{h=1}^{H}\mathbb I[d_{h,2}\ge d_0].
+\]
+$D_2$ is measured at a particular model and context.  Although $L$ is absent
+from its formula, the head cost distribution changes with $L$, so $D_2$ is not
+sequence-length invariant and a new deployment context requires calibration.
 
-\subsection{The Constrained Optimization Problem}
-Given a total bit budget of $BL$ bits across $L$ tokens (an average precision of $B$ bits per token), the objective is to choose $\{b_i\}_{i=1}^L$ to minimize output distortion:
-\begin{equation}
-    \min_{\{b_i\}} \sum_{i=1}^L a_i^2 \|v_i - o\|^2 \tau^2 c_{b_i} \quad \text{subject to} \quad \sum_{i=1}^L b_i \le B L, \quad b_i \ge 0.
-\end{equation}
+\subsection{Why the regime map needs two coordinates}
 
-\subsection{Lagrangian Solution}
-Using the distortion model $c_{b_i} \propto 4^{-b_i} = 2^{-2b_i}$, the Lagrangian separates independently for each token $i$. Setting the gradient with respect to $b_i$ to zero yields the water-filling solution:
-\begin{equation}
-    b_i^\star = \log_2 a_i + \log_2 \|v_i - o\| + c,
-\end{equation}
-where $c$ is a normalization constant determined by the total bit budget $BL$.
-\begin{itemize}
-    \item Tokens whose allocated bits exceed the threshold (above the ``water level'') are assigned $b_i^\star$.
-    \item Tokens falling below the threshold are dropped to $b_i^\star = 0$ (\textbf{eviction}).
-\end{itemize}
-
-\subsection{The Value-Free Simplification}
-Empirical measurements show that the variation of the value distance term $\log_2 \|v_i - o\|$ is negligible across tokens ($\le 0.035$ bits throughout real-world context data). Consequently, the value term can be absorbed into the constant:
-\begin{equation}
-    \label{eq:practical_wf}
-    b_i^\star \approx \log_2 a_i + c.
-\end{equation}
-\textbf{Operational Significance:} Optimal bit allocation can be computed entirely from the attention weights $a_i$ alone, without requiring memory access to the value cache.
-
-
-\section{Tier Extinction and the Order Parameter}
-
-\subsection{The Convexity Condition}
-On real hardware accelerators, bit-widths cannot vary continuously; they must belong to discrete rungs (e.g., $b \in \{0, 2, 4, 8\}$). A discrete tier $b$ is viable (lies on the lower convex envelope of the rate-distortion curve) if and only if storing a token at $b$ bits introduces less distortion than evicting it:
-\begin{equation}
-    \tau^2 c_b < \tau^2 c_0 = 1.
-\end{equation}
-\begin{definition}[\textbf{Dead Tier}]
-If $\tau^2 c_b > 1$, tier $b$ is defined as \textbf{dead}. Storing a token at $b$ bits injects more variance into the logit than completely deleting the token. Therefore, no token should ever be quantized to $b$ bits.
-\end{definition}
-
-\subsection{The Two Asymptotic Regimes}
-The inequality $\tau^2 c_b < 1$ determines the compression topology based on the head's logit spread $\tau$:
+The sharp side and diffuse side arise for different reasons:
 \begin{enumerate}
-    \item \textbf{The Sharp End (High $\tau$, Large Dynamic Range):}
-    As $\tau$ increases, $\tau^2 c_b$ exceeds 1 for low-bit precisions, killing rungs from the bottom up (e.g., 2-bit dies first, then 3-bit). Eventually, the available tier set collapses strictly to $\{0, b_{\max}\}$.
-    $$\text{Optimal strategy} \longrightarrow \textbf{Pure Eviction (Keep at full precision or drop)}.$$
-    
-    \item \textbf{The Diffuse End (Low $\tau$, Small Dynamic Range):}
-    When $\tau$ is small, the standard deviation of the log-attention weights collapses:
-    \begin{equation}
-        \mathrm{std}_i(\log_2 a_i) = \frac{\tau}{\ln 2} \to 0.
-    \end{equation}
-    The ladder spread shrinks below the width of a single rung, meaning all tokens receive essentially the same bit allocation.
-    $$\text{Optimal strategy} \longrightarrow \textbf{Uniform Quantization}.$$
+ \item On the sharp side, large absolute finite-bit noise removes low-bit tiers;
+ $D_2$ directly probes this boundary.
+ \item On the diffuse side, unequal allocation has little leverage when token
+ importances are nearly equal; an importance-dispersion statistic is needed.
 \end{enumerate}
+For attention-only importance,
+$\operatorname{std}_i(\log_2 a_i)=\tau/\ln2$, because softmax subtracts the same
+log normalizer from every logit.  This identity alone neither proves that
+$\tau$ is a complete regime variable nor establishes a uniform-quantization
+optimum.  The paper therefore treats the mixed-to-eviction side as the
+well-supported boundary and leaves a prospective comparison of dispersion
+predictors as R10.
 
-\subsection{The Dead-Tier Fraction ($D_2$)}
-To quantify model behavior, the \textbf{dead-tier fraction} $D_2$ is defined as:
-\begin{equation}
-    D_2 = \frac{1}{H} \sum_{h=1}^H \mathbb{I}\left(\tau_h^2 c_2 > 1\right),
-\end{equation}
-representing the proportion of attention heads where 2-bit quantization is inferior to eviction. $D_2$ acts as an order parameter: it requires only a single calibration pass, possesses zero free parameters, and is invariant to sequence length $L$.
+\section{Measurement protocol and accounting}
+\label{app:protocol}
 
+\subsection{Grid and independent units}
 
-\section{Empirical Evaluation Methodology}
+The symmetric R3 grid contains 16 model--context cells from six models and
+29,312 query-head--configuration aggregates.  The R6 boundary extension contains
+25 cells spanning 4k--256k and 44,416 such aggregates.  Across the six models,
+10,240 query-head positions and 2,016 KV-head positions are counted once;
+contexts reuse those positions.  Model/cell-level analyses, rather than raw
+heads, are therefore the independent statistical units.
 
-\subsection{Experimental Architecture}
-To test the analytical theory on real LLMs, an empirical testbed is structured as follows:
+PG-19 passages supply natural context.  Each cell is admitted only after the
+uncompressed model passes the needle-retrieval validity gate.  The allocation
+planner uses its local surrogate, while every reported error comes from actual
+key quantization or eviction followed by exact attention-output recomputation.
+
+\subsection{Matched information and budget}
+
+The primary comparison uses $B=3$ key bits per context token.  Uniform
+quantization stores every key at 3 bits.  The eviction endpoint retains the
+number of 8-bit keys allowed by the same key-bit budget.  In the symmetric
+contract, the mixed allocator and accumulated-attention eviction both use lagged
+importance information; an oracle/current-query result is labeled only as an
+upper bound.  The five-corner robustness result changes the reference set and is
+reported separately.
+
+This accounting omits value-cache bytes, quantization scales, indices, metadata,
+protected windows, alignment, and packing.  Moreover, \emph{8-bit} is the maximum
+experimental key tier, not full floating-point precision.  The experiments
+therefore establish matched key-bit output error, not matched total memory or
+throughput.
+
+\subsection{Responses}
+
+For each head,
+\[
+ g_h=
+ \frac{\min(D_h^{\rm uniform},D_h^{\rm evict})}
+ {D_h^{\rm mixed}},
+ \qquad
+ G_+=\exp\!\left(\frac1H\sum_h\log\max(g_h,1)\right).
+\]
+$G_+$ is a hindsight portfolio statistic: it clips losses after observing all
+three errors.  It is not the performance of a deployed router.  The primary
+cell-level response is continuous $G_+$; the fraction with $g_h\ge2$ is a
+secondary thresholded band statistic.  Every band result names its corner
+and information contracts.
+
+\section{Additional robustness and deployment evidence}
+\label{app:robustness}
+
+The completed measurements support the following bounded conclusions:
 \begin{itemize}
-    \item \textbf{Scale:} 24 distinct model/context configurations evaluated across 46,000 individual attention heads.
-    \item \textbf{Context Scaling:} Context windows span every power-of-two from 8k tokens up to native model context limits.
-    \item \textbf{Workload:} Synthetic ``needle-in-a-haystack'' retrieval embedded inside natural PG-19 book text.
-    \item \textbf{Input-Validity Gate:} Strict verification ensuring that the uncompressed model successfully retrieves the needle on every prompt before testing compression.
+ \item In all 16 R3 cells, the symmetric lagged-versus-lagged band exceeds the
+ all-oracle band by 1.2--12.5 points, but it is lower than the asymmetric
+ current-query-versus-lagged estimate.  Five cells are STOP and five NARROW.
+ \item Across the 25 R6 cells, $D_2$ has Spearman correlation $-0.978$ with both
+ $G_+$ and the band; the model-partial correlation is $-0.915$.  Similar $D_2$
+ values can nevertheless differ by eight band points across architectures.
+ \item Prompt-block standard deviation is 0.4--3.0 band points.  Replacing the
+ two headline corners by the five-corner minimum lowers the band by 5.1--8.6
+ points and can change a categorical verdict.
+ \item In six R5 cells, the calibration-time family choice has p90 regret 1.00
+ through 4,096 generated tokens, whereas a frozen token allocation costs
+ $2.52$--$4.30\times$ a one-step-old allocation.
+ \item Enforcing one allocation per shared KV head gives marginal in-band costs
+ $1.000$, $1.136$, and $1.316$ at GQA repetition factors 1, 4, and 8.  A 4-bit
+ current-query cascade closes 82--91\% (median 89\%) of the lagged-score penalty.
 \end{itemize}
 
-\subsection{Quantization Engine and Scoring Integrity}
-\begin{itemize}
-    \item \textbf{Quantizer:} Key vectors are quantized using $\mathrm{TurboQuant}_{\mathrm{mse}}$, which combines random orthogonal rotations with Lloyd--Max optimal scalar quantization.
-    \item \textbf{Strict Separation:} Equation~\eqref{eq:distortion} and Equation~\eqref{eq:practical_wf} are utilized \emph{exclusively} to plan bit assignments ($b_i^\star$). The recorded error is always the \textbf{exact recomputed output} $o$ evaluated through the real quantized key vectors.
-\end{itemize}
+One predictor study remains intentionally unfilled.  R10 must compare $D_2$
+prospectively against RateQuant-style heterogeneity, entropy/Gini, and
+context-only predictors under a fixed leave-model-out protocol.  R8/P2 and the
+four-baseline extension are complete with disjoint routes and
+reader/validity/false-positive/bit-accounting audits.  Uniform is the strongest
+fixed arm in 34/36 valid cells, while the calibrated router has 17 clear losses.
+Two natural-task development blocks expose only $3/52$ and $2/52$ candidate
+headroom over their best fixed policies; sequential gates suppress both proxy
+outcomes and leave confirmation unopened.  These results do not establish
+end-task effectiveness.
 
-\subsection{Matched-Budget Comparative Baselines ($B = 3$ bits/token)}
-All techniques operate under an identical bit budget ($B = 3$ bits per token):
+\section{Claim boundary}
+\label{app:claims}
+
 \begin{table}[h]
 \centering
 \small
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}p{0.29\textwidth}p{0.64\textwidth}@{}}
 \toprule
-\textbf{Compression Scheme} & \textbf{Mechanism} & \textbf{Regime Alignment} \\
+\textbf{Supported} & \textbf{Not yet supported} \\
 \midrule
-\textbf{Uniform Quantization} & Every token stored at exactly $b_i = 3$ bits & Diffuse Corner \\
-\textbf{Pure Eviction} & Keep top $BL/8 = 3L/8$ tokens at 8 bits; evict the rest & Sharp Corner \\
-\textbf{Water-Filling} & Allocates $b_i^\star \approx \log_2 a_i + c$ across discrete tiers & Intermediate Spectrum \\
+Zero rate is useful inside a stated separable local surrogate
+& Exact equivalence between independent quantization noise and set eviction \\
+An absolute tier cost can make a finite-bit tier dominated
+& A universal one-dimensional phase transition or threshold \\
+$D_2$ strongly orders the measured mixed-to-eviction boundary
+& A context-free predictor that transfers without calibration \\
+The output-error-optimal family label is temporally stable in six measured cells while token allocations become stale quickly
+& A robust end-task router, total-KV memory savings, or realized throughput \\
 \bottomrule
 \end{tabular}
-\caption{Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text{H}_2\text{O}$ accumulated attention.}
-\label{tab:baselines}
+\caption{The empirical and methodological claim boundary of the current draft.}
+\label{tab:app-claims}
 \end{table}
-
-\subsection{Evaluation Metrics}
-\begin{itemize}
-    \item \textbf{Per-Head Gain:} The ratio of the best corner baseline error to the water-filling error:
-    \begin{equation}
-        \mathrm{Gain} = \frac{\min\left(\mathrm{Error}_{\mathrm{uniform}}, \, \mathrm{Error}_{\mathrm{eviction}}\right)}{\mathrm{Error}_{\mathrm{water\text{-}filling}}}.
-    \end{equation}
-    \item \textbf{In-Band Heads:} Attention heads exhibiting $\mathrm{Gain} \ge 2\times$, where mixed-precision water-filling outperforms both classical extremes by at least a factor of two.
-    \item \textbf{Routed Gain:} The geometric mean of $\max(\mathrm{Gain}, 1)$, reflecting the real-world performance attained by a dynamic per-head router selecting the optimal compression scheme.
-    \item \textbf{Symmetric Information Principle:} Allocation and corner baselines score token importance using identical attention statistics, ensuring fair benchmarking.
-\end{itemize}
-
-
-\section{Summary of Key Takeaways}
-\begin{table}[h]
-\centering
-\small
-\begin{tabular}{@{}p{0.28\textwidth}p{0.67\textwidth}@{}}
-\toprule
-\textbf{Core Concept} & \textbf{Key Takeaway} \\
-\midrule
-\textbf{Eviction is 0-bit quantization} & Setting $\tau^2 c_0 = 1$ naturally aligns token dropping with quantization theory; no separate eviction heuristic is needed. \\
-\addlinespace
-\textbf{Logit spread $\tau$ dictates policy} & High $\tau$ (sharp heads) kills low-bit tiers and favors pure eviction; low $\tau$ (diffuse heads) favors uniform quantization. \\
-\addlinespace
-\textbf{Value-cache independence} & Bit allocation depends almost entirely on $\log_2 a_i$, enabling optimal allocation without accessing or loading value vectors. \\
-\addlinespace
-\textbf{Hardware routing potential} & Modeling in-band heads enables per-head routing, optimizing accuracy per byte across heterogeneous attention layers. \\
-\bottomrule
-\end{tabular}
-\caption{Summary of foundational insights.}
-\label{tab:takeaways}
-\end{table}
-
-
-

@@ -16,86 +16,128 @@
 \gdef\HyperFirstAtBeginDocument#1{#1}
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
-\citation{liu2024kivi,hooper2024kvquant,zandieh2024qjl,zandieh2025turboquant}
+\citation{liu2024kivi,hooper2024kvquant,zandieh2025turboquant}
 \citation{zhang2023h2o,liu2023scissorhands,li2024snapkv,xiao2024streamingllm}
+\citation{zhang2025diffkv,wang-etal-2026-hqekv}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
-\citation{cover2006elements}
+\citation{zhang2026rdkv}
+\citation{goel2025caote}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {Measured symmetric results.} Both the mixed allocator and the eviction endpoint use lagged information; exact recomputation scores both. \textbf  {(a)} The tier-extinction coordinate $D_2$ strongly orders the primary continuous response, hindsight portfolio gain $G_{+}$. Arrows show increasing context. \textbf  {(b)} The secondary $2\times $ band statistic shows that context moves fixed models across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. The 25-cell extension spans 4k--256k; thresholds are not universal across architectures.}}{2}{figure.1}\protected@file@percent }
+\newlabel{fig:regime}{{1}{2}{\textbf {Measured symmetric results.} Both the mixed allocator and the eviction endpoint use lagged information; exact recomputation scores both. \textbf {(a)} The tier-extinction coordinate $D_2$ strongly orders the primary continuous response, hindsight portfolio gain $\gplus $. Arrows show increasing context. \textbf {(b)} The secondary $2\times $ band statistic shows that context moves fixed models across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. The 25-cell extension spans 4k--256k; thresholds are not universal across architectures}{figure.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Joint token-rate allocation as a common foundation}{2}{section.2}\protected@file@percent }
+\newlabel{sec:framework}{{2}{2}{Joint token-rate allocation as a common foundation}{section.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Scope and local quantization surrogate.}{2}{section*.1}\protected@file@percent }
+\newlabel{eq:linear}{{1}{2}{Scope and local quantization surrogate}{equation.2.1}{}}
+\newlabel{eq:surrogate}{{2}{2}{Scope and local quantization surrogate}{equation.2.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Exact eviction versus a zero-rate surrogate.}{2}{section*.2}\protected@file@percent }
+\newlabel{eq:exact-eviction}{{3}{2}{Exact eviction versus a zero-rate surrogate}{equation.2.3}{}}
 \citation{grattafiori2024llama3}
 \citation{jiang2023mistral}
+\citation{qwen2024moe}
 \citation{yang2025qwen3}
 \citation{rae2020pg19}
 \citation{zandieh2025turboquant}
 \citation{lloyd1982least}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {(a)} Optimal bit-widths from reverse water-filling at a 3-bit average budget (synthetic Gaussian logits, measured cost constants). As logit spread $\tau $ grows the profile goes from near-uniform to a ladder to keep/evict. \textbf  {(b)} \emph  {Measured}: routed gain of allocation over the better of uniform quantization and eviction, per (model, context); marker size grows with context and arrows mark the last doubling. One derived variable orders all 24 points ($\rho =-0.96$), and every model moves right as context grows. \textbf  {(c)} \emph  {Projected, not measured} ({\color  {tbdcol}\textbf  {TBD}\nobreakspace  {}[R8]}): the end-task picture the phase diagram predicts, with the largest gain at short-to-mid context, shrinking toward eviction at 128k.}}{2}{figure.1}\protected@file@percent }
-\newlabel{fig:teaser}{{1}{2}{\textbf {(a)} Optimal bit-widths from reverse water-filling at a 3-bit average budget (synthetic Gaussian logits, measured cost constants). As logit spread $\tau $ grows the profile goes from near-uniform to a ladder to keep/evict. \textbf {(b)} \emph {Measured}: routed gain of allocation over the better of uniform quantization and eviction, per (model, context); marker size grows with context and arrows mark the last doubling. One derived variable orders all 24 points ($\rho =-0.96$), and every model moves right as context grows. \textbf {(c)} \emph {Projected, not measured} (\tbd {[R8]}): the end-task picture the phase diagram predicts, with the largest gain at short-to-mid context, shrinking toward eviction at 128k}{figure.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {2}One objective: eviction is quantization at zero rate}{2}{section.2}\protected@file@percent }
-\newlabel{sec:framework}{{2}{2}{One objective: eviction is quantization at zero rate}{section.2}{}}
-\newlabel{eq:dist}{{1}{2}{One objective: eviction is quantization at zero rate}{equation.2.1}{}}
-\newlabel{eq:rule}{{2}{2}{One objective: eviction is quantization at zero rate}{equation.2.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Measuring the phase diagram}{2}{section.3}\protected@file@percent }
-\newlabel{sec:results}{{3}{2}{Measuring the phase diagram}{section.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.\nobreakspace  {}\ref  {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf  {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf  {(c)} \emph  {Projected, not measured} ({\color  {tbdcol}\textbf  {TBD}\nobreakspace  {}[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle.}}{3}{figure.2}\protected@file@percent }
-\newlabel{fig:results}{{2}{3}{\textbf {(a)} Share of heads where allocation beats the best corner by $\geq 2\times $, versus context (colours as Fig.~\ref {fig:teaser}b). Every model decays, at $-1.4$ to $-14.6$ points per doubling; the circled point was held out. \textbf {(b)} The linearized cost model's predicted gain over uniform divided by the exactly recomputed gain: all 24 configurations fall within $[0.79,1.34]$, while the measured gains themselves span $20$--$37\times $. \textbf {(c)} \emph {Projected, not measured} (\tbd {[R8]}): the hypothesis the router experiment tests. Always-allocate wins at low $D_2$ and always-evict at high $D_2$; a per-head router should track the upper envelope, with the largest margin in the mixed middle}{figure.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}From map to method: \textsc  {Sieve}{}}{3}{section.4}\protected@file@percent }
-\newlabel{sec:sieve}{{4}{3}{From map to method: \sieve {}}{section.4}{}}
-\citation{equitz1991successive}
-\citation{hsieh2024ruler}
-\citation{feng2024adakv,cai2024pyramidkv}
+\@writefile{toc}{\contentsline {paragraph}{The implemented discrete allocation.}{3}{section*.3}\protected@file@percent }
+\newlabel{eq:discrete}{{4}{3}{The implemented discrete allocation}{equation.2.4}{}}
+\newlabel{eq:continuous}{{5}{3}{The implemented discrete allocation}{equation.2.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{Two coordinates, not one universal phase boundary.}{3}{section*.4}\protected@file@percent }
+\newlabel{eq:d2}{{6}{3}{Two coordinates, not one universal phase boundary}{equation.2.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Measurement protocol}{3}{section.3}\protected@file@percent }
+\newlabel{sec:protocol}{{3}{3}{Measurement protocol}{section.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Models, contexts, and statistical units.}{3}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Compression and budget.}{3}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Information contract and endpoints.}{3}{section*.7}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {Measured robustness and timing.} \textbf  {(a)} On the same 16 cells, the honest lagged-versus-lagged advantage is smaller than the asymmetric E2 estimate but remains ordered by $D_2$. The band is secondary and depends on the named corner set. \textbf  {(b)} In six R5 cells, retaining the calibration-time \emph  {policy choice} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment at the valid horizon.}}{4}{figure.2}\protected@file@percent }
+\newlabel{fig:evidence}{{2}{4}{\textbf {Measured robustness and timing.} \textbf {(a)} On the same 16 cells, the honest lagged-versus-lagged advantage is smaller than the asymmetric E2 estimate but remains ordered by $D_2$. The band is secondary and depends on the named corner set. \textbf {(b)} In six R5 cells, retaining the calibration-time \emph {policy choice} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment at the valid horizon}{figure.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Exact response and metrics.}{4}{section*.8}\protected@file@percent }
+\newlabel{eq:metrics}{{7}{4}{Exact response and metrics}{equation.3.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}When does the interior pay?}{4}{section.4}\protected@file@percent }
+\newlabel{sec:results}{{4}{4}{When does the interior pay?}{section.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{The advantage survives a fair information comparison.}{4}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Tier extinction orders value, but the crossing is model-conditioned.}{4}{section*.10}\protected@file@percent }
 \citation{liu2024kivi,hooper2024kvquant}
 \citation{zandieh2025turboquant,zandieh2024qjl}
 \citation{yang2024mikv,he2024zipcache}
-\citation{zhang2023h2o,li2024snapkv,liu2023scissorhands}
-\citation{xiao2024streamingllm}
+\citation{zhang2023h2o,li2024snapkv,liu2023scissorhands,xiao2024streamingllm}
 \citation{cai2024pyramidkv,feng2024adakv}
-\bibdata{sieve}
-\bibcite{cai2024pyramidkv}{{1}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
-\bibcite{cover2006elements}{{2}{2006}{{Cover \& Thomas}}{{Cover and Thomas}}}
-\bibcite{equitz1991successive}{{3}{1991}{{Equitz \& Cover}}{{Equitz and Cover}}}
-\bibcite{feng2024adakv}{{4}{2024}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
+\citation{zhang2025diffkv}
+\citation{wang-etal-2026-hqekv}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Completed deployment-facing measurements. These are output-error results, not end-task or throughput claims.}}{5}{table.1}\protected@file@percent }
+\newlabel{tab:deployment}{{1}{5}{Completed deployment-facing measurements. These are output-error results, not end-task or throughput claims}{table.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Context traverses the map.}{5}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The surrogate is useful, not exact.}{5}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Deployment implications and limits}{5}{section.5}\protected@file@percent }
+\newlabel{sec:deployment}{{5}{5}{Deployment implications and limits}{section.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{End-task transfer.}{5}{section*.13}\protected@file@percent }
+\citation{goel2025caote}
+\citation{an2026restkv}
+\citation{zuo2026ratequant}
+\citation{zhang2026rdkv}
+\citation{laus2026aatc}
+\bibdata{sieve,concurrent}
+\bibcite{an2026restkv}{{1}{2026}{{An et~al.}}{{An, Lu, Zhu, Yu, Zhao, Wu, Tang, and Wang}}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Closest work and the claim boundary of this paper.}}{6}{table.2}\protected@file@percent }
+\newlabel{tab:related}{{2}{6}{Closest work and the claim boundary of this paper}{table.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Related and concurrent work}{6}{section.6}\protected@file@percent }
+\newlabel{sec:related}{{6}{6}{Related and concurrent work}{section.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{Quantization, eviction, and hybrid token storage.}{6}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Output-aware eviction.}{6}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Rate allocation along complementary axes.}{6}{section*.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Limitations and conclusion}{6}{section.7}\protected@file@percent }
+\newlabel{main:end}{{7}{6}{Limitations and conclusion}{section.7}{}}
+\bibcite{cai2024pyramidkv}{{2}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
+\bibcite{feng2024adakv}{{3}{2025}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
+\bibcite{goel2025caote}{{4}{2025}{{Goel et~al.}}{{Goel, Park, Gagrani, Jones, Morse, Langston, Lee, and Lott}}}
 \bibcite{grattafiori2024llama3}{{5}{2024}{{Grattafiori et~al.}}{{}}}
 \bibcite{he2024zipcache}{{6}{2024}{{He et~al.}}{{He, Zhang, Wu, Liu, Zhou, and Zhuang}}}
 \bibcite{hooper2024kvquant}{{7}{2024}{{Hooper et~al.}}{{Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer, and Gholami}}}
-\bibcite{hsieh2024ruler}{{8}{2024}{{Hsieh et~al.}}{{Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and Ginsburg}}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Measured facts (24 configurations) and the design decision each one forces.}}{4}{table.1}\protected@file@percent }
-\newlabel{tab:facts}{{1}{4}{Measured facts (24 configurations) and the design decision each one forces}{table.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Related work and outlook}{4}{section.5}\protected@file@percent }
-\bibcite{jiang2023mistral}{{9}{2023}{{Jiang et~al.}}{{}}}
+\bibcite{jiang2023mistral}{{8}{2023}{{Jiang et~al.}}{{}}}
+\bibcite{laus2026aatc}{{9}{2026}{{Laus et~al.}}{{Laus, Mayrink~Verdun, Wang, du~Pin~Calmon, and Krahmer}}}
 \bibcite{li2024snapkv}{{10}{2024}{{Li et~al.}}{{Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis, and Chen}}}
 \bibcite{liu2023scissorhands}{{11}{2023}{{Liu et~al.}}{{Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and Shrivastava}}}
 \bibcite{liu2024kivi}{{12}{2024}{{Liu et~al.}}{{Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen, and Hu}}}
 \bibcite{lloyd1982least}{{13}{1982}{{Lloyd}}{{}}}
-\bibcite{rae2020pg19}{{14}{2020}{{Rae et~al.}}{{Rae, Potapenko, Jayakumar, and Lillicrap}}}
-\bibcite{xiao2024streamingllm}{{15}{2024}{{Xiao et~al.}}{{Xiao, Tian, Chen, Han, and Lewis}}}
-\bibcite{yang2025qwen3}{{16}{2025}{{Yang et~al.}}{{}}}
-\bibcite{yang2024mikv}{{17}{2024}{{Yang et~al.}}{{Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and Lee}}}
-\bibcite{zandieh2024qjl}{{18}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
-\bibcite{zandieh2025turboquant}{{19}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
-\bibcite{zhang2023h2o}{{20}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
+\bibcite{qwen2024moe}{{14}{2024}{{Qwen Team}}{{}}}
+\bibcite{rae2020pg19}{{15}{2020}{{Rae et~al.}}{{Rae, Potapenko, Jayakumar, and Lillicrap}}}
+\bibcite{wang-etal-2026-hqekv}{{16}{2026}{{Wang et~al.}}{{Wang, Gu, Li, Wang, Liu, Wang, Li, and Yu}}}
+\bibcite{xiao2024streamingllm}{{17}{2024}{{Xiao et~al.}}{{Xiao, Tian, Chen, Han, and Lewis}}}
+\bibcite{yang2025qwen3}{{18}{2025}{{Yang et~al.}}{{}}}
+\bibcite{yang2024mikv}{{19}{2024}{{Yang et~al.}}{{Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and Lee}}}
+\bibcite{zandieh2024qjl}{{20}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
+\bibcite{zandieh2025turboquant}{{21}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
+\bibcite{zhang2026rdkv}{{22}{2026}{{Zhang et~al.}}{{Zhang, Guo, Benini, and Li}}}
+\bibcite{zhang2025diffkv}{{23}{2025}{{Zhang et~al.}}{{Zhang, Hu, Zhao, Lui, and Chen}}}
+\bibcite{zhang2023h2o}{{24}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
+\bibcite{zuo2026ratequant}{{25}{2026}{{Zuo et~al.}}{{Zuo, Zhou, Cong, Xi, and Leung}}}
 \bibstyle{iclr2026_conference}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Introduction: The KV-Cache Compression Dilemma}{6}{appendix.A}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B}Output Distortion and the Equivalence Principle}{7}{appendix.B}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Standard Attention Formulation}{7}{subsection.B.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Quantization Perturbation Model}{7}{subsection.B.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}First-Order Taylor Approximation of Output Error}{7}{subsection.B.3}\protected@file@percent }
-\newlabel{eq:distortion}{{8}{7}{First-Order Taylor Approximation of Output Error}{equation.B.8}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}Eviction as Zero-Bit Quantization}{7}{subsection.B.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {C}Optimal Rate Allocation via Reverse Water-Filling}{8}{appendix.C}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}The Constrained Optimization Problem}{8}{subsection.C.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Lagrangian Solution}{8}{subsection.C.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}The Value-Free Simplification}{8}{subsection.C.3}\protected@file@percent }
-\newlabel{eq:practical_wf}{{13}{8}{The Value-Free Simplification}{equation.C.13}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {D}Tier Extinction and the Order Parameter}{8}{appendix.D}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}The Convexity Condition}{8}{subsection.D.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}The Two Asymptotic Regimes}{8}{subsection.D.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}The Dead-Tier Fraction ($D_2$)}{9}{subsection.D.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {E}Empirical Evaluation Methodology}{9}{appendix.E}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Experimental Architecture}{9}{subsection.E.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Quantization Engine and Scoring Integrity}{9}{subsection.E.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}Matched-Budget Comparative Baselines ($B = 3$ bits/token)}{9}{subsection.E.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text  {H}_2\text  {O}$ accumulated attention.}}{9}{table.2}\protected@file@percent }
-\newlabel{tab:baselines}{{2}{9}{Matched-budget comparison at 3 bits/token. Eviction ranks tokens via $\text {H}_2\text {O}$ accumulated attention}{table.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {E.4}Evaluation Metrics}{9}{subsection.E.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {F}Summary of Key Takeaways}{9}{appendix.F}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Summary of foundational insights.}}{10}{table.3}\protected@file@percent }
-\newlabel{tab:takeaways}{{3}{10}{Summary of foundational insights}{table.3}{}}
-\gdef \@abspage@last{10}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Some Basics}{9}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Scope of the common rate-allocation view}{10}{appendix.B}\protected@file@percent }
+\newlabel{app:scope}{{B}{10}{Scope of the common rate-allocation view}{appendix.B}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}Output distortion and the zero-rate approximation}{10}{appendix.C}\protected@file@percent }
+\newlabel{app:derivation}{{C}{10}{Output distortion and the zero-rate approximation}{appendix.C}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Attention and finite-bit key perturbations}{10}{subsection.C.1}\protected@file@percent }
+\newlabel{eq:app-linear}{{9}{11}{Attention and finite-bit key perturbations}{equation.C.9}{}}
+\newlabel{eq:app-covariance}{{10}{11}{Attention and finite-bit key perturbations}{equation.C.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Exact set eviction}{11}{subsection.C.2}\protected@file@percent }
+\newlabel{eq:app-exact-eviction}{{13}{11}{Exact set eviction}{equation.C.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}The planning approximation}{11}{subsection.C.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {D}Discrete rate allocation and regime coordinates}{11}{appendix.D}\protected@file@percent }
+\newlabel{app:allocation}{{D}{11}{Discrete rate allocation and regime coordinates}{appendix.D}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}The implemented optimizer}{11}{subsection.D.1}\protected@file@percent }
+\newlabel{eq:app-discrete}{{14}{11}{The implemented optimizer}{equation.D.14}{}}
+\newlabel{eq:app-lagrange}{{15}{12}{The implemented optimizer}{equation.D.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Tier extinction}{12}{subsection.D.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}Why the regime map needs two coordinates}{12}{subsection.D.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {E}Measurement protocol and accounting}{12}{appendix.E}\protected@file@percent }
+\newlabel{app:protocol}{{E}{12}{Measurement protocol and accounting}{appendix.E}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.1}Grid and independent units}{12}{subsection.E.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.2}Matched information and budget}{13}{subsection.E.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.3}Responses}{13}{subsection.E.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {F}Additional robustness and deployment evidence}{13}{appendix.F}\protected@file@percent }
+\newlabel{app:robustness}{{F}{13}{Additional robustness and deployment evidence}{appendix.F}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {G}Claim boundary}{13}{appendix.G}\protected@file@percent }
+\newlabel{app:claims}{{G}{13}{Claim boundary}{appendix.G}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces The empirical and methodological claim boundary of the current draft.}}{14}{table.3}\protected@file@percent }
+\newlabel{tab:app-claims}{{3}{14}{The empirical and methodological claim boundary of the current draft}{table.3}{}}
+\gdef \@abspage@last{14}

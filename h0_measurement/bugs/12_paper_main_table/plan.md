@@ -102,3 +102,26 @@ bits or are evicted). Two diagnostic arms test it, and neither is a method:
 - `router_oracle`: routes on the measured per-head output error (P-5's upper
   bound). If the oracle also fails at 128K, the failure is the output-error
   proxy, not the offline calibration.
+
+## Addendum 2026-09-26, before any C/D job ran
+
+**C. Question-visible control (F7).** The F7 contrast "question visible at
+compression" compared question-aware runs on prompts 0–19 against the
+question-agnostic R9 campaign on prompts 100–119. C reruns the question-visible
+setting on prompts 100–119 for all five cells with arms `fp, uniform, evict,
+evict_h2o` at B = 2, 3 (no `--question-agnostic`, P0 path, no head errors).
+Readout: SnapKV and H2O scores per cell next to the question-agnostic scores
+from A. H2O's score barely depends on the question, so it should move little;
+SnapKV should approach 1.00. Cross-run pairing caveat: A and C are different
+processes, so prompt-level pairs carry run-to-run noise; only cell means are
+compared.
+
+**D. Third end-task model (F4).** Mistral-7B-Instruct-v0.3 (GQA 4, native 32k)
+at 8k and 32k, the same arms, budgets, tasks and prompts as A. Router routes
+are calibrated on prompts 0–9 in QA mode (as R9 did for the other models), then
+evaluated on prompts 100–119 (afterok). Validity: a task block counts only if
+FP ≥ 0.9, as for the other models. D tests whether "the winning family depends
+on the model" holds beyond one Llama/Qwen contrast; it is reported whatever it
+shows. Where Mistral sits on the regime map (R6: 10–20% dead-2, never crossing
+STOP) predicts nothing about the winner by construction (F4), so no direction
+is pre-registered.

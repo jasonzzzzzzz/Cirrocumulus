@@ -366,19 +366,27 @@ def crop_to(past, length: int):
 
 
 def apply_bits(past, bits_per_layer: dict[int, torch.Tensor], R: torch.Tensor,
-               norm_correct: bool = True):
+               norm_correct: bool = True, keys_fn=None):
     """Build the arm's compressed view of the context from the cache's
     full-precision keys and switch compression on.
 
-    `bits_per_layer[li]` is [Hkv, ctx_len] long. The cache is read, not written."""
+    `bits_per_layer[li]` is [Hkv, ctx_len] long. The cache is read, not written.
+    `keys_fn(li, K)` (paper-table quantization baselines, kv_quant_baselines.py)
+    replaces the TurboQuant quantizer for an arm that keeps every key at one
+    width; None is the unchanged path."""
     from .probe import cache_kv
     STATE.reset_arm()
     C = STATE.ctx_len
     for li, bits in bits_per_layer.items():
         K, _ = cache_kv(past, li)                  # [Hkv, L, d], cache dtype
         Kc = K[:, :C, :].float()
-        kd, ev = mixed_quantize_keys(Kc, bits.to(Kc.device), R.to(Kc.device),
-                                     norm_correct)
+        if keys_fn is not None:
+            if bool((bits <= 0).any()) or torch.unique(bits).numel() != 1:
+                raise ValueError("keys_fn arms keep every key at one width")
+            kd, ev = keys_fn(li, Kc), bits.to(Kc.device) <= 0
+        else:
+            kd, ev = mixed_quantize_keys(Kc, bits.to(Kc.device), R.to(Kc.device),
+                                         norm_correct)
         STATE.kdeq[li] = kd.to(K.dtype)
         STATE.evict[li] = ev
         STATE.bits[li] = bits

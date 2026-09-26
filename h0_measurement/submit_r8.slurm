@@ -45,6 +45,7 @@ cd "$PROJECT_ROOT"
 : "${R8_MODEL:?R8_MODEL=<tag> is required}"
 : "${R8_CTX:?R8_CTX=<tokens> is required}"
 R8_TASKS="${R8_TASKS:-niah_single,niah_multikey,niah_multivalue,vt}"
+R8_TASK_VARIANT="${R8_TASK_VARIANT:-}"
 R8_ARMS="${R8_ARMS:-fp,uniform,evict}"
 R8_BUDGETS="${R8_BUDGETS:-1,2,3,4}"
 R8_N_PROMPTS="${R8_N_PROMPTS:-20}"
@@ -96,6 +97,21 @@ if [[ "$R8_POLICY_DIAGNOSTIC" == 1 ]]; then
 fi
 if [[ -n "$R8_ROUTES" && ! -f "$R8_ROUTES" ]]; then
   echo "ERROR: R8_ROUTES=$R8_ROUTES does not exist -- run the calibration first" >&2; exit 1; fi
+if [[ -n "$R8_TASK_VARIANT" && "$R8_TASK_VARIANT" != multikey_panel_v1 ]]; then
+  echo "ERROR: unknown R8_TASK_VARIANT='$R8_TASK_VARIANT'" >&2; exit 1
+fi
+if [[ "$R8_TASK_VARIANT" == multikey_panel_v1 ]]; then
+  [[ "$R8_CTX" == 32768 && "$R8_TASKS" == niah_multikey && "$R8_N_KEYS" == 48 && \
+     "$R8_N_VALUES" == 4 && "$R8_N_HOPS" == 4 && "$R8_QA" == 1 ]] || {
+    echo "ERROR: multikey_panel_v1 requires ctx=32768, tasks=niah_multikey, k48/v4/h4, QA=1" >&2; exit 1; }
+  [[ "$R8_HEAD_ERROR" == 0 && -z "$R8_ROUTES" && -z "$R8_WRITE_ROUTES" ]] || {
+    echo "ERROR: multikey_panel_v1 does not support head errors or routes" >&2; exit 1; }
+  IFS=, read -r -a _panel_arms <<< "$R8_ARMS"
+  for _arm in "${_panel_arms[@]}"; do
+    [[ "$_arm" != router_* ]] || {
+      echo "ERROR: multikey_panel_v1 does not support router arm '$_arm'" >&2; exit 1; }
+  done
+fi
 
 # ---- environment: submit_h0.slurm's, verbatim in effect -------------------
 VENV="${SIEVE_VENV:-$PROJECT_ROOT/.venv}"
@@ -136,14 +152,18 @@ fi
 RUN_ID="${R8_RUN_ID:-${R8_RUN_PREFIX:-r8job}${SLURM_JOB_ID:-manual}}"
 OUT_DIR="$PROJECT_ROOT/h0_measurement/results/${RUN_ID}"
 mkdir -p "$OUT_DIR" h0_measurement/logs
-POLICY_DIAGNOSTIC_OUT="$OUT_DIR/r8policy_${R8_MODEL}_${R8_CTX}_k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS}.parquet"
+_variant_suffix=""
+[[ -n "$R8_TASK_VARIANT" ]] && _variant_suffix="_${R8_TASK_VARIANT}"
+POLICY_DIAGNOSTIC_OUT="$OUT_DIR/r8policy_${R8_MODEL}_${R8_CTX}_k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS}${_variant_suffix}.parquet"
 
 if [[ "$R8_POLICY_DIAGNOSTIC" == 1 ]]; then
   _policy_out_log="$POLICY_DIAGNOSTIC_OUT"
 else
   _policy_out_log=none
 fi
-echo "host=$(hostname) role=r8 run_id=$RUN_ID model=$R8_MODEL ctx=$R8_CTX arms=$R8_ARMS budgets=$R8_BUDGETS tasks=$R8_TASKS difficulty=k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS} prompts=$R8_N_PROMPTS@$R8_PROMPT_OFFSET window=$R8_WINDOW qa=$R8_QA head_error=$R8_HEAD_ERROR n_q=$R8_N_Q theta=$R8_THETA routes=${R8_ROUTES:-none} write_routes=${R8_WRITE_ROUTES:-none} policy_diagnostic=$R8_POLICY_DIAGNOSTIC policy_candidates=$R8_POLICY_CANDIDATES policy_trace_steps=$R8_POLICY_TRACE_STEPS policy_out=$_policy_out_log"
+_variant_log=""
+[[ -n "$R8_TASK_VARIANT" ]] && _variant_log=" task_variant=$R8_TASK_VARIANT"
+echo "host=$(hostname) role=r8 run_id=$RUN_ID model=$R8_MODEL ctx=$R8_CTX arms=$R8_ARMS budgets=$R8_BUDGETS tasks=$R8_TASKS${_variant_log} difficulty=k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS} prompts=$R8_N_PROMPTS@$R8_PROMPT_OFFSET window=$R8_WINDOW qa=$R8_QA head_error=$R8_HEAD_ERROR n_q=$R8_N_Q theta=$R8_THETA routes=${R8_ROUTES:-none} write_routes=${R8_WRITE_ROUTES:-none} policy_diagnostic=$R8_POLICY_DIAGNOSTIC policy_candidates=$R8_POLICY_CANDIDATES policy_trace_steps=$R8_POLICY_TRACE_STEPS policy_out=$_policy_out_log"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 python -c "import transformers, torch; print('transformers', transformers.__version__, 'torch', torch.__version__)"
 
@@ -158,6 +178,13 @@ fi
 # need a tiny model on CPU and stay in the development test suite.
 python tests/test_r8.py --fast || { echo "ERROR: R8 unit tests failed -- not running"; exit 1; }
 python tests/test_baselines.py --fast || { echo "ERROR: baseline unit tests failed -- not running"; exit 1; }
+if [[ ",$R8_ARMS," =~ ,(kivi|kivi_g128|kvquant), ]]; then
+  python tests/test_kv_quant_baselines.py --fast || { echo "ERROR: key-quantization baseline tests failed -- not running"; exit 1; }
+fi
+if [[ "$R8_TASK_VARIANT" == multikey_panel_v1 ]]; then
+  python tests/test_multikey_panel.py || { echo "ERROR: multikey panel generator tests failed -- not running"; exit 1; }
+  python tests/test_r8_panel.py || { echo "ERROR: R8 panel runner tests failed -- not running"; exit 1; }
+fi
 if [[ "$R8_POLICY_DIAGNOSTIC" == 1 ]]; then
   python tests/test_policy_diagnostic.py || { echo "ERROR: policy diagnostic unit tests failed -- not running"; exit 1; }
   python tests/test_policy_reader.py || { echo "ERROR: policy reader unit tests failed -- not running"; exit 1; }
@@ -170,6 +197,8 @@ P2_ARGS=(--n-q "$R8_N_Q" --theta "$R8_THETA" --cascade-bits "$R8_CASCADE_BITS")
 [[ -n "$R8_ROUTES" ]] && P2_ARGS+=(--routes "$R8_ROUTES")
 [[ -n "$R8_WRITE_ROUTES" ]] && P2_ARGS+=(--write-routes "$R8_WRITE_ROUTES")
 [[ "$R8_QA" == 1 ]] && P2_ARGS+=(--question-agnostic)
+TASK_VARIANT_ARGS=()
+[[ -n "$R8_TASK_VARIANT" ]] && TASK_VARIANT_ARGS+=(--task-variant "$R8_TASK_VARIANT")
 POLICY_ARGS=()
 if [[ "$R8_POLICY_DIAGNOSTIC" == 1 ]]; then
   POLICY_ARGS+=(--policy-diagnostic-out "$POLICY_DIAGNOSTIC_OUT")
@@ -182,4 +211,5 @@ srun python h0_measurement/run_r8.py \
   --budgets "$R8_BUDGETS" --n-prompts "$R8_N_PROMPTS" \
   --prompt-offset "$R8_PROMPT_OFFSET" --n-keys "$R8_N_KEYS" \
   --n-values "$R8_N_VALUES" --n-hops "$R8_N_HOPS" \
-  --window "$R8_WINDOW" --out-dir "$OUT_DIR" "${P2_ARGS[@]}" "${POLICY_ARGS[@]}"
+  --window "$R8_WINDOW" --out-dir "$OUT_DIR" "${TASK_VARIANT_ARGS[@]}" \
+  "${P2_ARGS[@]}" "${POLICY_ARGS[@]}"

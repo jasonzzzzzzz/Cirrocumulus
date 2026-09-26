@@ -32,7 +32,7 @@ Budgets may be fractional (e.g. 0.5): eviction and the interior spend any B in
 Design and decision table: h0_measurement/bugs/8_router_endtask/plan.md.
 """
 from __future__ import annotations
-import argparse, hashlib, json, os, sys, time
+import argparse, dataclasses, hashlib, json, os, sys, time
 
 import torch
 import pandas as pd
@@ -43,13 +43,173 @@ sys.path.insert(0, HERE)
 from sievelib import compress as C, quant, router, prompts, tasks_ruler as TR  # noqa: E402
 from sievelib import policy_diagnostic as PD  # noqa: E402
 from sievelib import baselines as BL  # noqa: E402
+from sievelib import kv_quant_baselines as QB  # noqa: E402
 import run_h0  # noqa: E402  (load_cfg, chunked_prefill -- reused, not copied)
 
 
-def result_stem(model: str, ctx: int, task_cfg: dict) -> str:
-    """Stable legacy filename for k4/v4/h4; explicit tag for harder tasks."""
+PANEL_VARIANT = "multikey_panel_v1"
+PANEL_QUERY_COUNT = 4
+ALLOCATION_ID_ALGORITHM = "sha256_layer_uint8_v1"
+
+
+def result_stem(model: str, ctx: int, task_cfg: dict, task_variant: str = "") -> str:
+    """Stable legacy filename, with an explicit suffix for opt-in variants."""
     tag = TR.task_tag(task_cfg)
-    return f"r8_{model}_{ctx}" + (f"_{tag}" if tag else "")
+    stem = f"r8_{model}_{ctx}" + (f"_{tag}" if tag else "")
+    return stem + (f"_{task_variant}" if task_variant else "")
+
+
+def allocation_id(bits_by_layer) -> str:
+    """Hash the allocation that was actually applied to a context.
+
+    Compressed policies hash every layer's canonical uint8 bit map, including
+    its layer index and shape. Full precision has no bit map and uses the
+    frozen ``fp16`` sentinel. This identifier is computed once per context and
+    allocation, then copied to all four panel queries.
+    """
+    digest = hashlib.sha256()
+    if bits_by_layer is None:
+        digest.update(b"fp16")
+        return digest.hexdigest()
+    if not bits_by_layer:
+        raise ValueError("compressed allocation has no layer bit tensors")
+    for li in sorted(bits_by_layer):
+        bits = bits_by_layer[li].detach().to(device="cpu", dtype=torch.uint8).contiguous()
+        shape = ",".join(str(int(x)) for x in bits.shape)
+        digest.update(f"layer={int(li)};shape={shape};dtype=uint8\n".encode("ascii"))
+        digest.update(bits.numpy().tobytes(order="C"))
+    return digest.hexdigest()
+
+
+def validate_panel_mode(task_variant, tasks, task_cfg, *, ctx, question_agnostic,
+                        head_error, routes, write_routes, arms):
+    """Validate the deliberately narrow first panel implementation."""
+    if not task_variant:
+        return False
+    if task_variant != PANEL_VARIANT:
+        raise ValueError(f"unknown --task-variant {task_variant!r}; expected {PANEL_VARIANT!r}")
+    if ctx != 32768:
+        raise ValueError(f"{PANEL_VARIANT} requires --ctx 32768")
+    if tasks != ["niah_multikey"]:
+        raise ValueError(f"{PANEL_VARIANT} requires --tasks niah_multikey exactly")
+    if task_cfg != {"n_keys": 48, "n_values": 4, "n_hops": 4}:
+        raise ValueError(f"{PANEL_VARIANT} requires --n-keys 48 --n-values 4 --n-hops 4")
+    if not question_agnostic:
+        raise ValueError(f"{PANEL_VARIANT} requires --question-agnostic")
+    if head_error or routes or write_routes or any(x.startswith("router_") for x in arms):
+        raise ValueError(
+            f"{PANEL_VARIANT} does not support head-error, routes, route writing, or "
+            "router arms because those errors depend on the query")
+    if any(QB.is_arm(x) for x in arms):
+        raise ValueError(f"{PANEL_VARIANT} does not support key-quantization baseline arms")
+    return True
+
+
+def validate_panel_payload(context_text, meta, queries, prompt_idx):
+    """Authenticate one generated panel before model work touches it."""
+    expected_meta = {
+        "task": "niah_multikey",
+        "task_variant": PANEL_VARIANT,
+        "panel_version": TR.MULTIKEY_PANEL_VERSION,
+        "panel_rng_version": TR.MULTIKEY_PANEL_RNG_VERSION,
+        "panel_rng_namespaces": dict(TR.MULTIKEY_PANEL_RNG_NAMESPACES),
+        "key_suffix_contract": TR.MULTIKEY_PANEL_KEY_SUFFIX_CONTRACT,
+        "n_clusters": TR.MULTIKEY_PANEL_N_CLUSTERS,
+        "cluster_size": TR.MULTIKEY_PANEL_CLUSTER_SIZE,
+        "n_queries": PANEL_QUERY_COUNT,
+        "n_needles": 48,
+        "target_needle_ranks": tuple(TR.MULTIKEY_PANEL_TARGET_RANKS),
+        "target_needle_depths": tuple(TR.MULTIKEY_PANEL_TARGET_DEPTHS),
+        "prompt_idx": prompt_idx,
+    }
+    mismatches = {key: (meta.get(key), want) for key, want in expected_meta.items()
+                  if meta.get(key) != want}
+    if mismatches:
+        raise RuntimeError(f"p{prompt_idx}: invalid panel provenance {mismatches}")
+    if not isinstance(context_text, str) or not context_text:
+        raise RuntimeError(f"p{prompt_idx}: panel context must be nonempty text")
+    if len(queries) != PANEL_QUERY_COUNT:
+        raise RuntimeError(
+            f"p{prompt_idx}: panel has {len(queries)} queries, expected {PANEL_QUERY_COUNT}")
+    if [q.get("query_idx") for q in queries] != list(range(PANEL_QUERY_COUNT)):
+        raise RuntimeError(f"p{prompt_idx}: panel query_idx must be exactly 0..3 in order")
+    clusters = []
+    for query in queries:
+        qi = query["query_idx"]
+        cluster = query.get("target_cluster")
+        clusters.append(cluster)
+        required = ("question", "expected", "target_key", "target_value",
+                    "target_needle_rank", "target_needle_depth", "distractors",
+                    "distractor_keys", "distractor_values")
+        missing = [key for key in required if key not in query]
+        if missing:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: missing panel fields {missing}")
+        if query.get("cluster") != cluster:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: cluster aliases disagree")
+        if tuple(query["expected"]) != (query["target_value"],):
+            raise RuntimeError(f"p{prompt_idx} q{qi}: expected value is not its target")
+        if query["target_needle_rank"] != TR.MULTIKEY_PANEL_TARGET_RANKS[qi] or                 query["target_needle_depth"] != TR.MULTIKEY_PANEL_TARGET_DEPTHS[qi]:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: target rank/depth drift")
+        dkeys, dvals = tuple(query["distractor_keys"]), tuple(query["distractor_values"])
+        if len(dkeys) != 11 or len(dvals) != 11 or len(set(dkeys)) != 11 or                 len(set(dvals)) != 11:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: invalid within-cluster distractors")
+        if query["target_key"] in dkeys or query["target_value"] in dvals:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: target leaks into distractor set")
+        if len(query["distractors"]) != 47:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: expected all 47 distractor values")
+        # The question may name its key, but it must contain no answer value.
+        leaked = [v for v in (query["target_value"], *query["distractors"])
+                  if v in query["question"]]
+        if leaked:
+            raise RuntimeError(f"p{prompt_idx} q{qi}: answer value leaked into question")
+    if len(set(clusters)) != PANEL_QUERY_COUNT:
+        raise RuntimeError(f"p{prompt_idx}: panel must query four distinct clusters")
+    return hashlib.sha256(context_text.encode("utf-8")).hexdigest()
+
+
+def panel_row_provenance(meta, query, context_hash, alloc_id):
+    """Canonical query provenance shared by accuracy and policy artifacts."""
+    return {
+        "task_variant": PANEL_VARIANT,
+        "panel_version": meta["panel_version"],
+        "panel_rng_version": meta["panel_rng_version"],
+        "panel_rng_namespaces": json.dumps(
+            dict(meta["panel_rng_namespaces"]), sort_keys=True, separators=(",", ":")),
+        "query_idx": int(query["query_idx"]),
+        "target_cluster": int(query["target_cluster"]),
+        "target_key": query["target_key"],
+        "target_value": query["target_value"],
+        "target_needle_rank": int(query["target_needle_rank"]),
+        "target_needle_depth": float(query["target_needle_depth"]),
+        "panel_cluster_size": int(meta["cluster_size"]),
+        "panel_query_count": int(meta["n_queries"]),
+        "panel_context_hash": context_hash,
+        "panel_distractor_keys": json.dumps(list(query["distractor_keys"]),
+                                             separators=(",", ":")),
+        "panel_distractor_values": json.dumps(list(query["distractor_values"]),
+                                               separators=(",", ":")),
+        "allocation_id": alloc_id,
+    }
+
+
+def panel_sidecar_record(meta, *, expected_accuracy_rows, expected_policy_rows):
+    """Static, reader-authenticated panel contract for sidecar JSON."""
+    return {
+        "version": meta["panel_version"],
+        "clusters": int(meta["n_clusters"]),
+        "cluster_size": int(meta["cluster_size"]),
+        "query_count": int(meta["n_queries"]),
+        "target_ranks": list(meta["target_needle_ranks"]),
+        "target_depths": list(meta["target_needle_depths"]),
+        "rng_version": meta["panel_rng_version"],
+        "rng_namespaces": dict(meta["panel_rng_namespaces"]),
+        "key_suffix_contract": meta["key_suffix_contract"],
+        "context_hash_algorithm": "sha256_utf8",
+        "allocation_id_algorithm": ALLOCATION_ID_ALGORITHM,
+        "fp_allocation_sentinel": allocation_id(None),
+        "expected_accuracy_rows": int(expected_accuracy_rows),
+        "expected_policy_rows": int(expected_policy_rows),
+    }
 
 
 def eos_ids(model, tok) -> set[int]:
@@ -146,7 +306,7 @@ def p2_wants(arms, head_error, write_routes):
     """Which base allocations to build, and whether the step-0 query is needed.
     A router needs every candidate's allocation AND error, even for candidates
     that are not decoded as arms of their own."""
-    want = {x for x in arms if x in BASE_ARMS}
+    want = {x for x in arms if x in BASE_ARMS or QB.is_arm(x)}
     routers = [x for x in arms if x.startswith("router_")]
     if routers or write_routes:
         want |= set(router.ROUTE_CANDIDATES)
@@ -156,7 +316,7 @@ def p2_wants(arms, head_error, write_routes):
 
 def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list,
                n_layers, *, cascade_bits, need_err, routes, theta, ans_mask=None,
-               bls=None, wo=None):
+               bls=None, wo=None, rope=None):
     # uniform exists only at quantizer widths (no 0.5-bit quantizer): at other
     # budgets it is neither an arm nor a router candidate
     """Every allocation for this prompt, LAYER BY LAYER, so each layer's context
@@ -177,6 +337,7 @@ def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list
                            f"-- the FP arm must run first with capture_q on")
     bits, errs, rlog, amass = {}, {}, {}, {}
     base = [x for x in BASE_ARMS if x in want]
+    qarms = [x for x in QB.ARMS if x in want]    # every key at B, a different quantizer
     bls = bls or {}
     wo = wo or {}
     # only the interior (and the routers built on it) read the noise model; only
@@ -223,6 +384,18 @@ def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list
                 bits.setdefault((arm, B), {})[li] = b.to(torch.uint8)
                 if need_err:
                     errs.setdefault((arm, B), {})[li] = router.eval_heads(ctx, b, q0[li])
+            for arm in qarms:
+                if not router.is_width(B, maxb, bit_list):
+                    continue
+                b = torch.full(ctx.snap.shape, int(B), dtype=torch.long,
+                               device=ctx.Kc.device)
+                bits.setdefault((arm, B), {})[li] = b.to(torch.uint8)
+                if need_err:
+                    # eval_heads reads ctx.Kq[width]: hand it this arm's keys
+                    Kalt = QB.keys_fn(arm, int(B), rope)(li, ctx.Kc)
+                    errs.setdefault((arm, B), {})[li] = router.eval_heads(
+                        dataclasses.replace(ctx, Kq={int(B): Kalt}), b, q0[li])
+                    del Kalt
             for rt in routers:
                 if rt == "router_oracle":
                     rts = router.route({c: errs[(c, B)][li] for c in router.ROUTE_CANDIDATES
@@ -269,13 +442,14 @@ def answer_positions(tok, text, expected, ctx_len):
 
 
 def run_bits(model, past, ids, bits_by_layer, R, norm_correct, eos, max_new, L0, tok,
-             q_ids=None):
-    """Decode one arm from PRECOMPUTED widths (P2's counterpart of run_arm)."""
+             q_ids=None, keys_fn=None):
+    """Decode one arm from PRECOMPUTED widths (P2's counterpart of run_arm).
+    `keys_fn`: a key-quantization baseline's quantizer (kv_quant_baselines)."""
     C.crop_to(past, L0)
     C.STATE.reset_arm()
     if bits_by_layer is not None:
         C.apply_bits(past, {li: b.long() for li, b in bits_by_layer.items()},
-                     R, norm_correct)
+                     R, norm_correct, keys_fn=keys_fn)
     past = _question(model, past, q_ids)
     gen, past = _decode(model, past, ids[0, -1], max_new, eos, tok)
     C.STATE.enabled = False
@@ -354,6 +528,206 @@ def load_routes(path, model, ctx, block, *, expected=None):
     return j["routes"], meta
 
 
+def run_panel_prompt(model, tok, *, prompt_idx, ctx, corpus, require_real,
+                     task_cfg, plan, arms, budgets, want, bls, wo, R,
+                     norm_correct, maxb, bit_list, n_layers, cascade_bits,
+                     eos, max_new, window, chunk, dev, model_tag, model_id,
+                     native_ctx, rot_seed, theta, policy_requested,
+                     policy_candidates, policy_trace_steps):
+    """Run four independent questions from one shared context allocation.
+
+    The context is prefilled once. Every compressed allocation is precomputed
+    once before any question is decoded. ``run_bits`` crops the cache back to
+    ``L0`` before each arm/query and reapplies the same immutable bit tensors,
+    so generated answers and question tokens cannot leak between queries.
+    """
+    task = "niah_multikey"
+    context_text, meta, queries = TR.build_multikey_panel(
+        tok, ctx, prompt_idx=prompt_idx, corpus_dir=corpus,
+        require_real=require_real)
+    context_hash = validate_panel_payload(context_text, meta, queries, prompt_idx)
+
+    cids = tok(context_text, return_tensors="pt").input_ids.to(dev)
+    query_ids = []
+    for query in queries:
+        q_ids = tok(query["question"], add_special_tokens=False,
+                    return_tensors="pt").input_ids.to(dev)
+        if q_ids.shape[1] < 1:
+            raise RuntimeError(f"p{prompt_idx} q{query['query_idx']}: empty question tokens")
+        n = int(cids.shape[1] + q_ids.shape[1])
+        if n > ctx:
+            raise RuntimeError(
+                f"p{prompt_idx} q{query['query_idx']} {PANEL_VARIANT} has {n} tokens "
+                f"> ctx {ctx}; refusing a partial result")
+        query_ids.append(q_ids)
+
+    # prefill() drops its last token. Appending q0's first token therefore
+    # prefills exactly the shared context and does not read any question.
+    pre_ids = torch.cat([cids, query_ids[0][:, :1]], dim=1)
+    t0 = time.time()
+    past, _ = prefill(model, pre_ids, window, chunk, h2o="evict_h2o" in arms)
+    L0 = C.cache_len(past)
+    t_pre = time.time() - t0
+    if L0 != int(cids.shape[1]):
+        raise RuntimeError(
+            f"p{prompt_idx}: shared panel prefill boundary {L0} != context tokens "
+            f"{int(cids.shape[1])}")
+
+    compressed_plan = [(arm, B) for arm, B in plan if arm != "fp"]
+    bits = {}
+    t_pc = 0.0
+    if compressed_plan:
+        tp = time.time()
+        bits, errs, rlog, amass = precompute(
+            past, L0, want, [], budgets, R, norm_correct, maxb,
+            bit_list, n_layers, cascade_bits=cascade_bits,
+            need_err=False, routes={}, theta=theta, ans_mask=None,
+            bls=bls, wo=wo)
+        t_pc = time.time() - tp
+        if errs or rlog or amass:
+            raise RuntimeError("panel precompute unexpectedly produced query-dependent data")
+        missing = [(arm, B) for arm, B in compressed_plan if (arm, B) not in bits]
+        if missing:
+            raise RuntimeError(f"p{prompt_idx}: panel allocations missing {missing}")
+
+    allocation_ids = {("fp", 0): allocation_id(None)}
+    allocation_ids.update({key: allocation_id(bits[key]) for key in compressed_plan})
+    accuracy_rows, policy_rows = [], []
+    query_lines = []
+    for query, q_ids in zip(queries, query_ids):
+        qi = int(query["query_idx"])
+        ids = torch.cat([cids, q_ids], dim=1)
+        n = int(ids.shape[1])
+        line = []
+        fp_gen = None
+        for arm, B in plan:
+            t1 = time.time()
+            applied_bits = None if arm == "fp" else bits[(arm, B)]
+            gen, past = run_bits(
+                model, past, ids, applied_bits, R, norm_correct,
+                eos, max_new, L0, tok, q_ids)
+            if policy_requested and arm == "fp":
+                fp_gen = list(gen)
+            pred = tok.decode(gen)
+            score_meta = dict(meta)
+            score_meta.update(dict(query))
+            sc = TR.score(task, pred, score_meta)
+            au = (C.bits_audit() if arm != "fp" else
+                  {"bits_per_token": 16.0, "evict_frac": 0.0})
+            if arm != "fp" and not au["bits_per_token"] <= float(B) + 1e-7:
+                raise RuntimeError(
+                    f"{arm} B={B} spent {au['bits_per_token']:.6f} bits/token")
+            prov = panel_row_provenance(
+                meta, query, context_hash, allocation_ids[(arm, B)])
+            accuracy_rows.append(dict(
+                model=model_tag, model_id=model_id, ctx=ctx, native_ctx=native_ctx,
+                task=task, prompt_idx=prompt_idx, arm=arm, B=B, **sc,
+                pred=pred[:200], n_keys=task_cfg["n_keys"],
+                n_values=task_cfg["n_values"], n_hops=task_cfg["n_hops"],
+                task_n_needles=meta["n_needles"], max_new_tokens=max_new,
+                reached_max_new=len(gen) >= max_new, gen_len=len(gen),
+                bits_per_token=au["bits_per_token"], evict_frac=au["evict_frac"],
+                n_prompt_tokens=n, ctx_len=C.STATE.ctx_len, window=window,
+                observed_queries=L0 - C.STATE.ctx_len,
+                allocator_budget_rule="feasible", maxb=maxb,
+                needle_depths=json.dumps(meta["needle_depths"]),
+                corpus_doc=meta.get("doc") or "",
+                corpus_offset=meta.get("offset") or 0,
+                corpus_spliced=bool(meta.get("spliced", False)),
+                corpus_sha=meta.get("corpus_sha") or "",
+                synthetic=meta["synthetic"], rot_seed=rot_seed,
+                norm_correct=norm_correct, t_prefill=t_pre,
+                t_arm=time.time() - t1, t_precompute=t_pc, theta=float("nan"),
+                question_agnostic=True, n_question_tokens=int(q_ids.shape[1]),
+                **prov))
+            line.append(f"{arm}{B if B else ''}:{sc['first_ok']:.2f}")
+
+        if policy_requested:
+            if fp_gen is None:
+                raise RuntimeError("panel policy diagnostic did not observe the FP arm")
+            trace_tokens = fp_gen[:policy_trace_steps]
+            if not trace_tokens:
+                raise RuntimeError(
+                    f"p{prompt_idx} q{qi}: FP emitted no non-EOS token; no policy trace")
+            reference = replay_policy_logits(
+                model, past, ids[0, -1], trace_tokens, None,
+                R, norm_correct, L0, q_ids)
+            if reference.argmax(-1).detach().cpu().tolist() != trace_tokens:
+                raise RuntimeError(
+                    f"p{prompt_idx} q{qi}: replayed FP argmax does not reproduce FP trace")
+            trace_hash = PD.token_hash(trace_tokens)
+            for policy_B in budgets:
+                block_rows, block_metrics = [], {}
+                for candidate_order, candidate in enumerate(policy_candidates):
+                    key = (candidate, policy_B)
+                    if key not in bits:
+                        raise RuntimeError(
+                            f"missing complete panel allocation for {candidate} at B={policy_B}")
+                    tr0 = time.time()
+                    candidate_logits = replay_policy_logits(
+                        model, past, ids[0, -1], trace_tokens, bits[key],
+                        R, norm_correct, L0, q_ids)
+                    metrics = PD.divergence_metrics(reference, candidate_logits, trace_tokens)
+                    elapsed = time.time() - tr0
+                    del candidate_logits
+                    block_metrics[candidate] = metrics
+                    prov = panel_row_provenance(
+                        meta, query, context_hash, allocation_ids[key])
+                    block_rows.append(dict(
+                        model=model_tag, model_id=model_id, ctx=ctx,
+                        native_ctx=native_ctx, task=task, prompt_idx=prompt_idx,
+                        B=policy_B, n_keys=task_cfg["n_keys"],
+                        n_values=task_cfg["n_values"], n_hops=task_cfg["n_hops"],
+                        candidate=candidate, candidate_order=candidate_order,
+                        trace_rule_version=PD.TRACE_RULE_VERSION,
+                        trace_steps_requested=policy_trace_steps,
+                        trace_len=metrics["trace_length"],
+                        trace_token_hash=trace_hash,
+                        vocab_size=int(reference.shape[-1]),
+                        mean_kl=metrics["mean_kl"], max_kl=metrics["max_kl"],
+                        fp_token_ce=metrics["fp_token_cross_entropy"],
+                        top1_agreement=metrics["top1_agreement"],
+                        fp_argmax_verified=True, question_agnostic=True,
+                        window=window, maxb=maxb,
+                        allocator_budget_rule="feasible",
+                        corpus_doc=meta.get("doc") or "",
+                        corpus_offset=meta.get("offset") or 0,
+                        corpus_spliced=bool(meta.get("spliced", False)),
+                        corpus_sha=meta.get("corpus_sha") or "",
+                        synthetic=meta["synthetic"], rot_seed=rot_seed,
+                        norm_correct=norm_correct, t_policy_trace=elapsed,
+                        **prov))
+                selected = PD.select_min_mean(block_metrics, policy_candidates)
+                for policy_row in block_rows:
+                    policy_row["selected_policy"] = selected
+                policy_rows.extend(block_rows)
+            del reference
+        query_lines.append(f"q{qi} " + " ".join(line))
+
+    expected_accuracy = PANEL_QUERY_COUNT * len(plan)
+    if len(accuracy_rows) != expected_accuracy:
+        raise RuntimeError(
+            f"p{prompt_idx}: panel emitted {len(accuracy_rows)} accuracy rows, "
+            f"expected {expected_accuracy}")
+    expected_policy = (PANEL_QUERY_COUNT * len(budgets) * len(policy_candidates)
+                       if policy_requested else 0)
+    if len(policy_rows) != expected_policy:
+        raise RuntimeError(
+            f"p{prompt_idx}: panel emitted {len(policy_rows)} policy rows, "
+            f"expected {expected_policy}")
+    for key in allocation_ids:
+        observed = {row["allocation_id"] for row in accuracy_rows
+                    if (row["arm"], row["B"]) == key}
+        if observed != {allocation_ids[key]}:
+            raise RuntimeError(f"p{prompt_idx}: allocation identity changed across queries")
+    print(f"  p{prompt_idx} {PANEL_VARIANT:16s} nctx={L0:,} prefill {t_pre:5.1f}s  "
+          + " | ".join(query_lines), flush=True)
+    del past, bits
+    if dev.type == "cuda":
+        torch.cuda.empty_cache()
+    return accuracy_rows, policy_rows, meta
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -361,6 +735,8 @@ def main():
     ap.add_argument("--model", required=True, help="tag in models.yaml")
     ap.add_argument("--ctx", type=int, required=True)
     ap.add_argument("--tasks", default="niah_single,niah_multikey,niah_multivalue,vt")
+    ap.add_argument("--task-variant", default="",
+                    help=f"opt-in task execution contract; currently: {PANEL_VARIANT}")
     ap.add_argument("--arms", default="fp,uniform,evict,evict_h2o")
     ap.add_argument("--budgets", default="1,2,3,4")
     ap.add_argument("--n-prompts", type=int, default=20)
@@ -426,6 +802,13 @@ def main():
     # R9 baselines: parsed (and refused) before the model loads; each arm from
     # here on is known by its label, which is what the parquet records
     arms, bls = BL.resolve_arms(arms)
+    try:
+        panel_mode = validate_panel_mode(
+            a.task_variant, tasks, task_cfg, ctx=a.ctx,
+            question_agnostic=a.question_agnostic, head_error=a.head_error,
+            routes=a.routes, write_routes=a.write_routes, arms=arms)
+    except ValueError as e:
+        ap.error(str(e))
     policy_candidates = [x for x in a.policy_candidates.split(",") if x]
     policy_requested = bool(a.policy_diagnostic_out or policy_candidates)
     if bool(a.policy_diagnostic_out) != bool(policy_candidates):
@@ -440,7 +823,8 @@ def main():
         if "fp" not in arms:
             ap.error("policy diagnostics require the fp arm")
         invalid = [x for x in policy_candidates
-                   if x == "fp" or x.startswith("router_") or x not in arms]
+                   if x == "fp" or x.startswith("router_") or x not in arms
+                   or QB.is_arm(x)]          # replay has no keys_fn path
         if invalid:
             ap.error("policy candidates must be fixed non-FP arms present in --arms; "
                      f"invalid={invalid}")
@@ -454,7 +838,7 @@ def main():
             ap.error("policy diagnostic --arms must be exactly fp plus the declared "
                      f"candidates; extra={extra_arms}")
         accuracy_out = os.path.abspath(os.path.join(
-            a.out_dir, f"{result_stem(a.model, a.ctx, task_cfg)}.parquet"))
+            a.out_dir, f"{result_stem(a.model, a.ctx, task_cfg, a.task_variant)}.parquet"))
         if os.path.abspath(a.policy_diagnostic_out) == accuracy_out:
             ap.error("--policy-diagnostic-out must not overwrite the accuracy parquet")
     if a.window < 1:
@@ -475,8 +859,10 @@ def main():
     if bad:
         raise SystemExit(f"budgets {bad} outside (0, {maxb}]")
     no_uni = [b for b in budgets if not router.is_width(b, maxb, bit_list)]
-    if no_uni and "uniform" in arms:
-        print(f"uniform skipped at B = {no_uni}: not a quantizer width {bit_list}", flush=True)
+    width_arms = [x for x in arms if x == "uniform" or QB.is_arm(x)]
+    if no_uni and width_arms:
+        print(f"{width_arms} skipped at B = {no_uni}: not a quantizer width {bit_list}",
+              flush=True)
     if policy_requested and "uniform" in policy_candidates and no_uni:
         ap.error("uniform is a policy candidate but has no quantizer at "
                  f"budget(s) {no_uni}")
@@ -503,7 +889,8 @@ def main():
     print(f"R8  {a.model} @{a.ctx:,}  {cf.num_hidden_layers}L "
           f"{cf.num_attention_heads}q/{getattr(cf,'num_key_value_heads','?')}kv  "
           f"arms={arms} budgets={budgets} tasks={tasks} "
-          f"difficulty={TR.task_tag(task_cfg, include_default=True)} "
+          + (f"task_variant={a.task_variant} " if panel_mode else "")
+          + f"difficulty={TR.task_tag(task_cfg, include_default=True)} "
           f"generation_limits={generation_limits} "
           f"prompts={a.n_prompts}@{a.prompt_offset} window={a.window} maxb={maxb} "
           f"compress_at={'context_end (question-agnostic)' if a.question_agnostic else 'question_end'}",
@@ -549,11 +936,36 @@ def main():
 
     plan = [("fp", 0)] if "fp" in arms else []
     plan += [(arm, B) for arm in arms if arm != "fp" for B in budgets
-             if not (arm == "uniform" and not router.is_width(B, maxb, bit_list))]
+             if not ((arm == "uniform" or QB.is_arm(arm))
+                     and not router.is_width(B, maxb, bit_list))]
+    # KVQuant undoes RoPE: the model's own cos/sin for positions 0..ctx-1, once
+    rope = QB.rope_tables(model, a.ctx, dev) if QB.needs_rope(arms) else None
+    if any(QB.is_arm(x) for x in arms):
+        print("key-quantization baselines: " + "; ".join(
+            f"{x} = {QB.DESCRIBE[x]} (side info {QB.side_bits(x, hd, a.ctx):.3f} bit/elem)"
+            for x in arms if QB.is_arm(x)), flush=True)
     rows, t_all = [], time.time()
     head_rows = []           # P2 per-head errors, one small frame per (prompt, task)
     policy_rows = []         # separate whole-policy diagnostic artifact
+    panel_meta = None
     for p in range(a.prompt_offset, a.prompt_offset + a.n_prompts):
+        if panel_mode:
+            panel_accuracy, panel_policy, current_panel_meta = run_panel_prompt(
+                model, tok, prompt_idx=p, ctx=a.ctx, corpus=corpus,
+                require_real=require_real, task_cfg=task_cfg, plan=plan,
+                arms=arms, budgets=budgets, want=want, bls=bls, wo=wo, R=R,
+                norm_correct=norm_correct, maxb=maxb, bit_list=bit_list,
+                n_layers=cf.num_hidden_layers, cascade_bits=a.cascade_bits,
+                eos=eos, max_new=generation_limits["niah_multikey"],
+                window=a.window, chunk=chunk, dev=dev, model_tag=a.model,
+                model_id=c["id"], native_ctx=native, rot_seed=rot_seed,
+                theta=a.theta, policy_requested=policy_requested,
+                policy_candidates=policy_candidates,
+                policy_trace_steps=a.policy_trace_steps)
+            rows.extend(panel_accuracy)
+            policy_rows.extend(panel_policy)
+            panel_meta = current_panel_meta
+            continue
         for task in tasks:
             text, meta = TR.build(tok, task, a.ctx, prompt_idx=p, corpus_dir=corpus,
                                   require_real=require_real, **task_cfg)
@@ -607,10 +1019,12 @@ def main():
                             need_err=need_err, routes=routes, theta=a.theta,
                             ans_mask=answer_positions(tok, ctx_text, meta["expected"],
                                                       C.STATE.ctx_len),
-                            bls=bls, wo=wo)
+                            bls=bls, wo=wo, rope=rope)
                         t_pc = time.time() - tp
+                    kf = QB.keys_fn(arm, int(B), rope) if QB.is_arm(arm) else None
                     gen, past = run_bits(model, past, ids, bits[(arm, B)], R, norm_correct,
-                                         eos, generation_limits[task], L0, tok, q_ids)
+                                         eos, generation_limits[task], L0, tok, q_ids,
+                                         keys_fn=kf)
                 if policy_requested and arm == "fp":
                     fp_gen = list(gen)
                 pred = tok.decode(gen)
@@ -626,6 +1040,8 @@ def main():
                 if p2 and rlog and (arm, B) in rlog:
                     rs = [r_ for li in rlog[(arm, B)] for r_ in rlog[(arm, B)][li]]
                     extra.update(frac_interior=sum(r_ == "interior" for r_ in rs) / max(len(rs), 1))
+                if QB.is_arm(arm):
+                    extra.update(side_bits=QB.side_bits(arm, hd, C.STATE.ctx_len))
                 rows.append(dict(
                     model=a.model, model_id=c["id"], ctx=a.ctx, native_ctx=native,
                     task=task, prompt_idx=p, arm=arm, B=B, **sc, pred=pred[:200],
@@ -749,55 +1165,78 @@ def main():
                 torch.cuda.empty_cache()
 
     os.makedirs(a.out_dir, exist_ok=True)
-    stem = result_stem(a.model, a.ctx, task_cfg)
+    stem = result_stem(a.model, a.ctx, task_cfg, a.task_variant)
     df = pd.DataFrame(rows)
+    expected_accuracy_rows = a.n_prompts * len(plan) * (PANEL_QUERY_COUNT if panel_mode else len(tasks))
+    expected_policy_rows = (a.n_prompts * len(tasks) * len(budgets) * len(policy_candidates)
+                            * (PANEL_QUERY_COUNT if panel_mode else 1)
+                            if policy_requested else 0)
+    if panel_mode:
+        if panel_meta is None:
+            raise RuntimeError("panel run produced no panel metadata")
+        if len(df) != expected_accuracy_rows:
+            raise RuntimeError(
+                f"panel accuracy has {len(df)} rows, expected {expected_accuracy_rows}")
+        panel_accuracy_keys = ["model", "ctx", "task", "prompt_idx", "query_idx", "arm", "B"]
+        if df.duplicated(panel_accuracy_keys).any():
+            raise RuntimeError("panel accuracy contains duplicate query/arm rows")
     out = os.path.join(a.out_dir, f"{stem}.parquet")
     df.to_parquet(out)
+    sidecar = {"parquet": os.path.basename(out), "model": a.model, "model_id": c["id"],
+               "ctx": a.ctx, "native_ctx": native, "tasks": tasks, "arms": arms,
+               "task_config": task_cfg,
+               "task_generation_version": (panel_meta["task_generation_version"]
+                                           if panel_mode else TR.TASK_GENERATION_VERSION),
+               "target_needle_provenance_version": TR.TARGET_NEEDLE_PROVENANCE_VERSION,
+               "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
+               "generation_limits": generation_limits,
+               "budgets": budgets, "n_prompts": a.n_prompts,
+               "prompt_offset": a.prompt_offset, "window": a.window,
+               "observation_queries": sorted(int(x) for x in df.observed_queries.dropna().unique()),
+               "allocator_budget_rule": "feasible", "maxb": maxb,
+               "rows": len(df), "rot_seed": rot_seed, "norm_correct": norm_correct,
+               "attn_impl": C.IMPL, "compress_from": "first_answer_token",
+               "question_agnostic": bool(a.question_agnostic),
+               "compress_at": ("context_end: context prefilled and scored alone "
+                               "(window = its last W tokens), question prefilled "
+                               "through the compressed cache"
+                               if a.question_agnostic else
+                               "question_end: window = the last W prompt tokens"),
+               "eviction": {"evict": "SnapKV: window vote, pooled over the KV group's heads, max-pooled over positions (kernel %d)" % router.SNAPKV_POOL,
+                            "evict_h2o": "H2O: attention from every prefill query, summed over the KV group",
+                            **{lab: b.config_record()["describe"] for lab, b in bls.items()}},
+               "baselines": {lab: b.config_record() for lab, b in bls.items()} or None,
+               **({"quant_baselines": {x: QB.config_record()[x] for x in arms
+                                       if QB.is_arm(x)}}
+                  if any(QB.is_arm(x) for x in arms) else {}),
+               "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
+               "p2": {"enabled": p2, "want": sorted(want), "routers": routers,
+                      "head_error": need_err, "theta": a.theta,
+                      "cascade_bits": a.cascade_bits, "routes": a.routes or None,
+                      "routes_meta": routes_meta or None,
+                      "interior": "alloc.waterfill_group on the window attention, per KV head",
+                      "noise_model": "last prefill query",
+                      "error_queries": f"mean over the FP arm's first {a.n_q} decode steps"},
+               "elapsed_s": time.time() - t_all,
+               "config": {k: v for k, v in c.items()}}
+    if panel_mode:
+        sidecar.update(
+            task_variant=PANEL_VARIANT,
+            panel=panel_sidecar_record(
+                panel_meta, expected_accuracy_rows=expected_accuracy_rows,
+                expected_policy_rows=expected_policy_rows))
     with open(os.path.join(a.out_dir, f"{stem}.json"), "w") as fh:
-        json.dump({"parquet": os.path.basename(out), "model": a.model, "model_id": c["id"],
-                   "ctx": a.ctx, "native_ctx": native, "tasks": tasks, "arms": arms,
-                   "task_config": task_cfg,
-                   "task_generation_version": TR.TASK_GENERATION_VERSION,
-                   "target_needle_provenance_version": TR.TARGET_NEEDLE_PROVENANCE_VERSION,
-                   "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
-                   "generation_limits": generation_limits,
-                   "budgets": budgets, "n_prompts": a.n_prompts,
-                   "prompt_offset": a.prompt_offset, "window": a.window,
-                   "observation_queries": sorted(int(x) for x in df.observed_queries.dropna().unique()),
-                   "allocator_budget_rule": "feasible", "maxb": maxb,
-                   "rows": len(df), "rot_seed": rot_seed, "norm_correct": norm_correct,
-                   "attn_impl": C.IMPL, "compress_from": "first_answer_token",
-                   "question_agnostic": bool(a.question_agnostic),
-                   "compress_at": ("context_end: context prefilled and scored alone "
-                                   "(window = its last W tokens), question prefilled "
-                                   "through the compressed cache"
-                                   if a.question_agnostic else
-                                   "question_end: window = the last W prompt tokens"),
-                   "eviction": {"evict": "SnapKV: window vote, pooled over the KV group's heads, max-pooled over positions (kernel %d)" % router.SNAPKV_POOL,
-                                "evict_h2o": "H2O: attention from every prefill query, summed over the KV group",
-                                **{lab: b.config_record()["describe"] for lab, b in bls.items()}},
-                   "baselines": {lab: b.config_record() for lab, b in bls.items()} or None,
-                   "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
-                   "p2": {"enabled": p2, "want": sorted(want), "routers": routers,
-                          "head_error": need_err, "theta": a.theta,
-                          "cascade_bits": a.cascade_bits, "routes": a.routes or None,
-                          "routes_meta": routes_meta or None,
-                          "interior": "alloc.waterfill_group on the window attention, per KV head",
-                          "noise_model": "last prefill query",
-                          "error_queries": f"mean over the FP arm's first {a.n_q} decode steps"},
-                   "elapsed_s": time.time() - t_all,
-                   "config": {k: v for k, v in c.items()}}, fh, indent=1, default=str)
+        json.dump(sidecar, fh, indent=1, default=str)
     print(f"\nwrote {out}  ({len(df):,} rows, {time.time() - t_all:.0f}s)")
     if policy_requested:
-        expected_policy_rows = (
-            a.n_prompts * len(tasks) * len(budgets) * len(policy_candidates)
-        )
         if len(policy_rows) != expected_policy_rows:
             raise RuntimeError(
                 f"policy diagnostic has {len(policy_rows)} rows, "
                 f"expected {expected_policy_rows}")
         policy_df = pd.DataFrame(policy_rows)
         policy_keys = ["model", "ctx", "task", "prompt_idx", "B", "candidate"]
+        if panel_mode:
+            policy_keys.insert(4, "query_idx")
         if policy_df.duplicated(policy_keys).any():
             raise RuntimeError("policy diagnostic contains duplicate candidate rows")
         policy_out = os.path.abspath(a.policy_diagnostic_out)
@@ -805,38 +1244,46 @@ def main():
         policy_df.to_parquet(policy_out)
         policy_sidecar = os.path.splitext(policy_out)[0] + ".json"
         accuracy_sidecar = os.path.join(a.out_dir, f"{stem}.json")
+        policy_sidecar_data = {
+            "parquet": os.path.basename(policy_out),
+            "model": a.model, "model_id": c["id"],
+            "ctx": a.ctx, "native_ctx": native,
+            "tasks": tasks, "task_config": task_cfg,
+            "task_generation_version": (panel_meta["task_generation_version"]
+                                        if panel_mode else TR.TASK_GENERATION_VERSION),
+            "target_needle_provenance_version": TR.TARGET_NEEDLE_PROVENANCE_VERSION,
+            "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
+            "generation_limits": generation_limits,
+            "budgets": budgets, "n_prompts": a.n_prompts,
+            "prompt_offset": a.prompt_offset,
+            "window": a.window, "maxb": maxb,
+            "question_agnostic": bool(a.question_agnostic),
+            "allocator_budget_rule": "feasible",
+            "candidates": policy_candidates,
+            "trace_rule_version": PD.TRACE_RULE_VERSION,
+            "trace_steps_requested": a.policy_trace_steps,
+            "teacher": "fp_greedy",
+            "metric_dtype": "float32",
+            "vocabulary": "full",
+            "rows": len(policy_df),
+            "expected_rows": expected_policy_rows,
+            "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
+            "rot_seed": rot_seed, "norm_correct": norm_correct,
+            "accuracy_parquet": os.path.basename(out),
+            "accuracy_sidecar": os.path.basename(accuracy_sidecar),
+            "accuracy_sha256": file_sha256(out),
+            "accuracy_rows": len(df),
+            "no_raw_logits": True,
+            "elapsed_s": float(policy_df.t_policy_trace.sum()),
+        }
+        if panel_mode:
+            policy_sidecar_data.update(
+                task_variant=PANEL_VARIANT,
+                panel=panel_sidecar_record(
+                    panel_meta, expected_accuracy_rows=expected_accuracy_rows,
+                    expected_policy_rows=expected_policy_rows))
         with open(policy_sidecar, "w") as fh:
-            json.dump({
-                "parquet": os.path.basename(policy_out),
-                "model": a.model, "model_id": c["id"],
-                "ctx": a.ctx, "native_ctx": native,
-                "tasks": tasks, "task_config": task_cfg,
-                "task_generation_version": TR.TASK_GENERATION_VERSION,
-                "target_needle_provenance_version": TR.TARGET_NEEDLE_PROVENANCE_VERSION,
-                "generation_limit_version": TR.GENERATION_LIMIT_VERSION,
-                "generation_limits": generation_limits,
-                "budgets": budgets, "n_prompts": a.n_prompts,
-                "prompt_offset": a.prompt_offset,
-                "window": a.window, "maxb": maxb,
-                "question_agnostic": bool(a.question_agnostic),
-                "allocator_budget_rule": "feasible",
-                "candidates": policy_candidates,
-                "trace_rule_version": PD.TRACE_RULE_VERSION,
-                "trace_steps_requested": a.policy_trace_steps,
-                "teacher": "fp_greedy",
-                "metric_dtype": "float32",
-                "vocabulary": "full",
-                "rows": len(policy_df),
-                "expected_rows": expected_policy_rows,
-                "corpus_sha": prompts.corpus_sha(corpus) if corpus else None,
-                "rot_seed": rot_seed, "norm_correct": norm_correct,
-                "accuracy_parquet": os.path.basename(out),
-                "accuracy_sidecar": os.path.basename(accuracy_sidecar),
-                "accuracy_sha256": file_sha256(out),
-                "accuracy_rows": len(df),
-                "no_raw_logits": True,
-                "elapsed_s": float(policy_df.t_policy_trace.sum()),
-            }, fh, indent=1, default=str)
+            json.dump(policy_sidecar_data, fh, indent=1, default=str)
         print(f"wrote {policy_out}  ({len(policy_df):,} policy rows)")
         print(f"wrote {policy_sidecar}")
     if head_rows:

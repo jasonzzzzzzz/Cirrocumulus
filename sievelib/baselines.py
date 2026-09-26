@@ -100,7 +100,9 @@ DESCRIBE = {
 
 # arm names run_r8 already owns -- a baseline label may not shadow them
 RESERVED = {"fp", "uniform", "evict", "evict_h2o", "interior", "interior_pool",
-            "interior_cascade", "router_oracle", "router_calib"}
+            "interior_cascade", "router_oracle", "router_calib",
+            # key-quantization baselines (kv_quant_baselines.ARMS)
+            "kivi", "kivi_g128", "kvquant"}
 
 
 def _coerce(v: str):

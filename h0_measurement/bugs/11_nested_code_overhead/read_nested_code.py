@@ -174,6 +174,116 @@ def load_task(phase: str, job: str, task: int, ledger_sha: str) -> dict:
             "parquet_sha256": sha(pq[0])}
 
 
+# ------------------------------------------ amendment A2: in-process A/B layout
+# One run per cell measures both codebooks from the same captured tensors
+# (run_h0 `codebook=lloyd codebook_ab=nested3`). The nested arm's columns carry
+# AB_SUFFIX. load_cell_ab splits that parquet into the two arm frames the frozen
+# validate_pair/analyse already consume, so every statistic and gate is
+# unchanged; only where the two arms come from differs.
+AB_SUFFIX = "__nested3"
+CELLS_AB = {"pilot": {0: PILOT[0][0]},
+            "main": {i: c for i, c in enumerate(_MAIN_CELLS)}}
+
+
+def task_dir_ab(phase: str, job: str, cell: int) -> Path:
+    return RESULTS / f"r11ab_{phase}_{job}_{cell}"
+
+
+def load_cell_ab(phase: str, job: str, cell_i: int, ledger_sha: str,
+                 d: Path | None = None) -> tuple[dict, dict]:
+    cell = CELLS_AB[phase][cell_i]
+    d = d or task_dir_ab(phase, job, cell_i)
+    if not (d / "COMPLETE").is_file() and not (d / "COMPLETE.pending").is_file():
+        fail(f"{d.name}: no COMPLETE marker")
+    info = json.loads((d / "RUN_INFO.json").read_text())
+    for k, v in (("protocol", PROTOCOL), ("layout", "in_process_ab"),
+                 ("phase", phase), ("cell", cell_i), ("job", str(job)),
+                 ("model", cell.model), ("ctx", cell.ctx), ("codebook", "lloyd"),
+                 ("codebook_ab", "nested3"), ("source_ledger_sha256", ledger_sha)):
+        if info.get(k) != v:
+            fail(f"{d.name}: RUN_INFO {k}={info.get(k)!r}, expected {v!r}")
+    pq = list(d.glob("h0_*.parquet"))
+    if len(pq) != 1:
+        fail(f"{d.name}: expected one parquet, found {len(pq)}")
+    side = json.loads(pq[0].with_suffix(".json").read_text())
+    cfg = side.get("config", {})
+    checks = {
+        "model": (side.get("model"), cell.model),
+        "ctx": (int(side.get("ctx", -1)), cell.ctx),
+        "prompt_block": (side.get("prompt_block"),
+                         [cell.offset, cell.offset + cell.n_prompts - 1]),
+        "budgets": (tuple(side.get("budgets", ())), BUDGETS),
+        "bit_list": (tuple(side.get("bit_list", ())), BIT_LIST),
+        "extra_budgets": (tuple(side.get("extra_budgets", ())), BUDGETS),
+        "coarse_bits": (tuple(side.get("coarse_bits", ())), (4,)),
+        "group_alloc": (side.get("group_alloc"), True),
+        "tier_panel": (side.get("tier_panel"), PANEL),
+        "synthetic": (side.get("synthetic"), False),
+        "rot_seed": (side.get("rot_seed"), 2),
+        "families": (tuple(cfg.get("families", ())), cell.families),
+        "codebook": (side.get("codebook", "lloyd"), "lloyd"),
+        "codebook_ab": (side.get("codebook_ab"), "nested3"),
+        "codebook_ab_chain": (tuple(side.get("codebook_ab_chain", ())), CHAIN),
+        "codebook_ab_suffix": (side.get("codebook_ab_suffix"), AB_SUFFIX),
+        "codebook_ab_widths": (tuple(side.get("codebook_ab_widths", ())), CHAIN[1:]),
+        "interior": (side.get("interior_unseen_policy"), "floor_maxb"),
+    }
+    for k, (got, want) in checks.items():
+        if got != want:
+            fail(f"{d.name}: sidecar {k}={got!r}, expected {want!r}")
+    df = pd.read_parquet(pq[0])
+    df4 = df[df["step"].astype(int) == STEP].copy()
+    if df4.empty:
+        fail(f"{d.name}: no step-4 rows")
+    want_p = set(range(cell.offset, cell.offset + cell.n_prompts))
+    if set(df4["prompt"].astype(int)) != want_p:
+        fail(f"{d.name}: prompt set {sorted(set(df4['prompt']))} != {sorted(want_p)}")
+    if set(df4["family"].astype(str)) != set(cell.families):
+        fail(f"{d.name}: family set differs")
+    if df4.duplicated(KEY).any():
+        fail(f"{d.name}: duplicate row keys")
+    ab_cols = [c for c in df4.columns if c.endswith(AB_SUFFIX)]
+    base = {c[: -len(AB_SUFFIX)] for c in ab_cols}
+    need = {f"err_wf_{_pfx(B)}" for B in BUDGETS} | {f"c{w}_abs" for w in BIT_LIST}
+    if not need <= base:
+        fail(f"{d.name}: second-codebook columns missing: {sorted(need - base)}")
+    mono = df4.drop(columns=ab_cols)
+    nest = mono.copy()
+    for c in ab_cols:
+        nest[c[: -len(AB_SUFFIX)]] = df4[c].to_numpy()
+    psha = sha(pq[0])
+    return ({"cell": cell, "codebook": "lloyd", "dir": d, "frame": mono, "parquet_sha256": psha},
+            {"cell": cell, "codebook": "nested3", "dir": d, "frame": nest, "parquet_sha256": psha})
+
+
+def run_phase_ab(phase: str, job: str) -> None:
+    lsha = verify_ledger()
+    pairs = [load_cell_ab(phase, job, i, lsha) for i in sorted(CELLS_AB[phase])]
+    for m, n in pairs:
+        validate_pair(m, n)
+    if phase == "pilot":
+        lock = {"protocol": PROTOCOL, "layout": "in_process_ab",
+                "decision": "advance_main", "pilot_job": job,
+                "source_ledger_sha256": lsha,
+                "artifacts": {str(i): p[0]["parquet_sha256"] for i, p in enumerate(pairs)}}
+        write(HERE / f"pilot_advance_lock_{job}.json", json.dumps(lock, indent=2) + "\n")
+        txt = (f"R11 excluded pilot {job} (in-process A/B, amendment A2): PASS "
+               f"(V1 pairing, V2 nesting, V3 budget, V4 provenance, V5 completeness)\n")
+        write(HERE / f"pilot_{job}.txt", txt)
+        print(txt, end="")
+        return
+    res = analyse(pairs)
+    res["layout"] = "in_process_ab (amendment A2)"
+    res["main_job"] = job
+    text = render(res).replace(
+        "Validity: valid_r11 (V1-V5 passed)",
+        "Validity: valid_r11 (V1-V5 passed)\nLayout: in-process A/B, both codebooks "
+        "from the same captured tensors (amendment A2)")
+    write(HERE / f"main_{job}.txt", text)
+    write(HERE / f"main_{job}.json", json.dumps(res, indent=2, default=float) + "\n")
+    print(text, end="")
+
+
 def _pfx(B: int) -> str:
     return f"grp_tier_nested3_csv_b4_accum_{B}"
 
@@ -417,8 +527,12 @@ def main(argv=None) -> int:
     g.add_argument("--pilot")
     g.add_argument("--main")
     g.add_argument("--validate-task-dir")
+    g.add_argument("--pilot-ab")
+    g.add_argument("--main-ab")
+    g.add_argument("--validate-ab-dir")
     ap.add_argument("--phase")
     ap.add_argument("--task", type=int)
+    ap.add_argument("--cell", type=int)
     ap.add_argument("--job")
     a = ap.parse_args(argv)
     try:
@@ -430,6 +544,16 @@ def main(argv=None) -> int:
             run_phase("pilot", a.pilot)
         elif a.main:
             run_phase("main", a.main)
+        elif a.pilot_ab:
+            run_phase_ab("pilot", a.pilot_ab)
+        elif a.main_ab:
+            run_phase_ab("main", a.main_ab)
+        elif a.validate_ab_dir:
+            m, n = load_cell_ab(a.phase, a.job, a.cell, verify_ledger(),
+                                Path(a.validate_ab_dir))
+            validate_pair(m, n)
+            print(f"PASS {a.phase} cell {a.cell}: {len(m['frame'])} step-4 rows, "
+                  f"V1-V3 hold in-process")
         else:
             x = load_task(a.phase, a.job, a.task, verify_ledger())
             print(f"PASS {a.phase} task {a.task}: {len(x['frame'])} step-4 rows")

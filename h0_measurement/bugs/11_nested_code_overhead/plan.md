@@ -132,3 +132,55 @@ over families, layers and query heads.
 
 B=2 uses the same rule as a secondary scope result. It is not averaged with
 B=3. R14 (kernel / TPOT) proceeds only on `pass_*`.
+
+## Amendment A1 (2026-09-24, after the excluded pilot, before any main output)
+
+Pilot 987079 ran its two arms as separate array tasks on different nodes
+(trig0059 and trig0023). V1 failed there: steps 0–3 were bit-identical, but
+from decode step 4 about 40% of rows differed, with `tau` up to 0.74% and
+`err_uniform2` up to 37% relative. The decode forward pass is not
+bit-reproducible across nodes. This is a pairing (implementation) failure, as
+§5 anticipates, not a codebook effect.
+
+The fix changes only the worker. One array task now holds one cell and runs
+both arms back to back on the same GPU, with `CUBLAS_WORKSPACE_CONFIG=:4096:8`.
+Result directories, task numbering, the reader, every gate and every threshold
+are unchanged. The V1 tolerance stays at 1e-6. The pilot is rerun under the
+new worker before any main task starts.
+
+## Amendment A2 (2026-09-25, after main job 987153 was `invalid_r11`, before any A2 output)
+
+Main job 987153 ran each cell's two arms back to back on one GPU, under A1. V1
+still failed: 3–14% of rows differed already at step 0, and 34–60% by step 4.
+Two `run_h0` processes are not bit-reproducible at ≥8K even on the same GPU (see
+the report). Pairing across processes cannot satisfy V1, so the arms must come
+from one process.
+
+**Change (measurement layout only).** Each cell is now one `run_h0` run with
+`codebook=lloyd codebook_ab=nested3`. At every measured step, the same
+captured q, K and V, the same mask and the same evictor scores go through the
+group prepass and `head_metrics` twice, once per codebook, before `observe()`.
+The nested arm's columns carry the suffix `__nested3`.
+
+- Widths that the two codebooks quantize identically (1, 2, 3, 5) reuse the
+  primary logits, so those columns match exactly by construction. The unit test
+  `test_in_process_ab_is_independent_and_shares_identical_widths` pins that the
+  second pass neither changes the primary result nor mutates the shared inputs.
+- The reader's `load_cell_ab` splits each parquet into the two arm frames. It
+  then applies the unchanged `validate_pair` (V1–V3, V1 still at 1e-6) and the
+  unchanged `analyse` (every statistic, bootstrap, threshold and decision rule
+  in §5–§7).
+- Result directories are `r11ab_<phase>_<job>_<cell>`. The pilot is the same
+  excluded qwen3-1.7b @2K cell, rerun under this layout.
+
+**Unchanged:** cells, prompt blocks (24–29, and 24–27 for qwen3-30b), budgets,
+bits, panel, evictors, seeds, gates and thresholds.
+
+**Why the prompt block is kept.** 987153 outputs on these prompts were examined
+in an exploratory analysis. However, no choice in this amendment depends on
+them: the statistic and the gates were frozen before any output and are not
+modified. The block is kept so that the valid result can be compared directly
+with the exploratory estimate. The earlier two-run artifacts (987079, 987153)
+cannot re-authenticate against the resealed ledger. Their exploratory numbers
+are preserved in `explore_987153.json`, and they are not evidence for the
+frozen verdict.

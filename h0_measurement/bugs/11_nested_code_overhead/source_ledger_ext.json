@@ -1,12 +1,13 @@
 {
-  "protocol": "r11_nested_code_v1",
+  "protocol": "r11_nested_code_ext_v1",
   "source_sha256": {
     ".h0_corpus/pg19/MANIFEST.json": "64f3b2cd00e1718d5a4f184070f332c3ac3574c34cbaad389537f1f2b41d30a5",
-    "h0_measurement/bugs/11_nested_code_overhead/plan.md": "aa8be11ed72bc773763c33baffe9f1865370a4edbe981cf486db49efbf7d7742",
+    "h0_measurement/bugs/11_nested_code_overhead/plan_ext.md": "591d84ad8493fa27f76a097cbdec71372257619e74c4e2127efaf33aa9622e0b",
     "h0_measurement/bugs/11_nested_code_overhead/read_nested_code.py": "44aa42b67ab9920545e8c8a866f36332a106b6f4ac5fc239fe3955bb9c90791f",
+    "h0_measurement/bugs/11_nested_code_overhead/read_nested_ext.py": "a00392d0f2209ce79a1d074d93ed3b81d07f49f3fd431c4b1f6bbae56795dbf1",
     "h0_measurement/models.yaml": "71ac4bad180c6ea7a37d11dfb7bf55fc6a8c6780a3cb9fba3a54055c704afaeb",
     "h0_measurement/run_h0.py": "93b687148b98bea92ec172cb02263333070d68c01eb59c0b9e8e43d5432e1d49",
-    "h0_measurement/submit_r11_nested_code.slurm": "9e79d74c6bb0474a762f6aa66d15bbcd823a228c53d27d8856e9e22701f4f094",
+    "h0_measurement/submit_r11_ext.slurm": "c51c23fb6788f3ec4a7aa57c570f70806f6092af29bda74c4e6ff4d6a52af858",
     "sievelib/alloc.py": "a83f61af543a5078be9a4ec6a8e6f2a4a4d2e24bfa06def0d8ebdbab9ce7953f",
     "sievelib/evict.py": "0188d80b769f11409133aeace2cf8efe835ad1138561c0a5e4d77bb67b8d6b12",
     "sievelib/probe.py": "365c15c84645cebb859db8639cf744c01d93470a094a2a530d9042ef308deb19",

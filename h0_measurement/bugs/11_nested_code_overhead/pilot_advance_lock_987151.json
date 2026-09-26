@@ -1,0 +1,10 @@
+{
+  "protocol": "r11_nested_code_v1",
+  "decision": "advance_main",
+  "pilot_job": "987151",
+  "source_ledger_sha256": "02ddef31f9607ce80d2a62a9d13bf357019be72dbe3ba0785a079bd6cdbdb3a9",
+  "artifacts": {
+    "0": "0bff4ba87a83bcf10488d3cc02b3823a527142ad1cbde035af04897044a734ea",
+    "1": "0eca5bb35b15bdef43ec5788fbda3eeb095532a81bb1148add6c484354cb435d"
+  }
+}

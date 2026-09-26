@@ -101,6 +101,22 @@ def check_codebook(codebook: str | None) -> str:
     return cb
 
 
+def _codebook_key(codebook: str | None, bits: int) -> tuple[str, int]:
+    """Which (levels, boundaries) quantize_keys actually uses at this width."""
+    cb = check_codebook(codebook)
+    chain = NESTED_CHAINS.get(cb, ())
+    if cb != "lloyd" and bits in chain and bits != chain[0]:
+        return cb, int(bits)
+    return "lloyd", int(bits)
+
+
+def codebook_differs(a: str | None, b: str | None, bits: int) -> bool:
+    """True iff two codebooks quantize differently at `bits`. A width where
+    this is False yields bitwise-identical keys, so an in-process A/B can reuse
+    one quantization for both arms (R11 amendment A2)."""
+    return _codebook_key(a, bits) != _codebook_key(b, bits)
+
+
 def design_nested(chain, iters: int = 4000, grid: int = 400_001,
                   rng: float = 9.0, tol: float = 1e-11
                   ) -> dict[int, tuple[torch.Tensor, torch.Tensor]]:

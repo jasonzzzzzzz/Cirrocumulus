@@ -1,0 +1,45 @@
+Allocator knife-edge characterisation (exploratory; CPU; existing parquets)
+
+P1  nested codebook (R11 job 988607, step 4, physical KV groups)
+  llama31-8b@32768: groups/budget=4608  noise-table |log| median=0.067  mono non-monotone in B=0.56%
+    B=3: ratio q01/q50/q99 0.405/1.014/2.527 max 4.68  >=2x 3.472%  <=0.5x 3.125%  top1 group share of |dSSE| 1.1%  top1% 13.1%
+          2x events=304 by layer third {0: 0.06439393939393939, 1: 0.059343434343434344, 2: 0.075}  by family {'cont': 0.064453125, 'niah': 0.06575520833333333, 'qa': 0.06770833333333333}
+          slot bootstrap: prompt O_total q50 +2.53% q95 +3.49% q99 +3.89%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +3.01%  n=16 q95 +2.77%  P(n=16 mean>10%) 0.00%
+    B=2: ratio q01/q50/q99 0.477/1.006/2.263 max 5.08  >=2x 1.866%  <=0.5x 1.454%  top1 group share of |dSSE| 0.8%  top1% 12.7%
+          2x events=153 by layer third {0: 0.03977272727272727, 1: 0.034722222222222224, 2: 0.024305555555555556}  by family {'cont': 0.036458333333333336, 'niah': 0.03125, 'qa': 0.031901041666666664}
+          slot bootstrap: prompt O_total q50 +2.76% q95 +3.09% q99 +3.22%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +2.93%  n=16 q95 +2.85%  P(n=16 mean>10%) 0.00%
+  llama31-8b@131072: groups/budget=4608  noise-table |log| median=0.058  mono non-monotone in B=0.69%
+    B=3: ratio q01/q50/q99 0.367/1.021/2.873 max 5.51  >=2x 4.839%  <=0.5x 3.950%  top1 group share of |dSSE| 2.4%  top1% 19.3%
+          2x events=405 by layer third {0: 0.08017676767676768, 1: 0.07196969696969698, 2: 0.11388888888888889}  by family {'cont': 0.08854166666666667, 'niah': 0.09440104166666667, 'qa': 0.08072916666666667}
+          slot bootstrap: prompt O_total q50 +3.26% q95 +6.16% q99 +7.34%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +4.72%  n=16 q95 +3.98%  P(n=16 mean>10%) 0.00%
+    B=2: ratio q01/q50/q99 0.404/1.013/2.593 max 4.86  >=2x 3.516%  <=0.5x 2.474%  top1 group share of |dSSE| 2.1%  top1% 17.6%
+          2x events=276 by layer third {0: 0.058712121212121215, 1: 0.05303030303030303, 2: 0.06875}  by family {'cont': 0.068359375, 'niah': 0.059244791666666664, 'qa': 0.052083333333333336}
+          slot bootstrap: prompt O_total q50 +2.28% q95 +3.22% q99 +3.58%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +2.76%  n=16 q95 +2.52%  P(n=16 mean>10%) 0.00%
+  qwen3-8b@8192: groups/budget=5184  noise-table |log| median=0.082  mono non-monotone in B=0.73%
+    B=3: ratio q01/q50/q99 0.367/1.014/2.912 max 6.82  >=2x 4.475%  <=0.5x 3.472%  top1 group share of |dSSE| 1.9%  top1% 22.7%
+          2x events=412 by layer third {0: 0.0642361111111111, 1: 0.06539351851851852, 2: 0.1087962962962963}  by family {'cont': 0.0642361111111111, 'niah': 0.08043981481481481, 'qa': 0.09375}
+          slot bootstrap: prompt O_total q50 +1.58% q95 +3.32% q99 +4.01%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +2.43%  n=16 q95 +1.93%  P(n=16 mean>10%) 0.00%
+    B=2: ratio q01/q50/q99 0.398/1.009/2.579 max 6.44  >=2x 2.874%  <=0.5x 2.276%  top1 group share of |dSSE| 1.4%  top1% 19.6%
+          2x events=267 by layer third {0: 0.03587962962962963, 1: 0.043402777777777776, 2: 0.07523148148148148}  by family {'cont': 0.04224537037037037, 'niah': 0.05555555555555555, 'qa': 0.056712962962962965}
+          slot bootstrap: prompt O_total q50 +2.07% q95 +2.90% q99 +3.20%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 +2.48%  n=16 q95 +2.27%  P(n=16 mean>10%) 0.00%
+  qwen3-30b-a3b-2507@8192: groups/budget=2304  noise-table |log| median=0.097  mono non-monotone in B=0.26%
+    B=3: ratio q01/q50/q99 0.438/1.010/2.442 max 6.85  >=2x 2.431%  <=0.5x 2.214%  top1 group share of |dSSE| 7.2%  top1% 47.5%
+          2x events=107 by layer third {0: 0.013020833333333334, 1: 0.06510416666666667, 2: 0.061197916666666664}  by family {'cont': 0.032552083333333336, 'niah': 0.029947916666666668, 'qa': 0.07682291666666667}
+          slot bootstrap: prompt O_total q50 -5.37% q95 +1.27% q99 +2.48%  P(prompt>10%) 0.00%  P(prompt>20%) 0.00%  | cell mean n=4 q95 -2.25%  n=16 q95 -3.79%  P(n=16 mean>10%) 0.00%
+    B=2: ratio q01/q50/q99 0.480/1.004/2.096 max 6.33  >=2x 1.302%  <=0.5x 1.128%  top1 group share of |dSSE| 83.0%  top1% 89.6%
+          2x events=56 by layer third {0: 0.0078125, 1: 0.037760416666666664, 2: 0.02734375}  by family {'cont': 0.006510416666666667, 'niah': 0.015625, 'qa': 0.05078125}
+          slot bootstrap: prompt O_total q50 -1.22% q95 +61.12% q99 +61.88%  P(prompt>10%) 25.35%  P(prompt>20%) 25.35%  | cell mean n=4 q95 +44.00%  n=16 q95 +25.48%  P(n=16 mean>10%) 67.02%
+
+P2  tier 1 removed, full -> no1 (R10 job 986347, step 4, physical KV groups)
+  llama31-8b@32768: groups/budget=4608
+    B=3: groups using tier 1 1.1%  ratio q01/q50/q99 1.000/1.000/1.000 max 1.76 >=2x 0.000% <=0.5x 0.564%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 15.2%
+    B=2: groups using tier 1 1.1%  ratio q01/q50/q99 1.000/1.000/1.000 max 2.27 >=2x 0.043% <=0.5x 0.087%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 11.4%
+  llama31-8b@131072: groups/budget=4608
+    B=3: groups using tier 1 1.1%  ratio q01/q50/q99 1.000/1.000/1.000 max 5.91 >=2x 0.195% <=0.5x 0.195%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 7.7%
+    B=2: groups using tier 1 1.1%  ratio q01/q50/q99 1.000/1.000/1.000 max 5.15 >=2x 0.239% <=0.5x 0.000%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 11.0%
+  qwen3-8b@8192: groups/budget=5184
+    B=3: groups using tier 1 0.0%  ratio q01/q50/q99 1.000/1.000/1.000 max 1.00 >=2x 0.000% <=0.5x 0.000%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share nan%
+    B=2: groups using tier 1 0.0%  ratio q01/q50/q99 1.000/1.000/1.000 max 1.00 >=2x 0.000% <=0.5x 0.000%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share nan%
+  qwen3-30b-a3b-2507@8192: groups/budget=2304
+    B=3: groups using tier 1 0.0%  ratio q01/q50/q99 1.000/1.000/1.000 max 1.00 >=2x 0.000% <=0.5x 0.000%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 100.0%
+    B=2: groups using tier 1 0.0%  ratio q01/q50/q99 1.000/1.000/1.000 max 1.00 >=2x 0.000% <=0.5x 0.000%  (groups NOT using tier 1: changed 0%, max 1.000)  top1 share 100.0%

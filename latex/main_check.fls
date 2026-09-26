@@ -759,7 +759,6 @@ INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fo
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmri8r.tfm
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/vf/adobe/times/ptmrc7t.vf
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm
-INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/vf/adobe/times/ptmr8c.vf
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr7t.tfm
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/public/cm/cmr9.tfm
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/public/cm/cmr6.tfm
@@ -784,6 +783,7 @@ INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fo
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmb8r.tfm
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/vf/adobe/times/ptmr7t.vf
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm
+INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/vf/adobe/times/ptmr8c.vf
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr7t.tfm
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/times/ptmr7t.tfm
 INPUT ./figures/fig1_regime.pdf
@@ -878,6 +878,7 @@ INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fo
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb
+INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb
 INPUT /cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb

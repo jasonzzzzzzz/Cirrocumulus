@@ -328,14 +328,11 @@ The completed measurements support the following bounded conclusions:
 
 \paragraph{Methods notes and negative results.}
 Three further results inform the protocol but are not findings.
-(i)~\emph{Fitting the crossing.}  On the 16-cell main grid, the band crosses
-35\% between the cells at $D_2=25.8\%$ and $27.0\%$, and the isotonic crossing is
-$26.8\%$.  A logistic fit instead places GO at $34.6\%$, outside that bracket,
-because the flat tail above 30\% pulls the curve.  We therefore report isotonic
-(monotone) crossings, which cannot leave the bracket of measured cells, and use
-the logistic only as a flagged cross-check.  On the 25-cell extension the GO
-crossing moves to $29.0\%$: Llama-3.3-70B at 96k lies above the GO line at
-$D_2=28.8\%$, so models now overlap near the line instead of leaving a gap.
+(i)~\emph{Fitting the crossing.}  A logistic fit of band against $D_2$ places the
+GO crossing at $34.6\%$, although no cell lies between $25.8\%$ and $27.0\%$,
+where the band actually crosses 35\%; the flat tail above 30\% pulls the curve.
+We therefore report isotonic (monotone) crossings, which cannot leave the
+bracket of measured cells, and use the logistic only as a flagged cross-check.
 (ii)~\emph{Per-head budgets under GQA.}  Measured per query head, the smallest
 keep count within 10\% of the full-budget error ($K^\star$) averages 0.72--0.98
 of the budget at 32k.  Taking the maximum over the query heads that share a KV
@@ -578,11 +575,8 @@ Because these kernels never write attention scores to memory, evictors that
 read historical scores (H2O's accumulated attention, and the lagged scores our
 allocator uses) must either fall back to eager attention or estimate
 importance another way, for example from pre-RoPE geometry~\citep{mao2026triattention}.
-Paged allocators also reclaim only empty blocks~\citep{kwon2023vllm}, so
-scattered surviving tokens free little memory unless the cache is
-compacted~\citep{mao2026triattention}.
 Our experiments use an eager attention path and therefore measure accuracy,
-not these costs.
+not this cost.
 
 \paragraph{KV caches in video generation.}
 Autoregressive video generators accumulate caches across frames.  Quant

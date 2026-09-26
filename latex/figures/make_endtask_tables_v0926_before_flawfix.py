@@ -47,7 +47,7 @@ def grid(d):
             out.append("\\addlinespace[1pt]")
         prev = (m, c)
         dag = "$^\\ddagger$" if f < RM.FP_MIN else ""
-        out.append(f"{MODEL[m]} & {c // 1024}k & {TASK[t]}{dag} & {B} & {f:.2f} & "
+        out.append(f"{MODEL[m]} & {c // 1024}K & {TASK[t]}{dag} & {B} & {f:.2f} & "
                    + " & ".join(cells) + " \\\\")
     out += ["\\bottomrule", "\\end{tabular}"]
     return "\n".join(out)

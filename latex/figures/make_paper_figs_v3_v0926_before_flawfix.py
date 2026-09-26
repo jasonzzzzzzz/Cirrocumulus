@@ -216,7 +216,7 @@ def endtask_figure(show_est=True, stem="fig3_endtask"):
             a0.scatter(vals[m], y, marker=mk, s=16 if mk == "o" else 13, zorder=3,
                        facecolor="white" if est else COL[m], edgecolor=COL[m], linewidth=0.8)
     a0.set_yticks(ys)
-    a0.set_yticklabels([lab + ("" if show_est and arm in ESTIMATES else "") for arm, lab, _ in arms],
+    a0.set_yticklabels([lab + (" (est.)" if show_est and arm in ESTIMATES else "") for arm, lab, _ in arms],
                        fontsize=6)
     for t, (_, _, fam) in zip(a0.get_yticklabels(), arms):
         t.set_color(FAM_COL[fam])
@@ -228,8 +228,8 @@ def endtask_figure(show_est=True, stem="fig3_endtask"):
     a0.scatter([], [], marker="D", color=COL["qwen3-8b"], s=12, label="Qwen3-8B")
     a0.set(xlim=(0, 1.04), xlabel="mean task score (24 / 12 cells)",
            title="(a) The winner depends on the model")
-    a0.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=2,
-              handletextpad=0.1, columnspacing=0.8, fontsize=5.6)
+    a0.legend(frameon=False, loc="upper left", handletextpad=0.1, borderaxespad=0.1,
+              labelspacing=0.2)
 
     # (b) output error ranks settings, not methods
     fam_of = {arm: fam for arm, _, fam in ARM}
@@ -242,15 +242,14 @@ def endtask_figure(show_est=True, stem="fig3_endtask"):
         a1.scatter(r.head_err_mean, r.score, s=26, marker="*", color=FAM_COL[fam_of[arm]],
                    edgecolor="black", linewidth=0.3, zorder=4)
     a1.set_xscale("log")
-    a1.set(xlabel="head-output error (log)", ylabel="task score", ylim=(-0.03, 1.05))
-    a1.set_title("(b) Output error vs. task score", pad=9)
+    a1.set(xlabel="head-output error (log)", ylabel="task score", ylim=(-0.03, 1.05),
+           title="(b) Output error vs. task score")
     a1.set_xticks([0.05, 0.1, 0.2, 0.5, 1.0])
     a1.set_xticklabels(["0.05", "0.1", "0.2", "0.5", "1"])
     a1.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-    # Within-cell rank correlation across methods (paper F5), above the axes so
-    # it hides no points: full grid, 8 methods; paired 8k run, 12 methods.
-    a1.text(0.5, 1.01, "within-cell $\\rho$: $-0.05$ (8 methods); 8k run: $-0.36$ (12)",
-            transform=a1.transAxes, ha="center", va="bottom", fontsize=5.4, color="#333333")
+    a1.text(0.03, 0.03, "pooled $\\rho=-0.35$\nwithin a cell $\\rho=-0.05$ (7 methods)\n8k rerun, 11 methods: $-0.36$",
+            transform=a1.transAxes, ha="left", va="bottom", fontsize=5.8, color="#333333",
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=0.8))
     a1.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=3,
               handletextpad=0.1, columnspacing=0.5, markerscale=1.6, fontsize=5.6)
 
@@ -271,7 +270,7 @@ def endtask_figure(show_est=True, stem="fig3_endtask"):
     a2.set_yticks(y)
     a2.set_yticklabels([lab for _, lab in rows], fontsize=6)
     a2.set(xlim=(0, 1), xlabel="share of answers",
-           title="(c) How answers fail (Llama, 128k)")
+           title="(c) How answers fail (Llama, 128K)")
     a2.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=4,
               handlelength=0.9, columnspacing=0.6, handletextpad=0.3, fontsize=5.6)
     save(fig, stem)

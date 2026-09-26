@@ -1,15 +1,15 @@
 # Fdb version 4
-["bibtex main_check"] 1790416428 "main_check.aux" "main_check.bbl" "main_check" 1790417156 0
+["bibtex main_check"] 1790420753 "main_check.aux" "main_check.bbl" "main_check" 1790421122 0
   "./concurrent.bib" 1790110263 3158 f4d2547f95c48ad3be35ff8012702949 ""
   "./iclr2027_conference.bst" 1790393652 26973 af983813ca1a1414954dbceae7baa2a1 ""
   "./related.bib" 1790407190 11847 604284de0c09d4d1b3583fb99fe0a7d2 ""
   "./sieve.bib" 1790111052 6250 8eef04d4fc303fe376a2d7e8379ec3d5 ""
-  "main_check.aux" 1790417156 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
+  "main_check.aux" 1790421122 28416 6f21936ac822e0432f5078c5cfb35f39 "pdflatex"
   (generated)
   "main_check.bbl"
   "main_check.blg"
   (rewritten before read)
-["pdflatex"] 1790417155 "main.tex" "main_check.pdf" "main_check" 1790417156 0
+["pdflatex"] 1790421121 "main.tex" "main_check.pdf" "main_check" 1790421122 0
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -65,6 +65,7 @@
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb" 1248133631 33993 9b89b85fd2d9df0482bd47194d1d3bf3 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1248133631 32569 5e5ddc8df908dea60932f3c484a54c0d ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb" 1248133631 32915 7bf7720c61a5b3a7ff25b0964421c9b6 ""
+  "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb" 1248133631 32587 1788b0c1c5b39540c96f5e42ccd6dae8 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb" 1248133631 32716 08e384dc442464e7285e891af9f45947 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb" 1248133631 32442 c975af247b6702f7ca0c299af3616b80 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb" 1248133631 34694 ad62b13721ee8eda1dcc8993c8bd7041 ""
@@ -156,21 +157,21 @@
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/web2c/texmf.cnf" 1692823885 39639 818dd8e5a0dce3a72597a7e6bad45d55 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1692821535 5031293 07973d5e761f645996ac32ebf7b8d1f3 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1692821530 1386016 abd9ba6eb53c47bc5de8d672b6ac87d3 ""
-  "appendix.tex" 1790415315 30710 8e501b97b02c2135af277b73f865aeea ""
+  "appendix.tex" 1790420479 31089 7d257932301db8e1c7b5e77507294e28 ""
   "fancyhdr.sty" 1789674822 20521 e5d13d98d57bd53d4fed3aa61bd29c86 ""
   "figures/fig1_regime.pdf" 1790402794 29359 15a5773d72d1d33c283561923346e247 ""
   "figures/fig2_evidence.pdf" 1790402794 18359 1a8d8df280eb22941cfc772447eed040 ""
-  "figures/fig3_endtask.pdf" 1790402795 27734 58e466559390c0d7c5fc241aba884549 ""
+  "figures/fig3_endtask.pdf" 1790421120 27451 44898edf957eb9a284a58d8cfbcef30a ""
   "iclr2027_conference.sty" 1790393652 9025 1b4bb9c2e12c712c56f4eb1232b88dd6 ""
-  "main.tex" 1790417069 50814 35c52ec34367b17037894b9e7153e86a ""
-  "main_check.aux" 1790417156 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
-  "main_check.bbl" 1790416428 20867 8170fa2e76e5189760fb90bc9dbc4bbd "bibtex main_check"
-  "main_check.out" 1790417156 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
+  "main.tex" 1790420748 50448 afc1de7531e06ebb305453fcbce134d7 ""
+  "main_check.aux" 1790421122 28416 6f21936ac822e0432f5078c5cfb35f39 "pdflatex"
+  "main_check.bbl" 1790420753 20867 8170fa2e76e5189760fb90bc9dbc4bbd "bibtex main_check"
+  "main_check.out" 1790421122 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
   "math_commands.tex" 1789674824 12284 a71653715108dc62b66e3a0bde0307d8 ""
   "natbib.sty" 1789674836 45154 40088ce024445d7ee2bca59e704cdd01 ""
-  "tab_endtask_fail.tex" 1790386694 989 26d2eca40461d91461a0fcf253b3fb13 ""
-  "tab_endtask_grid.tex" 1790386459 4808 63e8497649d505c8699447b228478e0a ""
-  "tab_endtask_h2h.tex" 1790386694 628 c28e72ae09c6e8da20bac2a47b89e24b ""
+  "tab_endtask_fail.tex" 1790420117 989 26d2eca40461d91461a0fcf253b3fb13 ""
+  "tab_endtask_grid.tex" 1790419889 4808 3bcb7626ec5b2d493a2dabe39b128a84 ""
+  "tab_endtask_h2h.tex" 1790420117 628 c28e72ae09c6e8da20bac2a47b89e24b ""
   "tab_predictors.tex" 1790391697 709 cff0dae4dddb0b0256f4ec6b166d08db ""
   (generated)
   "main_check.aux"

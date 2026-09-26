@@ -53,13 +53,6 @@ def grid(d):
     return "\n".join(out)
 
 
-# Per-cell win/loss margin. Two runs of the same 8k cells on the same prompts
-# (R9 full grid vs R12 8k run) differ in cell means by a median of 0.04 and a
-# 90th percentile of 0.15 (112 cell-method pairs), so a 0.05 margin is inside
-# run-to-run noise; count a win or loss only above that 90th percentile.
-H2H_MARGIN = 0.15
-
-
 def h2h(d):
     cm = RM.cell_means(d)
     ref = "router_calib"
@@ -69,13 +62,13 @@ def h2h(d):
     for a in [x for x in RM.ORDER if x in cm and x != ref
               and RM.FAMILY.get(x) not in ("diagnostic",) and x != "interior_cascade"]:
         diff = (cm[ref] - cm[a]).dropna()
-        w, l = int((diff > H2H_MARGIN).sum()), int((diff < -H2H_MARGIN).sum())
+        w, l = int((diff > RM.MARGIN).sum()), int((diff < -RM.MARGIN).sum())
         p, lo, hi = RM.paired_boot(d, ref, a)
         out.append(f"{RM.NAMES[a]} & {w} & {len(diff) - w - l} & {l} & ${p:+.3f}$ & "
                    f"$[{lo:+.3f}, {hi:+.3f}]$ \\\\")
     ev = [a for a in cm if a in RM.EVICTORS]
     diff = (cm[ref] - cm[ev].max(axis=1)).dropna()
-    w, l = int((diff > H2H_MARGIN).sum()), int((diff < -H2H_MARGIN).sum())
+    w, l = int((diff > RM.MARGIN).sum()), int((diff < -RM.MARGIN).sum())
     out.append(f"best eviction method per cell & {w} & {len(diff) - w - l} & {l} & "
                f"${diff.mean():+.3f}$ & --- \\\\")
     out += ["\\bottomrule", "\\end{tabular}"]

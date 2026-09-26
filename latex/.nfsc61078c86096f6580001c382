@@ -29,6 +29,9 @@
 \@writefile{toc}{\contentsline {paragraph}{Findings.}{2}{section*.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{section*.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Organization.}{2}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Joint token-rate allocation as a common foundation}{2}{section.2}\protected@file@percent }
+\newlabel{sec:framework}{{2}{2}{Joint token-rate allocation as a common foundation}{section.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Scope and local quantization surrogate.}{2}{section*.4}\protected@file@percent }
 \citation{goel2025caote}
 \citation{grattafiori2024llama3}
 \citation{jiang2023mistral}
@@ -37,9 +40,6 @@
 \citation{rae2020pg19}
 \citation{zandieh2025turboquant}
 \citation{lloyd1982least}
-\@writefile{toc}{\contentsline {section}{\numberline {2}Joint token-rate allocation as a common foundation}{3}{section.2}\protected@file@percent }
-\newlabel{sec:framework}{{2}{3}{Joint token-rate allocation as a common foundation}{section.2}{}}
-\@writefile{toc}{\contentsline {paragraph}{Scope and local quantization surrogate.}{3}{section*.4}\protected@file@percent }
 \newlabel{eq:surrogate}{{1}{3}{Scope and local quantization surrogate}{equation.2.1}{}}
 \@writefile{toc}{\contentsline {paragraph}{Exact eviction versus a zero-rate surrogate.}{3}{section*.5}\protected@file@percent }
 \newlabel{eq:exact-eviction}{{2}{3}{Exact eviction versus a zero-rate surrogate}{equation.2.2}{}}
@@ -66,21 +66,21 @@
 \@writefile{toc}{\contentsline {paragraph}{Baselines and the instrument.}{4}{section*.12}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}Output-distortion regimes}{4}{section.4}\protected@file@percent }
 \newlabel{sec:regimes}{{4}{4}{Output-distortion regimes}{section.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{F1: Tier extinction orders the interior's output-error advantage, but the crossing is per architecture.}{4}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{F1: Tier extinction orders the interior's value, but the crossing is per architecture.}{4}{section*.13}\protected@file@percent }
 \citation{zuo2026ratequant}
 \citation{yuan2024kvbench}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf  {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $G_{+}$ across 25 cells; arrows show increasing context. \textbf  {(b)} Context moves each fixed model across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures.}}{5}{figure.1}\protected@file@percent }
 \newlabel{fig:regime}{{1}{5}{\textbf {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $\gplus $ across 25 cells; arrows show increasing context. \textbf {(b)} Context moves each fixed model across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures}{figure.1}{}}
 \@writefile{toc}{\contentsline {paragraph}{Why $D_2$ rather than a concentration or context statistic?}{5}{section*.14}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{F2: Context moves a fixed model toward the eviction corner.}{5}{section*.15}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{F3: A head's policy family is stable; its token allocation goes stale within steps.}{5}{section*.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{F3: Two timescales, and the cost of acting on them.}{5}{section*.16}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {5}Do output-distortion regimes transfer to end tasks?}{5}{section.5}\protected@file@percent }
 \newlabel{sec:endtask}{{5}{5}{Do output-distortion regimes transfer to end tasks?}{section.5}{}}
 \@writefile{toc}{\contentsline {paragraph}{F4: Routed per head, the output-error optimum beats every eviction method, but a model-matched dense quantizer beats it.}{5}{section*.17}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {F1 robustness and F3 timescales.} \textbf  {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf  {(b)} In six cells, keeping the calibration-time \emph  {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment.}}{6}{figure.2}\protected@file@percent }
 \newlabel{fig:evidence}{{2}{6}{\textbf {F1 robustness and F3 timescales.} \textbf {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf {(b)} In six cells, keeping the calibration-time \emph {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment}{figure.2}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph  {Full grid}: 36 cells, one run each. \emph  {8k}: all methods paired in one process (\S  \ref  {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant. }}{6}{table.2}\protected@file@percent }
-\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph {Full grid}: 36 cells, one run each. \emph {8k}: all methods paired in one process (\S \ref {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph  {Full grid}: 36 cells, one run each. \emph  {8k}: all methods paired in one process (\S  \ref  {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. \emph  {Hard}: Llama-3.1-8B, 32k, 32-key, $B=2$. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant. }}{6}{table.2}\protected@file@percent }
+\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph {Full grid}: 36 cells, one run each. \emph {8k}: all methods paired in one process (\S \ref {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. \emph {Hard}: Llama-3.1-8B, 32k, 32-key, $B=2$. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
 \citation{zhang2026fixedcontract}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {F4--F6: what transfers to task accuracy.} \textbf  {(a)} Mean task score per method and model over the full grid; TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \textsc  {Sieve}{} beats TurboQuant but not the per-channel quantizers. \textbf  {(b)} Head-output error vs.\ task score for every full-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf  {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \textsc  {Sieve}{} fails by \emph  {truncating} the correct number, eviction methods by returning a wrong needle.}}{7}{figure.3}\protected@file@percent }
 \newlabel{fig:endtask}{{3}{7}{\textbf {F4--F6: what transfers to task accuracy.} \textbf {(a)} Mean task score per method and model over the full grid; TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \sieve {} beats TurboQuant but not the per-channel quantizers. \textbf {(b)} Head-output error vs.\ task score for every full-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \sieve {} fails by \emph {truncating} the correct number, eviction methods by returning a wrong needle}{figure.3}{}}
@@ -93,11 +93,15 @@
 \citation{zuo2026ratequant}
 \citation{ocp2023mx}
 \citation{alvarez2025nvfp4}
+\citation{alvarez2025nvfp4kv}
 \@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \textbf  {F7:} how much each choice moves a verdict, compared with prompt sampling.}}{8}{table.3}\protected@file@percent }
 \newlabel{tab:contract}{{3}{8}{\textbf {F7:} how much each choice moves a verdict, compared with prompt sampling}{table.3}{}}
-\@writefile{toc}{\contentsline {paragraph}{F7: The comparison set and information contract move verdicts more than prompt sampling does.}{8}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{F7: Verdicts depend more on the comparison than on the sample.}{8}{section*.20}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Implications}{8}{section.6}\protected@file@percent }
 \newlabel{sec:implications}{{6}{8}{Implications}{section.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Related work}{8}{section.7}\protected@file@percent }
+\newlabel{sec:related}{{7}{8}{Related work}{section.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Dense KV quantization.}{8}{section*.21}\protected@file@percent }
 \citation{xiao2024streamingllm}
 \citation{zhang2023h2o,liu2023scissorhands}
 \citation{oren2024tova}
@@ -117,66 +121,64 @@
 \citation{laus2026aatc}
 \citation{yuan2024kvbench}
 \citation{zhang2026fixedcontract}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Related work}{9}{section.7}\protected@file@percent }
-\newlabel{sec:related}{{7}{9}{Related work}{section.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Dense KV quantization.}{9}{section*.21}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Eviction and sparse attention.}{9}{section*.22}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Hybrid storage and rate allocation.}{9}{section*.23}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Diagnostics, evaluation contracts, and systems.}{9}{section*.24}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {8}Limitations and conclusion}{9}{section.8}\protected@file@percent }
 \newlabel{sec:conclusion}{{8}{9}{Limitations and conclusion}{section.8}{}}
-\newlabel{main:end}{{8}{9}{Limitations and conclusion}{section.8}{}}
 \bibdata{sieve,concurrent,related}
-\bibcite{alvarez2025nvfp4}{{1}{2025}{{Alvarez et~al.}}{{Alvarez, Almog, Chung, Layton, Stosic, Krashinsky, and Aubrey}}}
-\bibcite{an2026restkv}{{2}{2026}{{An et~al.}}{{An, Lu, Zhu, Yu, Zhao, Wu, Tang, and Wang}}}
-\bibcite{bai2025longbenchv2}{{3}{2025}{{Bai et~al.}}{{Bai, Tu, Zhang, Peng, Wang, Lv, Cao, Xu, Hou, Dong, Tang, and Li}}}
-\bibcite{cai2024pyramidkv}{{4}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
-\bibcite{cai2025rkv}{{5}{2025}{{Cai et~al.}}{{Cai, Xiao, Sun, Luo, Zhang, et~al.}}}
-\bibcite{dao2023flashattention2}{{6}{2023}{{Dao}}{{}}}
-\bibcite{equitz1991successive}{{7}{1991}{{Equitz \& Cover}}{{Equitz and Cover}}}
-\bibcite{feng2024adakv}{{8}{2025}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
-\bibcite{feng2026criticalkv}{{9}{2026}{{Feng et~al.}}{{Feng, Lv, Guo, Cao, Zhou, and Xie}}}
-\bibcite{goel2025caote}{{10}{2025}{{Goel et~al.}}{{Goel, Park, Gagrani, Jones, Morse, Langston, Lee, and Lott}}}
-\bibcite{grattafiori2024llama3}{{11}{2024}{{Grattafiori et~al.}}{{}}}
-\bibcite{gu2026obcache}{{12}{2026}{{Gu et~al.}}{{Gu, Liang, Zhao, and Diao}}}
-\bibcite{he2024zipcache}{{13}{2024}{{He et~al.}}{{He, Zhang, Wu, Liu, Zhou, and Zhuang}}}
-\bibcite{hooper2024kvquant}{{14}{2024}{{Hooper et~al.}}{{Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer, and Gholami}}}
-\bibcite{hsieh2024ruler}{{15}{2024}{{Hsieh et~al.}}{{Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and Ginsburg}}}
-\bibcite{jiang2023mistral}{{16}{2023}{{Jiang et~al.}}{{}}}
-\bibcite{kang2024gear}{{17}{2024}{{Kang et~al.}}{{Kang, Zhang, Kundu, Jeong, Liu, Krishna, and Zhao}}}
-\bibcite{kwon2023vllm}{{18}{2023}{{Kwon et~al.}}{{Kwon, Li, Zhuang, Sheng, Zheng, Yu, Gonzalez, Zhang, and Stoica}}}
-\bibcite{laus2026aatc}{{19}{2026}{{Laus et~al.}}{{Laus, Mayrink~Verdun, Wang, du~Pin~Calmon, and Krahmer}}}
-\bibcite{li2024snapkv}{{20}{2024}{{Li et~al.}}{{Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis, and Chen}}}
-\bibcite{liu2023scissorhands}{{21}{2023}{{Liu et~al.}}{{Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and Shrivastava}}}
-\bibcite{liu2024kivi}{{22}{2024}{{Liu et~al.}}{{Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen, and Hu}}}
-\bibcite{lloyd1982least}{{23}{1982}{{Lloyd}}{{}}}
-\bibcite{mai2026laprox}{{24}{2026}{{Mai \& Kim}}{{Mai and Kim}}}
-\bibcite{mao2026triattention}{{25}{2026}{{Mao et~al.}}{{Mao, Lin, Huang, Xie, Fu, Zhuang, Han, and Chen}}}
-\bibcite{nvidia2024modelopt}{{26}{2024{a}}{{NVIDIA}}{{}}}
-\bibcite{nvidia2024te}{{27}{2024{b}}{{NVIDIA}}{{}}}
-\bibcite{nvidia2025nvfp4ways}{{28}{2025}{{NVIDIA}}{{}}}
-\bibcite{ocp2023mx}{{29}{2023}{{Open Compute Project}}{{}}}
-\bibcite{oren2024tova}{{30}{2024}{{Oren et~al.}}{{Oren, Hassid, Yarden, Adi, and Schwartz}}}
-\bibcite{qwen2024moe}{{31}{2024}{{Qwen Team}}{{}}}
-\bibcite{rae2020pg19}{{32}{2020}{{Rae et~al.}}{{Rae, Potapenko, Jayakumar, and Lillicrap}}}
-\bibcite{shah2024flashattention3}{{33}{2024}{{Shah et~al.}}{{Shah, Bikshandi, Zhang, Thakkar, Ramani, and Dao}}}
-\bibcite{tang2024quest}{{34}{2024}{{Tang et~al.}}{{Tang, Zhao, Zhu, Xiao, Kasikci, and Han}}}
-\bibcite{wang-etal-2026-hqekv}{{35}{2026}{{Wang et~al.}}{{Wang, Gu, Li, Wang, Liu, Wang, Li, and Yu}}}
-\bibcite{xiao2024streamingllm}{{36}{2024}{{Xiao et~al.}}{{Xiao, Tian, Chen, Han, and Lewis}}}
-\bibcite{yang2025qwen3}{{37}{2025}{{Yang et~al.}}{{}}}
-\bibcite{yang2024mikv}{{38}{2024}{{Yang et~al.}}{{Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and Lee}}}
-\bibcite{yuan2024kvbench}{{39}{2024}{{Yuan et~al.}}{{Yuan, Liu, Zhong, Chuang, Li, Wang, Le, Jin, Chaudhary, Xu, Liu, and Hu}}}
-\bibcite{zandieh2024qjl}{{40}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
-\bibcite{zandieh2025turboquant}{{41}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
-\bibcite{zhang2026dropkv}{{42}{2026{a}}{{Zhang et~al.}}{{Zhang, Gurses, Deng, Wang, Liu, Wertheimer, Liu, Li, Yang, Ye, and Yin}}}
-\bibcite{zhang2024sageattention2}{{43}{2024{a}}{{Zhang et~al.}}{{Zhang, Huang, Zhang, Wei, Zhu, and Chen}}}
-\bibcite{zhang2024sageattention}{{44}{2024{b}}{{Zhang et~al.}}{{Zhang, Wei, Huang, Zhang, Zhu, and Chen}}}
-\bibcite{zhang2025sageattention3}{{45}{2025{a}}{{Zhang et~al.}}{{Zhang, Wei, Zhang, Xu, Huang, Wang, Jiang, Chen, and Zhu}}}
-\bibcite{zhang2026rdkv}{{46}{2026{b}}{{Zhang et~al.}}{{Zhang, Guo, Benini, and Li}}}
-\bibcite{zhang2026fixedcontract}{{47}{2026{c}}{{Zhang et~al.}}{{Zhang, Liang, Chang, Hu, Kong, Yin, and Li}}}
-\bibcite{zhang2025diffkv}{{48}{2025{b}}{{Zhang et~al.}}{{Zhang, Hu, Zhao, Lui, and Chen}}}
-\bibcite{zhang2023h2o}{{49}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
-\bibcite{zuo2026ratequant}{{50}{2026}{{Zuo et~al.}}{{Zuo, Zhou, Cong, Xi, and Leung}}}
+\bibcite{alvarez2025nvfp4}{{1}{2025{a}}{{Alvarez et~al.}}{{Alvarez, Almog, Chung, Layton, Stosic, Krashinsky, and Aubrey}}}
+\bibcite{alvarez2025nvfp4kv}{{2}{2025{b}}{{Alvarez et~al.}}{{Alvarez, Chen, and Mao}}}
+\bibcite{an2026restkv}{{3}{2026}{{An et~al.}}{{An, Lu, Zhu, Yu, Zhao, Wu, Tang, and Wang}}}
+\newlabel{main:end}{{8}{10}{Limitations and conclusion}{section.8}{}}
+\bibcite{bai2025longbenchv2}{{4}{2025}{{Bai et~al.}}{{Bai, Tu, Zhang, Peng, Wang, Lv, Cao, Xu, Hou, Dong, Tang, and Li}}}
+\bibcite{cai2024pyramidkv}{{5}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
+\bibcite{cai2025rkv}{{6}{2025}{{Cai et~al.}}{{Cai, Xiao, Sun, Luo, Zhang, et~al.}}}
+\bibcite{dao2023flashattention2}{{7}{2023}{{Dao}}{{}}}
+\bibcite{equitz1991successive}{{8}{1991}{{Equitz \& Cover}}{{Equitz and Cover}}}
+\bibcite{feng2024adakv}{{9}{2025}{{Feng et~al.}}{{Feng, Lv, Cao, Xie, and Zhou}}}
+\bibcite{feng2026criticalkv}{{10}{2026}{{Feng et~al.}}{{Feng, Lv, Guo, Cao, Zhou, and Xie}}}
+\bibcite{goel2025caote}{{11}{2025}{{Goel et~al.}}{{Goel, Park, Gagrani, Jones, Morse, Langston, Lee, and Lott}}}
+\bibcite{grattafiori2024llama3}{{12}{2024}{{Grattafiori et~al.}}{{}}}
+\bibcite{gu2026obcache}{{13}{2026}{{Gu et~al.}}{{Gu, Liang, Zhao, and Diao}}}
+\bibcite{he2024zipcache}{{14}{2024}{{He et~al.}}{{He, Zhang, Wu, Liu, Zhou, and Zhuang}}}
+\bibcite{hooper2024kvquant}{{15}{2024}{{Hooper et~al.}}{{Hooper, Kim, Mohammadzadeh, Mahoney, Shao, Keutzer, and Gholami}}}
+\bibcite{hsieh2024ruler}{{16}{2024}{{Hsieh et~al.}}{{Hsieh, Sun, Kriman, Acharya, Rekesh, Jia, and Ginsburg}}}
+\bibcite{jiang2023mistral}{{17}{2023}{{Jiang et~al.}}{{}}}
+\bibcite{kang2024gear}{{18}{2024}{{Kang et~al.}}{{Kang, Zhang, Kundu, Jeong, Liu, Krishna, and Zhao}}}
+\bibcite{kwon2023vllm}{{19}{2023}{{Kwon et~al.}}{{Kwon, Li, Zhuang, Sheng, Zheng, Yu, Gonzalez, Zhang, and Stoica}}}
+\bibcite{laus2026aatc}{{20}{2026}{{Laus et~al.}}{{Laus, Mayrink~Verdun, Wang, du~Pin~Calmon, and Krahmer}}}
+\bibcite{li2024snapkv}{{21}{2024}{{Li et~al.}}{{Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis, and Chen}}}
+\bibcite{liu2023scissorhands}{{22}{2023}{{Liu et~al.}}{{Liu, Desai, Liao, Wang, Xie, Xu, Kyrillidis, and Shrivastava}}}
+\bibcite{liu2024kivi}{{23}{2024}{{Liu et~al.}}{{Liu, Yuan, Jin, Zhong, Xu, Braverman, Chen, and Hu}}}
+\bibcite{lloyd1982least}{{24}{1982}{{Lloyd}}{{}}}
+\bibcite{mai2026laprox}{{25}{2026}{{Mai \& Kim}}{{Mai and Kim}}}
+\bibcite{mao2026triattention}{{26}{2026}{{Mao et~al.}}{{Mao, Lin, Huang, Xie, Fu, Zhuang, Han, and Chen}}}
+\bibcite{nvidia2024modelopt}{{27}{2024{a}}{{NVIDIA}}{{}}}
+\bibcite{nvidia2024te}{{28}{2024{b}}{{NVIDIA}}{{}}}
+\bibcite{nvidia2025nvfp4ways}{{29}{2025}{{NVIDIA}}{{}}}
+\bibcite{ocp2023mx}{{30}{2023}{{Open Compute Project}}{{}}}
+\bibcite{oren2024tova}{{31}{2024}{{Oren et~al.}}{{Oren, Hassid, Yarden, Adi, and Schwartz}}}
+\bibcite{qwen2024moe}{{32}{2024}{{Qwen Team}}{{}}}
+\bibcite{rae2020pg19}{{33}{2020}{{Rae et~al.}}{{Rae, Potapenko, Jayakumar, and Lillicrap}}}
+\bibcite{shah2024flashattention3}{{34}{2024}{{Shah et~al.}}{{Shah, Bikshandi, Zhang, Thakkar, Ramani, and Dao}}}
+\bibcite{tang2024quest}{{35}{2024}{{Tang et~al.}}{{Tang, Zhao, Zhu, Xiao, Kasikci, and Han}}}
+\bibcite{wang-etal-2026-hqekv}{{36}{2026}{{Wang et~al.}}{{Wang, Gu, Li, Wang, Liu, Wang, Li, and Yu}}}
+\bibcite{xiao2024streamingllm}{{37}{2024}{{Xiao et~al.}}{{Xiao, Tian, Chen, Han, and Lewis}}}
+\bibcite{yang2025qwen3}{{38}{2025}{{Yang et~al.}}{{}}}
+\bibcite{yang2024mikv}{{39}{2024}{{Yang et~al.}}{{Yang, Kim, Bae, Kwon, Park, Yang, Kwon, and Lee}}}
+\bibcite{yuan2024kvbench}{{40}{2024}{{Yuan et~al.}}{{Yuan, Liu, Zhong, Chuang, Li, Wang, Le, Jin, Chaudhary, Xu, Liu, and Hu}}}
+\bibcite{zandieh2024qjl}{{41}{2024}{{Zandieh et~al.}}{{Zandieh, Daliri, and Han}}}
+\bibcite{zandieh2025turboquant}{{42}{2025}{{Zandieh et~al.}}{{Zandieh, Daliri, Hadian, and Mirrokni}}}
+\bibcite{zhang2026dropkv}{{43}{2026{a}}{{Zhang et~al.}}{{Zhang, Gurses, Deng, Wang, Liu, Wertheimer, Liu, Li, Yang, Ye, and Yin}}}
+\bibcite{zhang2024sageattention2}{{44}{2024{a}}{{Zhang et~al.}}{{Zhang, Huang, Zhang, Wei, Zhu, and Chen}}}
+\bibcite{zhang2024sageattention}{{45}{2024{b}}{{Zhang et~al.}}{{Zhang, Wei, Huang, Zhang, Zhu, and Chen}}}
+\bibcite{zhang2025sageattention3}{{46}{2025{a}}{{Zhang et~al.}}{{Zhang, Wei, Zhang, Xu, Huang, Wang, Jiang, Chen, and Zhu}}}
+\bibcite{zhang2026rdkv}{{47}{2026{b}}{{Zhang et~al.}}{{Zhang, Guo, Benini, and Li}}}
+\bibcite{zhang2026fixedcontract}{{48}{2026{c}}{{Zhang et~al.}}{{Zhang, Liang, Chang, Hu, Kong, Yin, and Li}}}
+\bibcite{zhang2025diffkv}{{49}{2025{b}}{{Zhang et~al.}}{{Zhang, Hu, Zhao, Lui, and Chen}}}
+\bibcite{zhang2023h2o}{{50}{2023}{{Zhang et~al.}}{{Zhang, Sheng, Zhou, Chen, Zheng, Cai, Song, Tian, R{\'e}, Barrett, Wang, and Chen}}}
+\bibcite{zuo2026ratequant}{{51}{2026}{{Zuo et~al.}}{{Zuo, Zhou, Cong, Xi, and Leung}}}
 \bibstyle{iclr2027_conference}
 \citation{goel2025caote}
 \citation{an2026restkv}

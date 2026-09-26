@@ -1,24 +1,17 @@
-\begin{thebibliography}{62}
+\begin{thebibliography}{50}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
-\bibitem[Alvarez et~al.(2025{\natexlab{a}})Alvarez, Almog, Chung, Layton,
-  Stosic, Krashinsky, and Aubrey]{alvarez2025nvfp4}
+\bibitem[Alvarez et~al.(2025)Alvarez, Almog, Chung, Layton, Stosic, Krashinsky,
+  and Aubrey]{alvarez2025nvfp4}
 Eduardo Alvarez, Omri Almog, Eric Chung, Simon Layton, Dusan Stosic, Ronny
   Krashinsky, and Kyle Aubrey.
 \newblock Introducing {NVFP4} for efficient and accurate low-precision
   inference.
-\newblock NVIDIA Technical Blog, 2025{\natexlab{a}}.
-
-\bibitem[Alvarez et~al.(2025{\natexlab{b}})Alvarez, Chen, and
-  Mao]{alvarez2025nvfp4kv}
-Eduardo Alvarez, Wei-Ming Chen, and Huizi Mao.
-\newblock Optimizing inference for long context and large batch sizes with
-  {NVFP4} {KV} cache.
-\newblock NVIDIA Technical Blog, 2025{\natexlab{b}}.
+\newblock NVIDIA Technical Blog, 2025.
 
 \bibitem[An et~al.(2026)An, Lu, Zhu, Yu, Zhao, Wu, Tang, and
   Wang]{an2026restkv}
@@ -54,32 +47,11 @@ Zefan Cai, Wen Xiao, Hanshi Sun, Cheng Luo, Yikai Zhang, et~al.
 \newblock In \emph{Advances in Neural Information Processing Systems}, 2025.
 \newblock arXiv:2505.24133.
 
-\bibitem[Chen et~al.(2026)Chen, Wang, Huang, Yang, Zhang, Xiao, Chu, Mao, Hu,
-  Liu, Zhao, Mao, Chen, Xie, Qi, and Han]{chen2026longlive2}
-Yukang Chen, Luozhou Wang, Wei Huang, Shuai Yang, Bohan Zhang, Yicheng Xiao,
-  Ruihang Chu, Weian Mao, Qixin Hu, Shaoteng Liu, Yuyang Zhao, Huizi Mao,
-  Ying-Cong Chen, Enze Xie, Xiaojuan Qi, and Song Han.
-\newblock {LongLive 2.0}: An {NVFP4} parallel infrastructure for long video
-  generation.
-\newblock \emph{arXiv preprint arXiv:2605.18739}, 2026.
-
 \bibitem[Dao(2023)]{dao2023flashattention2}
 Tri Dao.
 \newblock {FlashAttention-2}: Faster attention with better parallelism and work
   partitioning.
 \newblock \emph{arXiv preprint arXiv:2307.08691}, 2023.
-
-\bibitem[{DeepSeek-AI}(2026)]{deepseek2026v4}
-{DeepSeek-AI}.
-\newblock {DeepSeek-V4} model card.
-\newblock Hugging Face model card (DeepSeek-V4-Pro), 2026.
-
-\bibitem[Devleker \& Ghodsian(2025)Devleker and
-  Ghodsian]{devleker2025nvfp4train}
-Kirthi Devleker and Farshad Ghodsian.
-\newblock {NVFP4} trains with precision of 16-bit and speed and efficiency of
-  4-bit.
-\newblock NVIDIA Technical Blog, 2025.
 
 \bibitem[Equitz \& Cover(1991)Equitz and Cover]{equitz1991successive}
 William H.~R. Equitz and Thomas~M. Cover.
@@ -146,12 +118,6 @@ Cheng-Ping Hsieh, Simeng Sun, Samuel Kriman, Shantanu Acharya, Dima Rekesh, Fei
   models?
 \newblock In \emph{Conference on Language Modeling}, 2024.
 
-\bibitem[Huang et~al.(2025)]{huang2025qerl}
-Wei Huang et~al.
-\newblock {QeRL}: Beyond efficiency -- quantization-enhanced reinforcement
-  learning for {LLM}s.
-\newblock \emph{arXiv preprint arXiv:2510.11696}, 2025.
-
 \bibitem[Jiang et~al.(2023)]{jiang2023mistral}
 Albert~Q. Jiang et~al.
 \newblock {Mistral} {7B}.
@@ -181,15 +147,6 @@ Hannah Laus, Claudio Mayrink~Verdun, Hao Wang, Flavio du~Pin~Calmon, and Felix
 \newblock {KV} cache compression through the lens of transform coding.
 \newblock \emph{arXiv preprint arXiv:2608.14191}, 2026.
 \newblock URL \url{https://arxiv.org/abs/2608.14191}.
-
-\bibitem[Li et~al.(2025)Li, Lin, Zhang, Cai, Li, Guo, Xie, Meng, Zhu, and
-  Han]{li2025svdquant}
-Muyang Li, Yujun Lin, Zhekai Zhang, Tianle Cai, Xiuyu Li, Junxian Guo, Enze
-  Xie, Chenlin Meng, Jun-Yan Zhu, and Song Han.
-\newblock {SVDQuant}: Absorbing outliers by low-rank components for 4-bit
-  diffusion models.
-\newblock In \emph{International Conference on Learning Representations}, 2025.
-\newblock NVFP4 results: MIT Han Lab Blog, February 2025.
 
 \bibitem[Li et~al.(2024)Li, Huang, Yang, Venkitesh, Locatelli, Ye, Cai, Lewis,
   and Chen]{li2024snapkv}
@@ -246,25 +203,15 @@ Weian Mao, Xi~Lin, Wei Huang, Yuxin Xie, Tianfu Fu, Bohan Zhuang, Song Han, and
 \newblock \url{https://github.com/NVIDIA/TransformerEngine},
   2024{\natexlab{b}}.
 
-\bibitem[{NVIDIA}(2025{\natexlab{a}})]{nvidia2025nvfp4pretrain}
-{NVIDIA}.
-\newblock Pretraining large language models with {NVFP4}.
-\newblock \emph{arXiv preprint arXiv:2509.25149}, 2025{\natexlab{a}}.
-
-\bibitem[{NVIDIA}(2025{\natexlab{b}})]{nvidia2025nvfp4ways}
+\bibitem[{NVIDIA}(2025)]{nvidia2025nvfp4ways}
 {NVIDIA}.
 \newblock 3 ways {NVFP4} accelerates {AI} training and inference.
-\newblock NVIDIA Technical Blog, 2025{\natexlab{b}}.
+\newblock NVIDIA Technical Blog, 2025.
 
 \bibitem[{Open Compute Project}(2023)]{ocp2023mx}
 {Open Compute Project}.
 \newblock {OCP} microscaling formats ({MX}) specification.
 \newblock Specification v1.0, 2023.
-
-\bibitem[{OpenAI}(2025)]{openai2025gptoss}
-{OpenAI}.
-\newblock gpt-oss-120b \& gpt-oss-20b model card.
-\newblock \emph{arXiv preprint arXiv:2508.10925}, 2025.
 
 \bibitem[Oren et~al.(2024)Oren, Hassid, Yarden, Adi, and
   Schwartz]{oren2024tova}
@@ -302,11 +249,6 @@ Jiaming Tang, Yilong Zhao, Kan Zhu, Guangxuan Xiao, Baris Kasikci, and Song
 \newblock In \emph{International Conference on Machine Learning}, 2024.
 \newblock arXiv:2406.10774.
 
-\bibitem[{Wan Team}(2025)]{wan2025wan}
-{Wan Team}.
-\newblock Wan: Open and advanced large-scale video generative models.
-\newblock \emph{arXiv preprint arXiv:2503.20314}, 2025.
-
 \bibitem[Wang et~al.(2026)Wang, Gu, Li, Wang, Liu, Wang, Li, and
   Yu]{wang-etal-2026-hqekv}
 He~Wang, Yu~Gu, Fangfang Li, Zhigang Wang, Zhenghao Liu, Ning Wang, Xiaohua Li,
@@ -317,15 +259,6 @@ He~Wang, Yu~Gu, Fangfang Li, Zhigang Wang, Zhenghao Liu, Ning Wang, Xiaohua Li,
   ACL 2026}, pp.\  4138--4153. Association for Computational Linguistics, 2026.
 \newblock \doi{10.18653/v1/2026.findings-acl.201}.
 \newblock URL \url{https://aclanthology.org/2026.findings-acl.201/}.
-
-\bibitem[Xi et~al.(2026)Xi, Yang, Zhao, Li, Cai, others, Han, and
-  Keutzer]{xi2026quantvideogen}
-Haocheng Xi, Shuo Yang, Yilong Zhao, Muyang Li, Han Cai, others, Song Han, and
-  Kurt Keutzer.
-\newblock Quant {VideoGen}: Auto-regressive long video generation via 2-bit
-  {KV}-cache quantization.
-\newblock In \emph{International Conference on Machine Learning}, 2026.
-\newblock arXiv:2602.02958.
 
 \bibitem[Xiao et~al.(2024)Xiao, Tian, Chen, Han, and
   Lewis]{xiao2024streamingllm}
@@ -345,14 +278,6 @@ June~Yong Yang, Byeongwook Kim, Jeongin Bae, Beomseok Kwon, Gunho Park, Eunho
 \newblock No token left behind: Reliable {KV} cache compression via
   importance-aware mixed precision quantization.
 \newblock \emph{arXiv preprint arXiv:2402.18096}, 2024.
-
-\bibitem[Yang et~al.(2026)Yang, Huang, Chu, Xiao, Zhao, others, Han, and
-  Chen]{yang2026longlive}
-Shuai Yang, Wei Huang, Ruihang Chu, Yicheng Xiao, Yuyang Zhao, others, Song
-  Han, and Yukang Chen.
-\newblock {LongLive}: Real-time interactive long video generation.
-\newblock In \emph{International Conference on Learning Representations}, 2026.
-\newblock arXiv:2509.22622.
 
 \bibitem[Yuan et~al.(2024)Yuan, Liu, Zhong, Chuang, Li, Wang, Le, Jin,
   Chaudhary, Xu, Liu, and Hu]{yuan2024kvbench}
@@ -442,12 +367,6 @@ Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, Lianmin Zheng, Ruisi Cai,
 \newblock {H2O}: Heavy-hitter oracle for efficient generative inference of
   large language models.
 \newblock In \emph{Advances in Neural Information Processing Systems}, 2023.
-
-\bibitem[Zhao et~al.(2024)]{zhao2024viditq}
-Tianchen Zhao et~al.
-\newblock {ViDiT-Q}: Efficient and accurate quantization of diffusion
-  transformers for image and video generation.
-\newblock \emph{arXiv preprint arXiv:2406.02540}, 2024.
 
 \bibitem[Zuo et~al.(2026)Zuo, Zhou, Cong, Xi, and Leung]{zuo2026ratequant}
 Fei Zuo, Zikang Zhou, Hao Cong, Xiaoyan Xi, and Ho~Fai Leung.

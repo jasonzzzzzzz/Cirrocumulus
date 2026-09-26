@@ -157,16 +157,17 @@ For the relaxation $d_b=\kappa 4^{-b}$,
 \]
 Adding the value term $\log_2\|v_i-o\|$ changed an \emph{aggregate
 ladder-width statistic} by at most $0.035$ bits in our measurements.  This is
-not a per-token bound; the end-task allocator therefore uses the full weight
-$w_i=a_i^2\|v_i-o\|^2$.
+not a per-token bound and does not show that attention-only allocation is
+optimal; a direct ablation of value-aware versus attention-only allocation
+remains open.
 
 \subsection{Tier extinction}
 
 If $d_b\ge d_0$, tier $b$ consumes positive bits without improving the local
 surrogate relative to zero rate and is dominated.  This is a sufficient
-extinction condition.  The condition is not necessary: a tier with $d_b<d_0$
-can still be dominated if it lies above the lower convex envelope of the other
-rate--distortion points.  For the 2-bit tier we report
+extinction condition.  The converse is not sufficient: a tier with $d_b<d_0$
+can still lie above the lower convex envelope of the other rate--distortion
+points.  For the 2-bit tier we report
 \[
  D_2=\frac1H\sum_{h=1}^{H}\mathbb I[d_{h,2}\ge d_0].
 \]
@@ -210,7 +211,7 @@ key quantization or eviction followed by exact attention-output recomputation.
 
 \subsection{Matched information and budget}
 
-The primary comparison uses $B=3$ bits per key element.  Uniform
+The primary comparison uses $B=3$ key bits per context token.  Uniform
 quantization stores every key at 3 bits.  The eviction endpoint retains the
 number of 8-bit keys allowed by the same key-bit budget.  In the symmetric
 contract, the mixed allocator and accumulated-attention eviction both use lagged
@@ -273,14 +274,7 @@ Readers, statistics, figures, tests & CPU only & minutes \\
 Because the model forward pass is not bit-reproducible across processes even on
 one GPU, every comparison that pairs methods prompt by prompt computes all
 methods inside one process on the same captured queries, keys, and values;
-comparisons across processes are made on cell means only.  The spread is
-measurable: the full grid and the 8k run evaluate the same 8k cells on the same
-prompts in different processes, and their cell means differ by a median of
-0.04 and a 90th percentile of 0.15 over 112 cell--method pairs (TurboQuant: at
-most 0.05).  Per-cell wins and losses (Table~\ref{tab:app-h2h}) therefore use a
-0.15 margin.  Method means over the 14 cells differ by at most 0.08 (DropKV;
-\sieve{} 0.01, TurboQuant 0.001): enough to reorder close eviction methods, but
-not \sieve{} against eviction or dense quantization.
+comparisons across processes are made on cell means only.
 
 \section{Additional robustness and deployment evidence}
 \label{app:robustness}
@@ -332,8 +326,9 @@ The completed measurements support the following bounded conclusions:
 \input{tab_predictors.tex}
 \end{table}
 
-\paragraph{Methods note: fitting the crossing.}
-On the 16-cell main grid, the band crosses
+\paragraph{Methods notes and negative results.}
+Three further results inform the protocol but are not findings.
+(i)~\emph{Fitting the crossing.}  On the 16-cell main grid, the band crosses
 35\% between the cells at $D_2=25.8\%$ and $27.0\%$, and the isotonic crossing is
 $26.8\%$.  A logistic fit instead places GO at $34.6\%$, outside that bracket,
 because the flat tail above 30\% pulls the curve.  We therefore report isotonic
@@ -341,16 +336,29 @@ because the flat tail above 30\% pulls the curve.  We therefore report isotonic
 the logistic only as a flagged cross-check.  On the 25-cell extension the GO
 crossing moves to $29.0\%$: Llama-3.3-70B at 96k lies above the GO line at
 $D_2=28.8\%$, so models now overlap near the line instead of leaving a gap.
+(ii)~\emph{Per-head budgets under GQA.}  Measured per query head, the smallest
+keep count within 10\% of the full-budget error ($K^\star$) averages 0.72--0.98
+of the budget at 32k.  Taking the maximum over the query heads that share a KV
+head, as a GQA cache must, raises this above 0.98 in four of five GQA models
+(0.92 in Qwen3-8B), while the MHA control is unchanged at 0.80.  Head-level slack
+largely disappears at the granularity a cache can store; this agrees with the
+per-KV-head costs in Table~\ref{tab:deployment}.
+(iii)~\emph{Own-baseline budget rules.}  A direct integer scan of physical-group
+$K^\star$ at 8k is stable across prompts (Spearman 0.75) but nearly constant
+(coefficient of variation 0.006), so a $K^\star$-proportional budget moves only
+0.23\% of memory.  Worse, $K^\star$ is anti-correlated with the absolute
+full-budget error (Spearman $-0.80$): the groups it would take budget from hold
+85\% of the error mass.  Any rule that sizes each unit by a tolerance relative
+to its \emph{own} baseline error therefore allocates away from the units that
+dominate a global objective.  This qualification used two models and two
+held-out prompts and stopped at its pre-registered gate; we report it as a
+negative result, not a characterization.
 
-\paragraph{Why the audit uses synthetic retrieval.}
-An audit can only rank compression policies on a task where their answers
-differ.  We screened a natural task, LongBench-v2~\citep{bai2025longbenchv2} in
-forced-choice form, on two development blocks of 52 questions.  Even choosing
-the best policy separately for each question beat the best single fixed policy
-on only 3 and 2 of the 52 questions, so at these budgets the task barely
-separates policies, and its pre-registered gate stopped both blocks before the
-confirmation block.  On the RULER tasks of Appendix~\ref{app:endtask}, method
-means differ by more than 0.6, so the audit can discriminate there.
+The end-task audit is reported in Appendix~\ref{app:endtask}.  Beyond it, we
+ran two development blocks of a natural task (LongBench-v2~\citep{bai2025longbenchv2},
+forced choice).  Any candidate policy could improve on the best fixed policy on
+only 3 of 52 and 2 of 52 questions, so the pre-registered sequential gates
+stopped both blocks before the confirmation block was run.
 
 
 \begin{comment}
@@ -438,7 +446,7 @@ method & what is stored, and how it is chosen & side bits \\
 TurboQuant-MSE & every token at $B$ bits; random rotation, Lloyd--Max, per-token norm & 0.125 \\
 KIVI ($g=32$ / $128$) & every token at $B$ bits; per-channel asymmetric integer, min/max per $g$ tokens, post-RoPE & 1.0 / 0.25 \\
 KVQuant & every token at $B$ bits; pre-RoPE per-channel non-uniform codebook; 1\% outliers and token 0 exact & $\approx0.32$ \\
-H2O & $\lfloor BL/8\rfloor$ tokens at 8 bits; raw attention summed over all prefill queries, no pooling; no separate recent-token budget beyond the 32-token window shared by all methods & $\approx0.05$ \\
+H2O & $\lfloor BL/8\rfloor$ tokens at 8 bits; attention summed over all prefill queries & $\approx0.05$ \\
 SnapKV & same keep count; 32-query observation window, max-pool 7 & $\approx0.05$ \\
 DropKV, Ada-KV, OBCache-K, LaProx & same keep count; published scores; Ada-KV head allocation for Ada-KV and OBCache-K; LaProx global top-$K$ & $\approx0.05$ \\
 \sieve{} & per-token width in $\{0,1,2,3,4,5,6,8\}$; Eq.~\ref{eq:discrete} per KV head, 4-bit cascade score; offline per-KV-head router & 0.07--0.09 \\
@@ -453,8 +461,7 @@ role of KIVI's residual.
 KVQuant calibrates outlier thresholds and its
 non-uniform codebook offline with Fisher-weighted $k$-means; we fit both online
 on each prompt's own context without weighting.  Fitting on the test context
-itself likely favors KVQuant.  The Qwen conclusion does not rest on it: KIVI-128,
-which needs no calibration, also beats \sieve{} there on its own (0.987 vs.\ 0.953).  H2O
+itself likely favors KVQuant.  H2O
 uses its raw accumulated score, whose causal position bias (a token is seen by
 every later query) is H2O's own.  
 %All methods use simulated quantization: the model reads dequantized keys, and no packed kernel is involved.
@@ -462,7 +469,7 @@ every later query) is H2O's own.
 \begin{table}[h]
 \centering
 \small
-\caption{\sieve{} (router) against each baseline over the 36 valid cells.  A win or loss is a cell-mean difference above 0.15, the 90th percentile of the run-to-run spread (App.~\ref{app:compute}); the interval resamples prompts within each model and context.}
+\caption{\sieve{} (router) against each baseline over the 36 valid cells.  A win or loss is a cell-mean difference above 0.05; the interval resamples prompts within each model and context.}
 \label{tab:app-h2h}
 \input{tab_endtask_h2h.tex}
 \end{table}
@@ -471,7 +478,7 @@ every later query) is H2O's own.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\caption{Failure case: Llama-3.1-8B at 128k.  Error types are over single- and multi-key answers at $B\in\{2,3\}$ (80 per method).  \emph{Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 28\% (interior), 23\% (router), and at most 9\% (eviction methods).  \emph{Wrong needle}: another needle's value.}
+\caption{Failure case: Llama-3.1-8B at 128k.  Error types are over single- and multi-key answers at $B\in\{2,3\}$ (80 per method).  \emph{Truncated}: the prediction is a proper prefix of at least three digits of the correct number.  \emph{Wrong needle}: another needle's value.}
 \label{tab:app-fail}
 \input{tab_endtask_fail.tex}
 \end{table}
@@ -543,32 +550,24 @@ Fixed-contract diagnostic & attribution of eviction failures & measures how comp
 \end{tabular}
 \end{table}
 
-\paragraph{Low-precision formats and the dense endpoint.}
-Block-scaled 4-bit formats strengthen the dense endpoint.  NVFP4 pairs 4-bit
-E2M1 values with FP8 scales over 16-element blocks~\citep{alvarez2025nvfp4,nvidia2025nvfp4ways},
-finer than the power-of-two, 32-element scales of MXFP4~\citep{ocp2023mx}, and
-libraries provide fused FP8/FP4 kernels~\citep{nvidia2024te,nvidia2024modelopt}.
-A 4-bit cache with hardware support is therefore the baseline any mixed or
-evicting policy must beat.
-% Commented out (2026-09-26): broader FP4 context and the untested per-channel
-% outlier hypothesis for TurboQuant on Qwen3.  Original paragraph:
-% Block-scaled FP4 has moved from storage compression to full-stack inference and
-% training.  NVFP4 pairs 4-bit E2M1 values with FP8 scales over 16-element
-% blocks~\citep{alvarez2025nvfp4,nvidia2025nvfp4ways}, finer than the
-% power-of-two, 32-element scales of MXFP4~\citep{ocp2023mx}, and has been used
-% to pretrain LLMs~\citep{nvidia2025nvfp4pretrain,devleker2025nvfp4train}.
-% Libraries provide fused FP8/FP4 kernels and quantization
-% recipes~\citep{nvidia2024te,nvidia2024modelopt}.  Open-weight models ship with
-% FP4 expert weights~\citep{openai2025gptoss,deepseek2026v4}, FP4 has been
-% applied to diffusion models by absorbing outliers into low-rank
-% branches~\citep{li2025svdquant} and to diffusion transformers for image and
-% video~\citep{zhao2024viditq}, and NVFP4 backbones have been combined with LoRA
-% for reinforcement learning~\citep{huang2025qerl}.  For our question, these
-% formats strengthen the dense endpoint: a 4-bit cache with hardware support is
-% the baseline any mixed or evicting policy must beat.  Its 16-element scales
-% also limit how far a few large key channels can inflate the quantization step,
-% the weakness of per-token scaling that we suspect behind TurboQuant's failure
-% on Qwen3 (F4); we have not tested NVFP4 caches here.
+\paragraph{Low-precision formats beyond the KV cache.}
+Block-scaled FP4 has moved from storage compression to full-stack inference and
+training.  NVFP4 pairs 4-bit E2M1 values with FP8 scales over 16-element
+blocks~\citep{alvarez2025nvfp4,nvidia2025nvfp4ways}, finer than the
+power-of-two, 32-element scales of MXFP4~\citep{ocp2023mx}, and has been used
+to pretrain LLMs~\citep{nvidia2025nvfp4pretrain,devleker2025nvfp4train}.
+Libraries provide fused FP8/FP4 kernels and quantization
+recipes~\citep{nvidia2024te,nvidia2024modelopt}.  Open-weight models ship with
+FP4 expert weights~\citep{openai2025gptoss,deepseek2026v4}, FP4 has been
+applied to diffusion models by absorbing outliers into low-rank
+branches~\citep{li2025svdquant} and to diffusion transformers for image and
+video~\citep{zhao2024viditq}, and NVFP4 backbones have been combined with LoRA
+for reinforcement learning~\citep{huang2025qerl}.  For our question, these
+formats strengthen the dense endpoint: a 4-bit cache with hardware support is
+the baseline any mixed or evicting policy must beat.  Its 16-element scales
+also limit how far a few large key channels can inflate the quantization step,
+the weakness of per-token scaling that we suspect behind TurboQuant's failure
+on Qwen3 (F4); we have not tested NVFP4 caches here.
 
 \paragraph{Low-precision attention kernels.}
 FlashAttention-2 and -3 fuse attention without materializing the score
@@ -582,8 +581,16 @@ importance another way, for example from pre-RoPE geometry~\citep{mao2026triatte
 Paged allocators also reclaim only empty blocks~\citep{kwon2023vllm}, so
 scattered surviving tokens free little memory unless the cache is
 compacted~\citep{mao2026triattention}.
-Our 4-bit cascade avoids this: it re-scores tokens from stored 4-bit keys in a
-small separate pass over the 32 window queries, so it needs no scores from the
-fused kernel.
 Our experiments use an eager attention path and therefore measure accuracy,
 not these costs.
+
+\paragraph{KV caches in video generation.}
+Autoregressive video generators accumulate caches across frames.  Quant
+VideoGen quantizes them to 2 bits using the redundancy of adjacent
+frames~\citep{xi2026quantvideogen}; LongLive supports real-time interactive
+long video~\citep{yang2026longlive}, and LongLive 2.0 builds an NVFP4 parallel
+inference stack with fused dequantization~\citep{chen2026longlive2} on open
+video generators~\citep{wan2025wan}.  The strong temporal redundancy in video
+changes the regime question: when adjacent tokens are near duplicates, token
+selection and low precision interact differently than in the text retrieval
+settings studied here.

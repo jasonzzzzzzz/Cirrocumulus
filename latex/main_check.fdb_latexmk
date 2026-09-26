@@ -1,15 +1,15 @@
 # Fdb version 4
-["bibtex main"] 1790417069 "main.aux" "main.bbl" "main" 1790417070 0
+["bibtex main_check"] 1790416428 "main_check.aux" "main_check.bbl" "main_check" 1790417156 0
   "./concurrent.bib" 1790110263 3158 f4d2547f95c48ad3be35ff8012702949 ""
   "./iclr2027_conference.bst" 1790393652 26973 af983813ca1a1414954dbceae7baa2a1 ""
   "./related.bib" 1790407190 11847 604284de0c09d4d1b3583fb99fe0a7d2 ""
   "./sieve.bib" 1790111052 6250 8eef04d4fc303fe376a2d7e8379ec3d5 ""
-  "main.aux" 1790417070 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
+  "main_check.aux" 1790417156 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
   (generated)
-  "main.bbl"
-  "main.blg"
+  "main_check.bbl"
+  "main_check.blg"
   (rewritten before read)
-["pdflatex"] 1790417069 "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" "main.pdf" "main" 1790417070 0
+["pdflatex"] 1790417155 "main.tex" "main_check.pdf" "main_check" 1790417156 0
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -156,17 +156,16 @@
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/web2c/texmf.cnf" 1692823885 39639 818dd8e5a0dce3a72597a7e6bad45d55 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1692821535 5031293 07973d5e761f645996ac32ebf7b8d1f3 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1692821530 1386016 abd9ba6eb53c47bc5de8d672b6ac87d3 ""
-  "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" 1790417069 50814 35c52ec34367b17037894b9e7153e86a ""
   "appendix.tex" 1790415315 30710 8e501b97b02c2135af277b73f865aeea ""
   "fancyhdr.sty" 1789674822 20521 e5d13d98d57bd53d4fed3aa61bd29c86 ""
   "figures/fig1_regime.pdf" 1790402794 29359 15a5773d72d1d33c283561923346e247 ""
   "figures/fig2_evidence.pdf" 1790402794 18359 1a8d8df280eb22941cfc772447eed040 ""
   "figures/fig3_endtask.pdf" 1790402795 27734 58e466559390c0d7c5fc241aba884549 ""
   "iclr2027_conference.sty" 1790393652 9025 1b4bb9c2e12c712c56f4eb1232b88dd6 ""
-  "main.aux" 1790417070 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
-  "main.bbl" 1790417069 20867 8170fa2e76e5189760fb90bc9dbc4bbd "bibtex main"
-  "main.out" 1790417070 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
   "main.tex" 1790417069 50814 35c52ec34367b17037894b9e7153e86a ""
+  "main_check.aux" 1790417156 28122 9ab3be61a13ab01ce57d7ed8462319b2 "pdflatex"
+  "main_check.bbl" 1790416428 20867 8170fa2e76e5189760fb90bc9dbc4bbd "bibtex main_check"
+  "main_check.out" 1790417156 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
   "math_commands.tex" 1789674824 12284 a71653715108dc62b66e3a0bde0307d8 ""
   "natbib.sty" 1789674836 45154 40088ce024445d7ee2bca59e704cdd01 ""
   "tab_endtask_fail.tex" 1790386694 989 26d2eca40461d91461a0fcf253b3fb13 ""
@@ -174,8 +173,8 @@
   "tab_endtask_h2h.tex" 1790386694 628 c28e72ae09c6e8da20bac2a47b89e24b ""
   "tab_predictors.tex" 1790391697 709 cff0dae4dddb0b0256f4ec6b166d08db ""
   (generated)
-  "main.aux"
-  "main.log"
-  "main.out"
-  "main.pdf"
+  "main_check.aux"
+  "main_check.log"
+  "main_check.out"
+  "main_check.pdf"
   (rewritten before read)

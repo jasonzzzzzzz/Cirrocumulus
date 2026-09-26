@@ -1,0 +1,294 @@
+\tableofcontents
+\vspace{1em}
+\hrule
+\vspace{1em}
+
+\section{Some Basics}
+
+The tasks are synthetic retrieval (RULER): find a random number planted somewhere in 8K–128K tokens of text, with distractor numbers nearby. There are 20 prompts per cell.
+\begin{itemize}
+    \item Synthetic Retrieval: This means the test is artificially constructed rather than being a natural real-world task (like summarizing a real book). A piece of data is intentionally hidden inside a massive wall of text just to see if the AI can find it. 
+    \item RULER: This is the specific name of the benchmark framework (developed by researchers to evaluate long-context LLMs). It stands for Retrieval, Understanding, and Long-context Evaluation Robustness.
+    \item 8K-128K tokens: This indicates the length of the text context that the model has to process. A token is roughly a word or part of a word, so 8K tokens is about 8,000 words, and 128K tokens is about 128,000 words. The model has to search through this large amount of text to find the hidden number.
+    \item Distractor numbers: These are other numbers placed in the text that are not the target number. They are meant to confuse the model and make the task harder. The model has to correctly identify the planted number and ignore the distractors.
+    \item 20 prompts per cell: The Matrix (Cells): When testing LLMs, researchers usually create a grid or matrix. For example, the horizontal axis might be the context length (8K, 16K, 32K, 64K, 128K) and the vertical axis might be the depth of where the needle is hidden (0\% depth = top of the document, 50\% = middle, 100\% = bottom). Each intersection on this grid is a "cell." This means that for each configuration or "cell" of the experiment (which could be a specific model, context length, or other parameter), there are 20 different test cases (prompts) that the model is evaluated on. Each prompt is a separate instance of the retrieval task. 
+\end{itemize}
+
+Some metrics
+\begin{itemize}
+    \item valid mean task score
+\end{itemize}
+
+10 promots -> 100prompts or 1000 prompts? 
+not  head-output error but task score.  The task score is the final evaluation metric that measures how well the model performed on the retrieval task. It is calculated based on whether the model correctly identified the planted number in each prompt. The valid mean task score is the average score across all valid prompts (those that were not filtered out due to errors or other issues). This metric gives an overall sense of the model's performance on the retrieval task across different configurations and contexts.
+
+
+\section{Scope of the common rate-allocation view}
+\label{app:scope}
+
+This appendix expands the derivation and measurement contract used in the main
+paper.  The common action space is deliberately narrow: it allocates
+\emph{key-token} rates within an attention head, leaves values exact, and measures
+attention-output error.  Prior work already combines quantization and eviction
+in deployable systems.  Our claim is instead that a common local surrogate makes
+it possible to ask a different empirical question: when does the discrete
+interior improve over uniform quantization and eviction under matched
+information and key-bit budgets?
+
+Throughout, \emph{zero rate} means a zero-bit action in the separable planning
+surrogate.  It does not mean that set eviction is exactly identical to
+independent additive logit noise.  Section~\ref{app:derivation} makes this
+distinction explicit.
+
+\section{Output distortion and the zero-rate approximation}
+\label{app:derivation}
+
+\subsection{Attention and finite-bit key perturbations}
+
+For a query $q\in\mathbb R^d$, keys $k_i\in\mathbb R^d$, and values
+$v_i\in\mathbb R^{d_v}$, define
+\begin{align}
+ s_i &= q^\top k_i/\sqrt d, &
+ a_i &= \frac{\exp(s_i)}{\sum_j\exp(s_j)}, &
+ o &= \sum_i a_i v_i .
+\end{align}
+Quantizing key $i$ changes its logit by $\delta_i$.  Because
+\[
+ \frac{\partial o}{\partial s_i}=a_i(v_i-o),
+\]
+the first-order output perturbation is
+\begin{equation}
+ \Delta o \approx \sum_i a_i(v_i-o)\delta_i .
+ \label{eq:app-linear}
+\end{equation}
+Consequently,
+\begin{align}
+ \mathbb E\|\Delta o\|^2
+ &\approx
+ \sum_i a_i^2\|v_i-o\|^2\operatorname{Var}(\delta_i)
+ \nonumber\\
+ &\quad+
+ \sum_{i\ne j}a_i a_j
+ (v_i-o)^\top(v_j-o)\operatorname{Cov}(\delta_i,\delta_j).
+ \label{eq:app-covariance}
+\end{align}
+Equation~\eqref{eq:surrogate} follows only when the residual perturbations are
+zero mean and the cross-token covariance contribution vanishes.  Softmax
+invariance removes a \emph{common} shift,
+$\operatorname{softmax}(s+c\mathbf 1)=\operatorname{softmax}(s)$; it does not
+remove arbitrary token-dependent bias.
+
+\subsection{Exact set eviction}
+
+Let $E$ be an evicted token set and $A_E=\sum_{i\in E}a_i$.  Renormalizing the
+remaining attention weights yields
+\begin{align}
+ o_{\setminus E}
+ &=\frac{o-\sum_{i\in E}a_i v_i}{1-A_E},\\
+ o_{\setminus E}-o
+ &=-\frac{\sum_{i\in E}a_i(v_i-o)}{1-A_E},\\
+ \|o_{\setminus E}-o\|^2
+ &=\frac{\left\|\sum_{i\in E}a_i(v_i-o)\right\|^2}
+ {(1-A_E)^2}.
+ \label{eq:app-exact-eviction}
+\end{align}
+The denominator and cross-token inner products prevent an exact token-separable
+representation.  For one evicted token $j$, the exact error magnitude is
+\[
+ \frac{a_j}{1-a_j}\|v_j-o\|,
+\]
+which connects directly to the CAOTE singleton score.  ReST-KV further models
+attention redistribution and output reconstruction; our local planner does not
+subsume those effects.
+
+\subsection{The planning approximation}
+
+When the evicted mass is small and cross terms are neglected,
+Eq.~\eqref{eq:app-exact-eviction} motivates
+\[
+ \widetilde D_0(E)=\sum_{i\in E} w_i,
+ \qquad
+ w_i=a_i^2\|v_i-o\|^2.
+\]
+We choose units in which the absolute zero-rate distortion is $d_0=1$ and write
+the finite-rate costs as $d_b=\operatorname{Var}(\delta_b)$ in the same logit
+units.  Thus
+\[
+ \widetilde D(\mathbf b)=\sum_i w_i d_{b_i},
+ \qquad b_i\in\mathcal B,\quad 0\in\mathcal B.
+\]
+This convention keeps relative quantizer factors separate from the absolute zero-rate
+cost.  It is a local approximation used to choose an allocation; every
+reported response is obtained by recomputing attention with the actual
+quantized/evicted cache.
+
+\section{Discrete rate allocation and regime coordinates}
+\label{app:allocation}
+
+\subsection{The implemented optimizer}
+
+At average key budget $B$, the discrete problem is
+\begin{equation}
+ \min_{b_i\in\mathcal B}\sum_i w_i d_{b_i}
+ \quad\text{subject to}\quad
+ \sum_i b_i\le BL.
+ \label{eq:app-discrete}
+\end{equation}
+Introducing multiplier $\lambda\ge0$ separates the token decisions:
+\begin{equation}
+ b_i^\star(\lambda)
+ =\arg\min_{b\in\mathcal B}\{w_i d_b+\lambda b\}.
+ \label{eq:app-lagrange}
+\end{equation}
+We search $\lambda$ to satisfy the budget and use the discrete tiers in
+Eq.~\eqref{eq:app-lagrange}; the continuous expression is explanatory, not the
+experimental optimizer.
+
+For the relaxation $d_b=\kappa 4^{-b}$,
+\[
+ b_i^\star
+ =\frac12\log_2w_i+c
+ =\log_2a_i+\log_2\|v_i-o\|+c.
+\]
+The measured $0.035$-bit result is the maximum observed change in an
+\emph{aggregate ladder-width statistic} after adding the value term.  It is not
+a uniform per-token bound and does not establish that attention-only allocation
+is optimal.  A direct value-aware versus attention-only allocation ablation is
+therefore retained as an explicit evidence anchor.
+
+\subsection{Tier extinction}
+
+If $d_b\ge d_0$, tier $b$ consumes positive bits without improving the local
+surrogate relative to zero rate and is dominated.  This is a sufficient
+extinction condition.  The converse is not sufficient: a tier with $d_b<d_0$
+can still lie above the lower convex envelope of the other rate--distortion
+points.  For the 2-bit tier we report
+\[
+ D_2=\frac1H\sum_{h=1}^{H}\mathbb I[d_{h,2}\ge d_0].
+\]
+$D_2$ is measured at a particular model and context.  Although $L$ is absent
+from its formula, the head cost distribution changes with $L$, so $D_2$ is not
+sequence-length invariant and a new deployment context requires calibration.
+
+\subsection{Why the regime map needs two coordinates}
+
+The sharp side and diffuse side arise for different reasons:
+\begin{enumerate}
+ \item On the sharp side, large absolute finite-bit noise removes low-bit tiers;
+ $D_2$ directly probes this boundary.
+ \item On the diffuse side, unequal allocation has little leverage when token
+ importances are nearly equal; an importance-dispersion statistic is needed.
+\end{enumerate}
+For attention-only importance,
+$\operatorname{std}_i(\log_2 a_i)=\tau/\ln2$, because softmax subtracts the same
+log normalizer from every logit.  This identity alone neither proves that
+$\tau$ is a complete regime variable nor establishes a uniform-quantization
+optimum.  The paper therefore treats the mixed-to-eviction side as the
+well-supported boundary and leaves a prospective comparison of dispersion
+predictors as R10.
+
+\section{Measurement protocol and accounting}
+\label{app:protocol}
+
+\subsection{Grid and independent units}
+
+The symmetric R3 grid contains 16 model--context cells from six models and
+29,312 query-head--configuration aggregates.  The R6 boundary extension contains
+25 cells spanning 4k--256k and 44,416 such aggregates.  Across the six models,
+10,240 query-head positions and 2,016 KV-head positions are counted once;
+contexts reuse those positions.  Model/cell-level analyses, rather than raw
+heads, are therefore the independent statistical units.
+
+PG-19 passages supply natural context.  Each cell is admitted only after the
+uncompressed model passes the needle-retrieval validity gate.  The allocation
+planner uses its local surrogate, while every reported error comes from actual
+key quantization or eviction followed by exact attention-output recomputation.
+
+\subsection{Matched information and budget}
+
+The primary comparison uses $B=3$ key bits per context token.  Uniform
+quantization stores every key at 3 bits.  The eviction endpoint retains the
+number of 8-bit keys allowed by the same key-bit budget.  In the symmetric
+contract, the mixed allocator and accumulated-attention eviction both use lagged
+importance information; an oracle/current-query result is labeled only as an
+upper bound.  The five-corner robustness result changes the reference set and is
+reported separately.
+
+This accounting omits value-cache bytes, quantization scales, indices, metadata,
+protected windows, alignment, and packing.  Moreover, \emph{8-bit} is the maximum
+experimental key tier, not full floating-point precision.  The experiments
+therefore establish matched key-bit output error, not matched total memory or
+throughput.
+
+\subsection{Responses}
+
+For each head,
+\[
+ g_h=
+ \frac{\min(D_h^{\rm uniform},D_h^{\rm evict})}
+ {D_h^{\rm mixed}},
+ \qquad
+ G_+=\exp\!\left(\frac1H\sum_h\log\max(g_h,1)\right).
+\]
+$G_+$ is a hindsight portfolio statistic: it clips losses after observing all
+three errors.  It is not the performance of a deployed router.  The primary
+cell-level response is continuous $G_+$; the fraction with $g_h\ge2$ is a
+secondary thresholded band statistic.  Every band result names its corner
+and information contracts.
+
+\section{Additional robustness and deployment evidence}
+\label{app:robustness}
+
+The completed measurements support the following bounded conclusions:
+\begin{itemize}
+ \item In all 16 R3 cells, the symmetric lagged-versus-lagged band exceeds the
+ all-oracle band by 1.2--12.5 points, but it is lower than the asymmetric
+ current-query-versus-lagged estimate.  Five cells are STOP and five NARROW.
+ \item Across the 25 R6 cells, $D_2$ has Spearman correlation $-0.978$ with both
+ $G_+$ and the band; the model-partial correlation is $-0.915$.  Similar $D_2$
+ values can nevertheless differ by eight band points across architectures.
+ \item Prompt-block standard deviation is 0.4--3.0 band points.  Replacing the
+ two headline corners by the five-corner minimum lowers the band by 5.1--8.6
+ points and can change a categorical verdict.
+ \item In six R5 cells, the calibration-time family choice has p90 regret 1.00
+ through 4,096 generated tokens, whereas a frozen token allocation costs
+ $2.52$--$4.30\times$ a one-step-old allocation.
+ \item Enforcing one allocation per shared KV head gives marginal in-band costs
+ $1.000$, $1.136$, and $1.316$ at GQA repetition factors 1, 4, and 8.  A 4-bit
+ current-query cascade closes 82--91\% (median 89\%) of the lagged-score penalty.
+\end{itemize}
+
+One predictor study remains intentionally unfilled.  R10 must compare $D_2$
+prospectively against RateQuant-style heterogeneity, entropy/Gini, and
+context-only predictors under a fixed leave-model-out protocol.  R8/P2 and the
+four-baseline extension are complete with disjoint routes and
+reader/validity/false-positive/bit-accounting audits.  Uniform is the strongest
+fixed arm in 34/36 valid cells, while the calibrated router has 17 clear losses.
+Two natural-task development blocks expose only $3/52$ and $2/52$ candidate
+headroom over their best fixed policies; sequential gates suppress both proxy
+outcomes and leave confirmation unopened.  These results do not establish
+end-task effectiveness.
+
+\section{Claim boundary}
+\label{app:claims}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}p{0.29\textwidth}p{0.64\textwidth}@{}}
+\toprule
+\textbf{Supported} & \textbf{Not yet supported} \\
+\midrule
+Zero rate is useful inside a stated separable local surrogate
+& Exact equivalence between independent quantization noise and set eviction \\
+An absolute tier cost can make a finite-bit tier dominated
+& A universal one-dimensional phase transition or threshold \\
+$D_2$ strongly orders the measured mixed-to-eviction boundary
+& A context-free predictor that transfers without calibration \\
+The output-error-optimal family label is temporally stable in six measured cells while token allocations become stale quickly
+& A robust end-task router, total-KV memory savings, or realized throughput \\
+\bottomrule
+\end{tabular}
+\caption{The empirical and methodological claim boundary of the current draft.}
+\label{tab:app-claims}
+\end{table}

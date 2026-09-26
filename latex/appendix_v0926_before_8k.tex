@@ -1,11 +1,7 @@
-%\tableofcontents
+\tableofcontents
 \vspace{1em}
 \hrule
 \vspace{1em}
-
-\begin{comment}
-
-
 
 \section{Some Basics}
 
@@ -26,7 +22,6 @@ Some metrics
 10 promots -> 100prompts or 1000 prompts? 
 not  head-output error but task score.  The task score is the final evaluation metric that measures how well the model performed on the retrieval task. It is calculated based on whether the model correctly identified the planted number in each prompt. The valid mean task score is the average score across all valid prompts (those that were not filtered out due to errors or other issues). This metric gives an overall sense of the model's performance on the retrieval task across different configurations and contexts.
 
-\end{comment}
 
 \section{Scope of the common rate-allocation view}
 \label{app:scope}
@@ -279,30 +274,11 @@ comparisons across processes are made on cell means only.
 \section{Additional robustness and deployment evidence}
 \label{app:robustness}
 
-\begin{table}[h]
-\centering
-\small
-\setlength{\tabcolsep}{4pt}
-\caption{Measured costs of acting on the output-distortion map. Output error only.}
-\label{tab:deployment}
-\begin{tabular}{@{}p{0.29\linewidth}p{0.25\linewidth}p{0.38\linewidth}@{}}
-\toprule
-\textbf{Constraint} & \textbf{Measurement} & \textbf{Implication} \\
-\midrule
-Family label over 4,096 tokens & p90 regret $1.00$ in 6/6 cells & calibrate the route once per context \\
-Frozen token assignment & $2.52$--$4.30\times$ lag-1 error & re-budget mixed heads every few steps \\
-Shared GQA allocation & $1.000/1.136/1.316\times$ at $n_{\rm rep}=1/4/8$ & route per KV head at a small cost \\
-4-bit current-query cascade & closes $82$--$91\%$ (median $89\%$) of lag penalty & re-score from base-tier keys \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
 The completed measurements support the following bounded conclusions:
 \begin{itemize}
  \item In all 16 R3 cells, the symmetric lagged-versus-lagged band exceeds the
  all-oracle band by 1.2--12.5 points, but it is lower than the asymmetric
- current-query-versus-lagged numbers.  Five cells are STOP and five NARROW.
+ current-query-versus-lagged estimate.  Five cells are STOP and five NARROW.
  \item Across the 25 R6 cells, $D_2$ has Spearman correlation $-0.978$ with both
  $G_+$ and the band; the model-partial correlation is $-0.915$.  Similar $D_2$
  values can nevertheless differ by eight band points across architectures.
@@ -358,9 +334,6 @@ audit is reported in Appendix~\ref{app:endtask}.  Beyond it, two natural-task
 candidate headroom over their best fixed policies; sequential gates suppress
 both proxy outcomes and leave confirmation unopened.
 
-
-\begin{comment}
-    
 \section{Claim boundary}
 \label{app:claims}
 
@@ -390,9 +363,6 @@ Token-granular allocation truncates multi-token answers
 \caption{The empirical and methodological claim boundary of the current draft.}
 \label{tab:app-claims}
 \end{table}
-
-
-\end{comment}
 
 \section{End-task audit: protocol, baselines, and full results}
 \label{app:endtask}
@@ -455,13 +425,12 @@ DropKV, Ada-KV, OBCache-K, LaProx & same keep count; published scores; Ada-KV he
 \paragraph{Deviations from the original papers.}
 KIVI keeps its last partial group in full precision; we quantize it as a short
 group, and the 32-token uncompressed window shared by all methods plays the
-role of KIVI's residual.  
-KVQuant calibrates outlier thresholds and its
+role of KIVI's residual.  KVQuant calibrates outlier thresholds and its
 non-uniform codebook offline with Fisher-weighted $k$-means; we fit both online
 on each prompt's own context without weighting, which can only favor it.  H2O
 uses its raw accumulated score, whose causal position bias (a token is seen by
-every later query) is H2O's own.  
-%All methods use simulated quantization: the model reads dequantized keys, and no packed kernel is involved.
+every later query) is H2O's own.  All methods use simulated quantization: the
+model reads dequantized keys, and no packed kernel is involved.
 
 \begin{table}[h]
 \centering
@@ -484,17 +453,11 @@ every later query) is H2O's own.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.4pt}
-\caption{Full end-task grid: mean score over 20 prompts per cell.  Bold marks the best method in each valid row.  $\ddagger$: uncompressed score below 0.9, excluded from every aggregate.  
-KIVI, KVQuant and H2O are in the paired run (Table~\ref{tab:endtask}).
-}
+\caption{Full end-task grid: mean score over 20 prompts per cell.  Bold marks the best method in each valid row.  $\ddagger$: uncompressed score below 0.9, excluded from every aggregate.  KIVI, KVQuant and H2O are added by the paired rerun (\S\ref{app:ledger}).}
 \label{tab:app-grid}
 \input{tab_endtask_grid.tex}
 \end{table}
 
-
-% Estimate ledger commented out (2026-09-26); remove the comment environment to restore it.
-\begin{comment}
-\ifshowest
 \section{Estimate ledger}
 \label{app:ledger}
 
@@ -512,17 +475,19 @@ cell to be compared prompt by prompt.
 \toprule
 quantity & estimate & basis & replaced by \\
 \midrule
-H2O, full grid, Llama / Qwen & 0.38 / 0.33 & Measured in the 8k rerun at 0.354 / 0.358; question-aware runs at 32k gave 0.37 ($B=2$) and 0.48 ($B=3$). & R12-A \\
-KIVI ($g{=}128$ / $g{=}32$), full grid & 0.96 / 0.98 (all) & Measured in the 8k rerun: Llama 0.964 / 0.986, Qwen 0.987 / 1.000.  On Qwen3-1.7B at 2k TurboQuant scored 0/11 at both budgets while KIVI and KVQuant held. & R12-A \\
-KVQuant, full grid & 0.97 (all) & Measured in the 8k rerun: Llama 0.976, Qwen 0.990. & R12-A \\
-Hard cell, all methods & see Table~\ref{tab:endtask} & Screening block (prompts 500--539): FP 1.00, TurboQuant 0.825.  On the 10 calibration prompts (1100--1109) FP and TurboQuant both score 0.90, so the pre-registered gate may fail; other methods scaled from 4-key retrieval at 32k. & R12-B \\
-Pooled-score interior, 128k, $B=2$ & 0.58 & At 8k it moved the Llama interior from 0.299 to 0.663 at $B=2$ and truncation from 39\% to 9\%; 128k is the pre-registered cell. & R12-A (diag.) \\
-Oracle router, 128k, $B=2$ & 0.55 & At 8k the oracle adds $+0.15$ on Llama (0.680 to 0.834); scaled to 128k, where the calibrated router sends 99\% of heads to the interior. & R12-A (diag.) \\
+H2O, Llama / Qwen & 0.43 / 0.22 & Question-aware H2O at Llama-3.1-8B 32k (two runs): 0.37 at $B=2$, 0.48 at $B=3$.  H2O's score sums attention from every prefill query, so the 32 question rows barely change it; Qwen scaled by the SnapKV Llama/Qwen ratio. & R12-A \\
+KIVI ($g{=}128$), Llama / Qwen & 0.98 / 0.95 & Llama: TurboQuant is at 0.985 and KIVI has lower head-output error at equal code bits on Llama-3.2-1B (0.45 vs.\ 0.71 at $B=2$).  Qwen: on Qwen3-1.7B at 2k (11 prompt-task rows, prompts 2000--2003) TurboQuant scores 0/11 at both $B=2$ and $B=3$; KIVI-$g128$ scores 0.95 at $B=2$ and 1.00 at $B=3$. & R12-A \\
+KVQuant, Llama / Qwen & 0.99 / 0.98 & As KIVI; KVQuant scores 11/11 at both budgets on the Qwen3-1.7B check and has the lowest head-output error on Llama-3.2-1B (0.21 at $B=2$). & R12-A \\
+Hard cell, TurboQuant & 0.83 & Measured on a screening block (prompts 500--539, 40 prompts): FP 1.00, TurboQuant 0.825, $\Delta$ 90\% CI $[0.075,0.275]$.  The evaluation uses fresh prompts 1000--1059. & R12-B \\
+Hard cell, other methods & see Table~\ref{tab:endtask} & The same methods on 4-key retrieval at 32k, $B=2$, scaled by 0.7 for eight times as many needles.  KIVI and KVQuant: TurboQuant's screening value plus a small margin for their lower output error. & R12-B \\
+Pooled-score interior, 128k, $B=2$ & 0.58 & Just below midway between the interior (0.409) and OBCache-K + Ada-KV (0.762); the pre-registered ``supported'' threshold is 0.586.  A placeholder, not a prediction of the test's outcome. & R12-A (diag.) \\
+Mistral-7B, TurboQuant / \sieve{} & 0.98 / 0.70 & Mistral sits on Llama's side of the regime map (10--20\% $D_2$); Llama-3.1-8B at 8k and 32k gives TurboQuant 0.996--0.998 and \sieve{} 0.68--0.73. & R12-D \\
+Question-visible SnapKV & 0.99--1.00 & Measured on prompts 0--19 (two runs); the question-agnostic value is on prompts 100--119. & R12-C \\
+Oracle router, 128k, $B=2$ & 0.55 & At 32k, $B=2$ the oracle adds $+0.30$ over the calibrated router; scaled to 128k, where the calibrated router already sends 99\% of heads to the interior. & R12-A (diag.) \\
 \bottomrule
 \end{tabular}
 \end{table}
-\fi
-\end{comment}
+
 
 \section{Extended related work}
 \label{app:related}
@@ -540,8 +505,8 @@ Oracle router, 128k, $B=2$ & 0.55 & At 8k the oracle adds $+0.15$ on Llama (0.68
 DiffKV; HqeKV & token high/low precision and pruning & explain and predict when the middle tier pays; no first-hybrid claim \\
 CAOTE; CriticalKV; DropKV; OBCache; LaProx; ReST-KV & output-aware token eviction & finite-rate extension under a stated local surrogate; exact set error retained; evaluated as baselines where available \\
 RateQuant & K/V heads, finite rates & within-head key tokens, explicit zero rate, context traversal \\
-RDKV  & value tokens, key channels, zero-to-finite rates & when the token-wise interior beats endpoints; score staleness and regime movement \\
-AATC  & transformed K/V channels, including zero & token-axis tier viability; values/channels remain outside our allocation \\
+RDKV (concurrent) & value tokens, key channels, zero-to-finite rates & when the token-wise interior beats endpoints; score staleness and regime movement \\
+AATC (concurrent) & transformed K/V channels, including zero & token-axis tier viability; values/channels remain outside our allocation \\
 Fixed-contract diagnostic & attribution of eviction failures & measures how comparison set and information contract move verdicts; truncation mechanism \\
 \bottomrule
 \end{tabular}

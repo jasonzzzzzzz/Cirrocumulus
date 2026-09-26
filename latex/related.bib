@@ -1,0 +1,239 @@
+% Added 2026-09-25 for the expanded related-work section.
+% Sources: the two NVIDIA EAI blog reference lists ("KV Cache Compression and
+% Its Infra Problems"; "Pushing Intelligence to 4-bit"), the R8/R9 baselines,
+% and works used elsewhere in the paper. arXiv IDs checked against the blogs'
+% reference lists or arxiv.org; verify venues again before camera-ready.
+
+% ---------------------------------------------------------- eviction / sparsity
+@inproceedings{oren2024tova,
+  title     = {Transformers are Multi-State {RNN}s},
+  author    = {Oren, Matanel and Hassid, Michael and Yarden, Nir and Adi, Yossi and Schwartz, Roy},
+  booktitle = {Proceedings of the Conference on Empirical Methods in Natural Language Processing},
+  year      = {2024},
+  note      = {arXiv:2401.06104}
+}
+@inproceedings{tang2024quest,
+  title     = {Quest: Query-Aware Sparsity for Efficient Long-Context {LLM} Inference},
+  author    = {Tang, Jiaming and Zhao, Yilong and Zhu, Kan and Xiao, Guangxuan and Kasikci, Baris and Han, Song},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2024},
+  note      = {arXiv:2406.10774}
+}
+@inproceedings{cai2025rkv,
+  title     = {{R-KV}: Redundancy-aware {KV} Cache Compression for Reasoning Models},
+  author    = {Cai, Zefan and Xiao, Wen and Sun, Hanshi and Luo, Cheng and Zhang, Yikai and others},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2025},
+  note      = {arXiv:2505.24133}
+}
+@inproceedings{mao2026triattention,
+  title     = {{TriAttention}: Efficient Long Reasoning with Trigonometric {KV} Compression},
+  author    = {Mao, Weian and Lin, Xi and Huang, Wei and Xie, Yuxin and Fu, Tianfu and Zhuang, Bohan and Han, Song and Chen, Yukang},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2026},
+  note      = {arXiv:2604.04921}
+}
+@inproceedings{feng2026criticalkv,
+  title     = {{CriticalKV}: Optimizing {KV} Cache Eviction from an Output Perturbation Perspective},
+  author    = {Feng, Yuan and Lv, Junlin and Guo, Haoyu and Cao, Yukun and Zhou, S. Kevin and Xie, Xike},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2026},
+  note      = {arXiv:2502.03805}
+}
+@inproceedings{zhang2026dropkv,
+  title     = {{DropKV}: Decoupling Residual-Output Perturbation for Near-Optimal {KV}-Cache Eviction},
+  author    = {Zhang, Aozhong and Gurses, Selcuk and Deng, Yanxia and Wang, Naigang and Liu, Charlie and Wertheimer, Davis and Liu, Derrick and Li, Xin and Yang, Zi and Ye, Felix and Yin, Penghang},
+  booktitle = {ICML Workshop},
+  year      = {2026},
+  note      = {Code: github.com/AozhongZhang/DropKV}
+}
+@inproceedings{gu2026obcache,
+  title     = {{OBCache}: Optimal Brain {KV} Cache Pruning for Efficient Long-Context {LLM} Inference},
+  author    = {Gu, Yuzhe and Liang, Xiyu and Zhao, Jiaojiao and Diao, Enmao},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2026},
+  note      = {arXiv:2510.07651}
+}
+@article{mai2026laprox,
+  title   = {Reformulating {KV} Cache Eviction Problem for Long-Context {LLM} Inference},
+  author  = {Mai, Tho and Kim, Joo-Young},
+  journal = {arXiv preprint arXiv:2605.07234},
+  year    = {2026}
+}
+@article{zhang2026fixedcontract,
+  title   = {When Does Value-Aware {KV} Eviction Help? {A} Fixed-Contract Diagnostic for Non-Monotone Cache Compression},
+  author  = {Zhang, Ruijie and Liang, Haozhe and Chang, Da and Hu, Li and Kong, Fanqi and Yin, Huaxiao and Li, Yu},
+  journal = {arXiv preprint arXiv:2605.08234},
+  year    = {2026}
+}
+
+% ------------------------------------------------------------- quantization
+@article{kang2024gear,
+  title   = {{GEAR}: An Efficient {KV} Cache Compression Recipe for Near-Lossless Generative Inference of {LLM}},
+  author  = {Kang, Hao and Zhang, Qingru and Kundu, Souvik and Jeong, Geonhwa and Liu, Zaoxing and Krishna, Tushar and Zhao, Tuo},
+  journal = {arXiv preprint arXiv:2403.05527},
+  year    = {2024}
+}
+@misc{ocp2023mx,
+  title        = {{OCP} Microscaling Formats ({MX}) Specification},
+  author       = {{Open Compute Project}},
+  year         = {2023},
+  howpublished = {Specification v1.0}
+}
+@misc{alvarez2025nvfp4,
+  title        = {Introducing {NVFP4} for Efficient and Accurate Low-Precision Inference},
+  author       = {Alvarez, Eduardo and Almog, Omri and Chung, Eric and Layton, Simon and Stosic, Dusan and Krashinsky, Ronny and Aubrey, Kyle},
+  year         = {2025},
+  howpublished = {NVIDIA Technical Blog}
+}
+@misc{alvarez2025nvfp4kv,
+  title        = {Optimizing Inference for Long Context and Large Batch Sizes with {NVFP4} {KV} Cache},
+  author       = {Alvarez, Eduardo and Chen, Wei-Ming and Mao, Huizi},
+  year         = {2025},
+  howpublished = {NVIDIA Technical Blog}
+}
+@misc{devleker2025nvfp4train,
+  title        = {{NVFP4} Trains with Precision of 16-Bit and Speed and Efficiency of 4-Bit},
+  author       = {Devleker, Kirthi and Ghodsian, Farshad},
+  year         = {2025},
+  howpublished = {NVIDIA Technical Blog}
+}
+@misc{nvidia2025nvfp4ways,
+  title        = {3 Ways {NVFP4} Accelerates {AI} Training and Inference},
+  author       = {{NVIDIA}},
+  year         = {2025},
+  howpublished = {NVIDIA Technical Blog}
+}
+@article{nvidia2025nvfp4pretrain,
+  title   = {Pretraining Large Language Models with {NVFP4}},
+  author  = {{NVIDIA}},
+  journal = {arXiv preprint arXiv:2509.25149},
+  year    = {2025}
+}
+@misc{nvidia2024te,
+  title        = {{NVIDIA} {TransformerEngine}},
+  author       = {{NVIDIA}},
+  year         = {2024},
+  howpublished = {\url{https://github.com/NVIDIA/TransformerEngine}}
+}
+@misc{nvidia2024modelopt,
+  title        = {{NVIDIA} {TensorRT} Model Optimizer},
+  author       = {{NVIDIA}},
+  year         = {2024},
+  howpublished = {\url{https://github.com/NVIDIA/TensorRT-Model-Optimizer}}
+}
+@inproceedings{li2025svdquant,
+  title     = {{SVDQuant}: Absorbing Outliers by Low-Rank Components for 4-Bit Diffusion Models},
+  author    = {Li, Muyang and Lin, Yujun and Zhang, Zhekai and Cai, Tianle and Li, Xiuyu and Guo, Junxian and Xie, Enze and Meng, Chenlin and Zhu, Jun-Yan and Han, Song},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2025},
+  note      = {NVFP4 results: MIT Han Lab Blog, February 2025}
+}
+@article{zhao2024viditq,
+  title   = {{ViDiT-Q}: Efficient and Accurate Quantization of Diffusion Transformers for Image and Video Generation},
+  author  = {Zhao, Tianchen and others},
+  journal = {arXiv preprint arXiv:2406.02540},
+  year    = {2024}
+}
+@article{huang2025qerl,
+  title   = {{QeRL}: Beyond Efficiency -- Quantization-enhanced Reinforcement Learning for {LLM}s},
+  author  = {Huang, Wei and others},
+  journal = {arXiv preprint arXiv:2510.11696},
+  year    = {2025}
+}
+@article{openai2025gptoss,
+  title   = {gpt-oss-120b \& gpt-oss-20b Model Card},
+  author  = {{OpenAI}},
+  journal = {arXiv preprint arXiv:2508.10925},
+  year    = {2025}
+}
+@misc{deepseek2026v4,
+  title        = {{DeepSeek-V4} Model Card},
+  author       = {{DeepSeek-AI}},
+  year         = {2026},
+  howpublished = {Hugging Face model card (DeepSeek-V4-Pro)}
+}
+
+% ------------------------------------------------------- attention kernels
+@article{dao2023flashattention2,
+  title   = {{FlashAttention-2}: Faster Attention with Better Parallelism and Work Partitioning},
+  author  = {Dao, Tri},
+  journal = {arXiv preprint arXiv:2307.08691},
+  year    = {2023}
+}
+@article{shah2024flashattention3,
+  title   = {{FlashAttention-3}: Fast and Accurate Attention with Asynchrony and Low-Precision},
+  author  = {Shah, Jay and Bikshandi, Ganesh and Zhang, Ying and Thakkar, Vijay and Ramani, Pradeep and Dao, Tri},
+  journal = {arXiv preprint arXiv:2407.08608},
+  year    = {2024}
+}
+@article{zhang2024sageattention,
+  title   = {{SageAttention}: Accurate 8-Bit Attention for Plug-and-Play Inference Acceleration},
+  author  = {Zhang, Jintao and Wei, Jia and Huang, Haofeng and Zhang, Pengle and Zhu, Jun and Chen, Jianfei},
+  journal = {arXiv preprint arXiv:2410.02367},
+  year    = {2024}
+}
+@article{zhang2024sageattention2,
+  title   = {{SageAttention2}: Efficient Attention with Thorough Outlier Smoothing and Per-Thread {INT4} Quantization},
+  author  = {Zhang, Jintao and Huang, Haofeng and Zhang, Pengle and Wei, Jia and Zhu, Jun and Chen, Jianfei},
+  journal = {arXiv preprint arXiv:2411.10958},
+  year    = {2024}
+}
+@article{zhang2025sageattention3,
+  title   = {{SageAttention3}: Microscaling {FP4} Attention for Inference and An Exploration of 8-bit Training},
+  author  = {Zhang, Jintao and Wei, Jia and Zhang, Pengle and Xu, Xiaoming and Huang, Haofeng and Wang, Haoxu and Jiang, Kai and Chen, Jianfei and Zhu, Jun},
+  journal = {arXiv preprint arXiv:2505.11594},
+  year    = {2025}
+}
+@inproceedings{kwon2023vllm,
+  title     = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  author    = {Kwon, Woosuk and Li, Zhuohan and Zhuang, Siyuan and Sheng, Ying and Zheng, Lianmin and Yu, Cody Hao and Gonzalez, Joseph E. and Zhang, Hao and Stoica, Ion},
+  booktitle = {Proceedings of the ACM SIGOPS 29th Symposium on Operating Systems Principles},
+  year      = {2023}
+}
+
+% ------------------------------------------------------------ video KV caches
+@inproceedings{xi2026quantvideogen,
+  title     = {Quant {VideoGen}: Auto-Regressive Long Video Generation via 2-Bit {KV}-Cache Quantization},
+  author    = {Xi, Haocheng and Yang, Shuo and Zhao, Yilong and Li, Muyang and Cai, Han and others and Han, Song and Keutzer, Kurt},
+  booktitle = {International Conference on Machine Learning},
+  year      = {2026},
+  note      = {arXiv:2602.02958}
+}
+@inproceedings{yang2026longlive,
+  title     = {{LongLive}: Real-time Interactive Long Video Generation},
+  author    = {Yang, Shuai and Huang, Wei and Chu, Ruihang and Xiao, Yicheng and Zhao, Yuyang and others and Han, Song and Chen, Yukang},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2026},
+  note      = {arXiv:2509.22622}
+}
+@article{chen2026longlive2,
+  title   = {{LongLive 2.0}: An {NVFP4} Parallel Infrastructure for Long Video Generation},
+  author  = {Chen, Yukang and Wang, Luozhou and Huang, Wei and Yang, Shuai and Zhang, Bohan and Xiao, Yicheng and Chu, Ruihang and Mao, Weian and Hu, Qixin and Liu, Shaoteng and Zhao, Yuyang and Mao, Huizi and Chen, Ying-Cong and Xie, Enze and Qi, Xiaojuan and Han, Song},
+  journal = {arXiv preprint arXiv:2605.18739},
+  year    = {2026}
+}
+@article{wan2025wan,
+  title   = {Wan: Open and Advanced Large-Scale Video Generative Models},
+  author  = {{Wan Team}},
+  journal = {arXiv preprint arXiv:2503.20314},
+  year    = {2025}
+}
+
+% ------------------------------------------------------------- benchmarks
+@inproceedings{bai2025longbenchv2,
+  title     = {{LongBench} v2: Towards Deeper Understanding and Reasoning on Realistic Long-context Multitasks},
+  author    = {Bai, Yushi and Tu, Shangqing and Zhang, Jiajie and Peng, Hao and Wang, Xiaozhi and Lv, Xin and Cao, Shulin and Xu, Jiazheng and Hou, Lei and Dong, Yuxiao and Tang, Jie and Li, Juanzi},
+  booktitle = {Proceedings of the Annual Meeting of the Association for Computational Linguistics},
+  year      = {2025},
+  note      = {arXiv:2412.15204}
+}
+
+% Verified 2026-09-26 against arXiv:2407.01527 and ACL Anthology 2024.findings-emnlp.266.
+@inproceedings{yuan2024kvbench,
+  title     = {{KV} Cache Compression, But What Must We Give in Return? {A} Comprehensive Benchmark of Long Context Capable Approaches},
+  author    = {Yuan, Jiayi and Liu, Hongyi and Zhong, Shaochen and Chuang, Yu-Neng and Li, Songchen and Wang, Guanchu and Le, Duy and Jin, Hongye and Chaudhary, Vipin and Xu, Zhaozhuo and Liu, Zirui and Hu, Xia},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2024},
+  year      = {2024},
+  note      = {arXiv:2407.01527}
+}

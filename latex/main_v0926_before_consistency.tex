@@ -1,0 +1,347 @@
+\documentclass{article}
+\usepackage{iclr2026_conference,times}
+
+\input{math_commands.tex}
+
+\usepackage[colorlinks=true,linkcolor=black!70!blue,citecolor=black!70!blue,urlcolor=black!70!blue]{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{microtype}
+\usepackage{multirow}
+
+% Draft markers. Every marker names the evidence needed to remove it.
+\definecolor{tbdcol}{HTML}{C0561B}
+\newcommand{\tbd}[1]{{\color{tbdcol}\textbf{TBD}~#1}}
+% Estimated number awaiting a run; the ledger in App. H gives its basis and the
+% job that replaces it.
+\definecolor{estcol}{HTML}{1F5FAF}
+\newcommand{\est}[1]{{\color{estcol}#1$^{\dagger}$}}
+\newcommand{\sieve}{\textsc{Sieve}}
+\newcommand{\gplus}{G_{+}}
+
+% Theorem-like environments used by appendix.tex.
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{remark}{Remark}[section]
+
+\title{When Does Joint Key-Cache Allocation Pay?\\
+Output-Distortion Regimes and Their Limits on End Tasks}
+
+\author{Anonymous authors \\ Paper under double-blind review}
+
+% \iclrfinalcopy
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+A KV-cache budget can be spent by quantizing every token, by evicting tokens, or by mixing zero and finite precisions across tokens.  Hybrid systems already exist; we ask \emph{when} the mixed interior improves over its two endpoints, and whether the answer measured on attention-output distortion carries over to end tasks.  Under a separable local surrogate, key-token precision becomes a discrete rate-allocation problem that contains eviction as a zero-rate tier, and a finite-bit tier is dominated when its absolute logit-noise cost exceeds that of zero rate.  The fraction of heads with a dominated 2-bit tier orders the interior's exactly recomputed output-error advantage across six LLMs and 25 model--context cells (Spearman $\rho=-0.978$; $-0.915$ controlling for model), but the crossing point is architecture-specific, and longer contexts move a fixed model toward the eviction corner.  Over 4,096 decode tokens, a head's best policy family is stable while its token allocation goes stale within steps.  An end-task audit against quantization and eviction baselines then bounds these findings.  The output-error-optimal allocator is the strongest \emph{token-selective} policy we test (0.77 vs.\ 0.60 mean task score), and it beats TurboQuant on Qwen3-8B (0.99 vs.\ 0.87), but dense low-bit quantization dominates on Llama-3.1-8B (0.99 vs.\ 0.65).  Output distortion ranks budgets and contexts, not methods: within a cell its rank correlation with accuracy is $-0.05$.  The allocator's dominant failure is answer truncation: multi-token answers lose every token after the first, which the eviction baselines rarely do.
+\end{abstract}
+
+% ===========================================================================
+\section{Introduction}
+\label{sec:intro}
+% ===========================================================================
+
+At long context, the KV cache can bound batch size and decode throughput.  A cache budget admits at least three actions: assign every token one low precision~\citep{liu2024kivi,hooper2024kvquant,zandieh2025turboquant}, retain selected tokens at a higher precision~\citep{zhang2023h2o,liu2023scissorhands,li2024snapkv,xiao2024streamingllm}, or mix zero and finite rates across tokens.  The last option is no longer hypothetical: DiffKV and HqeKV combine pruning with multiple precision levels~\citep{zhang2025diffkv,wang-etal-2026-hqekv}.  What remains unclear is whether the extra interior choices are useful for a given model and deployment context, whether a simpler endpoint already suffices, and whether the proxy used to design such allocators predicts what a user observes.
+
+This paper is a measurement study of those questions.  It does not propose a better compressor.  We build the allocator that is optimal for attention-output distortion, \sieve{}, and use it as an instrument: it tells us how large the interior's advantage can be under that objective, where the advantage disappears, and whether it survives the step to task accuracy.  The motivating reversal is within one model: from 8k to 128k, Llama-3.3-70B's dead-2-bit fraction rises from $5.5\%$ to $41.4\%$, its hindsight portfolio gain falls from $3.17\times$ to $1.40\times$, and the share of heads where the interior beats both endpoints by $2\times$ falls from $87.4\%$ to $21.3\%$.  A verdict at one context therefore need not transfer to another.
+
+\paragraph{Findings.}  We organize the paper around seven observations (Table~\ref{tab:findings}).  F1--F3 concern attention-output distortion, where the interior is well defined and exactly measurable (\S\ref{sec:regimes}).  F4--F6 test whether those regimes transfer to retrieval accuracy against published quantization and eviction baselines (\S\ref{sec:endtask}); the answer is mixed, and the way it fails is informative.  F7 cuts across both levels: the comparison itself moves verdicts more than sampling does.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Summary of findings, their evidence, and what they do \emph{not} show.}
+\label{tab:findings}
+\begin{tabular}{@{}p{0.03\linewidth}p{0.40\linewidth}p{0.20\linewidth}p{0.29\linewidth}@{}}
+\toprule
+& \textbf{Observation} & \textbf{Evidence} & \textbf{Boundary} \\
+\midrule
+F1 & Tier extinction ($D_2$) orders the interior's output-error advantage & 25 cells, $\rho=-0.978$; Fig.~\ref{fig:regime}a & crossing is per architecture, not universal \\
+F2 & Longer context moves a fixed model toward the eviction corner & 6 trajectories, 4k--256k; Fig.~\ref{fig:regime}b & mostly absolute length, small RoPE-cap residual \\
+F3 & Policy family is slow; token allocation is fast & 6 cells, 4,096 tokens; Fig.~\ref{fig:evidence}b & output error only \\
+F4 & Among token-selective policies, the output-error optimum is strongest; whether it beats dense quantization depends on model and quantizer & 36 task cells, 6 baselines (+3 pending); Table~\ref{tab:endtask}, Fig.~\ref{fig:endtask}a & dense quantization wins on Llama; KIVI/KVQuant on Qwen pending \\
+F5 & Output distortion ranks budgets and contexts, not methods & $\rho=-0.05$ within a cell; Fig.~\ref{fig:endtask}b & retrieval tasks only \\
+F6 & Token-granular allocation truncates multi-token answers & 36\% vs.\ 1--11\%; Fig.~\ref{fig:endtask}c & repair is a hypothesis under test \\
+F7 & The comparison set and information contract move verdicts more than prompt sampling does & 4 contrasts; Table~\ref{tab:contract} & 4 cells for the sampling estimate \\
+\bottomrule
+\end{tabular}
+\vspace{-2mm}
+\end{table}
+
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=*,itemsep=1pt,topsep=2pt]
+  \item \textbf{A common action space and a measurable coordinate.} We place within-head key-token precision and eviction under one local output-distortion surrogate, keep the exact set-eviction error distinct from its separable zero-rate approximation, and derive a tier-extinction coordinate $D_2$ (\S\ref{sec:framework}).
+  \item \textbf{A regime map for output distortion.} With exact recomputation and a symmetric information contract, we show where the interior pays, how context moves a model across regimes, and on which two timescales a controller would have to act (F1--F3).
+  \item \textbf{An end-task audit of the map.} Against quantization and eviction baselines at matched key bits, we identify where output-distortion optimality transfers to task accuracy, where it does not, and the mechanism of the largest failure (F4--F6).
+\end{enumerate}
+
+Concurrent RDKV also derives joint eviction--quantization rate allocation~\citep{zhang2026rdkv}.  Our contribution is complementary: we measure \emph{when} a token-precision interior lowers attention-output error, how that changes with context, and how far that proxy carries to task accuracy.  Section~\ref{sec:related} compares with RDKV and other allocation axes.
+
+% ===========================================================================
+\section{Joint token-rate allocation as a common foundation}
+\label{sec:framework}
+% ===========================================================================
+
+\paragraph{Scope and local quantization surrogate.}
+For one query $q$, keys $k_i$, and values $v_i$, let
+$s_i=q^\top k_i/\sqrt d$, $a=\operatorname{softmax}(s)$, and
+$o=\sum_i a_i v_i$.  Quantizing key $i$ perturbs its logit by $\delta_i$, and the first-order output change is $\Delta o \approx \sum_i a_i(v_i-o)\delta_i$.
+If residual perturbations are zero mean and cross-token covariance terms vanish,
+\begin{equation}
+  \mathbb E\|\Delta o\|^2
+  \approx \sum_i w_i d_{b_i}, \qquad
+  w_i=a_i^2\|v_i-o\|^2,\quad d_b=\operatorname{Var}(\delta_b).
+  \label{eq:surrogate}
+\end{equation}
+Only a common-mode logit shift is canceled exactly by softmax; token-dependent bias and covariance are outside this surrogate.  We therefore use Eq.~\ref{eq:surrogate} to \emph{choose} allocations, never to score their reported error.
+
+\paragraph{Exact eviction versus a zero-rate surrogate.}
+For an evicted set $E$ with mass $A_E=\sum_{i\in E}a_i$, renormalizing the surviving attention gives exactly
+\begin{equation}
+ \|o_{\setminus E}-o\|^2
+ =\frac{\left\|\sum_{i\in E}a_i(v_i-o)\right\|^2}{(1-A_E)^2}.
+ \label{eq:exact-eviction}
+\end{equation}
+The denominator and cross-token inner products make set eviction nonseparable; for a singleton $j$ the magnitude is $a_j\|v_j-o\|/(1-a_j)$, as derived by CAOTE~\citep{goel2025caote}.
+To include zero rate in a token-separable allocator, we use the small-evicted-mass, cross-term-free approximation
+$\widetilde D_0(E)=\sum_{i\in E}w_i$ and normalize its \emph{absolute} cost to $d_0=1$.  Eviction is therefore a zero-rate action \emph{inside the surrogate}, not an exact independent-token equality.
+
+\paragraph{The implemented discrete allocation.}
+For tiers $\mathcal B=\{0,1,2,3,4,5,6,8\}$ and an average key budget $B$, we solve
+\begin{equation}
+ \min_{b_i\in\mathcal B}\sum_i w_i d_{b_i}
+ \quad\text{s.t.}\quad \sum_i b_i\le BL,
+ \qquad
+ b_i^\star(\lambda)=\arg\min_{b\in\mathcal B}\{w_i d_b+\lambda b\},
+ \label{eq:discrete}
+\end{equation}
+with a bisection on $\lambda$ enforcing the budget.  Relaxing bits to be continuous with $d_b\propto4^{-b}$ gives $b_i^\star=\log_2a_i+\log_2\|v_i-o\|+c$, which explains the reverse-water-filling shape; Eq.~\ref{eq:discrete} is the optimizer used in all experiments.
+
+\paragraph{Two coordinates, not one universal phase boundary.}
+If $d_b\ge d_0$, tier $b$ consumes bits without lowering the surrogate cost and is dominated.  This condition is sufficient for extinction but not necessary.  We summarize the sharp side by
+\begin{equation}
+ D_2=H^{-1}\textstyle\sum_{h=1}^{H}\mathbb I[d_{h,2}\ge d_0],
+ \label{eq:d2}
+\end{equation}
+the fraction of heads in a model--context cell whose 2-bit tier is dominated.  The diffuse side is different: unequal allocation has little leverage when token importance varies less than the tier spacing.  For attention-only importance, $\operatorname{std}_i(\log_2a_i)=\tau/\ln2$ is an algebraic identity, not evidence of optimality.  Thus $D_2$ measures approach to the eviction-like corner, and a dispersion coordinate is needed for the uniform corner.  $D_2$ contains no explicit $L$, but it is measured \emph{at} a context and changes with it.
+
+% ===========================================================================
+\section{Measurement protocol}
+\label{sec:protocol}
+% ===========================================================================
+
+We measure at two levels.  Attention-output distortion is exact and cheap, so it supports a dense regime map over six models and 4k--256k tokens (\S\ref{sec:regimes}).  End-task accuracy is the quantity users observe but is expensive, so we audit the map on two models chosen to lie at opposite ends of it (\S\ref{sec:endtask}).
+
+\paragraph{Output-distortion level: models, cells, and units.}
+We evaluate Llama-3.1-8B and Llama-3.3-70B~\citep{grattafiori2024llama3}, Mistral-7B~\citep{jiang2023mistral}, Qwen1.5-MoE-A2.7B~\citep{qwen2024moe}, Qwen3-8B, and Qwen3-30B-A3B~\citep{yang2025qwen3}.  The symmetric R3 grid has 16 model--context cells between 8k and 128k; the boundary extension R6 has 25 cells spanning 4k--256k (44,416 query-head--configuration aggregates).  Across the six architectures there are 10,240 query-head and 2,016 KV-head positions, reused across contexts, so statistical claims treat cells and models, not heads, as independent units.  PG-19 text~\citep{rae2020pg19} supplies the haystack, and every cell passes a full-cache needle-retrieval gate.
+
+\paragraph{Compression, budget, and information contract.}
+Keys are quantized with TurboQuant$_{\rm mse}$~\citep{zandieh2025turboquant} (random rotation and Lloyd--Max scalar quantization~\citep{lloyd1982least}).  The headline budget is $B=3$ key bits per context token; tier 0 evicts and tier 8 stores an 8-bit key.  Values remain uncompressed.  The primary comparison is symmetric: the mixed allocator and the eviction endpoint both use only lagged attention, and positions unseen by that score stay at the maximum tier.  The endpoints are uniform 3-bit quantization and accumulated-attention eviction keeping the number of 8-bit keys the budget allows (\emph{uniform+accum}); a robustness analysis takes the minimum over five corners.  Oracle results are upper bounds only.
+
+\paragraph{Exact response and metrics.}
+For every assignment we quantize the real keys, recompute attention, and measure the output error exactly.  For head $h$,
+\begin{equation}
+ g_h=\frac{\min(D_h^{\rm uniform},D_h^{\rm evict})}{D_h^{\rm mixed}},
+ \qquad
+ \gplus=\exp\!\left[H^{-1}\textstyle\sum_h\log\max(g_h,1)\right].
+ \label{eq:metrics}
+\end{equation}
+$\gplus$, the primary cell response, is a hindsight portfolio statistic, not achieved router performance.  The share of heads with $g_h\ge2$ (the ``band'') is a secondary summary.
+
+\paragraph{End-task level.}
+Llama-3.1-8B (8k, 32k, 128k) and Qwen3-8B (8k, 32k) share size and GQA ratio but sit at opposite ends of the map (low vs.\ high $D_2$).  Four RULER-style tasks~\citep{hsieh2024ruler} (single-needle, multi-key, multi-value retrieval, and variable tracking) use 20 held-out prompts per cell.  The cache is compressed once, after the context is prefilled and \emph{before} the question arrives, as in prefix caching; compressing after the question lets observation-window scores read it and saturates every such method at 1.00.  Budgets are $B\in\{2,3\}$ key \emph{code} bits per context token, audited at run time; values, the last 32 context tokens, and generated tokens are uncompressed in every method.  Side information (norms, scales, outlier indices, width maps) is reported as effective bits.  Blocks where the uncompressed model scores below 0.9 are excluded (only Qwen3-8B multi-value), leaving 36 valid model/context/task/budget cells.
+
+\paragraph{Baselines and the instrument.}
+Quantization: TurboQuant-MSE, KIVI~\citep{liu2024kivi}, and KVQuant~\citep{hooper2024kvquant}.  Eviction, all keeping $\lfloor BC/8\rfloor$ 8-bit keys: H2O~\citep{zhang2023h2o}, SnapKV~\citep{li2024snapkv}, DropKV~\citep{zhang2026dropkv}, Ada-KV~\citep{feng2024adakv}, LaProx~\citep{mai2026laprox}, and OBCache-K~\citep{gu2026obcache} with Ada-KV allocation.  \sieve{} is Eq.~\ref{eq:discrete} per KV head with a 4-bit cascade score (\S\ref{sec:regimes}), plus a router that assigns each KV head to the mixed interior, uniform quantization, or eviction by minimum output error on 10 disjoint calibration prompts.  \sieve{}'s router is therefore \emph{output-error-optimal by construction}; its end-task behavior tests the proxy, not a tuned method.  Implementation details and deviations are in Appendix~\ref{app:endtask}.
+
+% ===========================================================================
+\section{Output-distortion regimes}
+\label{sec:regimes}
+% ===========================================================================
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig1_regime.pdf}
+  \vspace{-4mm}
+  \caption{\textbf{F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf{(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $\gplus$ across 25 cells; arrows show increasing context. \textbf{(b)} Context moves each fixed model across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures.}
+  \label{fig:regime}
+  \vspace{-3mm}
+\end{figure}
+
+\paragraph{F1: Tier extinction orders the interior's value, but the crossing is per architecture.}
+On the 16-cell R3 grid, demoting both the mixed allocator and the eviction endpoint to lagged information retains roughly half of the apparent asymmetric advantage (Fig.~\ref{fig:evidence}a): the symmetric band stays $1.2$--$12.5$ points above the all-oracle band in all 16 cells, five cells fall below 15\% (STOP), and $\gplus$ ranges from $1.05\times$ to $3.21\times$.  $D_2$ still orders the symmetric band at $\rho=-0.985$.  Extending to 25 cells, $D_2$ has Spearman $\rho=-0.978$ with both $\gplus$ and the band, and $-0.915$ after residualizing model identity (Fig.~\ref{fig:regime}a).  The crossing, however, is not universal.  Pooled monotone crossings sit near $D_2=29.0\%$ (GO) and $54.1\%$ (STOP), yet Llama-3.1-8B holds $20.2\%$ band at $D_2=53.7\%$ while Qwen3-8B is at $12.2\%$ at $D_2=54.3\%$, an eight-point gap across $0.6$ points of $D_2$ that exceeds prompt uncertainty.  $D_2$ is an ordering coordinate; any operational boundary must be fitted per architecture.  The location also depends on what information each side of the comparison receives: on the same 16 cells, STOP is crossed at $D_2=46.9\%$ when both sides see the current query and at $57.4\%$ when both use lagged attention, a $10.5$-point shift larger than either confidence interval, and under the asymmetric contract it is never crossed.  $D_2$ itself does not share this sensitivity: across two campaigns with different corner sets and code it agrees to within $0.30$ points on all 15 shared cells.  How much the band depends on the comparison is taken up in F7.
+
+\tbd{[R10: predictor comparison] Compare $D_2$ prospectively with RateQuant's AM/GM or $\operatorname{var}(\log w)$ heterogeneity, entropy/Gini, and context-only baselines under a fixed leave-model-out protocol.}
+
+\paragraph{F2: Context moves a fixed model toward the eviction corner.}
+Every measured trajectory moves toward larger tier extinction with context (Fig.~\ref{fig:regime}b).  Llama-3.3-70B goes from GO at 8k to NARROW at 128k; Qwen3-8B goes from NARROW at 8k to STOP by 16k.  The mechanism is mostly absolute length: attention concentration $\tau$ is generally convex in $\log L$.  Reaching the trained RoPE cap adds a residual of about $+0.21$ in Qwen3-8B and Qwen3-30B, but none in Llama-3.1-8B and none at $0.75$ of the cap.  Both context and architecture matter; the data do not support a universal RoPE-triggered transition.  The surrogate that drives these allocations is useful but not exact: the median ratio of predicted to exactly recomputed gain lies in $[0.79,1.34]$ across the configuration grid, which we treat as model-fit validation rather than held-out prediction.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig2_evidence.pdf}
+  \vspace{-4mm}
+  \caption{\textbf{F1 robustness and F3 timescales.} \textbf{(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric (E2) estimate but remains ordered by $D_2$. \textbf{(b)} In six cells, keeping the calibration-time \emph{policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times$ a one-step-old assignment.}
+  \label{fig:evidence}
+  \vspace{-3mm}
+\end{figure}
+
+\paragraph{F3: Two timescales, and the cost of acting on them.}
+A head's output-error-optimal family (interior, uniform, or eviction) is stable over 4,096 generated tokens in all six measured cells, while the token allocation inside a mixed head goes stale within steps (Fig.~\ref{fig:evidence}b).  Any controller built on this map must therefore route rarely but re-budget often.  Table~\ref{tab:deployment} prices the two constraints such a controller meets.  These are output-error results; \S\ref{sec:endtask} tests whether they matter for accuracy.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Measured costs of acting on the output-distortion map. Output error only.}
+\label{tab:deployment}
+\begin{tabular}{@{}p{0.29\linewidth}p{0.25\linewidth}p{0.38\linewidth}@{}}
+\toprule
+\textbf{Constraint} & \textbf{Measurement} & \textbf{Implication} \\
+\midrule
+Family label over 4,096 tokens & p90 regret $1.00$ in 6/6 cells & calibrate the route once per context \\
+Frozen token assignment & $2.52$--$4.30\times$ lag-1 error & re-budget mixed heads every few steps \\
+Shared GQA allocation & $1.000/1.136/1.316\times$ at $n_{\rm rep}=1/4/8$ & route per KV head at a small cost \\
+4-bit current-query cascade & closes $82$--$91\%$ (median $89\%$) of lag penalty & re-score from base-tier keys \\
+\bottomrule
+\end{tabular}
+\vspace{-2mm}
+\end{table}
+
+% ===========================================================================
+\section{Do output-distortion regimes transfer to end tasks?}
+\label{sec:endtask}
+% ===========================================================================
+
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2.6pt}
+\caption{\textbf{End-task audit} (mean RULER score over valid cells; FP $=0.999$). Columns: Llama-3.1-8B (24 cells), Qwen3-8B (12), all 36, by budget, mean head-output error, and effective bits at $B=2$ (code bits plus side information). \emph{Hard}: Llama-3.1-8B, 32k, 32-key retrieval, $B=2$, chosen before any compressed run so that dense quantization is below ceiling. \est{blue} numbers are estimates awaiting runs (ledger in App.~\ref{app:ledger}); all other numbers are measured.}
+\label{tab:endtask}
+\begin{tabular}{@{}llrrrrrrrr@{}}
+\toprule
+family & method & Llama & Qwen & all & $B{=}2$ & $B{=}3$ & out.\ err. & eff.\ bits & hard \\
+\midrule
+\multirow{3}{*}{quant.} & TurboQuant-MSE & \textbf{0.985} & 0.867 & \textbf{0.946} & \textbf{0.898} & \textbf{0.993} & 0.445 & 2.12 & \est{0.83} \\
+ & KIVI ($g{=}128$) & \est{0.98} & \est{0.95} & \est{0.97} & \est{0.95} & \est{0.99} & --- & 2.25 & \est{0.85} \\
+ & KVQuant & \est{0.99} & \est{0.98} & \est{0.99} & \est{0.98} & \est{0.99} & --- & 2.32 & \est{0.88} \\
+\midrule
+\multirow{6}{*}{eviction} & H2O & \est{0.43} & \est{0.22} & \est{0.36} & \est{0.30} & \est{0.42} & --- & 2.04 & \est{0.25} \\
+ & SnapKV & 0.479 & 0.237 & 0.398 & 0.300 & 0.497 & 0.261 & 2.04 & \est{0.21} \\
+ & DropKV & 0.459 & 0.334 & 0.418 & 0.316 & 0.519 & 0.271 & 2.04 & \est{0.18} \\
+ & Ada-KV & 0.612 & 0.285 & 0.503 & 0.381 & 0.625 & 0.258 & 2.04 & \est{0.25} \\
+ & LaProx & 0.640 & 0.457 & 0.579 & 0.468 & 0.690 & 0.264 & 2.04 & \est{0.32} \\
+ & OBCache-K + Ada-KV & 0.719 & 0.369 & 0.602 & 0.509 & 0.696 & 0.260 & 2.04 & \est{0.39} \\
+\midrule
+\multirow{2}{*}{mixed} & \sieve{} interior only & 0.479 & 0.438 & 0.465 & 0.343 & 0.587 & 0.133 & 2.07 & \est{0.28} \\
+ & \sieve{} (router) & 0.654 & \textbf{0.989} & 0.766 & 0.613 & 0.919 & \textbf{0.120} & 2.07 & \est{0.32} \\
+\bottomrule
+\end{tabular}
+\vspace{-2mm}
+\end{table}
+
+\tbd{[R12-A] Paired rerun (jobs 991902--991906): every method in one process per cell on the same prompts. It replaces all numbers in Table~\ref{tab:endtask} and Fig.~\ref{fig:endtask}, because the forward pass is not bit-reproducible across runs. [R12-B] Hard cell (991894$\to$991907), 60 fresh prompts; pre-registered gate: FP $\ge0.95$ and TurboQuant in $[0.50,0.90]$.}
+
+\paragraph{F4: Among token-selective policies the output-error optimum is strongest; against dense quantization, the answer depends on model and quantizer.}
+Table~\ref{tab:endtask} and Fig.~\ref{fig:endtask}a show three regularities.  First, among policies that choose \emph{which tokens} to keep, \sieve{} scores highest (0.766 vs.\ 0.602 for OBCache-K + Ada-KV, $+0.16$, 90\% CI $[+0.13,+0.20]$ by prompt bootstrap), wins 21 of 36 cells against the best eviction method per cell, and has less than half the eviction methods' output error.  Second, on Llama-3.1-8B, keeping every token at low precision dominates: TurboQuant scores 0.985, and at $B=2$ every token-selective method trails it by at least $0.35$ (best: OBCache-K + Ada-KV, 0.626 vs.\ 0.976; \sieve{}, 0.429).  Third, on Qwen3-8B, TurboQuant's per-token rotated 2-bit keys break down (variable tracking scores $0.46$ at 8k and $0.40$ at 32k) and \sieve{} beats it (0.989 vs.\ 0.867).  That reversal is a statement about one quantizer, not about dense quantization: per-channel quantizers target exactly this failure, and on Qwen3-1.7B they succeed where TurboQuant fails at both budgets (App.~\ref{app:ledger}), so we expect KIVI and KVQuant to close the Qwen gap (\est{0.95} and \est{0.98}).  The regime map predicts that winners differ across architectures (F1); it does not predict \emph{which} one wins.  The preregistered correlation between the output-error band and the router's accuracy gain is $-0.70$, opposite in sign to the prediction.  All 15 cells where \sieve{} loses to an eviction method are on Llama: 7 of 8 at $B=2$ below 128k, and all 8 at 128k (Table~\ref{tab:app-h2h}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig3_endtask.pdf}
+  \vspace{-4mm}
+  \caption{\textbf{F4--F6: what transfers to task accuracy.} \textbf{(a)} Mean task score per method and model; hollow markers are estimates awaiting runs (App.~\ref{app:ledger}). Dense quantization wins on Llama-3.1-8B; on Qwen3-8B \sieve{} beats TurboQuant, and per-channel quantizers are expected to match it. \textbf{(b)} Head-output error vs.\ task score for every (cell, method); stars are method means. Error tracks accuracy across budgets and contexts but not across methods within a cell. \textbf{(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in\{2,3\}$: \sieve{} fails by \emph{truncating} the correct number, eviction methods by returning a wrong needle.}
+  \label{fig:endtask}
+  \vspace{-3mm}
+\end{figure}
+
+\paragraph{F5: Output distortion ranks budgets and contexts, not methods.}
+\sieve{} minimizes the distortion it targets, and it has the lowest head-output error of any method (0.120).  TurboQuant, with the \emph{highest} error (0.445), has the highest mean accuracy.  Fig.~\ref{fig:endtask}b separates the two uses of the proxy.  Pooled over all (cell, method) pairs, error and accuracy correlate at $\rho=-0.35$, and at $-0.69$ within the eviction family, because lower budgets and longer contexts raise error and lower accuracy together.  Within a cell, where methods compete at a fixed budget, the mean rank correlation is $-0.05$ over 36 cells ($-0.19$ among eviction methods only).  Output distortion predicts how hard a setting is, not which method wins it.  The calibration is not the main culprit: an oracle router that picks each head's policy from its \emph{measured} error on the test prompt improves on the calibrated router at Llama-3.1-8B 32k, $B=2$ (0.761 vs.\ 0.464) but still trails TurboQuant by 0.20 (90\% CI $[-0.32,-0.09]$), while sending 93\% of heads to the interior.  The allocation theorem holds for its own objective; the transfer from that objective to retrieval is what fails.
+
+\paragraph{F6: Token-granular allocation truncates multi-token answers.}
+\sieve{}'s weakest setting is Llama-3.1-8B at 128k, where it trails OBCache-K + Ada-KV by $0.32$ at $B=2$ (0.442 vs.\ 0.762).  Its wrong answers have a distinctive form (Fig.~\ref{fig:endtask}c).  Asked for 4929054 it answers ``492''; for 9465170, ``946''; for 6022964, ``602296''.  Llama tokenizes digits in groups of three, so the allocator keeps the key and the first token of the value and loses the tokens after it.  Truncation accounts for 36\% of \sieve{}'s single- and multi-key answers at 128k (39\% for the interior alone) against 1--11\% for every eviction method, which instead fail by returning a different needle (10--18\%).  Truncation is not specific to 128k: pooled over Llama's three contexts, 40\% of the interior's answers are truncated.  The router does not rescue these heads, because by its objective the interior is the right choice: at 128k it sends 99\% of Llama's KV heads to the interior, whose output error (0.094) is half that of any eviction method.  Losing the second token of one needle's value barely moves an error averaged over heads and answer steps, but changes the answer completely.
+
+Why do the eviction methods avoid truncation?  Every one of them that beats \sieve{} here smooths its token score over neighboring positions before selecting (max- or average-pooling over 7 positions), so a kept token protects its neighbors and a needle survives as a phrase.  \sieve{} allocates each token independently from unpooled attention.  We pre-registered a test of this explanation: the same water-filling allocator on pooled attention supports it if it recovers at least half of the 128k, $B=2$ gap to OBCache-K + Ada-KV, and refutes it below one fifth.  Our estimate of its score is \est{0.58} (half-gap threshold: 0.59); the oracle router at 128k is estimated at \est{0.55}.  \tbd{[R12-A, diagnostic arms] interior\_pool and router\_oracle at 128k.}
+
+\paragraph{F7: Verdicts depend more on the comparison than on the sample.}
+Across both measurement levels, the largest changes in a verdict came from what a method was compared against, and under which information contract, rather than from which prompts were drawn (Table~\ref{tab:contract}).  At the output-distortion level, drawing a new block of prompts moves the band by a standard deviation of only $0.4$--$3.0$ points, so six prompts per cell suffice.  Replacing the accumulated-attention eviction corner with the best of five corners moves it by $-5.1$ to $-8.6$ points and changes three of four borderline verdicts.  Giving both sides the current query instead of lagged attention moves the STOP crossing by $10.5$ points (F1).  At the end-task level, compressing the cache after the question instead of before it lets SnapKV's observation window read the question, so its score jumps from $0.33$ to $0.99$--$1.00$.  On Qwen3-8B, the verdict ``\sieve{} beats dense quantization'' holds against TurboQuant but is expected to reverse against per-channel quantizers (F4).  Each of these moves exceeds the sampling noise.  A KV-compression verdict is therefore not a measurement until it names its comparison set and information contract.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{\textbf{F7:} how much each choice moves a verdict, compared with prompt sampling.}
+\label{tab:contract}
+\begin{tabular}{@{}p{0.34\linewidth}p{0.36\linewidth}p{0.22\linewidth}@{}}
+\toprule
+\textbf{Choice varied} & \textbf{Effect} & \textbf{Verdicts changed} \\
+\midrule
+Prompt block (sampling) & band s.d.\ $0.4$--$3.0$ pts, 4 cells & none \\
+Eviction corner: accum vs.\ best of 5 & band $-5.1$ to $-8.6$ pts & 3 of 4 borderline cells \\
+Information: current query vs.\ lagged & STOP crossing $46.9\%\to57.4\%$ $D_2$ & boundary location \\
+Question visible at compression & SnapKV $0.33\to0.99$--$1.00$ (Llama, 32k, $B{=}2$) & every eviction ranking \\
+Dense baseline: TurboQuant vs.\ per-channel & Qwen3-8B $0.87\to$ \est{0.95}--\est{0.98} & \sieve{} vs.\ dense on Qwen \\
+\bottomrule
+\end{tabular}
+\vspace{-2mm}
+\end{table}
+
+
+% ===========================================================================
+\section{Implications}
+\label{sec:implications}
+% ===========================================================================
+
+The two levels of measurement lead to five practical conclusions, each bounded by the retrieval tasks and two end-task models we tested.
+\begin{enumerate}[leftmargin=*,itemsep=1pt,topsep=2pt]
+  \item \textbf{Report dense low-bit quantization, with more than one quantizer, next to any token-selective method.}  On Llama-3.1-8B it beats every eviction and mixed policy we test at 2--3 key bits; on Qwen3-8B one quantizer loses and per-channel ones are expected to win.  A comparison among token-selective methods alone, or against a single quantizer, would have hidden both facts.
+  \item \textbf{Use output distortion to size budgets, not to choose methods.}  It orders settings well (F1, F5) and methods poorly (F5).  Routing between method families needs a task-aware signal.
+  \item \textbf{Allocate spans, not tokens.}  Token-separable objectives cannot see that a multi-token answer is only useful whole (F6).  Positional smoothing or span-level allocation units change the allocator's input and leave Eq.~\ref{eq:discrete} intact.
+  \item \textbf{Name the comparison set and information contract with every verdict.}  They move results more than the prompt sample does (F7).
+  \item \textbf{Calibrate per architecture and per context, and re-budget often.}  The regime crossing is architecture-specific and moves with context (F1, F2); token allocations go stale within steps (F3).
+\end{enumerate}
+
+\paragraph{Scope of the budget comparison.}  All methods are compared at matched key code bits, with side information reported as effective bits (Table~\ref{tab:endtask}; storage details in App.~\ref{app:endtask}).  Quantization is simulated, so we make no memory-traffic or latency claims; those depend on packed kernels, which are outside the scope of this study.
+
+% ===========================================================================
+\section{Related and concurrent work}
+\label{sec:related}
+% ===========================================================================
+
+\paragraph{Dense KV quantization.}
+Dense quantizers store every token at low precision: per-channel or per-token integer schemes~\citep{liu2024kivi,hooper2024kvquant}, low-rank and sparse residual correction~\citep{kang2024gear}, rotations and sketches~\citep{zandieh2024qjl,zandieh2025turboquant}, and importance-aware mixed precision~\citep{yang2024mikv,he2024zipcache}.  RateQuant allocates finite precision across K/V heads from fitted distortion curves~\citep{zuo2026ratequant}.  Block-scaled 4-bit formats now make such caches native to hardware: the MX formats~\citep{ocp2023mx} and NVFP4, whose 16-element blocks carry FP8 scales~\citep{alvarez2025nvfp4}, including an NVFP4 KV cache~\citep{alvarez2025nvfp4kv}.  Our results bear on how this endpoint is used as a baseline.  Its strength depends on the quantizer (F4): per-token rotated keys fail on Qwen3 at 2 bits where per-channel schemes are expected to hold, so a study of the interior has to report more than one dense quantizer (F7).
+
+\paragraph{Eviction and sparse attention.}
+Evictors keep recent and sink tokens~\citep{xiao2024streamingllm}, accumulate attention~\citep{zhang2023h2o,liu2023scissorhands}, use the last query~\citep{oren2024tova} or a prefill observation window~\citep{li2024snapkv}, and split budgets across layers and heads~\citep{cai2024pyramidkv,feng2024adakv}.  Output-aware scores estimate the attention-output perturbation of removing a token: exactly for a singleton~\citep{goel2025caote}, under perturbation constraints~\citep{feng2026criticalkv}, by decoupled residual-output perturbation~\citep{zhang2026dropkv}, by Optimal-Brain-Damage saliency~\citep{gu2026obcache}, through the value and output projection with a model-wide budget~\citep{mai2026laprox}, or by layer-wise reconstruction with spatial-temporal smoothing~\citep{an2026restkv}.  Query-aware sparsity keeps the whole cache and selects pages per query~\citep{tang2024quest}, and reasoning-oriented methods target long generated traces~\citep{cai2025rkv,mao2026triattention}.  We evaluate six of these families at matched key bits.  Our truncation finding (F6) suggests one reason the strongest ones work: most smooth their scores over neighboring positions, which protects multi-token spans in a way a token-separable output-error objective does not.  We do not claim first output-aware eviction; we state the separable approximation needed to put zero rate inside a finite-rate allocator.
+
+\paragraph{Hybrid storage and rate allocation.}
+The split between quantization and eviction is not strict.  DiffKV routes tokens among high precision, low precision, and pruning with an on-GPU manager~\citep{zhang2025diffkv}, and HqeKV optimizes among full precision, several quantized levels, and eviction using joint K--V importance~\citep{wang-etal-2026-hqekv}.  Concurrent RDKV assigns zero-to-finite rates to value tokens and key channels with packed decode~\citep{zhang2026rdkv}, and concurrent attention-aware transform coding applies output-aware reverse water-filling to transformed K/V channels~\citep{laus2026aatc}.  Our allocation unit is the within-head key token, and our question is not whether water-filling can be derived but when its interior pays and whether the answer survives the step to task accuracy.  Head, channel, and token axes are potentially composable (Table~\ref{tab:related}, App.~\ref{app:related}).
+
+\paragraph{Diagnostics, evaluation contracts, and systems.}
+Long-context compression is usually evaluated on synthetic retrieval~\citep{hsieh2024ruler} and on natural long-context tasks~\citep{bai2025longbenchv2}.  Closest in spirit to our study, a fixed-contract diagnostic holds the selector configuration fixed to attribute eviction failures to missing evidence, mis-scoring, or destroyed coupled evidence~\citep{zhang2026fixedcontract}.  Our F6 truncation is an instance of the last category, and F7 complements that work by measuring how much the comparison set and information contract move a verdict.  Deployed eviction also meets infrastructure constraints that our simulated study does not address: fused attention kernels never materialize the attention scores that score-based evictors read~\citep{dao2023flashattention2,shah2024flashattention3,zhang2024sageattention}, and paged allocators reclaim only empty blocks~\citep{kwon2023vllm}, so scattered survivors free little memory unless the cache is compacted~\citep{mao2026triattention}.
+
+% ===========================================================================
+\section{Limitations and conclusion}
+\label{sec:conclusion}
+% ===========================================================================
+
+The evidence is deliberately scoped.  End-task results cover two 8B models and four synthetic retrieval tasks, so F4--F6 may not hold for reasoning, summarization, or long generation, where a truncated span may matter less or more.  Compression is key-only with exact values, budgets match key code bits rather than total KV bytes, and all quantization is simulated, so no memory or throughput claim is made.  The regime crossing is architecture-conditioned, and the diffuse (uniform) side of the map has less support than tier extinction.  The within-generation change of $\tau$ is underpowered at 3--6 prompts per cell and is not used.  Several end-task entries are estimates pending the runs listed in Appendix~\ref{app:ledger}.
+
+Within that scope the picture is consistent.  Joint allocation is not uniformly useful: a tier-extinction coordinate orders when its interior lowers attention-output error, context moves a fixed model toward a corner, and a controller would face a slow family timescale and a fast allocation timescale.  On end tasks, the output-error optimum is the best way we found to choose \emph{which tokens} to keep, yet whether to keep \emph{all} tokens at low precision instead depends on the model and the quantizer, and output distortion cannot make that choice.  Its most visible failure, truncated answers, points to the unit of allocation, not the allocation theorem, as the next thing to change.
+
+\label{main:end}
+\bibliography{sieve,concurrent,related}
+\bibliographystyle{iclr2026_conference}
+
+\clearpage
+\appendix
+\input{appendix}
+
+\end{document}

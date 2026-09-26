@@ -455,13 +455,12 @@ DropKV, Ada-KV, OBCache-K, LaProx & same keep count; published scores; Ada-KV he
 \paragraph{Deviations from the original papers.}
 KIVI keeps its last partial group in full precision; we quantize it as a short
 group, and the 32-token uncompressed window shared by all methods plays the
-role of KIVI's residual.  
-KVQuant calibrates outlier thresholds and its
+role of KIVI's residual.  KVQuant calibrates outlier thresholds and its
 non-uniform codebook offline with Fisher-weighted $k$-means; we fit both online
 on each prompt's own context without weighting, which can only favor it.  H2O
 uses its raw accumulated score, whose causal position bias (a token is seen by
-every later query) is H2O's own.  
-%All methods use simulated quantization: the model reads dequantized keys, and no packed kernel is involved.
+every later query) is H2O's own.  All methods use simulated quantization: the
+model reads dequantized keys, and no packed kernel is involved.
 
 \begin{table}[h]
 \centering
@@ -485,15 +484,13 @@ every later query) is H2O's own.
 \scriptsize
 \setlength{\tabcolsep}{2.4pt}
 \caption{Full end-task grid: mean score over 20 prompts per cell.  Bold marks the best method in each valid row.  $\ddagger$: uncompressed score below 0.9, excluded from every aggregate.  
-KIVI, KVQuant and H2O are in the paired run (Table~\ref{tab:endtask}).
+KIVI, KVQuant and H2O are in the paired rerun (Table~\ref{tab:endtask}).
 }
 \label{tab:app-grid}
 \input{tab_endtask_grid.tex}
 \end{table}
 
 
-% Estimate ledger commented out (2026-09-26); remove the comment environment to restore it.
-\begin{comment}
 \ifshowest
 \section{Estimate ledger}
 \label{app:ledger}
@@ -516,13 +513,15 @@ H2O, full grid, Llama / Qwen & 0.38 / 0.33 & Measured in the 8k rerun at 0.354 /
 KIVI ($g{=}128$ / $g{=}32$), full grid & 0.96 / 0.98 (all) & Measured in the 8k rerun: Llama 0.964 / 0.986, Qwen 0.987 / 1.000.  On Qwen3-1.7B at 2k TurboQuant scored 0/11 at both budgets while KIVI and KVQuant held. & R12-A \\
 KVQuant, full grid & 0.97 (all) & Measured in the 8k rerun: Llama 0.976, Qwen 0.990. & R12-A \\
 Hard cell, all methods & see Table~\ref{tab:endtask} & Screening block (prompts 500--539): FP 1.00, TurboQuant 0.825.  On the 10 calibration prompts (1100--1109) FP and TurboQuant both score 0.90, so the pre-registered gate may fail; other methods scaled from 4-key retrieval at 32k. & R12-B \\
+Mistral-7B, \sieve{} router & 0.55 & Calibration prompts 0--9: FP fails variable tracking (0.2) at both contexts and multi-value at 32k; on valid tasks TurboQuant 0.93--1.00, SnapKV 0.03--0.10, \sieve{} interior 0.00--0.27. & R12-D \\
 Pooled-score interior, 128k, $B=2$ & 0.58 & At 8k it moved the Llama interior from 0.299 to 0.663 at $B=2$ and truncation from 39\% to 9\%; 128k is the pre-registered cell. & R12-A (diag.) \\
 Oracle router, 128k, $B=2$ & 0.55 & At 8k the oracle adds $+0.15$ on Llama (0.680 to 0.834); scaled to 128k, where the calibrated router sends 99\% of heads to the interior. & R12-A (diag.) \\
 \bottomrule
 \end{tabular}
 \end{table}
 \fi
-\end{comment}
+
+
 
 \section{Extended related work}
 \label{app:related}
@@ -540,8 +539,8 @@ Oracle router, 128k, $B=2$ & 0.55 & At 8k the oracle adds $+0.15$ on Llama (0.68
 DiffKV; HqeKV & token high/low precision and pruning & explain and predict when the middle tier pays; no first-hybrid claim \\
 CAOTE; CriticalKV; DropKV; OBCache; LaProx; ReST-KV & output-aware token eviction & finite-rate extension under a stated local surrogate; exact set error retained; evaluated as baselines where available \\
 RateQuant & K/V heads, finite rates & within-head key tokens, explicit zero rate, context traversal \\
-RDKV  & value tokens, key channels, zero-to-finite rates & when the token-wise interior beats endpoints; score staleness and regime movement \\
-AATC  & transformed K/V channels, including zero & token-axis tier viability; values/channels remain outside our allocation \\
+RDKV (concurrent) & value tokens, key channels, zero-to-finite rates & when the token-wise interior beats endpoints; score staleness and regime movement \\
+AATC (concurrent) & transformed K/V channels, including zero & token-axis tier viability; values/channels remain outside our allocation \\
 Fixed-contract diagnostic & attribution of eviction failures & measures how comparison set and information contract move verdicts; truncation mechanism \\
 \bottomrule
 \end{tabular}

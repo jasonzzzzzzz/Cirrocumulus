@@ -112,6 +112,13 @@ def test_kvquant():
     check("deterministic", torch.equal(Kq, QB.kvquant_keys(K, 2, cos, sin)))
 
 
+def test_kmeans_large_sample():
+    print("\n[QB] k-means subsample above 2^24 elements (32k contexts)")
+    x = torch.linspace(-1, 1, (1 << 24) + 12345)
+    c = QB.kmeans_1d(x, 4, iters=2)
+    check("no out-of-range index, 4 sorted centroids", c.numel() == 4 and bool((c[1:] > c[:-1]).all()))
+
+
 def test_apply_bits_hook():
     print("\n[QB] compress.apply_bits(keys_fn=...)")
     from transformers import DynamicCache
@@ -238,7 +245,7 @@ def test_real_model_rope():
 
 if __name__ == "__main__":
     fast = "--fast" in sys.argv
-    tests = [test_kivi, test_rope_roundtrip, test_kvquant, test_apply_bits_hook,
+    tests = [test_kivi, test_rope_roundtrip, test_kvquant, test_kmeans_large_sample, test_apply_bits_hook,
              test_arm_plumbing, test_precompute_errors]
     if not fast:
         tests += [test_real_model_rope]

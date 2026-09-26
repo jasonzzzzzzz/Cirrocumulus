@@ -137,7 +137,11 @@ def kmeans_1d(x: torch.Tensor, k: int, iters: int = KMEANS_ITERS) -> torch.Tenso
     k sorted centroids."""
     x = x.flatten().float()
     if x.numel() > KMEANS_SAMPLE:                   # deterministic strided subsample
-        x = x[torch.linspace(0, x.numel() - 1, KMEANS_SAMPLE, device=x.device).long()]
+        # float64 + clamp: float32 positions round past the end above 2^24 elements
+        # (32k contexts), which indexed out of bounds on the GPU (jobs 992065/992068)
+        idx = torch.linspace(0, x.numel() - 1, KMEANS_SAMPLE, dtype=torch.float64,
+                             device=x.device).long().clamp_(0, x.numel() - 1)
+        x = x[idx]
     xs, _ = x.sort()
     n = xs.numel()
     c = xs[((torch.arange(k, device=x.device).float() + 0.5) / k * (n - 1)).long()]

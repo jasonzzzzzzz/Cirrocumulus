@@ -16,19 +16,22 @@ attention weights eviction exists to avoid computing. It is now a real evictor
 it as a bound. Every verdict line names the corner it used: `[practical]` or
 `[oracle]`. See `bugs/2_towards_real_evictor/`.
 
-### Current campaign status
+### Current campaign status (2026-09-27)
 
-**Complete.** 24 (model, context) configurations, six architectures, 8k–128k, all
-four corners and both budget policies in every cell. Results:
-`bugs/2_towards_real_evictor/report.md`. Headline:
+The per-part status board — R1–R15, each with its result and its report — is at
+the top of **`ROADMAP.md`**. In short:
 
-| | |
-|---|---|
-| verdicts | **14 GO, 10 NARROW, 0 STOP** |
-| band vs the oracle corner → vs a real evictor | **+6 to +29 points**, all 24 cells |
-| context slope | **−3.7 to −15.9** band-points per ctx doubling |
-| phase axis (dead-2 tier fraction) | ρ = **−0.953** practical, −0.983 oracle |
-| 128k row | llama31-8b 28.8%, llama33-70b 25.0%, qwen3-30b 18.6% |
+| campaign | status | headline | report |
+|---|---|---|---|
+| E1/E2 — 24 cells, real evictors as the corner | done | 14 GO / 10 NARROW / 0 STOP — **superseded by R3**, whose comparison has no information asymmetry | `bugs/2_towards_real_evictor/report.md` |
+| **R3 — the symmetric cell** (interior and corner both on lagged attention) | done, job214217\* | the interior's edge survives at ~half size; **5 of 16 cells STOP, 5 NARROW**; ρ(dead-2, band) = −0.985 | `bugs/2_towards_real_evictor/R3-report.md` |
+| R4, R5, R6, R7 + co-design waves 1–4 | done | R4: τ convex in log L, +0.21 excess at the RoPE cap · R5: route one-pass, allocation re-budgeted · R6: boundary pinned per model · R7: corner set dominates the error bar · co-design: per-KV-head allocation 1.14×/1.32× at n_rep 4/8, cascade at bc = 4 | `bugs/co-design/report.md` §7 |
+| R8 — end-task accuracy (`run_r8.py`, a separate driver) | done; gate failed | P-1/P-2/P-5 fail, P-4 unsupported; uniform ≥0.95 in 31/36 valid cells | `bugs/8_router_endtask/report.md` |
+| R9-folder — SOTA eviction baselines as R8 arms | done | Ada-KV, DropKV, OBCache-K, LaProx measured; uniform wins 34/36 cells | `bugs/9_sota_eviction_baselines/report.md` |
+| R10 — tier set · R11 — nested code | done | `{0,3,4,6,8}` passes all gates · 3+1+2+2 code `pass_target` (+0.34% at B=3); **extension job 992939: `b3_generalizes`, `b2_all`**, B=3 +1.48% over 4 new cells, 0 tail prompts | `bugs/10_tier_set_rederivation/report.md`, `bugs/11_nested_code_overhead/report.md` + `main_ext_992939.txt` |
+| **R12-folder — paper main table** (paired grid, all arms in one process) | **done** | dense quantizer (KVQuant / KIVI / TurboQuant, model-dependent) beats every eviction and mixed policy; SIEVE router beats every evictor; pooled-score test **supported** at 128k; hard cell **gate failed** | `bugs/12_paper_main_table/plan.md`, `tables_r12_paired.md` |
+
+The verdict unit is the **symmetric cell** (R3's): it is the one to quote.
 
 ---
 
@@ -61,9 +64,40 @@ four corners and both budget policies in every cell. Results:
 │   │                             minutes/model. Validates an EXISTING run, because
 │   │                             the haystack is seeded on prompt_idx alone.
 │   ├── report.slurm              SUPERSEDED — report is now a SIEVE_ROLE=report resubmission
+│   ├── ROADMAP.md                THE STATUS BOARD for R1–R15 (top of file) + the ranked plan
+│   │
+│   ├── run_r8.py                 R8: END-TASK accuracy under a compressed KV cache. The
+│   │                             model GENERATES from simulated-quantized / evicted keys
+│   │                             (sievelib/compress.py); arms from sievelib/router.py; RULER
+│   │                             tasks from sievelib/tasks_ruler.py. --question-agnostic,
+│   │                             fractional --budgets (e.g. 0.5), P2 flags (--head-error,
+│   │                             --routes, --write-routes). Separate from run_h0.py.
+│   ├── submit_r8.slurm           one (model, ctx) R8 cell; overrides as R8_NAME=value ARGUMENTS
+│   │                             (R8_QA=1 = question-agnostic). Runs tests/test_r8.py --fast first.
+│   │
+│   ├── bugs/                     ONE FOLDER PER RESEARCH PART — plan, submission sheet
+│   │   │                         (script.sh), reader, report. The reports are the results.
+│   │   ├── 1_from_synthetic_to_real_corpus/   the synthetic-haystack confound (fixed)
+│   │   ├── 2_towards_real_evictor/            E1/E2 campaign + R3 (R3-report.md)
+│   │   ├── 3_context_sweep_and_reports/       ctx sweep findings
+│   │   ├── 4_rope_limit_or_mechanism/         R4
+│   │   ├── 5_phase_drift_across_decode/       R5 campaign 1 (+ drift.py reader)
+│   │   ├── 6_pin_sharp_boundary/              R6 (boundary.py reader)
+│   │   ├── 7_error_bars_and_seeds/            R7 (errorbars.py reader)
+│   │   ├── co-design/                         waves 1–4: R4–R7 cells + GQA/cascade designs;
+│   │   │                                      wave1.csv … wave4.csv hold the per-head data (build_wave_csv.py)
+│   │   ├── 8_router_endtask/                  R8: plan.md, script.sh, read_r8.py
+│   │   ├── 9_sota_eviction_baselines/         Ada-KV / DropKV / OBCache / LaProx as R8 arms
+│   │   ├── 10_kstar_budget/                   R9 (roadmap): K*-derived KV-head budget, stopped at Q3
+│   │   ├── 10_tier_set_rederivation/          R10: tier set {0,3,4,6,8}
+│   │   ├── 11_nested_code_overhead/           R11 + extension (read_nested_ext.py, main_ext_992939.txt)
+│   │   ├── 12_paper_main_table/               paper end-task table: paired grid A-D, read_main_table.py
+│   │   └── 13_channel_axis/                   R13: K-channel axis (plan only)
+│   │
 │   ├── logs/                     SLURM .out/.err + per-model quick_test logs
-│   ├── results/<RUN_ID>/         *.parquet (one per model) + RUN_INFO.txt
-│   ├── reports/                  h0_report_<RUN_ID>_<date>.pdf + _per_head.csv
+│   ├── results/<RUN_ID>/         *.parquet (one per model) + RUN_INFO.txt; R8 runs are
+│   │                             results/r8job<JOBID>/r8_<model>_<ctx>.{parquet,json}
+│   ├── reports/                  h0_report_<RUN_ID>_<date>.pdf + _per_head.csv; r8_p0.csv
 │   └── results_smoke/            throwaway scratch for quick_test.sh
 ```
 
@@ -253,6 +287,86 @@ band fraction was measured against:
 
 `[practical]` = a deployable evictor. `[oracle]` = that parquet has no practical
 columns (a pre-fix run), and the number is against a baseline no system can field.
+
+---
+
+## R8 — end-task runs (`run_r8.py`)
+
+R8 is a separate driver: the model **generates** from a compressed cache and the
+answer is scored (RULER-style niah_single / niah_multikey / niah_multivalue / vt).
+Design, results and decision tables: `bugs/8_router_endtask/plan.md`
+(§11 = P0 result, §12 = the question-agnostic mode). Every phase is submitted
+through `bugs/8_router_endtask/script.sh`, which only checks files on the login
+node and submits `submit_r8.slurm` jobs.
+
+```bash
+# cluster rules (Trillium): run from the repo root on trig-login01; sbatch adds
+# --export=NONE, so overrides are R8_NAME=value ARGUMENTS, never env prefixes;
+# no --mem; nothing heavy on the login node (tests run inside the job).
+bash h0_measurement/bugs/8_router_endtask/script.sh --p0b --dry   # print the sbatch line
+bash h0_measurement/bugs/8_router_endtask/script.sh --p0b         # CURRENT STEP (~1 GPU-h)
+bash h0_measurement/bugs/8_router_endtask/script.sh --read        # how to read each phase
+
+# after P0b is read (budgets come from it; --qa if P0b discriminates):
+bash h0_measurement/bugs/8_router_endtask/script.sh --p2-pilot --budgets=B[,B] --qa
+bash h0_measurement/bugs/8_router_endtask/script.sh --p2-cal   --budgets=B[,B] --qa
+bash h0_measurement/bugs/8_router_endtask/script.sh --p2       --budgets=B[,B] --qa [--eval-prompts=N]
+
+# read (login node is fine; single-threaded, seconds)
+OMP_NUM_THREADS=8 .venv/bin/python h0_measurement/bugs/8_router_endtask/read_r8.py \
+    "h0_measurement/results/r8job<JOBID>/r8_*.parquet" [--p2] [--csv out.csv]
+
+# tests (CPU; this node caps CPU time, so cap threads)
+OMP_NUM_THREADS=8 .venv/bin/python tests/test_r8.py --fast   # tensor anchors, ~30 s
+OMP_NUM_THREADS=8 .venv/bin/python tests/test_r8.py          # + Llama-3.2-1B end to end
+```
+
+| phase | status | job / output |
+|---|---|---|
+| P0 question-aware budget pilot, llama31-8b @32k | done | job 21529825 · `reports/r8_p0.csv` · SnapKV 1.00 at every B |
+| P0b question-agnostic + B = 0.5 | done | job 978352 |
+| P2 interior + router (pilot, calibration, evaluation; 5 cells) | done; gate failed | jobs 978479–978489 · `bugs/8_router_endtask/report.md` |
+
+---
+
+## R12-folder — the paper's end-task table (`bugs/12_paper_main_table/`)
+
+Re-runs the R8 cells with **every arm in one process** (the forward pass is not
+bit-reproducible across processes), adding dense quantization baselines
+(`sievelib/kv_quant_baselines.py`: KIVI g32/g128, KVQuant-style) and H2O, plus
+two diagnostics (`interior_pool`, `router_oracle`). Parts: A paired grid,
+B hard cell, C question-visible control, D Mistral-7B. Pre-registered rules
+(H-pool, hard-cell gate) are in `plan.md`; all four parts are done (2026-09-27).
+
+```bash
+# submit (repo root, GPU login node); script.sh = A-D, script_temp.sh = the
+# remaining A128 / B / R11-ext runs used on the second cluster
+bash h0_measurement/bugs/12_paper_main_table/script.sh --submit --only=A|B|C|D
+bash h0_measurement/bugs/12_paper_main_table/script_temp.sh --check   # float64 fix, corpus_sha, tests
+bash h0_measurement/bugs/12_paper_main_table/script_temp.sh --submit [--only=A128|B|R11]
+
+# read: Table 1, head-to-head with prompt bootstrap, failure table, hard-cell gate, grid
+OMP_NUM_THREADS=8 .venv/bin/python h0_measurement/bugs/12_paper_main_table/read_main_table.py \
+    h0_measurement/results/r12job<JOBID>/r8_*.parquet ... --out tables.md
+
+# paper tables and figure (latex/figures/)
+cd latex/figures && ../../.venv/bin/python make_endtask_tables.py && ../../.venv/bin/python make_paper_figs_v3.py
+
+# tests
+OMP_NUM_THREADS=8 .venv/bin/python tests/test_kv_quant_baselines.py --fast
+```
+
+| part | jobs | result |
+|---|---|---|
+| A paired grid (5 cells, 15 arms) | 21832327, 21832330, 21841737, 21841738, 21850510 + 21850511 (128k, 2×10 prompts) | 36 valid cells; `tables_r12_paired.md` |
+| B hard cell (Llama 32k, 32 keys, prompts 1000–1059) | 21850534 | gate failed: TurboQuant 0.917 > 0.90 |
+| C question visible (fp, uniform, SnapKV, H2O) | 21834051/52/54/55, 992195 (128k) | SnapKV 1.00 in every cell |
+| D Mistral-7B 8k/32k | cal 21834056/58, eval 21840797, 21840803 + 21840804 | 10 valid cells |
+
+**Corpus caveat.** `corpus_sha` differs between clusters (b524da5e for A, B, D
+and C at 8k/32k; 0a26bc1e for C at 128k and for the R9-folder grid). Same
+`prompt_idx` means same needle depths, not the same haystack or needle values:
+compare such runs by cell means only.
 
 ---
 

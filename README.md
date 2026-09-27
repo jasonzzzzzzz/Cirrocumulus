@@ -5,8 +5,24 @@ Rate allocation for KV caches. Two studies share one core library.
 | | |
 |---|---|
 | **H1 — simulation** | COMPLETE. Synthetic study; produced the figures in `docs/`. Given a fixed total memory budget for the KV cache, is it better to (a) give every token the same number of bits, (b) keep a few tokens at full precision and throw the rest away entirely, or (c) give different tokens different numbers of bits based on how important each one is? |
-| **H0 — measurement** | IN PROGRESS. Measures real models. A first pass of both tiers has run — see `h0_measurement/results/` and `h0_measurement/reports/`. |
-| **Current documents** | proposal **v6** (`docs/proposal-sieve-v5.1-h0v0.html` — the phase diagram, post-H0), pitch **v3** (`docs/pitch-sieve-v5.1-h0v0.html`). The pre-H0 v5 pair (`*-v5.html`) is kept alongside; everything earlier is in `docs/deprecated/`. |
+| **H0 — measurement** | Measurement campaigns **done** through R11 and the R12-folder paper table; the ICLR 2027 draft is in `latex/`. Open: R1 (documents), R13 (planned), R14–R15. Per-part status: the board at the top of **`h0_measurement/ROADMAP.md`**. |
+| **Current documents** | proposal **v8** (`docs/proposal-sieve-v5.1-h0v2.html`), pitch **v5** (`docs/pitch-sieve-v5.1-h0v2.html`), both 2026-09-17 — they **predate** the R3–R8 results (reconciling them is ROADMAP R1, open). Earlier post-H0 versions (`*-h0v0` = v6/v3, `*-h0v1` = v7/v4) and the pre-H0 v5 pair are kept alongside; everything older is in `docs/deprecated/`. `docs/review-sieve-vs-rdkv.html` is a referee-style review of proposal v8 / pitch v4. |
+
+## Status at a glance (2026-09-27)
+
+| part | status | result | report |
+|---|---|---|---|
+| H1 simulation | done | figures in `docs/` | `h1_simulation/README.md` |
+| R3 symmetric cell | done | interior's edge survives at ~half size; 5/16 cells STOP; ρ(dead-2, band) = −0.985 | `h0_measurement/bugs/2_towards_real_evictor/R3-report.md` |
+| R4 · R5 · R6 · R7 | done | τ convex in log L (+0.21 at the RoPE cap) · route one-pass, allocation re-budgeted · boundary pinned per model · corner set dominates the error bar | `h0_measurement/bugs/co-design/report.md` §7 |
+| co-design (GQA, cascade) | done | per-KV-head allocation costs 1.14× / 1.32× at n_rep 4 / 8; cascade score at bc = 4 closes 89% of the lag gap | `h0_measurement/bugs/co-design/report.md` §7.2–7.4 |
+| R8 end task | done; gate failed | P-1/P-2/P-5 fail, P-4 unsupported; uniform at ceiling in 31/36 cells | `h0_measurement/bugs/8_router_endtask/report.md` |
+| SOTA baselines (folder `bugs/9_…`) | done | Ada-KV, DropKV, OBCache, LaProx as R8 arms; uniform wins 34/36 cells | `h0_measurement/bugs/9_sota_eviction_baselines/report.md` |
+| R9 (K\*-budget) | done; stopped at qualification | moved 0.23% of budget vs the 5% gate | `h0_measurement/bugs/10_kstar_budget/report.md` |
+| R10 tier set · R11 nested code | done | `{0,3,4,6,8}` · 3+1+2+2 code +0.34% at B=3; **extension (job 992939): `b3_generalizes`, `b2_all`**, +1.48% over 4 new cells, no tail prompts | `h0_measurement/bugs/10_tier_set_rederivation/report.md`, `h0_measurement/bugs/11_nested_code_overhead/report.md` |
+| **R12-folder paper table** | **done** | paired grid, 36 cells: dense quantizer (model-dependent) > SIEVE router 0.764 > best evictor 0.596; pooled-score test supported at 128k (110% of gap); hard cell gate failed; Mistral-7B agrees | `h0_measurement/bugs/12_paper_main_table/` |
+| R13 channel axis | planned, not run | — | `h0_measurement/bugs/13_channel_axis/plan.md` |
+| R1, R14–R15 | not started | — | `h0_measurement/ROADMAP.md` |
 
 ---
 
@@ -23,9 +39,14 @@ Rate allocation for KV caches. Two studies share one core library.
 ├── .locks/                       prefetch.py inter-process download locks
 │
 ├── docs/                         THE DELIVERABLES
-│   ├── proposal-sieve-v5.1-h0v0.html   CURRENT · v6 · "A Phase Diagram for KV Cache
-│   │                             Compression" — rewritten around the completed H0 (6 models, 10,240 heads)
-│   ├── pitch-sieve-v5.1-h0v0.html      CURRENT · v3 · the phase-diagram pitch, measured
+│   ├── proposal-sieve-v5.1-h0v2.html   CURRENT · v8 · "A Phase Diagram for KV Cache
+│   │                             Compression" (2026-09-17; predates R3–R8 — ROADMAP R1)
+│   ├── pitch-sieve-v5.1-h0v2.html      CURRENT · v5 · the phase-diagram pitch
+│   ├── proposal/pitch-sieve-v5.1-h0v1.html   v7 / v4
+│   ├── proposal/pitch-sieve-v5.1-h0v0.html   v6 / v3 — first post-H0 rewrite
+│   ├── review-sieve-vs-rdkv.html referee-style review of proposal v8 / pitch v4
+│   ├── fig5_phase.png            the phase figure (+ fig5_phase.txt)
+│   ├── *.pdf (ada-kv, dropkv, obcache, laprox, palu, RDKV-2026)   papers the baselines follow
 │   ├── proposal-sieve-v5.html    pre-H0 · v5 · full proposal, scoring, kill gates
 │   ├── pitch-sieve-v5.html       pre-H0 · abstract, design space, novel claims (body marked v2)
 │   ├── h0_expected_outputs.pdf   3 mock H0 reports: expected / best / worst
@@ -43,9 +64,18 @@ Rate allocation for KV caches. Two studies share one core library.
 │   │                             metrics, band membership. The heart of both studies.
 │   ├── probe.py                  attention capture + KV-cache access   (H0 only)
 │   ├── validate.py               3 independent probe validation levels (H0 only)
+│   ├── validity.py               input-validity checks for the H0 haystack
+│   ├── evict.py                  the H0 eviction corners (oracle / H2O / SnapKV /
+│   │                             StreamingLLM / TOVA on lagged attention) and their budgets
 │   ├── prompts.py                niah / qa / cont prompt families over a window of
 │   │                             real text (H0_CORPUS). Families share a haystack per
 │   │                             prompt index, so niah-vs-cont is a paired test.
+│   ├── compress.py               R8: the attention function that makes the model GENERATE
+│   │                             from simulated-quantized / evicted keys; question-agnostic mode
+│   ├── router.py                 R8: which width each context token gets, per arm (uniform,
+│   │                             SnapKV, H2O, the water-fill interior, routers, calibration)
+│   ├── tasks_ruler.py            R8: RULER-style tasks on the PG-19 haystack + scoring
+│   ├── baselines.py              R8 arms from four papers: Ada-KV, DropKV, OBCache, LaProx
 │   └── .lloyd_cache.pt           precomputed quantizer levels (~50 s to rebuild)
 │
 ├── h1_simulation/                COMPLETE — synthetic study
@@ -56,7 +86,10 @@ Rate allocation for KV caches. Two studies share one core library.
 │
 ├── h0_measurement/               IN PROGRESS — real-model measurement
 │   ├── README.md                 experiment plan + ctx methodology + validate_with
-│   │                             rationale. Read first.
+│   │                             rationale + how to run R8. Read first.
+│   ├── ROADMAP.md                STATUS BOARD for every research part (R1–R15), then the plan
+│   ├── bugs/<N>_*/               one folder per research part: plan, script.sh, reader, report
+│   ├── run_r8.py, submit_r8.slurm   R8's end-task driver and its one-cell job
 │   ├── models.yaml               model registry — add a model here, nothing else.
 │   │                             Tiers: debug / main / large.
 │   ├── prefetch.py               stage weights on the LOGIN node — model + its
@@ -79,9 +112,10 @@ Rate allocation for KV caches. Two studies share one core library.
 │   ├── reports/                  h0_report_<RUN_ID>_<date>.pdf + _per_head.csv
 │   └── results_smoke/            throwaway scratch for quick_test.sh
 │
-├── tests/
-│   └── test_units.py             CPU-only regression checks — one per audit bug.
-│                                 Run before any GPU job.
+├── tests/                        CPU-only. Run with OMP_NUM_THREADS=8 (the login node caps CPU time)
+│   ├── test_units.py             regression checks — one per audit bug. Run before any H0 GPU job.
+│   ├── test_r8.py                R8 anchors (--fast = tensor only; full = + Llama-3.2-1B end to end)
+│   └── test_baselines.py         the four SOTA baselines against brute force / autograd
 │
 ├── reports/                      repo-root smoke scratch (quick_test.sh writes
 │                                 smoke.pdf + smoke_per_head.csv here)
@@ -137,12 +171,14 @@ Run h0 in -- check the folder h0_measurement
 
 | Question | File |
 |---|---|
-| What is the project and is it worth doing? | `docs/pitch-sieve-v5.1-h0v0.html` (pre-H0: `pitch-sieve-v5.html`) |
-| What exactly gets claimed, scored, and killed? | `docs/proposal-sieve-v5.1-h0v0.html` (pre-H0: `proposal-sieve-v5.html`) |
+| What is the project and is it worth doing? | `docs/pitch-sieve-v5.1-h0v2.html` (v5) |
+| What exactly gets claimed, scored, and killed? | `docs/proposal-sieve-v5.1-h0v2.html` (v8) |
+| **Where does every research part stand, and what runs next?** | **`h0_measurement/ROADMAP.md`, the status board at the top** |
+| Does output error translate into end-task accuracy? | `h0_measurement/bugs/12_paper_main_table/tables_r12_paired.md` (paired grid; R8 history in `bugs/8_router_endtask/report.md`) |
 | What bugs were found and what did they change? | `tests/test_units.py` — one regression check per audit bug |
 | Does context length change the conclusion? | `h0_measurement/README.md` § Context length methodology |
 | What will the result look like? | `docs/h0_expected_outputs.pdf` |
-| What did the first real run show? | `h0_measurement/reports/` (PDFs + `analysis_from_fable.md`) |
+| What did the first real run show? | `h0_measurement/reports/` (PDFs + `analysis_from_fable.md`) — superseded as a verdict by R3 |
 | Where is the allocation theorem implemented? | `sievelib/alloc.py` — `waterfill`, `exact_error` |
 | Where is the noise actually measured? | `sievelib/quant.py` + `alloc.noise_model` |
 | How do I add a model? | `h0_measurement/models.yaml`, append an entry |
@@ -152,6 +188,16 @@ Run h0 in -- check the folder h0_measurement
 ## Version notes
 
 Kept deliberately short since there is no VCS here.
+
+- **2026-09-22 — R8 end-task harness.** `sievelib/{compress,router,tasks_ruler}.py`,
+  `h0_measurement/run_r8.py`, `submit_r8.slurm`, `tests/test_r8.py`. P0 (job
+  21529825) showed question-aware SnapKV is perfect on these tasks at every budget;
+  added a question-agnostic mode (`--question-agnostic`, `R8_QA=1`) and fractional
+  budgets. The question-aware path is unchanged (verified: identical parquets).
+- **2026-09-21 — co-design waves 1–4** (`h0_measurement/bugs/co-design/`): GQA
+  per-KV-head allocation (`alloc.waterfill_group`) and the cascade score landed in
+  `alloc.py` / `run_h0.py` behind knobs that default off, with regression tests in
+  `tests/test_units.py`.
 
 - **proposal v6 / pitch v3** (`docs/*-v5.1-h0v0.html`) rewrite both documents around
   the completed H0: allocation beats both corners on ~38% of all heads (53% median

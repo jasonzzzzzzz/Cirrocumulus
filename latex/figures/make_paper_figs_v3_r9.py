@@ -3,13 +3,14 @@
 
 fig1_regime   : as v2, with label fixes (literal \\% and overlapping rho text)
 fig2_evidence : as v2, with label fixes (literal \\n in tick labels)
-fig3_endtask  : End-task audit from the paired R12 grid (all methods in one
-                process per cell; 8k/32k Llama and Qwen, 128k Llama). The R9
-                version is kept as make_paper_figs_v3_r9.py. ESTIMATES is empty;
-                the show_est switch is kept so the paper's \\hideest build works.
+fig3_endtask  : NEW. End-task audit from the R8/R9 held-out campaign
+                (jobs 978480, 978483, 978485, 978487, 978489) plus ESTIMATES
+                for arms whose jobs have not returned (R12-A). Estimated
+                entries are drawn hollow and labelled "est.".
 
     cd latex/figures && ../../.venv/bin/python make_paper_figs_v3.py
 
+When R12-A lands, point R8_FILES at the r12job parquets and empty ESTIMATES.
 """
 from __future__ import annotations
 
@@ -30,12 +31,16 @@ RES = os.path.join(ROOT, "h0_measurement", "results")
 R6 = pd.read_csv(os.path.join(HERE, "r6_symmetric.csv"))
 R3 = pd.read_csv(os.path.join(
     ROOT, "h0_measurement", "bugs", "2_towards_real_evictor", "R3-cells.csv"))
-R8_FILES = [os.path.join(RES, f"r12job{j}", f"r8_{c}.parquet") for j, c in (
-    ("21832327", "llama31-8b_8192"), ("21832330", "qwen3-8b_8192"),
-    ("21841737", "llama31-8b_32768"), ("21841738", "qwen3-8b_32768"),
-    ("21850510", "llama31-8b_131072"), ("21850511", "llama31-8b_131072"))]
+R8_FILES = [f for j in ("978480", "978483", "978485", "978487", "978489")
+            for f in glob.glob(os.path.join(RES, f"r9job{j}", "r8_*.parquet"))]
 
-ESTIMATES: dict = {}   # all arms measured in the paired grid
+# Per-model mean task scores for arms not yet run in the paired campaign.
+# Basis for each number: latex/appendix.tex, "Estimate ledger".
+ESTIMATES = {
+    "evict_h2o": {"llama31-8b": 0.38, "qwen3-8b": 0.33},
+    "kivi_g128": {"llama31-8b": 0.96, "qwen3-8b": 0.97},
+    "kvquant": {"llama31-8b": 0.97, "qwen3-8b": 0.98},
+}
 
 COL = {
     "llama33-70b": "#12414f", "mistral-7b": "#1f6b52",
@@ -232,29 +237,28 @@ def endtask_figure(show_est=True, stem="fig3_endtask"):
         c = cells[cells.arm.map(fam_of) == fam]
         a1.scatter(c.head_err_mean, c.score, s=5, alpha=0.45, color=FAM_COL[fam],
                    edgecolor="none", label=lab)
-    means = cells[cells.arm.isin(fam_of)].groupby("arm")[["head_err_mean", "score"]].mean()
+    means = cells.groupby("arm")[["head_err_mean", "score"]].mean()
     for arm, r in means.iterrows():
         a1.scatter(r.head_err_mean, r.score, s=26, marker="*", color=FAM_COL[fam_of[arm]],
                    edgecolor="black", linewidth=0.3, zorder=4)
     a1.set_xscale("log")
     a1.set(xlabel="head-output error (log)", ylabel="task score", ylim=(-0.03, 1.05))
     a1.set_title("(b) Output error vs. task score", pad=9)
-    a1.set_xticks([0.03, 0.1, 0.3, 1.0])
-    a1.set_xticklabels(["0.03", "0.1", "0.3", "1"])
+    a1.set_xticks([0.05, 0.1, 0.2, 0.5, 1.0])
+    a1.set_xticklabels(["0.05", "0.1", "0.2", "0.5", "1"])
     a1.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
     # Within-cell rank correlation across methods (paper F5), above the axes so
-    # it hides no points: 12 methods; token-selective (eviction + SIEVE) only.
-    a1.text(0.5, 1.01, "within-cell $\\rho$: $-0.16$ (12 methods); $-0.38$ (8 token-selective)",
+    # it hides no points: full grid, 8 methods; paired 8k run, 12 methods.
+    a1.text(0.5, 1.01, "within-cell $\\rho$: $-0.05$ (8 methods); 8k run: $-0.36$ (12)",
             transform=a1.transAxes, ha="center", va="bottom", fontsize=5.4, color="#333333")
     a1.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=3,
               handletextpad=0.1, columnspacing=0.5, markerscale=1.6, fontsize=5.6)
 
     # (c) failure anatomy at 128K
     et = error_type(d)
-    rows = [("uniform", "TurboQuant"), ("obck_ada", "OBCache-K+Ada"), ("laprox", "LaProx"),
-            ("evict", "SnapKV"), ("evict_h2o", "H2O (no pooling)"),
-            ("interior_cascade", "SIEVE (interior)"), ("router_calib", "SIEVE (router)"),
-            ("interior_pool", "SIEVE pooled (diag.)")]
+    rows = [("uniform", "TurboQuant"), ("obck_ada", "OBCache-K+Ada"), ("adakv", "Ada-KV"),
+            ("laprox", "LaProx"), ("evict", "SnapKV"), ("interior_cascade", "SIEVE (interior)"),
+            ("router_calib", "SIEVE (router)")]
     kinds = [("correct", "#d9d9d9", "correct"), ("truncated", "#7c3aed", "truncated answer"),
              ("distractor", "#b0651c", "wrong needle"), ("other", "#555555", "other")]
     y = np.arange(len(rows))[::-1]

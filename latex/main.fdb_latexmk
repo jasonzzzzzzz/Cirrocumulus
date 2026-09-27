@@ -1,15 +1,15 @@
 # Fdb version 4
-["bibtex main"] 1790424870 "main.aux" "main.bbl" "main" 1790424871 0
+["bibtex main"] 1790528128 "main.aux" "main.bbl" "main" 1790528129 0
   "./concurrent.bib" 1790110263 3158 f4d2547f95c48ad3be35ff8012702949 ""
   "./iclr2027_conference.bst" 1790393652 26973 af983813ca1a1414954dbceae7baa2a1 ""
   "./related.bib" 1790407190 11847 604284de0c09d4d1b3583fb99fe0a7d2 ""
   "./sieve.bib" 1790111052 6250 8eef04d4fc303fe376a2d7e8379ec3d5 ""
-  "main.aux" 1790424871 27619 4e54801d0cb66708877f63fa856c44f0 "pdflatex"
+  "main.aux" 1790528129 28548 121b533d7c42ce89c9584649099e7b03 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1790424870 "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" "main.pdf" "main" 1790424871 0
+["pdflatex"] 1790528128 "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" "main.pdf" "main" 1790528129 0
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -157,22 +157,22 @@
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/web2c/texmf.cnf" 1692823885 39639 818dd8e5a0dce3a72597a7e6bad45d55 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1692821535 5031293 07973d5e761f645996ac32ebf7b8d1f3 ""
   "/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1692821530 1386016 abd9ba6eb53c47bc5de8d672b6ac87d3 ""
-  "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" 1790424868 51158 7a023f1f6bf39df3ebf3f51038193288 ""
-  "appendix.tex" 1790423760 31065 91fc69eb8299830c5572640745773cdb ""
+  "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/latex/main.tex" 1790528124 50791 f53a144a7317a196e03748d4c4d3ba7c ""
+  "appendix.tex" 1790527849 31478 e5ae8226f6760e1304a9c6ad902e0974 ""
   "fancyhdr.sty" 1789674822 20521 e5d13d98d57bd53d4fed3aa61bd29c86 ""
-  "figures/fig1_regime.pdf" 1790402794 29359 15a5773d72d1d33c283561923346e247 ""
-  "figures/fig2_evidence.pdf" 1790402794 18359 1a8d8df280eb22941cfc772447eed040 ""
-  "figures/fig3_endtask.pdf" 1790421120 27451 44898edf957eb9a284a58d8cfbcef30a ""
+  "figures/fig1_regime.pdf" 1790527401 29359 450b7b54e0ad7ba790908935f7650b2b ""
+  "figures/fig2_evidence.pdf" 1790527401 18359 4a5ebb507d148a3d124cbb9fd6c87937 ""
+  "figures/fig3_endtask.pdf" 1790527401 29067 55631b23440e849783387847e310a8a4 ""
   "iclr2027_conference.sty" 1790393652 9025 1b4bb9c2e12c712c56f4eb1232b88dd6 ""
-  "main.aux" 1790424871 27619 4e54801d0cb66708877f63fa856c44f0 "pdflatex"
-  "main.bbl" 1790424870 17404 6a0dd4d144fc213a355e5823a82fcb72 "bibtex main"
-  "main.out" 1790424871 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
-  "main.tex" 1790424868 51158 7a023f1f6bf39df3ebf3f51038193288 ""
+  "main.aux" 1790528129 28548 121b533d7c42ce89c9584649099e7b03 "pdflatex"
+  "main.bbl" 1790528128 17719 b4291e369e345eb83cc7f063a7763d8e "bibtex main"
+  "main.out" 1790528129 5262 4b3542c4d4958fb03b2d64db87f67cd4 "pdflatex"
+  "main.tex" 1790528124 50791 f53a144a7317a196e03748d4c4d3ba7c ""
   "math_commands.tex" 1789674824 12284 a71653715108dc62b66e3a0bde0307d8 ""
   "natbib.sty" 1789674836 45154 40088ce024445d7ee2bca59e704cdd01 ""
-  "tab_endtask_fail.tex" 1790423645 989 26d2eca40461d91461a0fcf253b3fb13 ""
-  "tab_endtask_grid.tex" 1790423415 4808 3bcb7626ec5b2d493a2dabe39b128a84 ""
-  "tab_endtask_h2h.tex" 1790423645 629 5bbfd00bbe5986a29a4554d622c450c3 ""
+  "tab_endtask_fail.tex" 1790527350 1451 69d090bb42c229cadde0f6420aed94b6 ""
+  "tab_endtask_grid.tex" 1790526968 8884 8a3f04e5578dddc4f8c0954aeca85d7e ""
+  "tab_endtask_h2h.tex" 1790527350 865 aed740f9d2a0e005567dbc02e77ce134 ""
   "tab_predictors.tex" 1790391697 709 cff0dae4dddb0b0256f4ec6b166d08db ""
   (generated)
   "main.aux"

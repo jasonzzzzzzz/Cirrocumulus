@@ -274,19 +274,13 @@ Because the model forward pass is not bit-reproducible across processes even on
 one GPU, every comparison that pairs methods prompt by prompt computes all
 methods inside one process on the same captured queries, keys, and values;
 comparisons across processes are made on cell means only.  The spread is
-measurable: the full grid and the paired grid evaluate the same 8k cells in
-different processes, with the same prompt indices, needle depths, and question
-templates, but with haystack text and needle values drawn from two copies of
-the PG-19 corpus that differ.
-Their cell means differ by a median of 0.04 and a 90th percentile of 0.15 over
-112 cell--method pairs (TurboQuant: at most 0.05); this spread includes both
-process nondeterminism and the haystack change.  Per-cell wins and losses
-(Table~\ref{tab:app-h2h}) therefore use a 0.15 margin.  Over all 36 cells, the
-eight methods shared by the two grids differ in mean score by at most 0.03
-(OBCache-K + Ada-KV; \sieve{} 0.002, TurboQuant 0.000): enough to reorder close
-eviction methods, but not \sieve{} against eviction or dense quantization.
-All end-task numbers in the main text come from the paired grid unless marked
-\emph{full grid}.
+measurable: the full grid and the 8k run evaluate the same 8k cells on the same
+prompts in different processes, and their cell means differ by a median of
+0.04 and a 90th percentile of 0.15 over 112 cell--method pairs (TurboQuant: at
+most 0.05).  Per-cell wins and losses (Table~\ref{tab:app-h2h}) therefore use a
+0.15 margin.  Method means over the 14 cells differ by at most 0.08 (DropKV;
+\sieve{} 0.01, TurboQuant 0.001): enough to reorder close eviction methods, but
+not \sieve{} against eviction or dense quantization.
 
 \section{Additional robustness and deployment evidence}
 \label{app:robustness}
@@ -426,18 +420,7 @@ Lloyd--Max codebooks, at matched attention-output error; successive refinability
 at most $0.42\%$ rate at any width.  End to end at $B=3$, including the extra
 bit that 3-bit tokens keep for the 4-bit cascade score, the overhead is
 $+0.34\%$ averaged over four model--context cells (90\% CI $[-0.33,+0.99]$) and
-$+2.9\%$ in the worst cell.  A pre-registered extension to four further
-cells (Qwen3-30B-A3B and Qwen1.5-MoE-A2.7B at 8k, Mistral-7B at 8k and 32k;
-48 prompts), with both codes built in one process from the same captured
-tensors, passed every validity check.  At $B=3$ the mean overhead is $+1.5\%$
-over the four cells (cell means $-3.6\%$ to $+3.8\%$); at $B=2$ the cell means
-are $-1.9\%$ to $+4.9\%$.  No prompt in any cell exceeds the pre-registered
-20\% tail at either budget, and the worst single prompt is $+10.2\%$
-(Qwen3-30B-A3B, $B=3$).  One secondary, pre-registered mechanism prediction
-failed.  We expected no single KV group to carry more than 10\% of a prompt's
-error in the two Mistral cells at $B=3$; one Mistral-7B 8k prompt reached
-11.6\%, although its overhead stayed small.  Negative values mean the nested code needs fewer bits than
-separate codebooks at the same output error.  \emph{Protected window.}  The last 32 context
+$+2.9\%$ in the worst cell.  \emph{Protected window.}  The last 32 context
 tokens stay uncompressed in every method: $0.39\%$ of the context at 8k,
 $0.10\%$ at 32k, and $0.02\%$ at 128k.  Because it is identical across methods,
 it shifts every method's memory equally and does not affect the comparison.
@@ -471,25 +454,10 @@ KVQuant calibrates outlier thresholds and its
 non-uniform codebook offline with Fisher-weighted $k$-means; we fit both online
 on each prompt's own context without weighting.  Fitting on the test context
 itself likely favors KVQuant.  The Qwen conclusion does not rest on it: KIVI-128,
-which needs no calibration, also beats \sieve{} there on its own (0.986 vs.\ 0.962).  H2O
+which needs no calibration, also beats \sieve{} there on its own (0.987 vs.\ 0.953).  H2O
 uses its raw accumulated score, whose causal position bias (a token is seen by
 every later query) is H2O's own.  
 %All methods use simulated quantization: the model reads dequantized keys, and no packed kernel is involved.
-
-\paragraph{The harder cell (failed gate).}
-Every dense quantizer is near its ceiling in the main grid, so we pre-registered
-one harder cell: multi-key retrieval with 32 keys, 4 values, and 4 hops at 32k on
-Llama-3.1-8B, evaluated on 60 fresh prompts (1000--1059) with a router calibrated
-on disjoint prompts.  The cell counts only if the uncompressed model scores at
-least 0.95 and TurboQuant at $B=2$ lies in $[0.50,0.90]$.  The uncompressed model
-scores 1.00, but TurboQuant scores 0.917, so the gate fails and the cell is not
-used as evidence of a non-ceiling regime.  For completeness, at $B=2$ / $B=3$:
-KIVI-32 0.98 / 1.00, KIVI-128 0.87 / 0.98, KVQuant 0.82 / 1.00, TurboQuant
-0.92 / 1.00; \sieve{} (router) 0.38 / 1.00, interior alone 0.13 / 0.42; best
-eviction method H2O 0.20 / 0.42, the others at most 0.15 / 0.38.  With many keys
-competing for the kept tokens, eviction collapses while every quantizer stays
-near ceiling; \sieve{} lies between them at $B=2$ and matches the quantizers at
-$B=3$.
 
 \begin{table}[h]
 \centering
@@ -503,7 +471,7 @@ $B=3$.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\caption{Failure case: Llama-3.1-8B at 128k.  Error types are over single- and multi-key answers at $B\in\{2,3\}$ (80 per method).  \emph{Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 22\% (interior and router), 39\% (H2O), and at most 4\% (pooled eviction methods).  Diagnostic rows are not tuned methods.  \emph{Wrong needle}: another needle's value.}
+\caption{Failure case: Llama-3.1-8B at 128k.  Error types are over single- and multi-key answers at $B\in\{2,3\}$ (80 per method).  \emph{Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 28\% (interior), 23\% (router), and at most 9\% (eviction methods).  \emph{Wrong needle}: another needle's value.}
 \label{tab:app-fail}
 \input{tab_endtask_fail.tex}
 \end{table}
@@ -512,12 +480,45 @@ $B=3$.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.4pt}
-\caption{Paired end-task grid: mean score over 20 prompts per cell, all methods in one process per cell.  Bold marks the best method in each valid row.  $\ddagger$: uncompressed score below 0.9, excluded from every aggregate.  Mistral-7B rows are summarized separately in Table~\ref{tab:endtask}.}
+\caption{Full end-task grid: mean score over 20 prompts per cell.  Bold marks the best method in each valid row.  $\ddagger$: uncompressed score below 0.9, excluded from every aggregate.  
+KIVI, KVQuant, and H2O were measured only in the 8k run (Table~\ref{tab:endtask}).
+}
 \label{tab:app-grid}
-\resizebox{\linewidth}{!}{\input{tab_endtask_grid.tex}}
+\input{tab_endtask_grid.tex}
 \end{table}
 
 
+% Estimate ledger commented out (2026-09-26); remove the comment environment to restore it.
+\begin{comment}
+\ifshowest
+\section{Estimate ledger}
+\label{app:ledger}
+
+Numbers typeset as \est{x} in the main text are estimates, not measurements.
+Each is replaced by the run named below; the paired rerun (R12-A) also
+replaces every measured end-task number, because the forward pass is not
+bit-reproducible across processes and all methods must share one process per
+cell to be compared prompt by prompt.
+
+\begin{table}[h]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.2\linewidth}p{0.13\linewidth}p{0.49\linewidth}p{0.1\linewidth}@{}}
+\toprule
+quantity & estimate & basis & replaced by \\
+\midrule
+H2O, full grid, Llama / Qwen & 0.38 / 0.33 & Measured in the 8k rerun at 0.354 / 0.358; question-aware runs at 32k gave 0.37 ($B=2$) and 0.48 ($B=3$). & R12-A \\
+KIVI ($g{=}128$ / $g{=}32$), full grid & 0.96 / 0.98 (all) & Measured in the 8k rerun: Llama 0.964 / 0.986, Qwen 0.987 / 1.000.  On Qwen3-1.7B at 2k TurboQuant scored 0/11 at both budgets while KIVI and KVQuant held. & R12-A \\
+KVQuant, full grid & 0.97 (all) & Measured in the 8k rerun: Llama 0.976, Qwen 0.990. & R12-A \\
+Hard cell, all methods & see Table~\ref{tab:endtask} & Screening block (prompts 500--539): FP 1.00, TurboQuant 0.825.  On the 10 calibration prompts (1100--1109) FP and TurboQuant both score 0.90, so the pre-registered gate may fail; other methods scaled from 4-key retrieval at 32k. & R12-B \\
+Pooled-score interior, 128k, $B=2$ & 0.58 & At 8k it moved the Llama interior from 0.299 to 0.663 at $B=2$ and truncation from 39\% to 9\%; 128k is the pre-registered cell. & R12-A (diag.) \\
+Oracle router, 128k, $B=2$ & 0.55 & At 8k the oracle adds $+0.15$ on Llama (0.680 to 0.834); scaled to 128k, where the calibrated router sends 99\% of heads to the interior. & R12-A (diag.) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\fi
+\end{comment}
 
 \section{Extended related work}
 \label{app:related}

@@ -79,13 +79,18 @@
 \@writefile{toc}{\contentsline {paragraph}{F4: Routed per head, the output-error optimum beats every eviction method, but a model-matched dense quantizer beats it.}{5}{section*.17}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {F1 robustness and F3 timescales.} \textbf  {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf  {(b)} In six cells, keeping the calibration-time \emph  {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment.}}{6}{figure.2}\protected@file@percent }
 \newlabel{fig:evidence}{{2}{6}{\textbf {F1 robustness and F3 timescales.} \textbf {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf {(b)} In six cells, keeping the calibration-time \emph {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment}{figure.2}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph  {Full grid}: 36 cells, one run each. \emph  {8k}: all methods paired in one process (\S  \ref  {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant. }}{6}{table.2}\protected@file@percent }
-\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph {Full grid}: 36 cells, one run each. \emph {8k}: all methods paired in one process (\S \ref {sec:protocol}). Output error and effective bits ($B=2$) from the rerun. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
-\citation{zhang2026fixedcontract}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {F4--F6: what transfers to task accuracy.} \textbf  {(a)} Mean task score per method and model over the full grid; TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \textsc  {Sieve}{} beats TurboQuant but not the per-channel quantizers. \textbf  {(b)} Head-output error vs.\ task score for every full-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf  {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \textsc  {Sieve}{} fails by \emph  {truncating} the correct number, eviction methods by returning a wrong needle.}}{7}{figure.3}\protected@file@percent }
-\newlabel{fig:endtask}{{3}{7}{\textbf {F4--F6: what transfers to task accuracy.} \textbf {(a)} Mean task score per method and model over the full grid; TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \sieve {} beats TurboQuant but not the per-channel quantizers. \textbf {(b)} Head-output error vs.\ task score for every full-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \sieve {} fails by \emph {truncating} the correct number, eviction methods by returning a wrong needle}{figure.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph  {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S  \ref  {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph  {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant.}}{6}{table.2}\protected@file@percent }
+\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S \ref {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {F4--F6: what transfers to task accuracy.} \textbf  {(a)} Mean task score per method and model over the paired grid. TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \textsc  {Sieve}{} beats TurboQuant but not the per-channel quantizers. \textbf  {(b)} Head-output error vs.\ task score for every paired-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf  {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \textsc  {Sieve}{} and H2O, which do not pool their scores, fail by \emph  {truncating} the correct number; pooled eviction methods fail by returning a wrong needle. Pooling \textsc  {Sieve}{}'s scores (diagnostic) removes the truncation.}}{7}{figure.3}\protected@file@percent }
+\newlabel{fig:endtask}{{3}{7}{\textbf {F4--F6: what transfers to task accuracy.} \textbf {(a)} Mean task score per method and model over the paired grid. TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \sieve {} beats TurboQuant but not the per-channel quantizers. \textbf {(b)} Head-output error vs.\ task score for every paired-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \sieve {} and H2O, which do not pool their scores, fail by \emph {truncating} the correct number; pooled eviction methods fail by returning a wrong needle. Pooling \sieve {}'s scores (diagnostic) removes the truncation}{figure.3}{}}
 \@writefile{toc}{\contentsline {paragraph}{F5: Output distortion ranks budgets and contexts well and methods weakly.}{7}{section*.18}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{F6: Token-granular allocation truncates multi-token answers; positional smoothing largely repairs it.}{7}{section*.19}\protected@file@percent }
+\citation{zhang2026fixedcontract}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \textbf  {F7:} how much each choice moves a verdict, compared with prompt sampling.}}{8}{table.3}\protected@file@percent }
+\newlabel{tab:contract}{{3}{8}{\textbf {F7:} how much each choice moves a verdict, compared with prompt sampling}{table.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{F7: The comparison set and information contract move verdicts more than prompt sampling does.}{8}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Implications}{8}{section.6}\protected@file@percent }
+\newlabel{sec:implications}{{6}{8}{Implications}{section.6}{}}
 \citation{liu2024kivi,hooper2024kvquant}
 \citation{kang2024gear}
 \citation{zandieh2024qjl,zandieh2025turboquant}
@@ -93,11 +98,6 @@
 \citation{zuo2026ratequant}
 \citation{ocp2023mx}
 \citation{alvarez2025nvfp4}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \textbf  {F7:} how much each choice moves a verdict, compared with prompt sampling.}}{8}{table.3}\protected@file@percent }
-\newlabel{tab:contract}{{3}{8}{\textbf {F7:} how much each choice moves a verdict, compared with prompt sampling}{table.3}{}}
-\@writefile{toc}{\contentsline {paragraph}{F7: The comparison set and information contract move verdicts more than prompt sampling does.}{8}{section*.20}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Implications}{8}{section.6}\protected@file@percent }
-\newlabel{sec:implications}{{6}{8}{Implications}{section.6}{}}
 \citation{xiao2024streamingllm}
 \citation{zhang2023h2o,liu2023scissorhands}
 \citation{oren2024tova}
@@ -125,9 +125,9 @@
 \@writefile{toc}{\contentsline {paragraph}{Diagnostics, evaluation contracts, and systems.}{9}{section*.24}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {8}Limitations and conclusion}{9}{section.8}\protected@file@percent }
 \newlabel{sec:conclusion}{{8}{9}{Limitations and conclusion}{section.8}{}}
-\newlabel{main:end}{{8}{9}{Limitations and conclusion}{section.8}{}}
 \bibdata{sieve,concurrent,related}
 \bibcite{alvarez2025nvfp4}{{1}{2025}{{Alvarez et~al.}}{{Alvarez, Almog, Chung, Layton, Stosic, Krashinsky, and Aubrey}}}
+\newlabel{main:end}{{8}{10}{Limitations and conclusion}{section.8}{}}
 \bibcite{an2026restkv}{{2}{2026}{{An et~al.}}{{An, Lu, Zhu, Yu, Zhao, Wu, Tang, and Wang}}}
 \bibcite{bai2025longbenchv2}{{3}{2025}{{Bai et~al.}}{{Bai, Tu, Zhang, Peng, Wang, Lv, Cao, Xu, Hou, Dong, Tang, and Li}}}
 \bibcite{cai2024pyramidkv}{{4}{2024}{{Cai et~al.}}{{Cai, Zhang, Gao, Liu, Liu, Lu, Xiong, Dong, Chang, Hu, and Xiao}}}
@@ -221,27 +221,28 @@
 \@writefile{toc}{\contentsline {paragraph}{Protocol.}{18}{section*.31}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Budget accounting.}{18}{section*.32}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Storage costs outside the code budget.}{18}{section*.33}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Baselines as implemented, and side information per key element ($d=128$).}}{19}{table.7}\protected@file@percent }
-\newlabel{tab:app-side}{{7}{19}{Baselines as implemented, and side information per key element ($d=128$)}{table.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Deviations from the original papers.}{19}{section*.34}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces \textsc  {Sieve}{} (router) against each baseline over the 36 valid cells. A win or loss is a cell-mean difference above 0.15, the 90th percentile of the run-to-run spread (App.\nobreakspace  {}\ref  {app:compute}); the interval resamples prompts within each model and context.}}{19}{table.8}\protected@file@percent }
-\newlabel{tab:app-h2h}{{8}{19}{\sieve {} (router) against each baseline over the 36 valid cells. A win or loss is a cell-mean difference above 0.15, the 90th percentile of the run-to-run spread (App.~\ref {app:compute}); the interval resamples prompts within each model and context}{table.8}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Failure case: Llama-3.1-8B at 128k. Error types are over single- and multi-key answers at $B\in \{2,3\}$ (80 per method). \emph  {Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 28\% (interior), 23\% (router), and at most 9\% (eviction methods). \emph  {Wrong needle}: another needle's value.}}{19}{table.9}\protected@file@percent }
-\newlabel{tab:app-fail}{{9}{19}{Failure case: Llama-3.1-8B at 128k. Error types are over single- and multi-key answers at $B\in \{2,3\}$ (80 per method). \emph {Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 28\% (interior), 23\% (router), and at most 9\% (eviction methods). \emph {Wrong needle}: another needle's value}{table.9}{}}
 \citation{alvarez2025nvfp4,nvidia2025nvfp4ways}
 \citation{ocp2023mx}
 \citation{nvidia2024te,nvidia2024modelopt}
-\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Full end-task grid: mean score over 20 prompts per cell. Bold marks the best method in each valid row. $\ddagger $: uncompressed score below 0.9, excluded from every aggregate. KIVI, KVQuant, and H2O were measured only in the 8k run (Table\nobreakspace  {}\ref  {tab:endtask}). }}{20}{table.10}\protected@file@percent }
-\newlabel{tab:app-grid}{{10}{20}{Full end-task grid: mean score over 20 prompts per cell. Bold marks the best method in each valid row. $\ddagger $: uncompressed score below 0.9, excluded from every aggregate. KIVI, KVQuant, and H2O were measured only in the 8k run (Table~\ref {tab:endtask})}{table.10}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {G}Extended related work}{20}{appendix.G}\protected@file@percent }
-\newlabel{app:related}{{G}{20}{Extended related work}{appendix.G}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Closest work and the claim boundary of this paper.}}{20}{table.11}\protected@file@percent }
-\newlabel{tab:related}{{11}{20}{Closest work and the claim boundary of this paper}{table.11}{}}
-\@writefile{toc}{\contentsline {paragraph}{Low-precision formats and the dense endpoint.}{20}{section*.35}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Baselines as implemented, and side information per key element ($d=128$).}}{19}{table.7}\protected@file@percent }
+\newlabel{tab:app-side}{{7}{19}{Baselines as implemented, and side information per key element ($d=128$)}{table.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{Deviations from the original papers.}{19}{section*.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The harder cell (failed gate).}{19}{section*.35}\protected@file@percent }
 \citation{dao2023flashattention2,shah2024flashattention3}
 \citation{zhang2024sageattention,zhang2024sageattention2,zhang2025sageattention3}
 \citation{mao2026triattention}
 \citation{kwon2023vllm}
 \citation{mao2026triattention}
-\@writefile{toc}{\contentsline {paragraph}{Low-precision attention kernels.}{21}{section*.36}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces \textsc  {Sieve}{} (router) against each baseline over the 36 valid cells. A win or loss is a cell-mean difference above 0.15, the 90th percentile of the run-to-run spread (App.\nobreakspace  {}\ref  {app:compute}); the interval resamples prompts within each model and context.}}{20}{table.8}\protected@file@percent }
+\newlabel{tab:app-h2h}{{8}{20}{\sieve {} (router) against each baseline over the 36 valid cells. A win or loss is a cell-mean difference above 0.15, the 90th percentile of the run-to-run spread (App.~\ref {app:compute}); the interval resamples prompts within each model and context}{table.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Failure case: Llama-3.1-8B at 128k. Error types are over single- and multi-key answers at $B\in \{2,3\}$ (80 per method). \emph  {Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 22\% (interior and router), 39\% (H2O), and at most 4\% (pooled eviction methods). Diagnostic rows are not tuned methods. \emph  {Wrong needle}: another needle's value.}}{20}{table.9}\protected@file@percent }
+\newlabel{tab:app-fail}{{9}{20}{Failure case: Llama-3.1-8B at 128k. Error types are over single- and multi-key answers at $B\in \{2,3\}$ (80 per method). \emph {Truncated}: the prediction keeps the correct first three digits (Llama's first number token) but is not the correct number; proper prefixes alone account for 22\% (interior and router), 39\% (H2O), and at most 4\% (pooled eviction methods). Diagnostic rows are not tuned methods. \emph {Wrong needle}: another needle's value}{table.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {G}Extended related work}{20}{appendix.G}\protected@file@percent }
+\newlabel{app:related}{{G}{20}{Extended related work}{appendix.G}{}}
+\@writefile{toc}{\contentsline {paragraph}{Low-precision formats and the dense endpoint.}{20}{section*.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Low-precision attention kernels.}{20}{section*.37}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Paired end-task grid: mean score over 20 prompts per cell, all methods in one process per cell. Bold marks the best method in each valid row. $\ddagger $: uncompressed score below 0.9, excluded from every aggregate. Mistral-7B rows are summarized separately in Table\nobreakspace  {}\ref  {tab:endtask}.}}{21}{table.10}\protected@file@percent }
+\newlabel{tab:app-grid}{{10}{21}{Paired end-task grid: mean score over 20 prompts per cell, all methods in one process per cell. Bold marks the best method in each valid row. $\ddagger $: uncompressed score below 0.9, excluded from every aggregate. Mistral-7B rows are summarized separately in Table~\ref {tab:endtask}}{table.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Closest work and the claim boundary of this paper.}}{21}{table.11}\protected@file@percent }
+\newlabel{tab:related}{{11}{21}{Closest work and the claim boundary of this paper}{table.11}{}}
 \gdef \@abspage@last{21}

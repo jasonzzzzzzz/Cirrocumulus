@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  26 SEP 2026 08:28
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  27 SEP 2026 12:50
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -588,8 +588,13 @@ Underfull \hbox (badness 10000) in paragraph at lines 92--92
  []
 
 
-Underfull \hbox (badness 4686) in paragraph at lines 94--94
-\OT1/ptm/m/n/9 (+20) and 10 on Mis-tral
+Underfull \hbox (badness 1097) in paragraph at lines 94--94
+[]\OT1/ptm/m/n/9 (+20) 36 paired task cells
+ []
+
+
+Underfull \hbox (badness 4872) in paragraph at lines 94--94
+\OT1/ptm/m/n/9 (+20) meth-ods); Ta-ble [][]2[][],
  []
 
 
@@ -598,38 +603,39 @@ Underfull \hbox (badness 10000) in paragraph at lines 95--95
  []
 
 
-Underfull \hbox (badness 3396) in paragraph at lines 95--95
+Underfull \hbox (badness 5217) in paragraph at lines 95--95
 \OML/cmm/m/it/9 ^^Z \OT1/cmr/m/n/9 = \OMS/cmsy/m/n/9 ^^@\OT1/cmr/m/n/9 0\OML/cm
-m/m/it/9 :\OT1/cmr/m/n/9 29$ \OT1/ptm/m/n/9 (+20) (8k--
+m/m/it/9 :\OT1/cmr/m/n/9 16$ \OT1/ptm/m/n/9 (+20) (12
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 95--95
-\OT1/ptm/m/n/9 (+20) 32k, 12 meth-ods);
+\OT1/ptm/m/n/9 (+20) meth-ods; $\OMS/cmsy/m/n/9 ^^@\OT1/cmr/m/n/9 0\OML/cmm/m/i
+t/9 :\OT1/cmr/m/n/9 38$
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 95--95
+\OT1/ptm/m/n/9 (+20) token-selective);
+ []
+
+
+Underfull \hbox (badness 4899) in paragraph at lines 96--96
+[]\OT1/ptm/m/n/9 (+20) 34--44% $\OMS/cmsy/m/n/9 !$ \OT1/ptm/m/n/9 (+20) 1--11%
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 96--96
-[]\OT1/ptm/m/n/9 (+20) 36% vs. 1--11%
- []
-
-
-Underfull \hbox (badness 1546) in paragraph at lines 96--96
-\OT1/ptm/m/n/9 (+20) (128k); 39--44% $\OMS/cmsy/m/n/9 !$
+\OT1/ptm/m/n/9 (+20) (Llama, 8k--128k);
  []
 
 
 Underfull \hbox (badness 10000) in paragraph at lines 96--96
-\OT1/ptm/m/n/9 (+20) 9--11% (8k--32k);
+\OT1/ptm/m/n/9 (+20) pre-registered 128k
  []
 
 
-Underfull \hbox (badness 3557) in paragraph at lines 96--97
-[]\OT1/ptm/m/n/9 (+20) repair shown at 8k--32k on
- []
-
-
-Underfull \vbox (badness 10000) has occurred while \output is active []
+Underfull \vbox (badness 4316) has occurred while \output is active []
 
  [2]
 Underfull \hbox (badness 10000) in paragraph at lines 173--174
@@ -655,32 +661,29 @@ File: figures/fig2_evidence.pdf Graphic file (type pdf)
 <use figures/fig2_evidence.pdf>
 Package pdftex.def Info: figures/fig2_evidence.pdf  used on input line 216.
 (pdftex.def)             Requested size: 397.48499pt x 124.61523pt.
- [5 <./figures/fig1_regime.pdf>]
-<figures/fig3_endtask.pdf, id=354, 428.19743pt x 157.12898pt>
+ [5 <./figures/fig1_regime.pdf>] [6 <./figures/fig2_evidence.pdf>]
+<figures/fig3_endtask.pdf, id=388, 433.00023pt x 157.12898pt>
 File: figures/fig3_endtask.pdf Graphic file (type pdf)
 <use figures/fig3_endtask.pdf>
-Package pdftex.def Info: figures/fig3_endtask.pdf  used on input line 277.
-(pdftex.def)             Requested size: 397.48499pt x 145.8599pt.
+Package pdftex.def Info: figures/fig3_endtask.pdf  used on input line 273.
+(pdftex.def)             Requested size: 397.48499pt x 144.25111pt.
 
-Underfull \vbox (badness 4846) has occurred while \output is active []
-
- [6 <./figures/fig2_evidence.pdf>] [7 <./figures/fig3_endtask.pdf>]
-Underfull \hbox (badness 1132) in paragraph at lines 319--319
+[7 <./figures/fig3_endtask.pdf>]
+Underfull \hbox (badness 1132) in paragraph at lines 310--310
 []\OT1/ptm/m/n/9 (+20) Qwen3-8B 8k--32k: $\OT1/cmr/m/n/9 0\OML/cmm/m/it/9 :\OT1
 /cmr/m/n/9 87 \OMS/cmsy/m/n/9 ! \OT1/cmr/m/n/9 0\OML/cmm/m/it/9 :\OT1/cmr/m/n/9
  99$
  []
 
 
-Underfull \hbox (badness 6220) in paragraph at lines 319--320
+Underfull \hbox (badness 6220) in paragraph at lines 310--311
 []\OT1/ptm/m/sc/9 (+20) Sieve \OT1/ptm/m/n/9 (+20) vs. dense on
  []
 
-
+[8] [9] (./main_check.bbl
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [8]
-[9] (./main_check.bbl
+ [10]
 LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 2
 4.
 
@@ -692,7 +695,7 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `pcr' (encoding: OT1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
- [10] [11]
+ [11]
 Underfull \hbox (badness 3525) in paragraph at lines 195--199
 []\OT1/ptm/m/n/10 (+20) NVIDIA.  NVIDIA Ten-sorRT model op-ti-mizer.  [][]$\OT1
 /pcr/m/n/10 https : / / github . com / NVIDIA /
@@ -721,19 +724,19 @@ p to
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 [16]
-Underfull \hbox (badness 10000) in paragraph at lines 300--300
+Underfull \hbox (badness 10000) in paragraph at lines 306--306
 []$\OT1/cmr/m/n/9 1\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 000\OML/cmm/m/it/9 =\OT1/cmr
 /m/n/9 1\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 136\OML/cmm/m/it/9 =\OT1/cmr/m/n/9 1\OM
 L/cmm/m/it/9 :\OT1/cmr/m/n/9 316\OMS/cmsy/m/n/9 ^^B$ \OT1/ptm/m/n/9 (+20) at
  []
 
 
-Underfull \hbox (badness 7832) in paragraph at lines 301--301
+Underfull \hbox (badness 7832) in paragraph at lines 307--307
 []\OT1/ptm/m/n/9 (+20) closes $\OT1/cmr/m/n/9 82$\OT1/ptm/m/n/9 (+20) --$\OT1/c
 mr/m/n/9 91%$ \OT1/ptm/m/n/9 (+20) (me-dian
  []
 
-(./tab_predictors.tex
+[17] (./tab_predictors.tex
 LaTeX Font Info:    Trying to load font information for OMS+ptm on input line 4
 .
 
@@ -743,36 +746,47 @@ File: omsptm.fd
 )
 LaTeX Font Info:    Font shape `OMS/ptm/m/n' in size <9> not available
 (Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 4.
-)
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-[17] Excluding 'comment' comment.
-Underfull \hbox (badness 10000) in paragraph at lines 443--443
+) Excluding 'comment' comment. [18]
+Underfull \hbox (badness 10000) in paragraph at lines 460--460
 []\OT1/ptm/m/n/9 (+20) DropKV, Ada-KV,
  []
 
-[18] (./tab_endtask_h2h.tex) (./tab_endtask_fail.tex) (./tab_endtask_grid.tex)
+(./tab_endtask_h2h.tex)
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-Excluding 'comment' comment.
-Underfull \hbox (badness 1052) in paragraph at lines 536--536
+(./tab_endtask_fail.tex)
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+(./tab_endtask_grid.tex)
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+Underfull \hbox (badness 1052) in paragraph at lines 535--535
 []\OT1/ptm/m/n/9 (+20) token high/low pre-ci-sion and
  []
 
-[19] [20]) [21] (./main_check.aux)
+
+LaTeX Warning: `h' float specifier changed to `ht'.
+
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [19])
+[20] [21] (./main_check.aux)
 Package rerunfilecheck Info: File `main_check.out' has not changed.
 (rerunfilecheck)             Checksum: 4B3542C4D4958FB03B2D64DB87F67CD4;5262.
  ) 
 Here is how much of TeX's memory you used:
- 13700 strings out of 480884
- 202188 string characters out of 5900692
- 586308 words of memory out of 5000000
+ 13709 strings out of 480884
+ 202269 string characters out of 5900692
+ 627755 words of memory out of 5000000
  30077 multiletter control sequences out of 15000+600000
- 458678 words of font info for 384 fonts, out of 8000000 for 9000
+ 459289 words of font info for 390 fonts, out of 8000000 for 9000
  36 hyphenation exceptions out of 8191
- 74i,12n,78p,2322b,521s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 74i,12n,78p,2715b,513s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/font
 s/enc/dvips/base/8r.enc}</cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr
 /share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></cvmfs/soft.comput
@@ -805,10 +819,10 @@ lvetic/uhvb8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share
 oo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></cvmfs
 /soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/u
 rw/times/utmri8a.pfb>
-Output written on main_check.pdf (21 pages, 398748 bytes).
+Output written on main_check.pdf (21 pages, 405797 bytes).
 PDF statistics:
- 799 PDF objects out of 1000 (max. 8388607)
- 698 compressed objects within 7 object streams
- 170 named destinations out of 1000 (max. 500000)
+ 807 PDF objects out of 1000 (max. 8388607)
+ 705 compressed objects within 8 object streams
+ 171 named destinations out of 1000 (max. 500000)
  69336 words of extra memory for PDF output out of 74296 (max. 10000000)
 

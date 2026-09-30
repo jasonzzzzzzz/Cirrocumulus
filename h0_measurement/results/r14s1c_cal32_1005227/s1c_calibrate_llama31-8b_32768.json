@@ -1,0 +1,240 @@
+{
+ "parquet": "s1c_calibrate_llama31-8b_32768.parquet",
+ "heads": "s1c_calibrate_llama31-8b_32768_heads.parquet",
+ "mode": "calibrate",
+ "preset_name": "main32",
+ "preset": {
+  "ctx": 32768,
+  "dense": [
+   2,
+   3,
+   4
+  ],
+  "dense_twins": [
+   "+v4",
+   "+v2"
+  ],
+  "fp_twins": [
+   "+v4",
+   "+v2"
+  ],
+  "sieve": [
+   3
+  ],
+  "sieve_twins": [
+   "+v4"
+  ],
+  "pool": [
+   2.5,
+   3
+  ],
+  "pool_twins": [
+   "+v4"
+  ],
+  "seq": [
+   2.5,
+   3
+  ],
+  "seq_twins": [
+   "+v4",
+   "+v2"
+  ],
+  "union": [
+   2.5,
+   3
+  ],
+  "union_twins": [],
+  "oracle": [
+   2.5,
+   3
+  ],
+  "vah": [
+   [
+    0.75,
+    16
+   ],
+   [
+    0.75,
+    4
+   ],
+   [
+    0.75,
+    2
+   ],
+   [
+    0.6,
+    16
+   ],
+   [
+    0.6,
+    4
+   ],
+   [
+    0.6,
+    2
+   ]
+  ],
+  "vahw": [
+   [
+    0.75,
+    16,
+    3
+   ],
+   [
+    0.75,
+    16,
+    4
+   ],
+   [
+    0.75,
+    4,
+    3
+   ],
+   [
+    0.75,
+    4,
+    4
+   ],
+   [
+    0.75,
+    2,
+    3
+   ],
+   [
+    0.75,
+    2,
+    4
+   ]
+  ],
+  "qread": [
+   [
+    0.125,
+    16
+   ],
+   [
+    0.25,
+    16
+   ],
+   [
+    0.125,
+    4
+   ],
+   [
+    0.25,
+    4
+   ],
+   [
+    0.5,
+    4
+   ],
+   [
+    0.125,
+    2
+   ],
+   [
+    0.25,
+    2
+   ]
+  ]
+ },
+ "plan": [],
+ "model": "llama31-8b",
+ "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+ "ctx": 32768,
+ "tasks": [
+  "niah_single",
+  "niah_multikey",
+  "niah_multivalue",
+  "vt"
+ ],
+ "task_config": {
+  "n_keys": 4,
+  "n_values": 4,
+  "n_hops": 4
+ },
+ "n_prompts": 10,
+ "prompt_offset": 0,
+ "window": 32,
+ "n_q": 8,
+ "question_agnostic": true,
+ "rot_seed": 0,
+ "head_dim": 128,
+ "v_rotation_seed": 101,
+ "norm_correct": true,
+ "maxb": 8,
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "corpus_sha": "0a26bc1e05a1eea8",
+ "rows": 40,
+ "qread_rows": 32,
+ "qread_store_width": 3,
+ "ref_width": 3,
+ "tf_replay": "two-call: question[:-1], then [question[-1]] + fp_answer[:-1]",
+ "routes": {
+  "routes_pool": {
+   "path": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r8_routes/r14s1b_llama31-8b_32768_routes.json",
+   "sha256": "ef94b3e5b1f1149ca46ff7c983caf3f2e0565a56af3af82606517431ed6307d1"
+  }
+ },
+ "peak_gib_max": null,
+ "elapsed_s": 700.1465475559235,
+ "config": {
+  "ctx": 131072,
+  "n_prompts": 6,
+  "n_decode": 8,
+  "families": [
+   "niah",
+   "qa",
+   "cont"
+  ],
+  "dtype": "bfloat16",
+  "chunk": 4096,
+  "device_map": "auto",
+  "bit_list": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   8
+  ],
+  "budgets": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "quant_every": 4,
+  "norm_correct": true,
+  "rot_seed": 0,
+  "maxb": 8,
+  "evictors": [
+   "oracle",
+   "accum"
+  ],
+  "corner_policies": [
+   "frac"
+  ],
+  "corner_kappa": 4.0,
+  "corner_floor": 256,
+  "kstar": true,
+  "interior_rank_corner": true,
+  "corner_in_filename": false,
+  "tag": "llama31-8b",
+  "native_ctx": 131072,
+  "id": "meta-llama/Llama-3.1-8B-Instruct",
+  "tier": "main",
+  "validate_with": "meta-llama/Llama-3.2-1B-Instruct"
+ },
+ "write_routes": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r8_routes/r14s1c_llama31-8b_32768_routes.json",
+ "search": "s1c_calibrate_llama31-8b_32768_search.parquet",
+ "searchlog": "s1c_calibrate_llama31-8b_32768_searchlog.parquet"
+}

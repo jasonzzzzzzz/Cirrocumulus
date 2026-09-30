@@ -314,104 +314,6 @@ def p2_wants(arms, head_error, write_routes):
     return want, routers, need_err
 
 
-# =============================================================================
-# R14 Stage 1 (bugs/14_kernel_tpot/plan.md 5): FP8 KV and FP8-value variants.
-# Off unless --fp8kv or --v-fp8-arms is given; without them the plan, every arm
-# and every output are exactly what they were before.
-#   fp8kv      keys AND context values through float8_e4m3fn (one amax scale per
-#              layer and KV head); every context token kept; B recorded as 8
-#   <arm>+v8   the same keys, eviction and audit as <arm> at the same B -- reused
-#              from the run that directly precedes it, not rebuilt -- with the
-#              context values through float8_e4m3fn. fp+v8: exact keys, FP8 values
-# =============================================================================
-V8_SUFFIX = "+v8"
-FP8KV = "fp8kv"
-
-
-def r14_validate(arms, budgets, v8_arms, v8_budgets):
-    """Check the R14 options against the resolved arms; returns (v8_arms,
-    v8_budgets) with the budgets defaulting to every --budgets entry."""
-    if len(set(v8_arms)) != len(v8_arms):
-        raise ValueError(f"duplicate --v-fp8-arms entries in {v8_arms}")
-    bad = [x for x in v8_arms if x != "fp" and x not in arms]
-    if bad:
-        raise ValueError(f"--v-fp8-arms {bad} are not in --arms {arms}")
-    v8_budgets = list(v8_budgets) if v8_budgets else list(budgets)
-    stray = [B for B in v8_budgets if B not in budgets]
-    if stray:
-        raise ValueError(f"--v-fp8-budgets {stray} are not in --budgets {budgets}")
-    return list(v8_arms), v8_budgets
-
-
-def r14_plan(plan, fp8kv=False, v8_arms=(), v8_budgets=()):
-    """Insert the R14 arms into a built plan. Each '<arm>+v8' goes directly after
-    its base entry, whose keys it reuses; fp8kv goes after the fp group. With no
-    R14 arm the plan comes back unchanged."""
-    v8 = set(v8_arms)
-    out = []
-    for arm, B in plan:
-        out.append((arm, B))
-        if arm in v8 and (arm == "fp" or B in v8_budgets):
-            out.append((arm + V8_SUFFIX, B))
-    if fp8kv:
-        i = next((k for k, (x, _) in enumerate(out) if x not in ("fp", "fp" + V8_SUFFIX)),
-                 len(out))
-        out.insert(i, (FP8KV, QB.FP8_BITS))
-    missing = sorted(x for x in v8 if not any(y == x + V8_SUFFIX for y, _ in out))
-    if missing:
-        raise ValueError(f"--v-fp8-arms {missing} have no entry at --v-fp8-budgets {list(v8_budgets)}")
-    return out
-
-
-def is_r14_arm(arm) -> bool:
-    return arm == FP8KV or arm.endswith(V8_SUFFIX)
-
-
-def r14_row_extra(arm, head_dim, ctx_len) -> dict:
-    """Row columns an R14 run adds to EVERY row: which values the arm read, the
-    arm whose keys it used, and side information for the new arms."""
-    base = arm[:-len(V8_SUFFIX)] if arm.endswith(V8_SUFFIX) else arm
-    out = {"v_format": "fp8_e4m3" if is_r14_arm(arm) else "exact", "r14_base_arm": base}
-    if arm == FP8KV:
-        out["side_bits"] = QB.fp8_side_bits(head_dim, ctx_len)
-    elif base != arm and QB.is_arm(base):
-        out["side_bits"] = QB.side_bits(base, head_dim, ctx_len)
-    return out
-
-
-def run_r14_arm(model, past, ids, arm, B, last, R, norm_correct, eos, max_new, L0, tok,
-                q_ids, n_layers, values_fn=None):
-    """Decode one R14 arm. `last` is the (arm, B) decoded just before it: a
-    '<arm>+v8' entry must follow its base, because it keeps that run's
-    kdeq / evict / bits (so the pair differs in values only) and swaps in FP8
-    context values. `values_fn` defaults to FP8; tests pass an identity."""
-    from sievelib.probe import cache_kv
-    vf = values_fn or QB.fp8_fn()
-    C.crop_to(past, L0)
-    if arm in (FP8KV, "fp" + V8_SUFFIX):
-        C.STATE.reset_arm()
-        width = QB.FP8_BITS if arm == FP8KV else 16
-        bits = {}
-        for li in range(n_layers):
-            K, _ = cache_kv(past, li)
-            bits[li] = torch.full((K.shape[0], C.STATE.ctx_len), width, dtype=torch.long,
-                                  device=K.device)
-        kf = QB.fp8_fn() if arm == FP8KV else (lambda li, K: K)
-        C.apply_bits(past, bits, R, norm_correct, keys_fn=kf, values_fn=vf)
-    else:
-        base = arm[:-len(V8_SUFFIX)]
-        if last != (base, B) or not C.STATE.kdeq:
-            raise RuntimeError(f"{arm} B={B} must directly follow {base} B={B}, whose keys it "
-                               f"reuses; the previous arm was {last}")
-        C.STATE.vdeq = {}
-        C.apply_values(past, vf)
-        C.STATE.enabled = True
-    past = _question(model, past, q_ids)
-    gen, past = _decode(model, past, ids[0, -1], max_new, eos, tok)
-    C.STATE.enabled = False
-    return gen, past
-
-
 def precompute(past, L0, want, routers, budgets, R, norm_correct, maxb, bit_list,
                n_layers, *, cascade_bits, need_err, routes, theta, ans_mask=None,
                bls=None, wo=None, rope=None):
@@ -881,15 +783,6 @@ def main():
                     help="ordered comma-separated complete-policy arm labels")
     ap.add_argument("--policy-trace-steps", type=int, default=8,
                     help="maximum shared FP greedy decisions in each teacher-forced trace")
-    # ---- R14 Stage 1 (bugs/14_kernel_tpot/plan.md 5); absent = unchanged ----
-    ap.add_argument("--fp8kv", action="store_true",
-                    help="R14: also decode with FP8 E4M3 keys AND context values "
-                         "(one amax scale per layer and KV head), recorded as arm fp8kv, B=8")
-    ap.add_argument("--v-fp8-arms", default="",
-                    help="R14: comma-separated arms (fp allowed) that ALSO run as '<arm>+v8': "
-                         "the same keys and eviction, context values through FP8 E4M3")
-    ap.add_argument("--v-fp8-budgets", default="",
-                    help="R14: budgets at which the '+v8' variants run (default: all --budgets)")
     a = ap.parse_args()
     try:
         task_cfg = TR.task_config(a.n_keys, a.n_values, a.n_hops)
@@ -973,19 +866,6 @@ def main():
     if policy_requested and "uniform" in policy_candidates and no_uni:
         ap.error("uniform is a policy candidate but has no quantizer at "
                  f"budget(s) {no_uni}")
-    v8_budget_arg = [int(float(b)) if float(b).is_integer() else float(b)
-                     for b in a.v_fp8_budgets.split(",") if b]
-    r14 = bool(a.fp8kv or a.v_fp8_arms or v8_budget_arg)
-    v8_arms, v8_budgets = [], []
-    if r14:
-        if panel_mode or policy_requested:
-            ap.error("R14 arms (--fp8kv, --v-fp8-*) are not supported with --task-variant "
-                     "or the policy diagnostic")
-        try:
-            v8_arms, v8_budgets = r14_validate(
-                arms, budgets, [x for x in a.v_fp8_arms.split(",") if x], v8_budget_arg)
-        except ValueError as e:
-            ap.error(str(e))
     corpus = prompts.resolve_corpus_dir(os.environ.get("H0_CORPUS"))
     require_real = str(c.get("tier", "main")) in ("main", "large") and not a.allow_synthetic
     if require_real and corpus is None:
@@ -1020,7 +900,7 @@ def main():
     # Diagnostics need reusable complete allocations even for P0-only candidates.
     # With the flags absent this is the historical P0/P2 decision.
     p2 = bool(want - {"uniform", "evict", "evict_h2o"} or routers or need_err
-              or bls or policy_requested or r14)     # R14 arms decode through run_bits' path
+              or bls or policy_requested)
     wo = BL.wo_gram(model) if any(b.needs_wo for b in bls.values()) else None
     if bls:
         print("R9 baselines: " + "; ".join(
@@ -1058,15 +938,6 @@ def main():
     plan += [(arm, B) for arm in arms if arm != "fp" for B in budgets
              if not ((arm == "uniform" or QB.is_arm(arm))
                      and not router.is_width(B, maxb, bit_list))]
-    if r14:
-        if "fp" in v8_arms and "fp" not in arms:
-            ap.error("--v-fp8-arms fp needs the fp arm")
-        try:
-            plan = r14_plan(plan, a.fp8kv, v8_arms, v8_budgets)
-        except ValueError as e:
-            ap.error(str(e))
-        print(f"R14 stage 1: fp8kv={'on' if a.fp8kv else 'off'} v8 arms={v8_arms or '-'} "
-              f"at B={v8_budgets}; plan={plan}", flush=True)
     # KVQuant undoes RoPE: the model's own cos/sin for positions 0..ctx-1, once
     rope = QB.rope_tables(model, a.ctx, dev) if QB.needs_rope(arms) else None
     if any(QB.is_arm(x) for x in arms):
@@ -1125,18 +996,11 @@ def main():
             bits = errs = rlog = amass = None
             fp_gen = None
             t_pc = 0.0
-            last_run = None                                    # R14: the arm a '+v8' reuses
-            if r14 and dev.type == "cuda":
-                torch.cuda.reset_peak_memory_stats()
             for arm, B in plan:
                 t1 = time.time()
                 if not p2:                                     # the P0 path, unchanged
                     gen, past = run_arm(model, past, ids, arm, B, R, norm_correct, maxb,
                                         eos, generation_limits[task], L0, tok, q_ids)
-                elif r14 and is_r14_arm(arm):
-                    gen, past = run_r14_arm(model, past, ids, arm, B, last_run, R,
-                                            norm_correct, eos, generation_limits[task], L0,
-                                            tok, q_ids, cf.num_hidden_layers)
                 elif arm == "fp":
                     # FP first: the ceiling, and the step-0 query every per-head
                     # error is measured for
@@ -1167,11 +1031,8 @@ def main():
                 sc = TR.score(task, pred, meta)
                 au = C.bits_audit() if arm != "fp" else {"bits_per_token": 16.0,
                                                          "evict_frac": 0.0}
-                # fp+v8 (R14) keeps 16-bit keys under fp's B = 0 label: no budget to check
-                if arm not in ("fp", "fp" + V8_SUFFIX) and \
-                        not au["bits_per_token"] <= float(B) + 1e-7:
+                if arm != "fp" and not au["bits_per_token"] <= float(B) + 1e-7:
                     raise RuntimeError(f"{arm} B={B} spent {au['bits_per_token']:.6f} bits/token")
-                last_run = (arm, B)
                 extra = {}
                 if p2 and errs and (arm, B) in errs:
                     e = torch.cat([errs[(arm, B)][li] for li in sorted(errs[(arm, B)])])
@@ -1181,8 +1042,6 @@ def main():
                     extra.update(frac_interior=sum(r_ == "interior" for r_ in rs) / max(len(rs), 1))
                 if QB.is_arm(arm):
                     extra.update(side_bits=QB.side_bits(arm, hd, C.STATE.ctx_len))
-                if r14:
-                    extra.update(r14_row_extra(arm, hd, C.STATE.ctx_len))
                 rows.append(dict(
                     model=a.model, model_id=c["id"], ctx=a.ctx, native_ctx=native,
                     task=task, prompt_idx=p, arm=arm, B=B, **sc, pred=pred[:200],
@@ -1299,9 +1158,8 @@ def main():
                         kv_head=np.tile(np.arange(H), nL) // (H // cf.num_key_value_heads),
                         err=M.reshape(-1), ans_mass=AM)))
             del bits, errs
-            print(f"  p{p} {task:16s} n={n:,} prefill {t_pre:5.1f}s  " + " ".join(line)
-                  + (f"  peak {torch.cuda.max_memory_allocated() / 2**30:.1f} GiB"
-                     if r14 and dev.type == "cuda" else ""), flush=True)
+            print(f"  p{p} {task:16s} n={n:,} prefill {t_pre:5.1f}s  " + " ".join(line),
+                  flush=True)
             del past
             if dev.type == "cuda":
                 torch.cuda.empty_cache()
@@ -1367,14 +1225,6 @@ def main():
             panel=panel_sidecar_record(
                 panel_meta, expected_accuracy_rows=expected_accuracy_rows,
                 expected_policy_rows=expected_policy_rows))
-    if r14:
-        sidecar["r14_stage1"] = {
-            "plan": "bugs/14_kernel_tpot/plan.md 5", "fp8kv": bool(a.fp8kv),
-            "v_fp8_arms": v8_arms, "v_fp8_budgets": v8_budgets,
-            "fp8": "float8_e4m3fn, one amax/448 scale per (layer, KV head) over the "
-                   "context; window, question and generated tokens exact",
-            "v8_pairing": "'<arm>+v8' reuses the keys, eviction and audit of the <arm> run "
-                          "directly before it; only the context values differ"}
     with open(os.path.join(a.out_dir, f"{stem}.json"), "w") as fh:
         json.dump(sidecar, fh, indent=1, default=str)
     print(f"\nwrote {out}  ({len(df):,} rows, {time.time() - t_all:.0f}s)")

@@ -181,35 +181,6 @@ def kvquant_keys(K: torch.Tensor, bits: int, cos: torch.Tensor, sin: torch.Tenso
     return apply_rope(deq, cos, sin)
 
 
-# ----------------------------------------------------------- FP8 (R14 Stage 1)
-# The production default the ROADMAP's R14 names as its bar: an E4M3 cache with
-# one static scale per (layer, KV head), set from that head's context amax
-# (bugs/14_kernel_tpot/plan.md 5). Deliberately NOT an entry of ARMS: it has one
-# width (8), not one per budget, so run_r8 schedules it once (--fp8kv) instead of
-# through the per-budget quantizer loop. Used for keys (fp8kv) and for values
-# (fp8kv and every '+v8' arm).
-FP8_MAX = 448.0                   # largest finite float8_e4m3fn
-FP8_BITS = 8
-
-
-def fp8_e4m3(X: torch.Tensor) -> torch.Tensor:
-    """X: [Hkv, C, d] float32 -> dequantized through float8_e4m3fn, one scale per
-    KV head (amax over tokens and channels / 448). A head of zeros stays zero."""
-    amax = X.abs().amax(dim=(1, 2), keepdim=True)
-    scale = torch.where(amax > 0, amax / FP8_MAX, torch.ones_like(amax))
-    return (X / scale).to(torch.float8_e4m3fn).float() * scale
-
-
-def fp8_fn():
-    """compress.apply_bits keys_fn / values_fn form of fp8_e4m3."""
-    return lambda li, X: fp8_e4m3(X)
-
-
-def fp8_side_bits(head_dim: int, ctx_len: int) -> float:
-    """One fp32 scale per (layer, KV head) for the keys, per key element."""
-    return 32.0 / max(head_dim * ctx_len, 1)
-
-
 # ------------------------------------------------------------------ dispatch
 def keys_fn(arm: str, bits: int, rope=None):
     """A callable (layer, K [Hkv, C, d] float32) -> dequantized keys, for

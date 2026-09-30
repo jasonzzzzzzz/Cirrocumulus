@@ -66,20 +66,6 @@ R8_QA="${R8_QA:-0}"                         # 1 = question-agnostic: compress be
 R8_POLICY_DIAGNOSTIC="${R8_POLICY_DIAGNOSTIC:-0}"
 R8_POLICY_CANDIDATES="${R8_POLICY_CANDIDATES:-uniform,evict,interior}"
 R8_POLICY_TRACE_STEPS="${R8_POLICY_TRACE_STEPS:-8}"
-# R14 Stage 1 (bugs/14_kernel_tpot/plan.md 5; unset/0 leaves the invocation unchanged)
-R8_FP8KV="${R8_FP8KV:-0}"                   # 1 = also the fp8kv arm (FP8 keys and values)
-R8_V_FP8_ARMS="${R8_V_FP8_ARMS:-}"          # arms that also run as '<arm>+v8' (FP8 values)
-R8_V_FP8_BUDGETS="${R8_V_FP8_BUDGETS:-}"    # budgets of the '+v8' variants (default: all)
-[[ "$R8_FP8KV" == 0 || "$R8_FP8KV" == 1 ]] || {
-  echo "ERROR: R8_FP8KV must be 0 or 1, got '$R8_FP8KV'" >&2; exit 1; }
-[[ -z "$R8_V_FP8_ARMS" || "$R8_V_FP8_ARMS" =~ ^[A-Za-z0-9_]+(,[A-Za-z0-9_]+)*$ ]] || {
-  echo "ERROR: R8_V_FP8_ARMS='$R8_V_FP8_ARMS'" >&2; exit 1; }
-[[ -z "$R8_V_FP8_BUDGETS" || "$R8_V_FP8_BUDGETS" =~ ^[0-9]+(\.[0-9]+)?(,[0-9]+(\.[0-9]+)?)*$ ]] || {
-  echo "ERROR: R8_V_FP8_BUDGETS='$R8_V_FP8_BUDGETS'" >&2; exit 1; }
-R14_ARGS=()
-[[ "$R8_FP8KV" == 1 ]] && R14_ARGS+=(--fp8kv)
-[[ -n "$R8_V_FP8_ARMS" ]] && R14_ARGS+=(--v-fp8-arms "$R8_V_FP8_ARMS")
-[[ -n "$R8_V_FP8_BUDGETS" ]] && R14_ARGS+=(--v-fp8-budgets "$R8_V_FP8_BUDGETS")
 
 # pattern checks: fail before the GPU is held, not after
 for _v in R8_CTX R8_N_PROMPTS R8_PROMPT_OFFSET R8_N_KEYS R8_N_VALUES R8_N_HOPS R8_WINDOW R8_N_Q R8_CASCADE_BITS R8_HEAD_ERROR R8_QA R8_POLICY_DIAGNOSTIC R8_POLICY_TRACE_STEPS; do
@@ -178,7 +164,6 @@ fi
 _variant_log=""
 [[ -n "$R8_TASK_VARIANT" ]] && _variant_log=" task_variant=$R8_TASK_VARIANT"
 echo "host=$(hostname) role=r8 run_id=$RUN_ID model=$R8_MODEL ctx=$R8_CTX arms=$R8_ARMS budgets=$R8_BUDGETS tasks=$R8_TASKS${_variant_log} difficulty=k${R8_N_KEYS}_v${R8_N_VALUES}_h${R8_N_HOPS} prompts=$R8_N_PROMPTS@$R8_PROMPT_OFFSET window=$R8_WINDOW qa=$R8_QA head_error=$R8_HEAD_ERROR n_q=$R8_N_Q theta=$R8_THETA routes=${R8_ROUTES:-none} write_routes=${R8_WRITE_ROUTES:-none} policy_diagnostic=$R8_POLICY_DIAGNOSTIC policy_candidates=$R8_POLICY_CANDIDATES policy_trace_steps=$R8_POLICY_TRACE_STEPS policy_out=$_policy_out_log"
-(( ${#R14_ARGS[@]} )) && echo "r14 stage1: ${R14_ARGS[*]}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 python -c "import transformers, torch; print('transformers', transformers.__version__, 'torch', torch.__version__)"
 
@@ -195,9 +180,6 @@ python tests/test_r8.py --fast || { echo "ERROR: R8 unit tests failed -- not run
 python tests/test_baselines.py --fast || { echo "ERROR: baseline unit tests failed -- not running"; exit 1; }
 if [[ ",$R8_ARMS," =~ ,(kivi|kivi_g128|kvquant), ]]; then
   python tests/test_kv_quant_baselines.py --fast || { echo "ERROR: key-quantization baseline tests failed -- not running"; exit 1; }
-fi
-if (( ${#R14_ARGS[@]} )); then
-  python h0_measurement/bugs/14_kernel_tpot/test_r14_stage1.py --fast || { echo "ERROR: R14 stage-1 unit tests failed -- not running"; exit 1; }
 fi
 if [[ "$R8_TASK_VARIANT" == multikey_panel_v1 ]]; then
   python tests/test_multikey_panel.py || { echo "ERROR: multikey panel generator tests failed -- not running"; exit 1; }
@@ -230,4 +212,4 @@ srun python h0_measurement/run_r8.py \
   --prompt-offset "$R8_PROMPT_OFFSET" --n-keys "$R8_N_KEYS" \
   --n-values "$R8_N_VALUES" --n-hops "$R8_N_HOPS" \
   --window "$R8_WINDOW" --out-dir "$OUT_DIR" "${TASK_VARIANT_ARGS[@]}" \
-  "${P2_ARGS[@]}" "${POLICY_ARGS[@]}" "${R14_ARGS[@]}"
+  "${P2_ARGS[@]}" "${POLICY_ARGS[@]}"

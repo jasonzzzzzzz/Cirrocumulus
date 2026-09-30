@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  27 SEP 2026 12:55
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2021 Gentoo Linux) (preloaded format=pdflatex 2023.8.23)  27 SEP 2026 14:04
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -463,11 +463,6 @@ Underfull \hbox (badness 10000) in paragraph at lines 95--95
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 95--95
-\OT1/ptm/m/n/9 (+20) token-selective);
- []
-
-
 Underfull \hbox (badness 4899) in paragraph at lines 96--96
 []\OT1/ptm/m/n/9 (+20) 34--44% $\OMS/cmsy/m/n/9 !$ \OT1/ptm/m/n/9 (+20) 1--11%
  []
@@ -483,9 +478,9 @@ Underfull \hbox (badness 10000) in paragraph at lines 96--96
  []
 
 
-Underfull \vbox (badness 4316) has occurred while \output is active []
+Underfull \vbox (badness 2035) has occurred while \output is active []
 
- [2]
+ [2] [3]
 Underfull \hbox (badness 10000) in paragraph at lines 173--174
  []\OT1/ptm/b/n/10 (+20) Compression, bud-get, and in-for-ma-tion con-tract.[] \OT1/ptm/m/n/10 (+20) Keys are quan-tized with
  []
@@ -495,24 +490,29 @@ Underfull \hbox (badness 1888) in paragraph at lines 173--174
 \OT1/ptm/m/n/10 (+20) TurboQuant$[]$ ([][]Zandieh et al.[][], [][]2025[][]) (ran-dom ro-ta-tion and Lloyd--Max scalar quan-ti-za-
  []
 
-[3]
-<figures/fig1_regime.pdf, id=276, 406.18343pt x 138.8776pt>
+<figures/fig1_regime.pdf, id=272, 406.18343pt x 138.8776pt>
 File: figures/fig1_regime.pdf Graphic file (type pdf)
 <use figures/fig1_regime.pdf>
 Package pdftex.def Info: figures/fig1_regime.pdf  used on input line 198.
 (pdftex.def)             Requested size: 397.48499pt x 135.91048pt.
+
+Underfull \vbox (badness 3861) has occurred while \output is active []
+
  [4]
-<figures/fig2_evidence.pdf, id=296, 406.86002pt x 127.55052pt>
+<figures/fig2_evidence.pdf, id=297, 406.86002pt x 127.55052pt>
 File: figures/fig2_evidence.pdf Graphic file (type pdf)
 <use figures/fig2_evidence.pdf>
 Package pdftex.def Info: figures/fig2_evidence.pdf  used on input line 216.
 (pdftex.def)             Requested size: 397.48499pt x 124.61523pt.
  [5 <./figures/fig1_regime.pdf>] [6 <./figures/fig2_evidence.pdf>]
-<figures/fig3_endtask.pdf, id=388, 433.00023pt x 157.12898pt>
+<figures/fig3_endtask.pdf, id=389, 433.00023pt x 157.12898pt>
 File: figures/fig3_endtask.pdf Graphic file (type pdf)
 <use figures/fig3_endtask.pdf>
 Package pdftex.def Info: figures/fig3_endtask.pdf  used on input line 273.
 (pdftex.def)             Requested size: 397.48499pt x 144.25111pt.
+
+Underfull \vbox (badness 1005) has occurred while \output is active []
+
  [7 <./figures/fig3_endtask.pdf>]
 Underfull \hbox (badness 1132) in paragraph at lines 310--310
 []\OT1/ptm/m/n/9 (+20) Qwen3-8B 8k--32k: $\OT1/cmr/m/n/9 0\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 87 \OMS/cmsy/m/n/9 ! \OT1/cmr/m/n/9 0\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 99$
@@ -523,7 +523,10 @@ Underfull \hbox (badness 6220) in paragraph at lines 310--311
 []\OT1/ptm/m/sc/9 (+20) Sieve \OT1/ptm/m/n/9 (+20) vs. dense on
  []
 
-[8] [9] [10] (./main.bbl
+
+Underfull \vbox (badness 5696) has occurred while \output is active []
+
+ [8] [9] [10] (./main.bbl
 LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 31.
  (/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
@@ -532,7 +535,7 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `pcr' (encoding: OT1).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
- [11]
+ [11] [12]
 Underfull \hbox (badness 3525) in paragraph at lines 202--206
 []\OT1/ptm/m/n/10 (+20) NVIDIA.  NVIDIA Ten-sorRT model op-ti-mizer.  [][]$\OT1/pcr/m/n/10 https : / / github . com / NVIDIA /
  []
@@ -542,7 +545,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 208--212
 []\OT1/ptm/m/n/10 (+20) NVIDIA.  NVIDIA Trans-formerEngine.  [][]$\OT1/pcr/m/n/10 https : / / github . com / NVIDIA /
  []
 
-[12] [13]) [14] (./appendix.tex Excluding 'comment' comment. [15
+[13]) [14] (./appendix.tex Excluding 'comment' comment. [15
 
 ] [16]
 Underfull \hbox (badness 2181) in paragraph at lines 264--264
@@ -607,18 +610,18 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: 4B3542C4D4958FB03B2D64DB87F67CD4;5262.
  ) 
 Here is how much of TeX's memory you used:
- 13717 strings out of 480884
- 202569 string characters out of 5900692
- 626912 words of memory out of 5000000
+ 13711 strings out of 480884
+ 202516 string characters out of 5900692
+ 628002 words of memory out of 5000000
  30080 multiletter control sequences out of 15000+600000
- 459490 words of font info for 392 fonts, out of 8000000 for 9000
+ 459173 words of font info for 388 fonts, out of 8000000 for 9000
  36 hyphenation exceptions out of 8191
- 74i,12n,78p,2804b,543s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 74i,12n,78p,3040b,531s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc}</cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></cvmfs/soft.computecanada.ca/gentoo/2023/x86-64-v3/usr/share/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (22 pages, 407038 bytes).
+Output written on main.pdf (22 pages, 408870 bytes).
 PDF statistics:
- 815 PDF objects out of 1000 (max. 8388607)
- 712 compressed objects within 8 object streams
+ 817 PDF objects out of 1000 (max. 8388607)
+ 714 compressed objects within 8 object streams
  173 named destinations out of 1000 (max. 500000)
  69336 words of extra memory for PDF output out of 74296 (max. 10000000)
 

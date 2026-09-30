@@ -110,9 +110,6 @@ class CompressState:
         self.kdeq: dict[int, torch.Tensor] = {}    # layer -> [Hkv, ctx_len, d] dequantized
         self.evict: dict[int, torch.Tensor] = {}   # layer -> [Hkv, ctx_len] True = evicted
         self.bits: dict[int, torch.Tensor] = {}    # layer -> [Hkv, ctx_len] long, for the audit
-        # R14 Stage 1 (bugs/14_kernel_tpot/plan.md 5): an arm's substitute context
-        # VALUES, e.g. FP8. Empty (every arm before R14) = values exact, unchanged.
-        self.vdeq: dict[int, torch.Tensor] = {}    # layer -> [Hkv, ctx_len, d]
 
 
 STATE = CompressState()
@@ -285,19 +282,6 @@ def _question_view(li, query, key, attention_mask):
     return key, m
 
 
-def _value_view(li, value, k_len):
-    """R14 Stage 1: the arm's substitute context values (STATE.vdeq), with the
-    window, question and generated tokens left exact -- the same split the keys
-    use. Only reached when an arm set vdeq; no earlier arm does."""
-    C = STATE.ctx_len
-    vd = STATE.vdeq[li]
-    if vd.shape[1] != C or k_len < C or value.shape[2] != k_len:
-        raise RuntimeError(
-            f"layer {li}: substitute values cover {vd.shape[1]} tokens, expected {C}; "
-            f"the call has {value.shape[2]} value rows for {k_len} keys")
-    return torch.cat([vd.unsqueeze(0).to(value.dtype), value[:, :, C:, :]], dim=2)
-
-
 def sieve_compress_attention(module, query, key, value, attention_mask=None,
                              scaling=None, dropout=0.0, **kwargs):
     if kwargs.get("softcap"):
@@ -315,8 +299,6 @@ def sieve_compress_attention(module, query, key, value, attention_mask=None,
         # reads the compressed context (never during the context prefill, where
         # STATE.enabled is False)
         key, m = _question_view(li, query, key, attention_mask)
-        if li in STATE.vdeq:
-            value = _value_view(li, value, k_len)
         return _sdpa(query, key, value, m, scaling, True), None
 
     if q_len > 1:                                  # prefill: always full precision
@@ -339,8 +321,6 @@ def sieve_compress_attention(module, query, key, value, attention_mask=None,
                 f"expected {C}, cache holds {k_len} -- the cache was not cropped "
                 f"back to the prefill length between arms")
         key = torch.cat([kd.unsqueeze(0).to(key.dtype), key[:, :, C:, :]], dim=2)
-        if li in STATE.vdeq:
-            value = _value_view(li, value, k_len)
         ev = STATE.evict[li]
         if bool(ev.any()):
             H = query.shape[1]
@@ -386,15 +366,14 @@ def crop_to(past, length: int):
 
 
 def apply_bits(past, bits_per_layer: dict[int, torch.Tensor], R: torch.Tensor,
-               norm_correct: bool = True, keys_fn=None, values_fn=None):
+               norm_correct: bool = True, keys_fn=None):
     """Build the arm's compressed view of the context from the cache's
     full-precision keys and switch compression on.
 
     `bits_per_layer[li]` is [Hkv, ctx_len] long. The cache is read, not written.
     `keys_fn(li, K)` (paper-table quantization baselines, kv_quant_baselines.py)
     replaces the TurboQuant quantizer for an arm that keeps every key at one
-    width; None is the unchanged path. `values_fn(li, V)` (R14 Stage 1) also
-    substitutes the context values; None keeps them exact, as every earlier arm."""
+    width; None is the unchanged path."""
     from .probe import cache_kv
     STATE.reset_arm()
     C = STATE.ctx_len
@@ -411,23 +390,7 @@ def apply_bits(past, bits_per_layer: dict[int, torch.Tensor], R: torch.Tensor,
         STATE.kdeq[li] = kd.to(K.dtype)
         STATE.evict[li] = ev
         STATE.bits[li] = bits
-    if values_fn is not None:
-        apply_values(past, values_fn, list(bits_per_layer))
     STATE.enabled = True
-
-
-def apply_values(past, values_fn, layers=None):
-    """R14 Stage 1: substitute the context VALUES of the current arm, leaving its
-    keys, eviction mask and audit (kdeq / evict / bits) as they are -- so a
-    '+v8' arm differs from the arm it follows in its values alone. `values_fn(li,
-    V)` takes and returns [Hkv, ctx_len, d] float32; the cache is read, not written."""
-    from .probe import cache_kv
-    C = STATE.ctx_len
-    for li in (layers if layers is not None else sorted(STATE.kdeq)):
-        if li not in STATE.kdeq:
-            raise RuntimeError(f"layer {li}: values substituted for a layer with no keys")
-        _, V = cache_kv(past, li)
-        STATE.vdeq[li] = values_fn(li, V[:, :C, :].float()).to(V.dtype)
 
 
 def bits_audit() -> dict:

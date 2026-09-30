@@ -1,0 +1,1508 @@
+{
+ "decision": "STOP_SYSTEMS",
+ "v4_win_cells": [],
+ "v16_win_cells": [],
+ "d4": {
+  "verdict": "SEQUENCE_PROXY",
+  "auc_tf": 0.9027361751152074,
+  "auc_head": {
+   "h_med": 0.5594570852534563,
+   "h_p99": 0.6919671658986175,
+   "h_answ": 0.6935426267281106
+  },
+  "n_rows": 1520,
+  "fail_rate": 0.18421052631578946
+ },
+ "replication_stage1_128k": {
+  "uniform@3": [
+   0.9818749999999999,
+   0.9737500000000001
+  ],
+  "router_calib@4": [
+   0.99125,
+   0.971875
+  ],
+  "fp": [
+   0.99375,
+   0.994375
+  ]
+ },
+ "cells": [
+  {
+   "cell": "llama31-8b@131072",
+   "fp": 0.994375,
+   "valid_tasks": [
+    "niah_multikey",
+    "niah_multivalue",
+    "niah_single",
+    "vt"
+   ],
+   "n_prompts": 20,
+   "points": {
+    "fp+v2@0": {
+     "arm": "fp+v2",
+     "B": 0.0,
+     "lens": "V2",
+     "family": "fp",
+     "bytes": 290.34011909885794,
+     "evict_frac": 0.0,
+     "key_bits": 16.0,
+     "score": 0.99375,
+     "delta": -0.0006249999999999977,
+     "lo": -0.006874999999999997,
+     "hi": 0.0050000000000000044,
+     "lossless": true
+    },
+    "fp+v4@0": {
+     "arm": "fp+v4",
+     "B": 0.0,
+     "lens": "V4",
+     "family": "fp",
+     "bytes": 322.3358223646193,
+     "evict_frac": 0.0,
+     "key_bits": 16.0,
+     "score": 0.994375,
+     "delta": 0.0,
+     "lo": 0.0,
+     "hi": 0.0,
+     "lossless": true
+    },
+    "hyb_k4_w3@3": {
+     "arm": "hyb_k4_w3",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 202.91945495441053,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 1.9848375893022432,
+     "score": 0.9668749999999999,
+     "delta": -0.027500000000000004,
+     "lo": -0.06875,
+     "hi": 0.0006249999999999977,
+     "lossless": false
+    },
+    "hyb_k4_w3+v4@3": {
+     "arm": "hyb_k4_w3+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 77.21304756558021,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 1.9848375893022432,
+     "score": 0.97,
+     "delta": -0.024375,
+     "lo": -0.065625,
+     "hi": 0.003125,
+     "lossless": false
+    },
+    "hyb_s3_w4@4": {
+     "arm": "hyb_s3_w4",
+     "B": 4.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 165.6430935530039,
+     "evict_frac": 0.487059270555877,
+     "key_bits": 2.0517629177764922,
+     "score": 0.7837500000000001,
+     "delta": -0.210625,
+     "lo": -0.2875,
+     "hi": -0.135625,
+     "lossless": false
+    },
+    "hyb_s4_w3@3": {
+     "arm": "hyb_s4_w3",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 202.9208071691932,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 1.9848375893022432,
+     "score": 0.9568749999999999,
+     "delta": -0.0375,
+     "lo": -0.079375,
+     "hi": -0.0018750000000000045,
+     "lossless": false
+    },
+    "hyb_s4_w3+v2@3": {
+     "arm": "hyb_s4_w3+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "hybrid",
+     "bytes": 56.04417868831571,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 1.9848375893022432,
+     "score": 0.9724999999999999,
+     "delta": -0.021875,
+     "lo": -0.05125,
+     "hi": -0.0025000000000000022,
+     "lossless": false
+    },
+    "hyb_s4_w3+v4@3": {
+     "arm": "hyb_s4_w3+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 77.21482456462302,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 1.9848375893022432,
+     "score": 0.9637499999999999,
+     "delta": -0.030625000000000003,
+     "lo": -0.07875,
+     "hi": 0.0006249999999999977,
+     "lossless": false
+    },
+    "hyb_s4_w4@4": {
+     "arm": "hyb_s4_w4",
+     "B": 4.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 213.50414091560197,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 2.646450119069658,
+     "score": 0.9625,
+     "delta": -0.031875,
+     "lo": -0.059375,
+     "hi": -0.006874999999999997,
+     "lossless": false
+    },
+    "hyb_s4_w4+v2@4": {
+     "arm": "hyb_s4_w4+v2",
+     "B": 4.0,
+     "lens": "V2",
+     "family": "hybrid",
+     "bytes": 66.62727377936906,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 2.646450119069658,
+     "score": 0.9775,
+     "delta": -0.016874999999999994,
+     "lo": -0.03874999999999999,
+     "hi": 0.0025000000000000022,
+     "lossless": true
+    },
+    "hyb_s4_w4+v4@4": {
+     "arm": "hyb_s4_w4+v4",
+     "B": 4.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 87.79680547947441,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 2.646450119069658,
+     "score": 0.965625,
+     "delta": -0.028749999999999998,
+     "lo": -0.057499999999999996,
+     "hi": -0.0018750000000000045,
+     "lossless": false
+    },
+    "router_calib@3": {
+     "arm": "router_calib",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 181.06360756664782,
+     "evict_frac": 0.487059270555877,
+     "key_bits": 2.9999946353224316,
+     "score": 0.79125,
+     "delta": -0.203125,
+     "lo": -0.27625,
+     "hi": -0.1325,
+     "lossless": false
+    },
+    "router_calib@3.5": {
+     "arm": "router_calib",
+     "B": 3.5,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 203.1011311261479,
+     "evict_frac": 0.4324042016640348,
+     "key_bits": 3.496086544442643,
+     "score": 0.835625,
+     "delta": -0.15875,
+     "lo": -0.226875,
+     "hi": -0.09437500000000001,
+     "lossless": false
+    },
+    "router_calib@4": {
+     "arm": "router_calib",
+     "B": 4.0,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 235.40746802620347,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 3.9999952274962802,
+     "score": 0.971875,
+     "delta": -0.0225,
+     "lo": -0.06749999999999999,
+     "hi": 0.0,
+     "lossless": false
+    },
+    "router_calib+v2@4": {
+     "arm": "router_calib+v2",
+     "B": 4.0,
+     "lens": "V2",
+     "family": "sieve",
+     "bytes": 88.53471151979173,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 3.9999952274962802,
+     "score": 0.9737500000000001,
+     "delta": -0.020624999999999994,
+     "lo": -0.04374999999999999,
+     "hi": 0.0,
+     "lossless": false
+    },
+    "router_calib+v4@3.5": {
+     "arm": "router_calib+v4",
+     "B": 3.5,
+     "lens": "V4",
+     "family": "sieve",
+     "bytes": 95.25912291952785,
+     "evict_frac": 0.4324042016640348,
+     "key_bits": 3.496086544442643,
+     "score": 0.818125,
+     "delta": -0.17625,
+     "lo": -0.24562499999999998,
+     "hi": -0.10999999999999999,
+     "lossless": false
+    },
+    "router_calib+v4@4": {
+     "arm": "router_calib+v4",
+     "B": 4.0,
+     "lens": "V4",
+     "family": "sieve",
+     "bytes": 109.70047733127474,
+     "evict_frac": 0.3383874702325856,
+     "key_bits": 3.9999952274962802,
+     "score": 0.974375,
+     "delta": -0.019999999999999997,
+     "lo": -0.06499999999999999,
+     "hi": 0.0050000000000000044,
+     "lossless": false
+    },
+    "router_pool_calib@3": {
+     "arm": "router_pool_calib",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 183.27451887013356,
+     "evict_frac": 0.4784684628065152,
+     "key_bits": 2.9999946106626516,
+     "score": 0.9337500000000001,
+     "delta": -0.060625,
+     "lo": -0.11499999999999999,
+     "hi": -0.015624999999999995,
+     "lossless": false
+    },
+    "router_pool_calib@3.5": {
+     "arm": "router_pool_calib",
+     "B": 3.5,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 206.7106924705319,
+     "evict_frac": 0.41815629133751964,
+     "key_bits": 3.4921802321096798,
+     "score": 0.95375,
+     "delta": -0.04062500000000001,
+     "lo": -0.07437500000000001,
+     "hi": -0.012500000000000011,
+     "lossless": false
+    },
+    "router_pool_calib@4": {
+     "arm": "router_pool_calib",
+     "B": 4.0,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 239.98205828465788,
+     "evict_frac": 0.3206799402668821,
+     "key_bits": 3.9999952509744867,
+     "score": 0.9706250000000001,
+     "delta": -0.023750000000000004,
+     "lo": -0.045625000000000006,
+     "hi": -0.005625000000000002,
+     "lossless": false
+    },
+    "router_pool_calib+v2@4": {
+     "arm": "router_pool_calib+v2",
+     "B": 4.0,
+     "lens": "V2",
+     "family": "pool",
+     "bytes": 89.17274025556091,
+     "evict_frac": 0.3206799402668821,
+     "key_bits": 3.9999952509744867,
+     "score": 0.968125,
+     "delta": -0.026250000000000002,
+     "lo": -0.051875000000000004,
+     "hi": -0.005625000000000002,
+     "lossless": false
+    },
+    "router_pool_calib+v4@3": {
+     "arm": "router_pool_calib+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 84.18352690800631,
+     "evict_frac": 0.4784684628065152,
+     "key_bits": 2.9999946106626516,
+     "score": 0.95625,
+     "delta": -0.038125,
+     "lo": -0.07375000000000001,
+     "hi": -0.007499999999999995,
+     "lossless": false
+    },
+    "router_pool_calib+v4@3.5": {
+     "arm": "router_pool_calib+v4",
+     "B": 3.5,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 96.16229743738923,
+     "evict_frac": 0.41815629133751964,
+     "key_bits": 3.4921802321096798,
+     "score": 0.9512499999999999,
+     "delta": -0.04312500000000001,
+     "lo": -0.076875,
+     "hi": -0.01437500000000001,
+     "lossless": false
+    },
+    "router_pool_calib+v4@4": {
+     "arm": "router_pool_calib+v4",
+     "B": 4.0,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 110.90992112106508,
+     "evict_frac": 0.3206799402668821,
+     "key_bits": 3.9999952509744867,
+     "score": 0.9731249999999999,
+     "delta": -0.02125,
+     "lo": -0.045000000000000005,
+     "hi": -0.0006249999999999977,
+     "lossless": false
+    },
+    "router_pool_oracle@3": {
+     "arm": "router_pool_oracle",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "diag",
+     "bytes": 186.04575515889786,
+     "evict_frac": 0.46772035566089737,
+     "key_bits": 2.9999947098289286,
+     "score": 0.9818749999999999,
+     "delta": -0.0125,
+     "lo": -0.026250000000000006,
+     "hi": -0.0006249999999999977,
+     "lossless": true
+    },
+    "uniform@2": {
+     "arm": "uniform",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "dense",
+     "bytes": 290.3488980625032,
+     "evict_frac": 0.0,
+     "key_bits": 2.0,
+     "score": 0.9199999999999999,
+     "delta": -0.074375,
+     "lo": -0.113125,
+     "hi": -0.038125,
+     "lossless": false
+    },
+    "uniform@3": {
+     "arm": "uniform",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "dense",
+     "bytes": 306.3414448780176,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.9737500000000001,
+     "delta": -0.020625000000000004,
+     "lo": -0.04375,
+     "hi": -0.0018750000000000045,
+     "lossless": false
+    },
+    "uniform@4": {
+     "arm": "uniform",
+     "B": 4.0,
+     "lens": "V16",
+     "family": "dense",
+     "bytes": 322.3370685409092,
+     "evict_frac": 0.0,
+     "key_bits": 4.0,
+     "score": 0.985,
+     "delta": -0.009375,
+     "lo": -0.028125,
+     "hi": 0.0050000000000000044,
+     "lossless": true
+    },
+    "uniform+v2@3": {
+     "arm": "uniform+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "dense",
+     "bytes": 84.34263825629066,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.9862500000000001,
+     "delta": -0.008125000000000004,
+     "lo": -0.016250000000000007,
+     "hi": -0.0025000000000000022,
+     "lossless": true
+    },
+    "uniform+v2@4": {
+     "arm": "uniform+v2",
+     "B": 4.0,
+     "lens": "V2",
+     "family": "dense",
+     "bytes": 100.34322182320065,
+     "evict_frac": 0.0,
+     "key_bits": 4.0,
+     "score": 0.9775,
+     "delta": -0.016874999999999994,
+     "lo": -0.03874999999999999,
+     "hi": 0.0025000000000000022,
+     "lossless": true
+    },
+    "uniform+v4@3": {
+     "arm": "uniform+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "dense",
+     "bytes": 116.34277111049968,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.976875,
+     "delta": -0.017500000000000005,
+     "lo": -0.04,
+     "hi": 0.0006249999999999977,
+     "lossless": true
+    },
+    "uniform+v4@4": {
+     "arm": "uniform+v4",
+     "B": 4.0,
+     "lens": "V4",
+     "family": "dense",
+     "bytes": 132.33773183780752,
+     "evict_frac": 0.0,
+     "key_bits": 4.0,
+     "score": 0.9818749999999999,
+     "delta": -0.0125,
+     "lo": -0.036875000000000005,
+     "hi": 0.00625,
+     "lossless": true
+    }
+   },
+   "lenses": {
+    "V16": {
+     "D_star": "uniform@4",
+     "S_star": null,
+     "H_star": null,
+     "J_star": null,
+     "J_family": null,
+     "bytes_D": 322.3370685409092,
+     "bytes_S": null,
+     "bytes_H": null,
+     "bytes_J": null,
+     "rho": null,
+     "d2": "NO_POINT",
+     "r1": null,
+     "d1": "NEITHER"
+    },
+    "V4": {
+     "D_star": "uniform+v4@3",
+     "S_star": null,
+     "H_star": null,
+     "J_star": null,
+     "J_family": null,
+     "bytes_D": 116.34277111049968,
+     "bytes_S": null,
+     "bytes_H": null,
+     "bytes_J": null,
+     "rho": null,
+     "d2": "NO_POINT",
+     "r1": null,
+     "d1": "NEITHER"
+    },
+    "V2": {
+     "D_star": "uniform+v2@3",
+     "S_star": null,
+     "H_star": "hyb_s4_w4+v2@4",
+     "J_star": "hyb_s4_w4+v2@4",
+     "J_family": "hybrid",
+     "bytes_D": 84.34263825629066,
+     "bytes_S": null,
+     "bytes_H": 66.62727377936906,
+     "bytes_J": 66.62727377936906,
+     "rho": 0.789959564424696,
+     "d2": "WIN",
+     "r1": null,
+     "d1": "HYBRID_SUFFICES"
+    }
+   },
+   "d3": {
+    "3": {
+     "delta": 0.14250000000000002,
+     "lo": 0.085,
+     "hi": 0.203125,
+     "del_std": 10,
+     "del_pool": 0,
+     "verdict": "POOL_FIXES"
+    },
+    "3.5": {
+     "delta": 0.118125,
+     "lo": 0.06812499999999999,
+     "hi": 0.169375,
+     "del_std": 6,
+     "del_pool": 0
+    },
+    "4": {
+     "delta": -0.0012500000000000067,
+     "lo": -0.016875000000000008,
+     "hi": 0.01874999999999999,
+     "del_std": 0,
+     "del_pool": 0
+    }
+   },
+   "signatures": {
+    "fp+v2@0": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 1,
+     "missing": 0
+    },
+    "fp+v4@0": {
+     "deletion": 0,
+     "substitution": 0,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_k4_w3@3": {
+     "deletion": 0,
+     "substitution": 7,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_k4_w3+v4@3": {
+     "deletion": 0,
+     "substitution": 6,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s3_w4@4": {
+     "deletion": 8,
+     "substitution": 14,
+     "other": 4,
+     "missing": 0
+    },
+    "hyb_s4_w3@3": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s4_w3+v2@3": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s4_w3+v4@3": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s4_w4@4": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s4_w4+v2@4": {
+     "deletion": 0,
+     "substitution": 3,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s4_w4+v4@4": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 1,
+     "missing": 0
+    },
+    "router_calib@3": {
+     "deletion": 10,
+     "substitution": 12,
+     "other": 4,
+     "missing": 0
+    },
+    "router_calib@3.5": {
+     "deletion": 6,
+     "substitution": 12,
+     "other": 4,
+     "missing": 0
+    },
+    "router_calib@4": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    },
+    "router_calib+v2@4": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 1,
+     "missing": 0
+    },
+    "router_calib+v4@3.5": {
+     "deletion": 7,
+     "substitution": 15,
+     "other": 4,
+     "missing": 0
+    },
+    "router_calib+v4@4": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 1,
+     "missing": 0
+    },
+    "router_pool_calib@3": {
+     "deletion": 0,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib@3.5": {
+     "deletion": 0,
+     "substitution": 6,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib@4": {
+     "deletion": 0,
+     "substitution": 3,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v2@4": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v4@3": {
+     "deletion": 0,
+     "substitution": 6,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v4@3.5": {
+     "deletion": 0,
+     "substitution": 6,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v4@4": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_oracle@3": {
+     "deletion": 1,
+     "substitution": 3,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform@2": {
+     "deletion": 0,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform@3": {
+     "deletion": 0,
+     "substitution": 4,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform@4": {
+     "deletion": 0,
+     "substitution": 3,
+     "other": 1,
+     "missing": 0
+    },
+    "uniform+v2@3": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "uniform+v2@4": {
+     "deletion": 0,
+     "substitution": 3,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform+v4@3": {
+     "deletion": 0,
+     "substitution": 3,
+     "other": 1,
+     "missing": 0
+    },
+    "uniform+v4@4": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    }
+   },
+   "d3_verdict": {
+    "B": "3",
+    "delta": 0.14250000000000002,
+    "lo": 0.085,
+    "hi": 0.203125,
+    "del_std": 10,
+    "del_pool": 0,
+    "verdict": "POOL_FIXES"
+   },
+   "fp_value_cost": {
+    "+v4": {
+     "delta": 0.0,
+     "lo": 0.0,
+     "hi": 0.0
+    },
+    "+v2": {
+     "delta": -0.0006249999999999977,
+     "lo": -0.006874999999999997,
+     "hi": 0.0050000000000000044
+    }
+   },
+   "fp_replay_agreement": 0.9950980392522087
+  },
+  {
+   "cell": "llama31-8b@32768",
+   "fp": 1.0,
+   "valid_tasks": [
+    "niah_multikey",
+    "niah_multivalue",
+    "niah_single",
+    "vt"
+   ],
+   "n_prompts": 20,
+   "points": {
+    "fp+v2@0": {
+     "arm": "fp+v2",
+     "B": 0.0,
+     "lens": "V2",
+     "family": "fp",
+     "bytes": 291.38951337138525,
+     "evict_frac": 0.0,
+     "key_bits": 16.0,
+     "score": 1.0,
+     "delta": 0.0,
+     "lo": 0.0,
+     "hi": 0.0,
+     "lossless": true
+    },
+    "fp+v4@0": {
+     "arm": "fp+v4",
+     "B": 0.0,
+     "lens": "V4",
+     "family": "fp",
+     "bytes": 323.3885511899328,
+     "evict_frac": 0.0,
+     "key_bits": 16.0,
+     "score": 0.996875,
+     "delta": -0.003125,
+     "lo": -0.009375,
+     "hi": 0.0,
+     "lossless": true
+    },
+    "hyb_k3_w2@2": {
+     "arm": "hyb_k3_w2",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 169.5645468740786,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.1588570399063423,
+     "score": 0.945625,
+     "delta": -0.05437500000000001,
+     "lo": -0.08812500000000001,
+     "hi": -0.024375,
+     "lossless": false
+    },
+    "hyb_k3_w2+v4@2": {
+     "arm": "hyb_k3_w2+v4",
+     "B": 2.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 59.47990549381226,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.1588570399063423,
+     "score": 0.938125,
+     "delta": -0.06187500000000001,
+     "lo": -0.09437500000000001,
+     "hi": -0.032500000000000015,
+     "lossless": false
+    },
+    "hyb_s2_w3@3": {
+     "arm": "hyb_s2_w3",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 123.13839631887501,
+     "evict_frac": 0.6027605411890385,
+     "key_bits": 1.1917183764328843,
+     "score": 0.40562499999999996,
+     "delta": -0.594375,
+     "lo": -0.693125,
+     "hi": -0.49312500000000004,
+     "lossless": false
+    },
+    "hyb_s3_w2@2": {
+     "arm": "hyb_s3_w2",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 169.5599933869537,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.1588570399063423,
+     "score": 0.89625,
+     "delta": -0.10375000000000001,
+     "lo": -0.17,
+     "hi": -0.04875,
+     "lossless": false
+    },
+    "hyb_s3_w2+v2@2": {
+     "arm": "hyb_s3_w2+v2",
+     "B": 2.0,
+     "lens": "V2",
+     "family": "hybrid",
+     "bytes": 40.93364373104228,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.1588570399063423,
+     "score": 0.8756250000000001,
+     "delta": -0.12437499999999999,
+     "lo": -0.18250000000000002,
+     "hi": -0.07062500000000001,
+     "lossless": false
+    },
+    "hyb_s3_w2+v4@2": {
+     "arm": "hyb_s3_w2+v4",
+     "B": 2.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 59.47376778967432,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.1588570399063423,
+     "score": 0.8931250000000001,
+     "delta": -0.10687500000000001,
+     "lo": -0.178125,
+     "hi": -0.050624999999999996,
+     "lossless": false
+    },
+    "hyb_s3_w3@3": {
+     "arm": "hyb_s3_w3",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "hybrid",
+     "bytes": 178.8160272855345,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.7382855598595135,
+     "score": 0.9662499999999999,
+     "delta": -0.03375,
+     "lo": -0.065,
+     "hi": -0.005625000000000002,
+     "lossless": false
+    },
+    "hyb_s3_w3+v2@3": {
+     "arm": "hyb_s3_w3+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "hybrid",
+     "bytes": 50.18311313016279,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.7382855598595135,
+     "score": 0.96875,
+     "delta": -0.03125,
+     "lo": -0.0625,
+     "hi": -0.003125,
+     "lossless": false
+    },
+    "hyb_s3_w3+v4@3": {
+     "arm": "hyb_s3_w3+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "hybrid",
+     "bytes": 68.72460849443195,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 1.7382855598595135,
+     "score": 0.9662499999999999,
+     "delta": -0.03375,
+     "lo": -0.065,
+     "hi": -0.005625000000000002,
+     "lossless": false
+    },
+    "router_calib@2": {
+     "arm": "router_calib",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 136.31993450116687,
+     "evict_frac": 0.6027605411890385,
+     "key_bits": 1.9999791928655868,
+     "score": 0.416875,
+     "delta": -0.583125,
+     "lo": -0.6849999999999999,
+     "hi": -0.480625,
+     "lossless": false
+    },
+    "router_calib@2.5": {
+     "arm": "router_calib",
+     "B": 2.5,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 161.22588012613417,
+     "evict_frac": 0.5367605939755764,
+     "key_bits": 2.4921596574810425,
+     "score": 0.5112500000000001,
+     "delta": -0.4887499999999999,
+     "lo": -0.5831250000000001,
+     "hi": -0.39062500000000006,
+     "lossless": false
+    },
+    "router_calib@3": {
+     "arm": "router_calib",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "sieve",
+     "bytes": 199.2564531098685,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 2.9999822020484976,
+     "score": 0.971875,
+     "delta": -0.028125,
+     "lo": -0.075,
+     "hi": 0.0,
+     "lossless": false
+    },
+    "router_calib+v2@3": {
+     "arm": "router_calib+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "sieve",
+     "bytes": 70.62492257700386,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 2.9999822020484976,
+     "score": 0.96875,
+     "delta": -0.03125,
+     "lo": -0.0625,
+     "hi": -0.003125,
+     "lossless": false
+    },
+    "router_calib+v4@2.5": {
+     "arm": "router_calib+v4",
+     "B": 2.5,
+     "lens": "V4",
+     "family": "sieve",
+     "bytes": 73.21294127202609,
+     "evict_frac": 0.5367605939755764,
+     "key_bits": 2.4921596574810425,
+     "score": 0.52125,
+     "delta": -0.47874999999999995,
+     "lo": -0.5700000000000001,
+     "hi": -0.38312500000000005,
+     "lossless": false
+    },
+    "router_calib+v4@3": {
+     "arm": "router_calib+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "sieve",
+     "bytes": 89.16058693292901,
+     "evict_frac": 0.42057148004682887,
+     "key_bits": 2.9999822020484976,
+     "score": 0.971875,
+     "delta": -0.028125,
+     "lo": -0.075,
+     "hi": 0.0,
+     "lossless": false
+    },
+    "router_pool_calib@2": {
+     "arm": "router_pool_calib",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 140.1786428026949,
+     "evict_frac": 0.587656115852092,
+     "key_bits": 1.999978191978578,
+     "score": 0.7725000000000001,
+     "delta": -0.22749999999999998,
+     "lo": -0.311875,
+     "hi": -0.149375,
+     "lossless": false
+    },
+    "router_pool_calib@2.5": {
+     "arm": "router_pool_calib",
+     "B": 2.5,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 164.7138234085397,
+     "evict_frac": 0.5229601844384318,
+     "key_bits": 2.490205849243753,
+     "score": 0.8087499999999999,
+     "delta": -0.19125,
+     "lo": -0.271875,
+     "hi": -0.121875,
+     "lossless": false
+    },
+    "router_pool_calib@3": {
+     "arm": "router_pool_calib",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "pool",
+     "bytes": 205.25078850516084,
+     "evict_frac": 0.39735940253806934,
+     "key_bits": 2.999982354146785,
+     "score": 0.959375,
+     "delta": -0.040625,
+     "lo": -0.071875,
+     "hi": -0.015625,
+     "lossless": false
+    },
+    "router_pool_calib+v2@3": {
+     "arm": "router_pool_calib+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "pool",
+     "bytes": 71.46384029161976,
+     "evict_frac": 0.39735940253806934,
+     "key_bits": 2.999982354146785,
+     "score": 0.975,
+     "delta": -0.025,
+     "lo": -0.046875,
+     "hi": -0.00625,
+     "lossless": false
+    },
+    "router_pool_calib+v4@2": {
+     "arm": "router_pool_calib+v4",
+     "B": 2.0,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 61.836791809466334,
+     "evict_frac": 0.587656115852092,
+     "key_bits": 1.999978191978578,
+     "score": 0.74875,
+     "delta": -0.25125,
+     "lo": -0.34249999999999997,
+     "hi": -0.16809375000000046,
+     "lossless": false
+    },
+    "router_pool_calib+v4@2.5": {
+     "arm": "router_pool_calib+v4",
+     "B": 2.5,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 74.078485982142,
+     "evict_frac": 0.5229601844384318,
+     "key_bits": 2.490205849243753,
+     "score": 0.8118749999999999,
+     "delta": -0.18812500000000001,
+     "lo": -0.26875,
+     "hi": -0.11812500000000001,
+     "lossless": false
+    },
+    "router_pool_calib+v4@3": {
+     "arm": "router_pool_calib+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "pool",
+     "bytes": 90.74547405678135,
+     "evict_frac": 0.39735940253806934,
+     "key_bits": 2.999982354146785,
+     "score": 0.971875,
+     "delta": -0.028125,
+     "lo": -0.05,
+     "hi": -0.009375,
+     "lossless": false
+    },
+    "router_pool_oracle@2": {
+     "arm": "router_pool_oracle",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "diag",
+     "bytes": 145.19093797307417,
+     "evict_frac": 0.5681633719362343,
+     "key_bits": 1.9999788822804678,
+     "score": 0.8943749999999999,
+     "delta": -0.105625,
+     "lo": -0.16125,
+     "hi": -0.05500000000000001,
+     "lossless": false
+    },
+    "uniform@2": {
+     "arm": "uniform",
+     "B": 2.0,
+     "lens": "V16",
+     "family": "dense",
+     "bytes": 291.3838846082019,
+     "evict_frac": 0.0,
+     "key_bits": 2.0,
+     "score": 0.97875,
+     "delta": -0.02125,
+     "lo": -0.039999999999999994,
+     "hi": -0.005625000000000002,
+     "lossless": false
+    },
+    "uniform@3": {
+     "arm": "uniform",
+     "B": 3.0,
+     "lens": "V16",
+     "family": "dense",
+     "bytes": 307.3909834851398,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.994375,
+     "delta": -0.005625000000000002,
+     "lo": -0.011875000000000002,
+     "hi": 0.0,
+     "lossless": true
+    },
+    "uniform+v2@2": {
+     "arm": "uniform+v2",
+     "B": 2.0,
+     "lens": "V2",
+     "family": "dense",
+     "bytes": 69.39298912087278,
+     "evict_frac": 0.0,
+     "key_bits": 2.0,
+     "score": 0.96875,
+     "delta": -0.03125,
+     "lo": -0.05881249999999995,
+     "hi": -0.00625,
+     "lossless": false
+    },
+    "uniform+v2@3": {
+     "arm": "uniform+v2",
+     "B": 3.0,
+     "lens": "V2",
+     "family": "dense",
+     "bytes": 85.38749596377691,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.996875,
+     "delta": -0.003125,
+     "lo": -0.009375,
+     "hi": 0.0,
+     "lossless": true
+    },
+    "uniform+v4@2": {
+     "arm": "uniform+v4",
+     "B": 2.0,
+     "lens": "V4",
+     "family": "dense",
+     "bytes": 101.38558258593626,
+     "evict_frac": 0.0,
+     "key_bits": 2.0,
+     "score": 0.965625,
+     "delta": -0.034375,
+     "lo": -0.0625,
+     "hi": -0.009999999999999998,
+     "lossless": false
+    },
+    "uniform+v4@3": {
+     "arm": "uniform+v4",
+     "B": 3.0,
+     "lens": "V4",
+     "family": "dense",
+     "bytes": 117.38917957497301,
+     "evict_frac": 0.0,
+     "key_bits": 3.0,
+     "score": 0.991875,
+     "delta": -0.008125000000000004,
+     "lo": -0.014375000000000004,
+     "hi": -0.0025000000000000022,
+     "lossless": true
+    }
+   },
+   "lenses": {
+    "V16": {
+     "D_star": "uniform@3",
+     "S_star": null,
+     "H_star": null,
+     "J_star": null,
+     "J_family": null,
+     "bytes_D": 307.3909834851398,
+     "bytes_S": null,
+     "bytes_H": null,
+     "bytes_J": null,
+     "rho": null,
+     "d2": "NO_POINT",
+     "r1": null,
+     "d1": "NEITHER"
+    },
+    "V4": {
+     "D_star": "uniform+v4@3",
+     "S_star": null,
+     "H_star": null,
+     "J_star": null,
+     "J_family": null,
+     "bytes_D": 117.38917957497301,
+     "bytes_S": null,
+     "bytes_H": null,
+     "bytes_J": null,
+     "rho": null,
+     "d2": "NO_POINT",
+     "r1": null,
+     "d1": "NEITHER"
+    },
+    "V2": {
+     "D_star": "uniform+v2@3",
+     "S_star": null,
+     "H_star": null,
+     "J_star": null,
+     "J_family": null,
+     "bytes_D": 85.38749596377691,
+     "bytes_S": null,
+     "bytes_H": null,
+     "bytes_J": null,
+     "rho": null,
+     "d2": "NO_POINT",
+     "r1": null,
+     "d1": "NEITHER"
+    }
+   },
+   "d3": {
+    "2": {
+     "delta": 0.35562499999999997,
+     "lo": 0.26312499999999994,
+     "hi": 0.45,
+     "del_std": 32,
+     "del_pool": 14,
+     "verdict": "POOL_FIXES"
+    },
+    "2.5": {
+     "delta": 0.2975,
+     "lo": 0.190625,
+     "hi": 0.40374999999999994,
+     "del_std": 32,
+     "del_pool": 6
+    },
+    "3": {
+     "delta": -0.0125,
+     "lo": -0.05625,
+     "hi": 0.03125,
+     "del_std": 0,
+     "del_pool": 0
+    }
+   },
+   "signatures": {
+    "fp+v2@0": {
+     "deletion": 0,
+     "substitution": 0,
+     "other": 0,
+     "missing": 0
+    },
+    "fp+v4@0": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    },
+    "hyb_k3_w2@2": {
+     "deletion": 2,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "hyb_k3_w2+v4@2": {
+     "deletion": 2,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "hyb_s2_w3@3": {
+     "deletion": 36,
+     "substitution": 10,
+     "other": 42,
+     "missing": 1
+    },
+    "hyb_s3_w2@2": {
+     "deletion": 8,
+     "substitution": 5,
+     "other": 5,
+     "missing": 0
+    },
+    "hyb_s3_w2+v2@2": {
+     "deletion": 11,
+     "substitution": 6,
+     "other": 0,
+     "missing": 0
+    },
+    "hyb_s3_w2+v4@2": {
+     "deletion": 9,
+     "substitution": 5,
+     "other": 5,
+     "missing": 0
+    },
+    "hyb_s3_w3@3": {
+     "deletion": 1,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s3_w3+v2@3": {
+     "deletion": 1,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "hyb_s3_w3+v4@3": {
+     "deletion": 1,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "router_calib@2": {
+     "deletion": 32,
+     "substitution": 17,
+     "other": 37,
+     "missing": 1
+    },
+    "router_calib@2.5": {
+     "deletion": 32,
+     "substitution": 13,
+     "other": 34,
+     "missing": 0
+    },
+    "router_calib@3": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 5,
+     "missing": 0
+    },
+    "router_calib+v2@3": {
+     "deletion": 1,
+     "substitution": 2,
+     "other": 1,
+     "missing": 0
+    },
+    "router_calib+v4@2.5": {
+     "deletion": 32,
+     "substitution": 13,
+     "other": 34,
+     "missing": 0
+    },
+    "router_calib+v4@3": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 4,
+     "missing": 0
+    },
+    "router_pool_calib@2": {
+     "deletion": 14,
+     "substitution": 18,
+     "other": 2,
+     "missing": 0
+    },
+    "router_pool_calib@2.5": {
+     "deletion": 6,
+     "substitution": 19,
+     "other": 8,
+     "missing": 0
+    },
+    "router_pool_calib@3": {
+     "deletion": 0,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v2@3": {
+     "deletion": 0,
+     "substitution": 5,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_calib+v4@2": {
+     "deletion": 15,
+     "substitution": 18,
+     "other": 4,
+     "missing": 0
+    },
+    "router_pool_calib+v4@2.5": {
+     "deletion": 5,
+     "substitution": 18,
+     "other": 9,
+     "missing": 0
+    },
+    "router_pool_calib+v4@3": {
+     "deletion": 0,
+     "substitution": 6,
+     "other": 0,
+     "missing": 0
+    },
+    "router_pool_oracle@2": {
+     "deletion": 6,
+     "substitution": 7,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform@2": {
+     "deletion": 0,
+     "substitution": 2,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform@3": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform+v2@2": {
+     "deletion": 2,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform+v2@3": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform+v4@2": {
+     "deletion": 2,
+     "substitution": 2,
+     "other": 0,
+     "missing": 0
+    },
+    "uniform+v4@3": {
+     "deletion": 0,
+     "substitution": 1,
+     "other": 0,
+     "missing": 0
+    }
+   },
+   "d3_verdict": {
+    "B": "2",
+    "delta": 0.35562499999999997,
+    "lo": 0.26312499999999994,
+    "hi": 0.45,
+    "del_std": 32,
+    "del_pool": 14,
+    "verdict": "POOL_FIXES"
+   },
+   "fp_value_cost": {
+    "+v4": {
+     "delta": -0.003125,
+     "lo": -0.009375,
+     "hi": 0.0
+    },
+    "+v2": {
+     "delta": 0.0,
+     "lo": 0.0,
+     "hi": 0.0
+    }
+   },
+   "fp_replay_agreement": 0.9966297544535387
+  }
+ ]
+}

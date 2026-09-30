@@ -28,15 +28,13 @@
 \newlabel{tab:findings}{{1}{2}{Summary of findings, their evidence, and what they do \emph {not} show}{table.1}{}}
 \@writefile{toc}{\contentsline {paragraph}{Findings.}{2}{section*.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{section*.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Organization.}{2}{section*.3}\protected@file@percent }
 \citation{goel2025caote}
 \citation{grattafiori2024llama3}
 \citation{jiang2023mistral}
 \citation{qwen2024moe}
 \citation{yang2025qwen3}
 \citation{rae2020pg19}
-\citation{zandieh2025turboquant}
-\citation{lloyd1982least}
+\@writefile{toc}{\contentsline {paragraph}{Organization.}{3}{section*.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}Joint token-rate allocation as a common foundation}{3}{section.2}\protected@file@percent }
 \newlabel{sec:framework}{{2}{3}{Joint token-rate allocation as a common foundation}{section.2}{}}
 \@writefile{toc}{\contentsline {paragraph}{Scope and local quantization surrogate.}{3}{section*.4}\protected@file@percent }
@@ -49,7 +47,8 @@
 \newlabel{eq:d2}{{4}{3}{Two coordinates, not one universal phase boundary}{equation.2.4}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {3}Measurement protocol}{3}{section.3}\protected@file@percent }
 \newlabel{sec:protocol}{{3}{3}{Measurement protocol}{section.3}{}}
-\@writefile{toc}{\contentsline {paragraph}{Output-distortion level: models, cells, and units.}{3}{section*.8}\protected@file@percent }
+\citation{zandieh2025turboquant}
+\citation{lloyd1982least}
 \citation{hsieh2024ruler}
 \citation{liu2024kivi}
 \citation{hooper2024kvquant}
@@ -59,35 +58,34 @@
 \citation{feng2024adakv}
 \citation{mai2026laprox}
 \citation{gu2026obcache}
+\@writefile{toc}{\contentsline {paragraph}{Output-distortion level: models, cells, and units.}{4}{section*.8}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Compression, budget, and information contract.}{4}{section*.9}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Exact response and metrics.}{4}{section*.10}\protected@file@percent }
 \newlabel{eq:metrics}{{5}{4}{Exact response and metrics}{equation.3.5}{}}
 \@writefile{toc}{\contentsline {paragraph}{End-task level.}{4}{section*.11}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Baselines and the instrument.}{4}{section*.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Output-distortion regimes}{4}{section.4}\protected@file@percent }
-\newlabel{sec:regimes}{{4}{4}{Output-distortion regimes}{section.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{F1: Tier extinction orders the interior's output-error advantage, but the crossing is per architecture.}{4}{section*.13}\protected@file@percent }
 \citation{zuo2026ratequant}
-\citation{yuan2024kvbench}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf  {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $G_{+}$ across 25 cells; arrows show increasing context. \textbf  {(b)} Context moves each fixed model across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures.}}{5}{figure.1}\protected@file@percent }
-\newlabel{fig:regime}{{1}{5}{\textbf {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $\gplus $ across 25 cells; arrows show increasing context. \textbf {(b)} Context moves each fixed model across predeclared output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures}{figure.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf  {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $G_{+}$ across 25 cells; arrows show increasing context. \textbf  {(b)} Context moves each fixed model across pre-registered output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures.}}{5}{figure.1}\protected@file@percent }
+\newlabel{fig:regime}{{1}{5}{\textbf {F1--F2: where the interior lowers output error.} Mixed allocator and eviction endpoint both use lagged information; exact recomputation scores both. \textbf {(a)} The tier-extinction coordinate $D_2$ orders hindsight portfolio gain $\gplus $ across 25 cells; arrows show increasing context. \textbf {(b)} Context moves each fixed model across pre-registered output-error bands. Error bars are 90\% layer-cluster intervals. Thresholds are not universal across architectures}{figure.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Output-distortion regimes}{5}{section.4}\protected@file@percent }
+\newlabel{sec:regimes}{{4}{5}{Output-distortion regimes}{section.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{F1: Tier extinction orders the interior's output-error advantage, but the crossing is per architecture.}{5}{section*.13}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Why $D_2$ rather than a concentration or context statistic?}{5}{section*.14}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{F2: Context moves a fixed model toward the eviction corner.}{5}{section*.15}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{F3: A head's policy family is stable; its token allocation goes stale within steps.}{5}{section*.16}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {5}Do output-distortion regimes transfer to end tasks?}{5}{section.5}\protected@file@percent }
-\newlabel{sec:endtask}{{5}{5}{Do output-distortion regimes transfer to end tasks?}{section.5}{}}
-\@writefile{toc}{\contentsline {paragraph}{F4: Routed per head, the output-error optimum beats every eviction method, but a model-matched dense quantizer beats it.}{5}{section*.17}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {F1 robustness and F3 timescales.} \textbf  {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf  {(b)} In six cells, keeping the calibration-time \emph  {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment.}}{6}{figure.2}\protected@file@percent }
-\newlabel{fig:evidence}{{2}{6}{\textbf {F1 robustness and F3 timescales.} \textbf {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf {(b)} In six cells, keeping the calibration-time \emph {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment}{figure.2}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph  {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S  \ref  {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph  {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant.}}{6}{table.2}\protected@file@percent }
-\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.999$). \emph {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S \ref {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
+\citation{yuan2024kvbench}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {F1 robustness and F3 timescales.} \textbf  {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf  {(b)} In six runs (five model--context cells), keeping the calibration-time \emph  {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment.}}{6}{figure.2}\protected@file@percent }
+\newlabel{fig:evidence}{{2}{6}{\textbf {F1 robustness and F3 timescales.} \textbf {(a)} On the same 16 cells, the lagged-versus-lagged advantage is smaller than the asymmetric numbers (current-query interior against lagged eviction) but remains ordered by $D_2$. \textbf {(b)} In six runs (five model--context cells), keeping the calibration-time \emph {policy family} has p90 regret $1.00$ through 4,096 generated tokens, whereas freezing the token assignment costs $2.52$--$4.30\times $ a one-step-old assignment}{figure.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces \textbf  {End-task audit}: mean RULER score over valid cells (FP $=0.996$). \emph  {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S  \ref  {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph  {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant.}}{6}{table.2}\protected@file@percent }
+\newlabel{tab:endtask}{{2}{6}{\textbf {End-task audit}: mean RULER score over valid cells (FP $=0.996$). \emph {Paired grid}: 36 cells (Llama 8k/32k/128k, Qwen 8k/32k; $B=2,3$), all methods in one process per cell (\S \ref {sec:protocol}); Mistral-7B: 10 cells, same protocol. \emph {Full grid}: independent earlier run of eight methods on the same cells, different haystack text. Output error averaged over $B$; effective bits at $B=2$; both from the paired grid. Bold: best budget-matched; $^\ast $not matched (1 side bit/element). The router sends 1--25\% of KV heads to TurboQuant}{table.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{F3: A head's policy family is stable; its token allocation goes stale within steps.}{6}{section*.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Do output-distortion regimes transfer to end tasks?}{6}{section.5}\protected@file@percent }
+\newlabel{sec:endtask}{{5}{6}{Do output-distortion regimes transfer to end tasks?}{section.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{F4: Routed per head, the output-error optimum beats every eviction method, but a model-matched dense quantizer beats it.}{6}{section*.17}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces \textbf  {F4--F6: what transfers to task accuracy.} \textbf  {(a)} Mean task score per method and model over the paired grid. TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \textsc  {Sieve}{} beats TurboQuant but not the per-channel quantizers. \textbf  {(b)} Head-output error vs.\ task score for every paired-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf  {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \textsc  {Sieve}{} and H2O, which do not pool their scores, fail by \emph  {truncating} the correct number; pooled eviction methods fail by returning a wrong needle. Pooling \textsc  {Sieve}{}'s scores (diagnostic) removes the truncation.}}{7}{figure.3}\protected@file@percent }
 \newlabel{fig:endtask}{{3}{7}{\textbf {F4--F6: what transfers to task accuracy.} \textbf {(a)} Mean task score per method and model over the paired grid. TurboQuant wins on Llama-3.1-8B; on Qwen3-8B \sieve {} beats TurboQuant but not the per-channel quantizers. \textbf {(b)} Head-output error vs.\ task score for every paired-grid (cell, method); stars are method means. Error tracks accuracy across budgets and contexts; across methods it is weak, and TurboQuant (dark, top right) combines the highest error with the highest accuracy. \textbf {(c)} Single- and multi-key answers at Llama-3.1-8B, 128k, $B\in \{2,3\}$: \sieve {} and H2O, which do not pool their scores, fail by \emph {truncating} the correct number; pooled eviction methods fail by returning a wrong needle. Pooling \sieve {}'s scores (diagnostic) removes the truncation}{figure.3}{}}
 \@writefile{toc}{\contentsline {paragraph}{F5: Output distortion ranks budgets and contexts well and methods weakly.}{7}{section*.18}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{F6: Token-granular allocation truncates multi-token answers; positional smoothing largely repairs it.}{7}{section*.19}\protected@file@percent }
 \citation{zhang2026fixedcontract}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \textbf  {F7:} how much each choice moves a verdict, compared with prompt sampling.}}{8}{table.3}\protected@file@percent }
-\newlabel{tab:contract}{{3}{8}{\textbf {F7:} how much each choice moves a verdict, compared with prompt sampling}{table.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{F6: Token-granular allocation truncates multi-token answers; positional smoothing largely repairs it.}{8}{section*.19}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{F7: The comparison set and information contract move verdicts more than prompt sampling does.}{8}{section*.20}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Implications}{8}{section.6}\protected@file@percent }
 \newlabel{sec:implications}{{6}{8}{Implications}{section.6}{}}
@@ -116,14 +114,16 @@
 \citation{wang-etal-2026-hqekv}
 \citation{zhang2026rdkv}
 \citation{laus2026aatc}
-\citation{yuan2024kvbench}
-\citation{zhang2026fixedcontract}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces \textbf  {F7:} how much each choice moves a verdict, compared with prompt sampling.}}{9}{table.3}\protected@file@percent }
+\newlabel{tab:contract}{{3}{9}{\textbf {F7:} how much each choice moves a verdict, compared with prompt sampling}{table.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Related work}{9}{section.7}\protected@file@percent }
 \newlabel{sec:related}{{7}{9}{Related work}{section.7}{}}
 \@writefile{toc}{\contentsline {paragraph}{Dense KV quantization.}{9}{section*.21}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Eviction and sparse attention.}{9}{section*.22}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Hybrid storage and rate allocation.}{9}{section*.23}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Diagnostics, evaluation contracts, and systems.}{9}{section*.24}\protected@file@percent }
+\citation{yuan2024kvbench}
+\citation{zhang2026fixedcontract}
+\@writefile{toc}{\contentsline {paragraph}{Diagnostics, evaluation contracts, and systems.}{10}{section*.24}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {8}Limitations and conclusion}{10}{section.8}\protected@file@percent }
 \newlabel{sec:conclusion}{{8}{10}{Limitations and conclusion}{section.8}{}}
 \newlabel{main:end}{{8}{10}{Limitations and conclusion}{section.8}{}}

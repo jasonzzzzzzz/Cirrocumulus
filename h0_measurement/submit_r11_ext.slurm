@@ -2,7 +2,6 @@
 #SBATCH --job-name=sieve-r11x
 #SBATCH --output=h0_measurement/logs/r11x_%A_%a.out
 #SBATCH --error=h0_measurement/logs/r11x_%A_%a.err
-#SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=1

@@ -301,7 +301,7 @@ All end-task numbers in the main text come from the paired grid unless marked
 \toprule
 \textbf{Constraint} & \textbf{Measurement} & \textbf{Implication} \\
 \midrule
-Family label over 4,096 tokens & p90 regret $1.00$ in 6/6 runs (5 cells) & calibrate the route once per context \\
+Family label over 4,096 tokens & p90 regret $1.00$ in 6/6 cells & calibrate the route once per context \\
 Frozen token assignment & $2.52$--$4.30\times$ lag-1 error & re-budget mixed heads every few steps \\
 Shared GQA allocation & $1.000/1.136/1.316\times$ at $n_{\rm rep}=1/4/8$ & route per KV head at a small cost \\
 4-bit current-query cascade & closes $82$--$91\%$ (median $89\%$) of lag penalty & re-score from base-tier keys \\
@@ -322,7 +322,7 @@ The completed measurements support the following bounded conclusions:
  \item Prompt-block standard deviation is 0.4--3.0 band points.  Replacing the
  two headline corners by the five-corner minimum lowers the band by 5.1--8.6
  points and can change a categorical verdict.
- \item In six decode-stability runs (five model--context cells), the calibration-time family choice has p90 regret 1.00
+ \item In six decode-stability cells, the calibration-time family choice has p90 regret 1.00
  through 4,096 generated tokens, whereas a frozen token allocation costs
  $2.52$--$4.30\times$ a one-step-old allocation.
  \item Enforcing one allocation per shared KV head gives marginal in-band costs

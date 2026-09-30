@@ -1,0 +1,204 @@
+{
+ "parquet": "s1d_calibrate_llama31-8b_131072.parquet",
+ "heads": "s1d_calibrate_llama31-8b_131072_heads.parquet",
+ "mode": "calibrate",
+ "preset_name": "pilot128",
+ "preset": {
+  "model": "llama31-8b",
+  "ctx": 131072,
+  "B_low": 3,
+  "B_top": 4,
+  "calib": [
+   3
+  ],
+  "dense": [
+   3
+  ],
+  "dense_twins": [
+   "+v4"
+  ],
+  "fp_twins": [
+   "+v4"
+  ],
+  "sieve": [
+   4
+  ],
+  "sieve_twins": [],
+  "pool": [
+   3
+  ],
+  "pool_twins": [],
+  "seq": [
+   3
+  ],
+  "seq2": [
+   3
+  ],
+  "seq2_twins": [
+   "+v4"
+  ],
+  "topn": [
+   32
+  ],
+  "topn_twins": [
+   "+v4"
+  ],
+  "union": [
+   3
+  ],
+  "union_twins": [],
+  "oracle": [
+   3
+  ],
+  "hvah": [
+   [
+    3,
+    4
+   ]
+  ],
+  "qread": [
+   [
+    0.25,
+    4
+   ]
+  ],
+  "qreadp": [
+   [
+    0.25,
+    4
+   ]
+  ],
+  "qreadr": [
+   [
+    0.125,
+    4
+   ]
+  ],
+  "qreadpr": [
+   [
+    0.125,
+    4
+   ]
+  ],
+  "mech": [
+   3
+  ]
+ },
+ "plan": [],
+ "model": "llama31-8b",
+ "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+ "ctx": 131072,
+ "tasks": [
+  "niah_single"
+ ],
+ "task_config": {
+  "n_keys": 4,
+  "n_values": 4,
+  "n_hops": 4
+ },
+ "n_prompts": 1,
+ "prompt_offset": 0,
+ "window": 32,
+ "n_q": 8,
+ "question_agnostic": true,
+ "rot_seed": 0,
+ "head_dim": 128,
+ "n_layers": 32,
+ "n_heads": 32,
+ "n_kv_heads": 8,
+ "v_rotation_seed": 101,
+ "norm_correct": true,
+ "maxb": 8,
+ "bit_list": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  8
+ ],
+ "corpus_sha": "0a26bc1e05a1eea8",
+ "rows": 1,
+ "resel_k": 8,
+ "resel_rows": 32,
+ "hvah_width": {
+  "16": 4,
+  "4": 3,
+  "2": 3
+ },
+ "anat_cats": [
+  "value",
+  "key",
+  "other",
+  "sink",
+  "prefix",
+  "rest",
+  "window",
+  "question"
+ ],
+ "protected": {},
+ "critical": {},
+ "dropped_arms": [],
+ "metric": "a_sum_nll: teacher-forced NLL of the answer-value tokens of FP's answer, up to the end of the answer span",
+ "routes": {
+  "routes_pool": {
+   "path": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r8_routes/r14s1b_llama31-8b_131072_routes.json",
+   "sha256": "e4afe5279ef504fef64ac9ca9c6520137e9b993c4ac778e2b2c20ab2e64f820a"
+  }
+ },
+ "peak_gib_max": null,
+ "elapsed_s": 185.41799974441528,
+ "config": {
+  "ctx": 131072,
+  "n_prompts": 6,
+  "n_decode": 8,
+  "families": [
+   "niah",
+   "qa",
+   "cont"
+  ],
+  "dtype": "bfloat16",
+  "chunk": 4096,
+  "device_map": "auto",
+  "bit_list": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   8
+  ],
+  "budgets": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "quant_every": 4,
+  "norm_correct": true,
+  "rot_seed": 0,
+  "maxb": 8,
+  "evictors": [
+   "oracle",
+   "accum"
+  ],
+  "corner_policies": [
+   "frac"
+  ],
+  "corner_kappa": 4.0,
+  "corner_floor": 256,
+  "kstar": true,
+  "interior_rank_corner": true,
+  "corner_in_filename": false,
+  "tag": "llama31-8b",
+  "native_ctx": 131072,
+  "id": "meta-llama/Llama-3.1-8B-Instruct",
+  "tier": "main",
+  "validate_with": "meta-llama/Llama-3.2-1B-Instruct"
+ },
+ "write_routes": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r14s1d_pilot128_1008350/pilot_routes_1d.json",
+ "search": "s1d_calibrate_llama31-8b_131072_search.parquet",
+ "searchlog": "s1d_calibrate_llama31-8b_131072_searchlog.parquet"
+}

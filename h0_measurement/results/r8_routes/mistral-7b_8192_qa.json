@@ -1,0 +1,685 @@
+{
+ "meta": {
+  "model": "mistral-7b",
+  "ctx": 8192,
+  "theta": 1.0,
+  "prompt_block": [
+   0,
+   9
+  ],
+  "tasks": [
+   "niah_single",
+   "niah_multikey",
+   "niah_multivalue",
+   "vt"
+  ],
+  "budgets": [
+   2,
+   3
+  ],
+  "candidates": [
+   "interior",
+   "uniform",
+   "evict"
+  ],
+  "question_agnostic": true,
+  "window": 32,
+  "observed_queries": [
+   32
+  ],
+  "allocator_budget_rule": "feasible",
+  "maxb": 8,
+  "task_config": {
+   "n_keys": 4,
+   "n_values": 4,
+   "n_hops": 4
+  },
+  "source": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r12job992198/r8heads_mistral-7b_8192.parquet"
+ },
+ "routes": {
+  "2": {
+   "0": [
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior"
+   ],
+   "1": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "2": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "3": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "4": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "5": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "6": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "7": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "8": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "9": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "10": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "11": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "12": [
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "13": [
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "14": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform"
+   ],
+   "15": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "16": [
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "17": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior"
+   ],
+   "18": [
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "19": [
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "20": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "21": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "22": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "23": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "24": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "25": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "26": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "27": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "28": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "29": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "30": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "31": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ]
+  },
+  "3": {
+   "0": [
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior"
+   ],
+   "1": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "2": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "3": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "4": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "5": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "6": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "7": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "8": [
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "9": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "10": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "11": [
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "12": [
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "13": [
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "14": [
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform"
+   ],
+   "15": [
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior"
+   ],
+   "16": [
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "17": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform"
+   ],
+   "18": [
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "19": [
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "20": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "21": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "22": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "23": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "24": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "25": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "26": [
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "27": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "28": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "29": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "30": [
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "31": [
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ]
+  }
+ }
+}

@@ -1,0 +1,1167 @@
+{
+ "meta": {
+  "model": "llama31-8b",
+  "ctx": 131072,
+  "theta": 1.0,
+  "prompt_block": [
+   0,
+   0
+  ],
+  "tasks": [
+   "niah_single"
+  ],
+  "budgets": [
+   3
+  ],
+  "question_agnostic": true,
+  "window": 32,
+  "observed_queries": [
+   32
+  ],
+  "allocator_budget_rule": "feasible",
+  "maxb": 8,
+  "task_config": {
+   "n_keys": 4,
+   "n_values": 4,
+   "n_hops": 4
+  },
+  "corpus_sha": "0a26bc1e05a1eea8",
+  "n_q": 8,
+  "rot_seed": 0,
+  "rule": {
+   "tau_fail": 1.0,
+   "tau_crit": 1.0,
+   "k_max": 4,
+   "forced": true,
+   "statistic": "tf_c_min_logp",
+   "search": "layer screen, heads in flagged layers, within-layer group fallback; union over prompt-tasks",
+   "union": "per-prompt pooled oracle (router.route on per-head errors)"
+  },
+  "base_routes": {
+   "path": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r8_routes/r14s1b_llama31-8b_131072_routes.json",
+   "sha256": "e4afe5279ef504fef64ac9ca9c6520137e9b993c4ac778e2b2c20ab2e64f820a",
+   "field": "routes_pool"
+  },
+  "source": "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/results/r14s1c_pilot128_1005224/s1c_calibrate_llama31-8b_131072_search.parquet"
+ },
+ "routes_pool": {
+  "3": {
+   "0": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "1": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "2": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "3": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "4": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "5": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "6": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "7": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "8": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "9": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "10": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "11": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "12": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "13": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "14": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "15": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "16": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "17": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "18": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "19": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "20": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "21": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "22": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "23": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "24": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "25": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "26": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "27": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "28": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "29": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "30": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "31": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ]
+  }
+ },
+ "routes_seq": {
+  "3": {
+   "0": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "1": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "2": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "3": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "4": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "5": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "6": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "7": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "8": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "9": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "10": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "11": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "12": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "13": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "14": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "15": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "16": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "17": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "18": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "19": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "20": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "21": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "22": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "23": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "24": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "25": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "26": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "27": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "28": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "29": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "30": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "31": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ]
+  }
+ },
+ "routes_union": {
+  "3": {
+   "0": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "1": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "2": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "3": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "4": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "5": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "6": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "7": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "8": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "9": [
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "10": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "11": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "12": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "13": [
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "14": [
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior",
+    "uniform"
+   ],
+   "15": [
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "uniform",
+    "uniform",
+    "interior"
+   ],
+   "16": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "17": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "18": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform"
+   ],
+   "19": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "20": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior"
+   ],
+   "21": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "22": [
+    "interior",
+    "interior",
+    "uniform",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "23": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "24": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "25": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "26": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "27": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "28": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "29": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "30": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ],
+   "31": [
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior",
+    "interior"
+   ]
+  }
+ },
+ "critical": {
+  "3": [
+   [
+    14,
+    7,
+    1
+   ]
+  ]
+ },
+ "oracle_dense": {
+  "3": [
+   [
+    0,
+    3,
+    1
+   ],
+   [
+    0,
+    4,
+    1
+   ],
+   [
+    0,
+    7,
+    1
+   ],
+   [
+    5,
+    2,
+    1
+   ],
+   [
+    6,
+    7,
+    1
+   ],
+   [
+    8,
+    0,
+    1
+   ],
+   [
+    9,
+    3,
+    1
+   ],
+   [
+    9,
+    5,
+    1
+   ],
+   [
+    10,
+    4,
+    1
+   ],
+   [
+    10,
+    7,
+    1
+   ],
+   [
+    11,
+    5,
+    1
+   ],
+   [
+    13,
+    0,
+    1
+   ],
+   [
+    13,
+    4,
+    1
+   ],
+   [
+    14,
+    0,
+    1
+   ],
+   [
+    14,
+    1,
+    1
+   ],
+   [
+    14,
+    3,
+    1
+   ],
+   [
+    14,
+    4,
+    1
+   ],
+   [
+    14,
+    5,
+    1
+   ],
+   [
+    14,
+    7,
+    1
+   ],
+   [
+    15,
+    0,
+    1
+   ],
+   [
+    15,
+    4,
+    1
+   ],
+   [
+    15,
+    5,
+    1
+   ],
+   [
+    15,
+    6,
+    1
+   ],
+   [
+    16,
+    4,
+    1
+   ],
+   [
+    18,
+    7,
+    1
+   ],
+   [
+    20,
+    5,
+    1
+   ],
+   [
+    22,
+    2,
+    1
+   ]
+  ]
+ }
+}

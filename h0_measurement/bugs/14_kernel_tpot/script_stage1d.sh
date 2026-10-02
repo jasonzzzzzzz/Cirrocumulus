@@ -48,7 +48,10 @@ RTQ32_1B=$RTD/r14s1b_${QM}_32768_routes.json
 RTQ8_1B=$RTD/r14s1b_${QM}_8192_routes.json
 RTQ32_1D=$RTD/r14s1d_${QM}_32768_routes.json
 RTQ8_1D=$RTD/r14s1d_${QM}_8192_routes.json
-READER_SB="--partition=compute --nodes=1 --gpus-per-node=1 --ntasks-per-node=1 --cpus-per-task=16 --time=00:30:00"
+# `compute` exists only on Trillium (trig); elsewhere (e.g. rorqual) let the scheduler pick.
+READER_PART=""
+[[ "$(hostname -s)" == trig* ]] && READER_PART="--partition=compute"
+READER_SB="$READER_PART --nodes=1 --gpus-per-node=1 --ntasks-per-node=1 --cpus-per-task=16 --time=00:30:00"
 MODE="${1:-}"
 
 need_id() { [[ "${1:-}" =~ ^[0-9]+$ ]] || { echo "ERROR: job IDs must be decimal" >&2; exit 2; }; }

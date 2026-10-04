@@ -86,6 +86,10 @@ VALIDITY (any failure -> INVALID, no verdict)
   V5 E2's calibration: routes_seq3 = R0 with heads switched to dense; its base file
      unchanged; no forced search; every block read this calibration's file; every
      nested router's dense heads = R0's + the nested critical set.
+     (Amended 2026-10-03, file identity only: a routes file is identified by its
+     name stem and sha256, not its absolute path, so blocks run on two clusters can
+     form one cell. Copies from another cluster sit in results/r8_routes as
+     <stem>@<cluster>.json and are found by hash. No threshold or label changed.)
   V6 FP's answer-value mask is non-empty for >= 90% of correct FP answers.
   V7 Stop rule: Qwen blocks ran eos_only, Llama blocks r8.
 REPORTED, NOT GATED: task scores, lossless, worst-5% share, CVaR, max dA, stored and
@@ -115,7 +119,58 @@ NLL_MARGIN, TAIL_MARGIN, TAIL_NATS, WORST_FRAC = 0.10, 0.05, 2.0, 0.05
 FIXED_NATS = 2.0
 FP_MIN = BM.RMT.FP_MIN
 DREF = {"V16": "uniform", "V4": "uniform+v4"}
-bk, fmt, ci, sha256 = R1C.bk, R1C.fmt, R1C.ci, R1C.sha256
+bk, fmt, ci, _sha256 = R1C.bk, R1C.fmt, R1C.ci, R1C.sha256
+ROUTES_DIR = os.path.join(BM.H0, "results", "r8_routes")
+_SHA: dict = {}
+
+
+def sha256(path):
+    """Cached file hash (routes files are re-hashed many times per read)."""
+    key = os.path.abspath(path)
+    if key not in _SHA:
+        _SHA[key] = _sha256(path)
+    return _SHA[key]
+
+
+# ------------------------------------------------------- routes across clusters
+# Blocks record the absolute path of every routes file they read, and the path is
+# cluster-specific (Rorqual: /scratch/jczhao20/Cirrocumulus/..., Trillium:
+# /scratch/jczhao20/ondemand/...). Two clusters' calibrations can also share a
+# file NAME with different contents. Copies from another cluster therefore live
+# in results/r8_routes as <stem>@<cluster>.json (e.g. r14s1d_llama31-8b_32768_routes
+# @rorqual.json), and a recorded path is resolved by its name AND its sha256: the
+# recorded path if it exists with that hash, else the one local candidate
+# (<stem>.json or <stem>@*.json) with that hash. Identity is the content hash;
+# the path is only a hint.
+def routes_stem(path) -> str:
+    b = os.path.basename(path)
+    b = b[:-5] if b.endswith(".json") else b
+    return b.split("@", 1)[0]
+
+
+def resolve_routes(path, sha=None, dirs=(ROUTES_DIR,)):
+    """Local file holding the routes `path` names, with content hash `sha` (full or
+    a prefix). Without a hash: the recorded path if it exists, else the only local
+    candidate. Raises FileNotFoundError naming what is missing."""
+    ok = (lambda p: sha256(p).startswith(sha)) if sha else (lambda p: True)  # noqa: E731
+    if os.path.exists(path) and ok(path):
+        return path
+    stem = routes_stem(path)
+    cands = sorted({os.path.join(d, f) for d in dirs if os.path.isdir(d) for f in os.listdir(d)
+                    if f.endswith(".json") and routes_stem(f) == stem}
+                   | ({os.path.join(os.path.dirname(path), f) for f in os.listdir(os.path.dirname(path))
+                       if f.endswith(".json") and routes_stem(f) == stem}
+                      if os.path.isdir(os.path.dirname(path) or ".") else set()))
+    hit = [p for p in cands if ok(p)]
+    if len(hit) == 1 or (hit and sha):
+        return hit[0]
+    raise FileNotFoundError(f"routes {stem} with sha {sha or '(any)'}: candidates "
+                            f"{[os.path.basename(p) + ':' + sha256(p)[:10] for p in cands] or 'none'} in {dirs}")
+
+
+def routes_id(v) -> tuple:
+    """What identifies a routes file a block read: its stem and its content hash."""
+    return routes_stem(v["path"]), v["sha256"]
 
 
 # ------------------------------------------------------------------ loading
@@ -136,11 +191,15 @@ def load_run(tag, job, mode="evaluate", root=RESULTS):
     return rows, side
 
 
-def load_cal(tag, job, root=RESULTS):
+def load_cal(tag, job, root=RESULTS, sha=None):
+    """A calibration's rows, search tables and the routes file it wrote; `sha` (the
+    hash the evaluation blocks recorded for that file) picks the right local copy
+    when the recorded path is another cluster's (see resolve_routes)."""
     rows, side = load_run(tag, job, "calibrate", root)
     d = side["_dir"]
+    side["_routes_local"] = resolve_routes(side["write_routes"], sha)
     return (rows, side, pd.read_parquet(os.path.join(d, side["search"])),
-            pd.read_parquet(os.path.join(d, side["searchlog"])), json.load(open(side["write_routes"])))
+            pd.read_parquet(os.path.join(d, side["searchlog"])), json.load(open(side["_routes_local"])))
 
 
 def plan_of(side):
@@ -229,7 +288,7 @@ def validate_routes(sides, cal, problems):
     the budget's own; nested: every calibrated budget <= B); the critical sets are
     the routes files' own; every block read the same files; seq3/nest3 read this
     calibration's file."""
-    prov = {json.dumps(s.get("routes", {}), sort_keys=True) for s in sides}
+    prov = {json.dumps({k: routes_id(v) for k, v in s.get("routes", {}).items()}, sort_keys=True) for s in sides}
     if len(prov) != 1:
         problems.append("blocks read different routes files")
     field = {"1d": "routes_seq2", "1e": "routes_seq3"}
@@ -250,12 +309,11 @@ def validate_routes(sides, cal, problems):
                 problems.append(f"block {s['_job']}: {k}: dense heads are not R0's plus the "
                                 f"{'nested ' if nested else ''}critical set (V5)")
             path, sha = s["routes"][k]["path"], s["routes"][k]["sha256"]
-            if (src, path) in checked:
+            if (src, sha) in checked:
                 continue
-            checked.add((src, path))
+            checked.add((src, sha))
             try:
-                if sha256(path) != sha:
-                    problems.append(f"{path} changed since the blocks read it")
+                path = resolve_routes(path, sha)      # this exact content, wherever it was copied
                 fc = L.critical_by_budget(json.load(open(path)), field[src])
                 if {b: sorted(v) for b, v in fc.items()} != {b: sorted(v) for b, v in crit.get(src, {}).items()}:
                     problems.append(f"the blocks' Stage {src} critical sets are not {path}'s")
@@ -265,12 +323,10 @@ def validate_routes(sides, cal, problems):
         _, cside, _, _, routes = cal
         meta, base = routes["meta"], routes["meta"]["base_routes"]
         try:
-            if sha256(base["path"]) != base["sha256"]:
-                problems.append(f"{base['path']} changed since the calibration read it")
+            j1b = json.load(open(resolve_routes(base["path"], base["sha256"])))
         except OSError as e:
-            problems.append(f"calibration base routes unreadable: {e}")
+            problems.append(f"calibration base routes (as it read them) unavailable: {e}")
             return
-        j1b = json.load(open(base["path"]))
         for k in routes["routes_pool"]:
             if routes["routes_pool"][k] != j1b["routes_pool"].get(k):
                 problems.append(f"calibration routes_pool@{k} is not the base file's")
@@ -278,13 +334,12 @@ def validate_routes(sides, cal, problems):
                 problems.append(f"calibration routes_seq3@{k} changes more than dense switches")
         if meta.get("rule", {}).get("forced"):
             problems.append("the calibration ran with --force-search (mechanics only)")
-        path = os.path.abspath(cside["write_routes"])
-        csha = sha256(path)
+        cid = (routes_stem(cside["write_routes"]), sha256(cside["_routes_local"]))
         for s in sides:
             for k_, v in s["routes"].items():
-                if k_.startswith(("router_seq3_calib", "router_nest3_calib")) and \
-                        (os.path.abspath(v["path"]) != path or v["sha256"] != csha):
-                    problems.append(f"block {s['_job']}: {k_} read {v['path']}, not the calibration's {path}")
+                if k_.startswith(("router_seq3_calib", "router_nest3_calib")) and routes_id(v) != cid:
+                    problems.append(f"block {s['_job']}: {k_} read {v['path']} ({v['sha256'][:10]}), not the "
+                                    f"calibration's {cside['write_routes']} ({cid[1][:10]})")
 
 
 # ---------------------------------------------------------------- analysis
@@ -590,7 +645,13 @@ def read_cells(cells, out_stem, root=RESULTS, title="", regress=None, cals=None)
         is_qwen = sides[0]["model"].startswith("qwen")
         kind = "reuse" if mode == "reuse" else "main"
         agree, cover = validate(d, sides, problems, kind, fp_tasks_min=2 if is_qwen else 3)
-        cal = load_cal(*cals[name], root) if name in cals else None
+        e_sha = next((v["sha256"] for s in sides for k_, v in s.get("routes", {}).items()
+                      if k_.startswith(("router_seq3_calib", "router_nest3_calib"))), None)
+        try:
+            cal = load_cal(*cals[name], root, sha=e_sha) if name in cals else None
+        except FileNotFoundError as e:
+            problems.append(f"{name}: calibration routes unavailable: {e}")
+            cal = None
         if any(a.startswith(("router_seq3", "router_nest3")) for a, _ in plan_of(sides[0])) and cal is None:
             problems.append(f"{name}: Stage 1e routers need their calibration job")
         validate_routes(sides, cal, problems)

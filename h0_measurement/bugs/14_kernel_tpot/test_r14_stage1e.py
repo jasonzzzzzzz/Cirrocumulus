@@ -508,6 +508,25 @@ def test_reader_synthetic():
         except SystemExit as e:
             inv = "nested" in str(e) or "different routes" in str(e) or "V5" in str(e)
         check("V5: a block whose nested router lost its nested heads is INVALID", inv)
+        # routes copied from another cluster: same name, other content, found by hash
+        here = rt["p1e"]
+        os.makedirs(os.path.join(tmp, "rd"), exist_ok=True)
+        other = os.path.join(tmp, "rd", "r14s1e_x_routes@rorqual.json")
+        mine = os.path.join(tmp, "rd", "r14s1e_x_routes.json")
+        shutil.copy(here, other)
+        _write(mine, {"different": True})
+        h = RD.sha256(other)
+        gone = "/nonexistent/cluster/path/r14s1e_x_routes.json"
+        ok = RD.resolve_routes(gone, h, dirs=(os.path.join(tmp, "rd"),)) == other \
+            and RD.resolve_routes(mine, h, dirs=(os.path.join(tmp, "rd"),)) == other \
+            and RD.resolve_routes(mine, RD.sha256(mine), dirs=(os.path.join(tmp, "rd"),)) == mine
+        try:
+            RD.resolve_routes(gone, "0" * 64, dirs=(os.path.join(tmp, "rd"),))
+            ok = False
+        except FileNotFoundError:
+            pass
+        check("routes across clusters: a recorded path resolves to the local copy with the same hash "
+              "(<stem>@<cluster>.json beside a same-named file with other content); no match is an error", ok)
         # E3
         rt32 = _routes(tmp, "llama31-8b", 131072, [3], crit1d={3: [(1, 0)]}, name="reuse")
 

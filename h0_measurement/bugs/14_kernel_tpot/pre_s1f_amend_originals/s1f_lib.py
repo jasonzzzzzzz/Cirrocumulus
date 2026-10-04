@@ -49,43 +49,6 @@ Router names keep Stage 1e's meaning: router_seq3 / router_nest3 come from the
 calibration passed as --routes-1e (for F4, the new Qwen calibration).
 No shared file is edited; sievelib, run_r8 and the Stage 1b-1e modules are
 imported.
-
-AMENDMENTS A1-A4 (2026-10-03, from the read of Stage 1e's 128K tail cell, jobs
-1018902-1018904). By then the Llama blocks (reuse128f, reuse32f, tt128, tt32;
-jobs 1020776-1020794), the Qwen calibration (1020767) and the kernel job
-(1020761) had run under the rules above; the Qwen evaluation blocks and the
-readers had not. The files those runs used are in pre_s1f_amend_originals/. A run
-made after A1-A4 carries amend = AMEND in its sidecar. A cell is read by what its
-blocks carry: all amended -> the amended metric; none -> the frozen one; mixed ->
-INVALID (read_stage1f.py).
-  A1 reuse128f's question-agnostic router is router_nest3_calib@4, not @3. The
-     128K calibration has budgets 3 and 4 only, so nest3@3 adds nothing to
-     seq3@3, which failed at 128K in Stage 1e (5 catastrophes); nest3@4 passed
-     there. The reuse128f blocks already run used nest3@3 and are read as such.
-  A2 THE METRIC, order-robust and truncation-aware. Stage 1d-1e's dA
-     teacher-forces FP's values in FP's order, so a correct answer that lists
-     them in another order pays 1-4 nats (multivalue, vt), while an answer that
-     stops a list early is decided at a separator token the value mask never
-     scores. Every row of an amended run also carries:
-     - a_span_nll: every token of FP's answer from its first answer-value token
-       to the span end, separators included;
-     - ans_order / fp_ans_order (the order in which the arm's and FP's answers
-       first state the values FP found) and ans_reordered (all of them, in
-       another order);
-     - for a reordered answer, a second replay of FP's answer with the values
-       rewritten into the arm's order (own_order_ids): a_own_nll and
-       a_span_own_nll over that sequence's own masks (own_replay);
-     - s_set_nll = min(a_span_nll, a_span_own_nll) for a replayed reordered
-       answer, else a_span_nll; a_set_nll likewise from the value tokens;
-     - a2_check: on the first multi-answer unit of a block, each arm family
-       replays FP's own answer a second time through the same path; the largest
-       per-token log-prob difference from its first replay.
-     The amended reader's per-unit statistic is dS = s_set_nll(X) - s_set_nll(FP);
-     a_sum_nll's dA is reported beside it.
-  A3 tt128 gets a regression block, TT_REGRESS: Llama 8109 niah_multikey, the key
-     confusion of Stage 1e's 128K cell (TurboQuant-3, the 3-bit reads, pool@4 and
-     seq2@4 answered a distractor; exact rows and 4-bit keys did not).
-  A4 Timing (s1f_kernel.py): every read path is charged its per-question work.
 """
 from __future__ import annotations
 import math
@@ -113,13 +76,6 @@ DEPLOYABLE = L1E.DEPLOYABLE + ("qread2t",)
 REGRESS_QWEN = [(8215, "niah_multivalue"), (8218, "niah_multivalue"), (8235, "niah_multivalue"),
                 (8234, "niah_multikey")]    # 8234: TurboQuant's key confusion (no router can fix it)
 QWEN_CAL_COUNTS = {"niah_single": 10, "niah_multikey": 30, "niah_multivalue": 30, "vt": 10}
-# amendments A1-A4 (module docstring)
-AMEND = "A1-A4"
-METRIC_FROZEN, METRIC_A2 = "a_sum_nll", "s_set_nll"
-A2_COLS = ("a_span_nll", "a_own_nll", "a_span_own_nll", "a_set_nll", "s_set_nll", "ans_order", "fp_ans_order",
-           "ans_reordered", "own_replay")
-A2_CHECK_TOL = 0.05                       # nats: a replay of FP's own answer must reproduce the first one
-TT_REGRESS = [(8109, "niah_multikey")]    # A3: Stage 1e's Llama 128K key confusion
 
 # ------------------------------------------------------------------ presets
 # Frozen before any Stage 1f output. Same structure as Stage 1e's, plus
@@ -129,7 +85,7 @@ _TT = [(0.125, 16, "exact"), (0.125, 4, "exact"), (0.0625, 4, "exact"), (0.125, 
 PRESETS = {
     # F3: two questions per stored context (mixed prompts), >= 80 units per role
     "reuse128f": dict(_N, model="llama31-8b", ctx=131072, mode="reuse", stop="r8", calib=[3, 4], B_low=3,
-                      B_target=4, fp=["+v4"], dense=[(3, ["+v4"])], routers=[("router_nest3_calib", 4, ["+v4"])],
+                      B_target=3, fp=["+v4"], dense=[(3, ["+v4"])], routers=[("router_nest3_calib", 3, ["+v4"])],
                       qread=[(0.125, 16), (0.25, 16), (0.125, 4)], snapq=[(0.125, 16), (0.25, 16), (0.125, 4)],
                       qread2t=[(0.125, 4, "exact")]),
     "reuse32f": dict(_N, model="llama31-8b", ctx=32768, mode="reuse", stop="r8", calib=[2.5, 3], B_low=2.5,
@@ -152,7 +108,7 @@ PRESETS = {
                     qread2t=[(0.125, 16, "exact"), (0.125, 4, "exact"), (0.125, 4, "fp8")]),
     # mechanics only (excluded): one arm of every new code path
     "reusepilotf": dict(_N, model="llama31-8b", ctx=131072, mode="reuse", stop="r8", calib=[3, 4], B_low=3,
-                        B_target=4, fp=["+v4"], dense=[(3, ["+v4"])], routers=[("router_nest3_calib", 4, [])],
+                        B_target=3, fp=["+v4"], dense=[(3, ["+v4"])], routers=[("router_nest3_calib", 3, [])],
                         qread=[(0.125, 4)], snapq=[(0.125, 4)], qread2t=[(0.125, 4, "exact")]),
     "ttpilot": dict(_N, model="llama31-8b", ctx=131072, mode="main", stop="r8", calib=[], B_low=None,
                     B_target=None, fp=["+v4"], dense=[(3, ["+v4"])], qread=[(0.0625, 4)], qreadfp=[0.125],
@@ -162,15 +118,11 @@ PRESETS = {
                        routers=[("router_nest3_calib", 3, [])], qread=[(0.125, 4)],
                        qread2t=[(0.125, 16, "exact"), (0.125, 4, "fp8")]),
 }
-# A2: an evaluation-only pilot of the amended driver for qwen32f, over the Qwen
-# calibration already run (job 1020767); same arms as qwenpilotf (excluded)
-PRESETS["qwenevalpilotf"] = dict(PRESETS["qwenpilotf"])
 # CPU smokes (excluded, never submitted)
 PRESETS["ttsmoke"] = dict(PRESETS["tt32"], ctx=2048)
 PRESETS["reusesmokef"] = dict(PRESETS["reuse32f"], ctx=4096)
 PRESETS["qwensmokef"] = dict(PRESETS["qwenpilotf"], ctx=2048)
-PILOT_OF = {"reusepilotf": "reuse128f", "ttpilot": "tt128", "qwenpilotf": "qwen32f", "qwenevalpilotf": "qwen32f"}
-MULTI_ANSWER = ("niah_multivalue", "vt")
+PILOT_OF = {"reusepilotf": "reuse128f", "ttpilot": "tt128", "qwenpilotf": "qwen32f"}
 # prompts per block and blocks per cell (>= 80 units per role after FP drops for reuse)
 BLOCKS = {"reuse128f": (8500, 24, 4), "reuse32f": (8600, 22, 4), "tt128": (8900, 10, 4), "tt32": (9000, 10, 4),
           "qwen32f": (8800, 10, 4)}
@@ -268,73 +220,3 @@ def tier2_bytes(r: float, C: int, d: int = L1E.D_DEFAULT, tier2: str = "exact") 
     keys and values at the tier-2 width (FP8's per-head scale is negligible)."""
     k = L1C.qread_keep_count(r, C)
     return k * 2 * d * TIER2_BITS[tier2] / 8.0
-
-
-# ------------------------------------------------------ A2: the metric
-def first_statements(text, found) -> list:
-    """[(character, i)] where `text` first states found[i], in text order; values
-    it never states are left out."""
-    out = []
-    for i, x in enumerate(found):
-        c = str(text).find(str(x))
-        if c >= 0:
-            out.append((c, i))
-    return sorted(out)
-
-
-def answer_order(text, found) -> list:
-    """Indices into `found`, in the order `text` first states them."""
-    return [i for _, i in first_statements(text, found)]
-
-
-def is_reordering(fp_order, own) -> bool:
-    """The arm states every value FP stated, in another order."""
-    return len(fp_order) > 1 and sorted(own) == sorted(fp_order) and list(own) != list(fp_order)
-
-
-def own_order_text(fp_text, found, own):
-    """FP's answer with the first statement of each value rewritten so that the
-    values come in the arm's order `own`. None unless `own` reorders FP's."""
-    occ = first_statements(fp_text, found)
-    if not is_reordering([i for _, i in occ], own):
-        return None
-    out, pos = [], 0
-    for (c, i), j in zip(occ, own):
-        if c < pos:
-            return None                                  # two statements overlap
-        out += [fp_text[pos:c], str(found[j])]
-        pos = c + len(str(found[i]))
-    return "".join(out) + fp_text[pos:]
-
-
-def own_order_ids(tok, fp_ids, am, own):
-    """FP's answer in the arm's order, as token ids: FP's own ids up to its first
-    answer-value token, then the rewritten rest of its text, tokenized. None if
-    the answer cannot be rewritten or the ids do not decode to the rewrite."""
-    vm = [bool(x) for x in am["vmask"]]
-    if True not in vm:
-        return None
-    new = own_order_text(am["text"], am["found"], own)
-    if new is None:
-        return None
-    ids = [int(x) for x in fp_ids]
-    i0 = vm.index(True)
-    head = tok.decode(ids[:i0]) if i0 else ""
-    if not (am["text"].startswith(head) and new.startswith(head)):
-        return None
-    out = ids[:i0] + [int(x) for x in tok(new[len(head):], add_special_tokens=False)["input_ids"]]
-    return out if tok.decode(out) == new else None
-
-
-def span_nll(logp, vmask, span_end) -> tuple:
-    """(NLL of the answer-value tokens, NLL of every token from the first value
-    token to the span end), from per-token log-probabilities and the masks of the
-    sequence they score ('1'/'0' strings or booleans)."""
-    lp = np.asarray(logp, dtype=float)
-    v = np.zeros(len(lp), dtype=bool)
-    m = [str(x) in ("1", "True") for x in vmask][:len(lp)]
-    v[:len(m)] = m
-    if not v.any():
-        return float("nan"), float("nan")
-    i0 = int(np.argmax(v))
-    return float(-lp[v].sum()), float(-lp[i0:int(span_end)].sum())

@@ -34,6 +34,12 @@ STEP 2, THE MAIN CELLS ('r3llama': h3llama at 128K, prompts 9400-9419; 'r3qwen':
                    <= -0.02 and excludes 0, else _NO_EFFECT; plus EQUIV within +-0.03.
   REPORTED: accuracy per task and arm; FP's headroom per task; on mk_panel, the share of
   answers stating another needle's value (confusion) per arm; the FP-FAILED stratum.
+AMENDMENT R3a2 (2026-10-05; s1h3_lib's docstring; written before any main-cell output, the
+  first ladder void): blocks carry amend_r3 'R3a2' and stop rule 'r8list' (both models);
+  NEAR_FP and EQUIV use the CELL'S OWN margin m_cell = s1h_lib.margin_fp(hi90 of fp8kv's mean
+  dP in the cell), i.e. FP8 KV's cost on this model and these tasks, clipped to [0.05, 0.10]
+  (R1's m_FP was measured on Llama's RULER answer values at 128K). R1's m_FP, when R1's
+  reader output exists, is reported beside it (vs_FP_r1); the read no longer waits for it.
 """
 from __future__ import annotations
 import argparse, json, os, sys
@@ -165,6 +171,55 @@ def read_ladder(jobs_by_model, out_stem, root=RESULTS):
     return 0
 
 
+# ------------------------------------------------------------------ margins
+def cell_margin(d):
+    """(m_cell, fp8kv's mean dP interval) over the cell's units (R2's bootstrap frame)."""
+    P, _, boot, _ = RR2._boot_frame(d)
+    c = next((c for c in P.columns if c[0] == "fp8kv"), None)
+    if c is None:
+        return None, None
+    z = boot(P[c])
+    return L.margin_fp(z[2]), z
+
+
+def load_r1(r1_json):
+    """R1's reader output, if it exists: (m_FP or None, R1's best dense arm or None)."""
+    if not r1_json or not os.path.exists(r1_json):
+        return None, None
+    r1 = json.load(open(r1_json)).get("r1", {})
+    return (float(r1["m_fp"]) if r1.get("m_fp") is not None else None), (r1.get("best_dense") or {}).get("best")
+
+
+def add_r1_labels(res, m_r1):
+    """NEAR_FP and EQUIV at R1's m_FP beside the cell's own (vs_FP_r1)."""
+    for p in res["points"].values():
+        p["vs_FP_r1"] = dict(label=L.near_fp_label(p["vs_FP"]["nll"], p["vs_FP"]["tail"], m_r1),
+                             equiv=L.equiv_label(p["vs_FP"]["nll"], m_r1))
+
+
+def analyse_nll(d, sides, problems, cell, r1_json):
+    """R2's NLL / KL analysis at the cell's own FP8 margin, R1's beside it (amendment R3a2)."""
+    m_cell, fp8 = cell_margin(d)
+    if m_cell is None:
+        problems.append(f"{cell}: no fp8kv arm, so no margin")
+        return None
+    m_r1, r1_best = load_r1(r1_json)
+    res = RR2.analyse_r2(d, sides, m_cell, r1_best)
+    res.update(m_cell=m_cell, fp8_dP=fp8, m_r1=m_r1)
+    if m_r1 is not None:
+        add_r1_labels(res, m_r1)
+    return res
+
+
+def system_nll_line(res, sk):
+    p = res["points"][sk]
+    out = (f"{p['vs_FP_m']['label']} at the cell's margin {res['m_cell']:.3f} ({ci(p['vs_FP']['nll'])}); "
+           f"vs D_V4 {p['vs_D']['label']}")
+    if "vs_FP_r1" in p:
+        out += f"; at R1's m_FP {res['m_r1']:.3f}: {p['vs_FP_r1']['label']}"
+    return out
+
+
 # ---------------------------------------------------------------- main cells
 def _acc_label(z, lab, eps=ACC_EPS):
     if z[0] >= eps and z[1] > 0:
@@ -224,11 +279,7 @@ def read_r3a(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
     levels_json = levels_json or os.path.join(FINDINGS, "R3a_levels.json")
     if not os.path.exists(levels_json):
         raise SystemExit(f"INVALID R3a read: the ladder's levels {levels_json} are missing")
-    if not os.path.exists(r1_json):
-        raise SystemExit(f"INVALID R3a read: R1's reader output {r1_json} is missing (m_FP comes from R1)")
     lev = json.load(open(levels_json))["models"]
-    r1 = json.load(open(r1_json))["r1"]
-    m_fp, r1_best = float(r1["m_fp"]), (r1.get("best_dense") or {}).get("best")
     results, summary, problems = {}, {}, []
     for mk, jobs in jobs_by_model.items():
         model, _, tag = MODELS[mk]
@@ -245,7 +296,9 @@ def read_r3a(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
         R1R.validate_a2_h(d, problems, f"r3{mk}")
         if problems:
             continue
-        res = RR2.analyse_r2(d, sides, m_fp, r1_best)
+        res = analyse_nll(d, sides, problems, f"r3{mk}", r1_json)
+        if res is None:
+            continue
         res["cell"] = f"r3{mk}"
         res["accuracy"] = analyse_acc(d)
         res["task_cfg"] = lev[mk]["task_cfg"]
@@ -257,9 +310,7 @@ def read_r3a(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
         summary[f"FP accuracy {mk}"] = a["fp_by_task"]
         sk = name(SYSTEM)
         if sk in res["points"]:
-            p = res["points"][sk]
-            summary[f"SYSTEM NLL {mk}"] = (f"{p['vs_FP_m']['label']} at m_FP {m_fp:.3f} ({ci(p['vs_FP']['nll'])}); "
-                                           f"vs D_V4 {p['vs_D']['label']}")
+            summary[f"SYSTEM NLL {mk}"] = system_nll_line(res, sk)
         for k in ("SYS_VS_BEST", "REQ1", "STORE4", "FLOOR_SYS"):
             if k in res["labels_r2"]:
                 summary[f"{k} {mk}"] = res["labels_r2"][k]["label"]
@@ -267,7 +318,8 @@ def read_r3a(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
         raise SystemExit("INVALID Stage 1h R3a data:\n  " + "\n  ".join(problems))
     os.makedirs(os.path.dirname(os.path.abspath(out_stem)), exist_ok=True)
     with open(out_stem + ".json", "w") as fh:
-        json.dump(dict(rules=dict(m_fp=m_fp, acc_margin=ACC_MARGIN, acc_eps=ACC_EPS, fp_min=L.HEAD_LO,
+        json.dump(dict(rules=dict(margin="per cell: s1h_lib.margin_fp(hi90 fp8kv dP)", acc_margin=ACC_MARGIN,
+                                  acc_eps=ACC_EPS, fp_min=L.HEAD_LO,
                                   levels_json=levels_json), summary=summary, cells=results), fh, indent=1, default=str)
     Lh = ["# R14 Stage 1h — R3a, harder synthetic tasks (read_stage1h_r3.py; rules frozen in its docstring)", "",
           "EXPLORATORY run: labels guide the design; they are not claims.", ""]

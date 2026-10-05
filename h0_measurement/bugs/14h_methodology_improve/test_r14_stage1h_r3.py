@@ -42,7 +42,28 @@ def test_plans():
           and ("qread2t4kq_v4", 0.5) in pq and ("qread2t4kq_v4", 0.5) not in pl
           and {("qread4q_v4", 0.125), ("kivi4_v4", 4), ("qoraclefp_v16", 0.125), ("fp8kv", 8)} <= set(pl)
           and lad == [("fp", 0), ("uniform", 3), ("uniform+v4", 3)]
-          and L.PRESETS["h3qwen"]["stop"] == "eos_only" and L.PRESETS["h3llama"]["stop"] == "r8", f"({pl})")
+          and all(L.PRESETS[k]["stop"] == "r8list" for k in ("h3qwen", "h3llama", "h3ladder_llama", "h3ladder_qwen")),
+          f"({pl})")
+    import stops_s1h as ST
+    cases = {":\n\n": False, ":\n\n1800569, 1032560.\n": True, " 4762780.\n": True, "\n\n1. a": False,
+             ":\n\n1. 1800569\n2. 1032560\n": False, ":\n\n1. 1800569\n2. 1032560\n\nThese": True,
+             " 1. a 2. b 3. c\nAnswer": True, "\n1. apple\n2. pear\nBelow is a": False,
+             "\n1. apple\n2. pear\nBelow is a list.\n": True, " - kiwi\n": False, " abcdef, ghijkl.\n": True,
+             "\n\n": False, "": False, " Gary": False, " **9731057**. This number\n": True}
+    got = {k: ST.stops_at_line(k) for k in cases}
+    check("r8list: no stop before content (':\\n\\n'); a numbered list of numbers runs on; else the first line",
+          got == cases, f"({ {k: v for k, v in got.items() if v != cases[k]} })")
+
+    class _T:
+        def __call__(self, t, add_special_tokens=False):
+            return type("E", (), {"input_ids": [ord(c) for c in t]})()
+    exp = [str(1000000 + i) for i in range(24)]
+    n = len(L.numbered(exp))
+    check("R3a2 caps: multivalue / vt get 16 + 1.5 x the numbered list's tokens (at least tasks_ruler's limit); "
+          "multikey keeps its limit; no unit yet -> tasks_ruler's",
+          L.answer_cap(_T(), "niah_multivalue", exp, 224) == 16 + -(-3 * n // 2)
+          and L.answer_cap(_T(), "niah_multikey", exp, 24) == 24 and L.answer_cap(None, "vt", exp, 256) == 256
+          and L.answer_cap(_T(), "vt", ["AB"], 64) == 64, f"({L.answer_cap(_T(), 'niah_multivalue', exp, 224)})")
     knobs = [(c["n_keys"], c["n_values"], c["n_hops"]) for _, c in sorted(L.LEVELS.items())]
     check("levels are harder than the default (4, 4, 4) and increase", knobs == sorted(knobs)
           and all(min(k) > 4 for k in knobs) and len(set(knobs)) == 3, f"({knobs})")
@@ -247,11 +268,12 @@ def test_driver_smokes():
         else:
             d, side = R1R.load_run("h3ladder_smoke", "1", tmp)
             pan = d[d.task == L.PANEL]
-            check("ladder smoke: FP, D, D_V4 on every task incl. mk_panel; task_cfg_r3 and R3a recorded; the "
-                  "harder vt answer limit", len(d) == 9 and len(pan) == 3 and side.get("task_cfg_r3") ==
-                  dict(n_keys=16, n_values=8, n_hops=8) and side.get("amend_r3") == "R3a"
+            check("ladder smoke: FP, D, D_V4 on every task incl. mk_panel; task_cfg_r3 and R3a2 recorded; "
+                  "the per-unit vt cap (one per unit, >= tasks_ruler's); stop r8list", len(d) == 9 and len(pan) == 3 and side.get("task_cfg_r3") ==
+                  dict(n_keys=16, n_values=8, n_hops=8) and side.get("amend_r3") == "R3a2"
                   and side["task_config"] == dict(n_keys=16, n_values=8, n_hops=8)
-                  and int(d[(d.task == "vt") & (d.arm == "fp")].max_new_tokens.iloc[0]) == 64 + 16 * 4,
+                  and int(d[(d.task == "vt") & (d.arm == "fp")].max_new_tokens.iloc[0]) >= 64 + 16 * 4
+                  and d.groupby(["task"]).max_new_tokens.nunique().max() == 1 and side.get("stop_rule") == "r8list",
                   f"(FP panel {pan[pan.arm == 'fp'].pred.iloc[0][:40]!r})")
         rc = _drive(["--mode", "evaluate", "--preset", "h3smoke", "--ctx", "4096", "--n-prompts", "1",
                      "--prompt-offset", "9400", "--tasks", "niah_multivalue,vt",

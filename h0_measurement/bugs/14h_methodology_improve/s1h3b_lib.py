@@ -12,11 +12,12 @@ so two kinds of task can break it while retrieval does not:
   - latent association (nolima): the question shares no word with the needle, so the
     question's attention, which picks the rows, may not find it. nolima_direct asks for
     the same needle with its own words: the control (tasks_s1h.py).
-STOP RULE. Llama: 'r8list' (tasks_s1h.stops_at_line): R8's stop at the first newline
-  after content, except after a line holding one list item, so an answer listed one item
-  per line is not cut after its first item. Without a newline stop, raw-text Llama runs on
-  past a one-line answer (cwe's one-shot example is followed by the next task on the next
-  line), and the run-on can state list words by chance. Qwen: eos_only, as R2 and R3a.
+STOP RULE 'r8list' for both models (stops_s1h.py, as R3a2): no stop before a line with
+  content (an answer whose first token is ':\n\n' goes on), a line holding a single list
+  item does not stop the answer, anything else stops at its first line. Without a newline
+  stop, raw-text Llama runs on past a one-line answer (cwe's one-shot example is followed by
+  the next task on the next line) and Qwen never emits EOS, and the run-on can state list
+  words by chance.
 STEP 1, THE LADDER (excluded from every result): FP, D and D_V4 only.
   - cwe and fwe at three levels (LEVELS_R3B; level 1 is RULER's setting, and higher
     levels move away from it, cwe easier and fwe harder), prompts 3210-3217, one job per
@@ -44,6 +45,7 @@ if _HERE not in sys.path:
 import s1h3_lib as L3  # noqa: E402
 from s1h3_lib import *  # noqa: E402,F401,F403  (run_s1e / run_s1h read every earlier name through this module)
 import tasks_s1h as T  # noqa: E402
+import stops_s1h as STOPS  # noqa: E402
 
 AMEND_R3B = "R3b"
 R3B_TASKS = T.TASKS
@@ -54,15 +56,15 @@ LEVELS_R3B = {1: dict(freq_cw=30, alpha=2.0), 2: dict(freq_cw=100, alpha=1.5), 3
 LADDER_LEVEL_PROMPTS = (3210, 8)               # offset, prompts: cwe + fwe, one job per level
 LADDER_NOLIMA_PROMPTS = (3210, 16)             # nolima + nolima_direct, one job
 MAIN_BLOCKS_R3B = {"h3bllama": (9440, 10, 2), "h3bqwen": (9460, 10, 2)}
-STOP_LINE = "r8list"
+STOP_LINE = STOPS.STOP_LINE
 
 # ------------------------------------------------------------------ presets
 PRESETS = dict(L3.PRESETS)
 PRESETS.update({
     "h3bladder_llama": dict(L3._LADDER, model="llama31-8b", ctx=L3.LLAMA_CTX, stop=STOP_LINE),
-    "h3bladder_qwen": dict(L3._LADDER, model="qwen3-30b-a3b-2507", ctx=L3.QWEN_CTX, stop="eos_only"),
+    "h3bladder_qwen": dict(L3._LADDER, model="qwen3-30b-a3b-2507", ctx=L3.QWEN_CTX, stop=STOP_LINE),
     "h3bllama": L3._main_preset("llama31-8b", L3.LLAMA_CTX, STOP_LINE),
-    "h3bqwen": L3._main_preset("qwen3-30b-a3b-2507", L3.QWEN_CTX, "eos_only"),
+    "h3bqwen": L3._main_preset("qwen3-30b-a3b-2507", L3.QWEN_CTX, STOP_LINE),
 })
 # CPU smokes (excluded, never submitted)
 PRESETS["h3bsmoke"] = dict(PRESETS["h3bllama"], ctx=4096)

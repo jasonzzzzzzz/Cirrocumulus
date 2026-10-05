@@ -23,6 +23,7 @@ import s1c_lib as L1C  # noqa: E402
 import s1h3_lib as L3  # noqa: E402
 import s1h3b_lib as L  # noqa: E402
 import tasks_s1h as T  # noqa: E402
+import stops_s1h as ST  # noqa: E402
 
 OK, BAD = "\033[32mPASS\033[0m", "\033[31mFAIL\033[0m"
 fails = 0
@@ -145,7 +146,7 @@ def test_tasks():
              "\n1. apple\n": False, "\n1. apple\n2. pear\n10. fig\n": False, "\n1. apple\n2. pear\nBelow is a": False,
              "\n1. apple\n2. pear\nBelow is a list.\n": True, "\n1. apple\n\n": True, " - kiwi\n": False,
              " abcdef, ghijkl, mnopqr.\n": True, "\n\n": False, "": False}
-    got = {k: T.stops_at_line(k) for k in cases}
+    got = {k: ST.stops_at_line(k) for k in cases}
     check("r8list stop: R8's first newline after content, except after a line holding one list item",
           got == cases, f"({ {k: v for k, v in got.items() if v != cases[k]} })")
 
@@ -163,11 +164,11 @@ def test_plans():
     print("\n[S1h R3b] presets, levels, the ladder rules")
     pl, pq = L.build_plan(L.PRESETS["h3bllama"]), L.build_plan(L.PRESETS["h3bqwen"])
     lad = L.build_plan(L.PRESETS["h3bladder_llama"])
-    check("main cells = R3a's arms (16 / 17), ladder = FP, D, D_V4; stop r8list (Llama) / eos_only (Qwen)",
+    check("main cells = R3a's arms (16 / 17), ladder = FP, D, D_V4; stop r8list (both models)",
           pl == L3.build_plan(L3.PRESETS["h3llama"]) and pq == L3.build_plan(L3.PRESETS["h3qwen"])
           and lad == [("fp", 0), ("uniform", 3), ("uniform+v4", 3)]
           and [L.PRESETS[k]["stop"] for k in ("h3bllama", "h3bladder_llama", "h3bqwen", "h3bladder_qwen")]
-          == ["r8list", "r8list", "eos_only", "eos_only"] and L.PRESETS["h3bllama"]["ctx"] == 131072)
+          == ["r8list"] * 4 and L.PRESETS["h3bllama"]["ctx"] == 131072)
     check("levels: level 1 is RULER's (30, 2.0); cwe gets easier, fwe harder",
           L.LEVELS_R3B[1] == T.DEFAULT_CFG and [L.LEVELS_R3B[k]["freq_cw"] for k in (1, 2, 3)] == [30, 100, 300]
           and [L.LEVELS_R3B[k]["alpha"] for k in (1, 2, 3)] == [2.0, 1.5, 1.2])
@@ -199,7 +200,7 @@ def test_driver_plumbing():
     D.install_tasks(cfg)
     try:
         S1E.install_stop_rule("r8list")
-        line = RR._decode is D.decode_line
+        line = RR._decode is ST.decode_line
         S1E.install_stop_rule("r8")
         ok = (set(T.TASKS) <= set(TR.TASKS) and TR.generation_limit("cwe", TR.task_config()) == 120
               and TR.generation_limit("vt", TR.task_config()) == 64 and s1d_lib.query_term("nolima", {"query_term": "Dresden"})
@@ -360,7 +361,9 @@ def test_reader_synthetic():
               and s["ACC_SYSTEM AGG llama"].startswith("ACC_NEAR_FP") and lx["n_prompts"] == 16
               and s["LEX_VOTE llama"].startswith("LEX_VOTE_HURTS") and s["LEX_VOTE_ACC llama"].startswith("LEX_VOTE_ACC_HURTS")
               and s["LEX_SYS llama"].startswith("LEX_SYS_NO_EFFECT") and "SYSTEM NLL llama" in s
-              and s["VOTE_LOSS_ACC LATENT llama"].startswith("VOTE_LOSS_ACC_HURTS"),
+              and s["VOTE_LOSS_ACC LATENT llama"].startswith("VOTE_LOSS_ACC_HURTS")
+              and "cell's margin 0.050" in s["SYSTEM NLL llama"] and "R1's m_FP" in s["SYSTEM NLL llama"]
+              and "nolima fp@0" in out["cells"]["llama"]["other_name"],
               f"({ {k: v for k, v in s.items() if 'LEX' in k or 'LATENT' in k} })")
         _fake_block(tmp, "h3bllama", "13", "h3bllama", [(9460 + k, t) for k in range(10) for t in tl], eff,
                     score_of, L.LEVELS_R3B[1], tl)
@@ -386,7 +389,7 @@ def test_reader_synthetic():
 # ------------------------------------------------------------- driver smokes
 def _runs_past(p):
     """The answer goes on after a newline at which the r8list rule stops."""
-    return any(T.stops_at_line(p[:j + 1]) and p[j + 1:].strip() for j, c in enumerate(p) if c == "\n")
+    return any(ST.stops_at_line(p[:j + 1]) and p[j + 1:].strip() for j, c in enumerate(p) if c == "\n")
 
 
 def _drive(args, log):

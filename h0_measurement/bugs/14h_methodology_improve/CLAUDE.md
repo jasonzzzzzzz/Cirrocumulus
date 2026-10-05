@@ -26,6 +26,9 @@ history; its Parts K–L are the summary.
 | `*_r3`, `s1h3_lib.py`, `run_s1h3.py` | R3a (harder RULER tasks, `mk_panel`) |
 | `*_r3b`, `s1h3b_lib.py`, `run_s1h3b.py` | R3b (`cwe`, `fwe`, `nolima`) |
 | `tasks_s1h.py`, `data/r3b/` | R3b's tasks (no model) and their pinned data (NoLiMa: Adobe Research License) |
+| `*_r4`, `s1h4_lib.py`, `run_s1h4.py` | R4b (LongBench v2 and HELMET at 128K, Quest, the floor system, closed book, pilots and gates) |
+| `stops_s1h.py` | the `r8list` stop rule (R3a2, R3b, R4b) |
+| `tasks_s1h4.py`, `make_r4_manifest.py`, `data/r4/` | R4's tasks, the item manifest and its builder, HELMET's ICL data (the large data under `.h0_corpus/longbench_v2/` and `.h0_corpus/helmet/`) |
 | `findings/R<n>.md` | each run's tables and read |
 
 ## Rules

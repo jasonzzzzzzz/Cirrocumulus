@@ -30,6 +30,9 @@
 | `kivi4_v4` | (1h) KIVI keys (per-channel, G = 128) at 4 bits, 4-bit values |
 | `kvquant4_v4` | (1h) KVQuant-style keys (pre-RoPE non-uniform, 1% outliers) at 4 bits, 4-bit values |
 | `qoraclefp_v16@r`, `qoracle4_v4@r` | (1h) oracle selection: the rows FP attends to most while answering, over the exact or 4-bit store |
+| `quest_v16@r`, `quest4_v4@r` | (R4) Quest: per-step selection of 16-row pages by min/max key bounds, over the exact / 4-bit store; first two layers dense; the rows read over all layers equal r |
+| `qread2t4kqF_v4` | (R4) the system at its per-item read floor, r = max(1/8, 16384 / C) |
+| `closedbook` | (R4b) FP on the prompt without the document (or passages and demonstrations): which units need the context |
 | `router_*_calib@B` | calibrated quant-and-evict routers (Stages 1b–1f); `nest` = nested dense sets |
 | `snapq_v{v}@r` | SnapKV-with-question: the first question's selection made permanent (reuse runs) |
 
@@ -43,6 +46,9 @@
 - **`nolima`** — (R3b) NoLiMa one-hop: the question shares no word with the needle
   ("Which character has been to Dresden?" for "Yuki lives next to the Semper Opera House").
   **`nolima_direct`** — the same prompt with the question in the needle's own words.
+
+- **`lbv2`** — (R4) LongBench v2, multiple choice, scored by forced choice (`fc_correct`: the argmax of the teacher-forced A/B/C/D log-probabilities).
+- **`kilt_nq`, `kilt_hotpotqa`, `msmarco_rerank_psg`, `icl_trec_coarse`, `icl_banking77`** — (R4b) HELMET at 128K: RAG (substring exact match), re-ranking (NDCG@10), many-shot ICL with random-integer labels (exact match).
 
 ## Metrics (per unit, minus FP's value in the same process)
 - **`a_sum_nll`** (dA) — teacher-forced NLL of FP's answer-value tokens. This was the
@@ -84,3 +90,8 @@
 - **LEX_VOTE / LEX_SYS** — (R3b) the vote loss, or the system's loss, on `nolima` minus on
   `nolima_direct`: _HURTS = the read loses more when the question shares no word with the
   needle.
+- **SYS_VS_QUEST / FLOOR_VS_QUEST / SCHEDULE / FLOOR_VS_FIXED** — (R4) the system or the floor system against Quest; the once-per-question vote against Quest's per-step pages over the same 4-bit store; the floor against a fixed 1/8.
+- **`r8list`** — (R3a2, R3b, R4b) the stop rule for both models (`stops_s1h.py`): no stop before a line with content, a single list item does not stop the answer, anything else stops at its first line.
+- **m_cell** — (R3a2 on) the NEAR_FP / EQUIV margin of a cell (and family): FP8 KV's own cost there, clip(hi90 mean dP, 0.05, 0.10). R1's m_FP is reported beside it.
+- **Vote span** — (R4b) on LongBench v2 the question-time vote observes 32 rows spread over the question and its choices, not the question's last 32 rows (the format line and the chat template's tail).
+- **CTX units** — (R4b) units where FP's accuracy beats the closed-book arm's by ≥ 0.5; the `_CTX` labels.

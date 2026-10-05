@@ -24,12 +24,16 @@
 #   6 jobs: {Llama 128K, Qwen 32K} x levels 1-3 (s1h3_lib.LEVELS), prompts 3200-3204, FP / D / D_V4 only;
 #   mk_panel in level 1 only -> reader -> findings/R3a_levels.{json,md} (each task's level for step 2)
 # --run-r3a [R1_READ_JOB] (R3a step 2, needs R3a_levels.json): h3llama 9400 / 9410 (128K), h3qwen 9420 / 9430
-#   (32K) at the ladder's levels -> reader -> findings/R3a_reader.{json,md} (after R1's reader: m_FP)
+#   (32K) at the ladder's levels -> reader -> findings/R3a_reader.{json,md} (R1's reader optional, amendment R3a2)
 # --run-r3b-ladder (R3b step 1; read_stage1h_r3b.py's frozen rules; worker submit_s1h3b.slurm):
 #   per model (Llama 128K, Qwen 32K): cwe + fwe at levels 1-3 (s1h3b_lib.LEVELS_R3B), prompts 3210-3217, and one
 #   nolima + nolima_direct job, prompts 3210-3225; FP / D / D_V4 only -> reader -> findings/R3b_levels.{json,md}
 # --run-r3b [R1_READ_JOB] (R3b step 2, needs R3b_levels.json): h3bllama 9440 / 9450 (128K), h3bqwen 9460 / 9470
 #   (32K), the ladder's tasks and levels -> reader -> findings/R3b_reader.{json,md} (after R1's reader: m_FP)
+# --run-r4 [R1_READ_JOB] (R4b, real tasks at 128K; read_stage1h_r4.py's frozen rules; worker submit_s1h4.slurm):
+#   s1h4_lib.CELLS: LongBench v2 and HELMET at Llama 128K (h4llama128, 1 GPU) and Qwen 128K (h4qwen128,
+#   2 GPUs); per cell a pilot -> gate (read_stage1h_r4.py --gate) -> 2 blocks; then the reader ->
+#   findings/R4_reader.{json,md} (R1's reader is optional: margins are each cell's own)
 #
 #   --status ID...   /   --cancel ID...   /   --read-r1 A1 A2 S0 S1 S2   /   --read-r2 S0 S1 S2 A1 A2 [A3 ...]
 set -euo pipefail
@@ -41,6 +45,7 @@ W=$DIR/submit_s1h.slurm
 W2=$DIR/submit_s1h2.slurm
 W3=$DIR/submit_s1h3.slurm
 W3B=$DIR/submit_s1h3b.slurm
+W4=$DIR/submit_s1h4.slurm
 REG2="8234:niah_multikey,8830:vt,8215:niah_multivalue,8218:niah_multivalue,8235:niah_multivalue"   # s1h2_lib.REGRESS_R2
 PY=.venv/bin/python
 REG="8109:niah_multikey,8901:niah_multikey,8937:niah_multikey"     # s1h_lib.REGRESS_R1
@@ -148,6 +153,49 @@ chain_r3b() {
       --output=h0_measurement/logs/r14s1h3bread_%j.out --error=h0_measurement/logs/r14s1h3bread_%j.err \
       --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r3b.py --r3b ${RA[*]} \
 --out-stem $PROJECT_ROOT/$DIR/findings/R3b_reader")
+  echo "READ=$RD" >&2
+  echo "next: bash $DIR/script_stage1h.sh --status ${ALL[*]} $RD"
+}
+
+preflight_r4() {
+  preflight_r3b
+  [[ -f $DIR/read_stage1h_r4.py ]] || { echo "ERROR: read_stage1h_r4.py (R4's frozen rules) must exist" >&2; exit 1; }
+  bash -n "$W4"
+  OMP_NUM_THREADS=8 $PY -u $DIR/test_r14_stage1h_r4.py --fast | tail -1
+  echo "R14 Stage 1h R4 preflight passed"
+}
+
+chain_r4() {   # cells, blocks, walls, GPUs and pilots: s1h4_lib.CELLS / pilot_units
+  local RD G P b dep cells cell preset ctx tasks per nb wall gpus plist r1dep=""
+  local -a ALL=() RA=() J=()
+  [[ -n "${R1READ:-}" ]] && { need_id "$R1READ"; r1dep=":$R1READ"; }
+  cells=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h4_lib as L
+for c, x in L.CELLS.items():
+    print(c, x['preset'], L.PRESETS[x['preset']]['ctx'], ','.join(x['tasks']), x['per'], x['blocks'], x['wall'], x['gpus'],
+          ','.join(f'{p}:{t}' for p, t in L.pilot_units(c)))")
+  PWALL=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h4_lib as L; print(L.PILOT_WALL)")
+  while read -r cell preset ctx tasks per nb wall gpus plist; do
+    P=$(sub --job-name=r14s1h4-$cell-pilot --time=$PWALL --gpus-per-node=$gpus $W4 S1H_TAG=$preset S1H_PRESET=$preset \
+        S1H_CTX=$ctx S1H_TASKS=$tasks S1H_PROMPT_LIST=$plist </dev/null)
+    G=$(sub --dependency=afterok:$P --job-name=r14s1h4-$cell-gate $READER_SB \
+        --output=h0_measurement/logs/r14s1h4gate_%j.out --error=h0_measurement/logs/r14s1h4gate_%j.err \
+        --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r4.py --gate $cell $P" </dev/null)
+    J=()
+    for ((b = 0; b < nb; b++)); do
+      J+=("$(sub --dependency=afterok:$G --job-name=r14s1h4-$cell-$b --time=$wall --gpus-per-node=$gpus $W4 \
+          S1H_TAG=$preset S1H_PRESET=$preset S1H_CTX=$ctx S1H_TASKS=$tasks S1H_N_PROMPTS=$per \
+          S1H_PROMPT_OFFSET=$((b * per)) S1H_SEED=0 </dev/null)")
+    done
+    echo "$cell: pilot $P, gate $G, blocks ${J[*]}" >&2
+    ALL+=("${J[@]}")
+    RA+=(--$cell "${J[@]}")
+  done <<< "$cells"
+  (( ${#ALL[@]} > 0 )) || { echo "ERROR: no R4 block submitted" >&2; exit 1; }
+  dep=$(IFS=:; echo "${ALL[*]}")
+  RD=$(sub --dependency=afterany:$dep$r1dep --job-name=r14s1h4-read $READER_SB \
+      --output=h0_measurement/logs/r14s1h4read_%j.out --error=h0_measurement/logs/r14s1h4read_%j.err \
+      --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r4.py ${RA[*]} \
+--out-stem $PROJECT_ROOT/$DIR/findings/R4_reader")
   echo "READ=$RD" >&2
   echo "next: bash $DIR/script_stage1h.sh --status ${ALL[*]} $RD"
 }
@@ -278,6 +326,7 @@ case "$MODE" in
   --run-r3a-dry|--run-r3a) R1READ="${2:-}"; preflight_r3; chain_r3a ;;
   --run-r3b-ladder-dry|--run-r3b-ladder) preflight_r3b; chain_r3b_ladder ;;
   --run-r3b-dry|--run-r3b) R1READ="${2:-}"; preflight_r3b; chain_r3b ;;
+  --run-r4-dry|--run-r4) R1READ="${2:-}"; preflight_r4; chain_r4 ;;
   --add-r2-block)
     [[ "${2:-}" =~ ^9[3-9][0-9]0$ ]] || { echo "ERROR: --add-r2-block needs a block offset such as 9320" >&2; exit 2; }
     sub --job-name=r14s1h2-q32-$2 --time=03:00:00 $W2 S1H_TAG=h2qwen32 S1H_PRESET=h2qwen32 S1H_CTX=32768 \

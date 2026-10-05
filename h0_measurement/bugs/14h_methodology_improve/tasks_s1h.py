@@ -386,20 +386,6 @@ def score(task, pred, meta) -> dict:
             "first_ok": float("nan")}
 
 
-_ITEM = re.compile(r"[^\S\n]*(?:\d+[.)]|[-*•])[^\S\n]*[^\d\n]*")
-
-
-def stops_at_line(text: str) -> bool:
-    """The 'r8list' stop rule: run_r8's stop at the first newline after content, except
-    that a line holding one list item ('3. word', '- word') does not stop it, so an answer
-    listed one item per line runs on to the first line that is not an item. A one-line
-    list ('1. a 2. b') is not one item and stops at its newline."""
-    t = text.lstrip()
-    if "\n" not in t:
-        return False
-    return not _ITEM.fullmatch(t.split("\n")[-2])
-
-
 # ------------------------------------------------- masks (the runner's helpers)
 def answer_tokens_wb(tok, ids, expected) -> dict:
     """s1d_lib.answer_tokens on whole words, case-insensitive: which tokens of FP's

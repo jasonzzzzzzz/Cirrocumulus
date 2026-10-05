@@ -343,10 +343,11 @@ while retrieval does not:
 - scoring matches whole words;
 - `nolima` uses the project's PG-19 haystack, with a character whose name the window
   does not contain;
-- Llama's stop rule is `r8list`: R8's stop at the first newline after content, except
-  after a line holding one list item, so a list answered one item per line is not cut.
-  Without a newline stop, raw-text Llama runs on past a one-line answer and can state
-  list words by chance. Qwen keeps eos_only.
+- the stop rule is `r8list` for both models (`stops_s1h.py`): no stop before a line with
+  content, a line holding a single list item does not stop the answer, anything else stops
+  at its first line. Without a newline stop, raw-text Llama runs on past a one-line answer
+  and Qwen never emits EOS, and the run-on can state list words by chance. (Qwen had
+  eos_only until the 2026-10-05 review; no R3b output existed.)
 
 **Step 1, the ladder (excluded from every result).**
 - Arms: FP, D and D_V4.
@@ -363,7 +364,80 @@ while retrieval does not:
 **Step 2, the main cells.**
 - Llama 128K on prompts 9440–9459 and Qwen 32K on 9460–9479, with R3a's arms (16 / 17).
 - The accuracy labels are R3a's, per family: AGG (`cwe` + `fwe`), LATENT, DIRECT.
-- R2's NLL and KL labels apply at R1's m_FP.
+- R2's NLL and KL labels apply at the cell's own FP8 margin (as R3a2), with R1's m_FP
+  reported beside it.
 - **LEX_VOTE**: the vote's loss against the oracle on `nolima` minus on `nolima_direct`,
   over prompts FP gets right on both. **LEX_SYS**: the same for the system.
 - A task whose FP falls below 0.5 in the cell leaves the labels (FP_LOW).
+- Reported: on the NoLiMa tasks, the share of answers naming someone outside NoLiMa's
+  character set (OTHER_NAME), such as a character of the PG-19 book the haystack comes from.
+
+**2026-10-05: R3a2** (R3a's harness, after its first ladder; no main-cell output exists).
+The first ladder (jobs 1032502–1032508) is void:
+- its level-2 Llama job was cancelled by the system, so the ladder reader failed;
+- Qwen writes multivalue as a numbered list, one value per line, and never emits EOS on raw
+  text, so every answer ran into the cap (sized for a comma list) mid-list: FP scored exactly
+  14/16 and 19/24 on every prompt, which the level rule would have read as headroom;
+- on one level-3 Llama item the first token was `:\n\n`, and R8's newline stop ended the
+  answer there.
+
+The fixes (`s1h3_lib.py`, `run_s1h3.py`, `read_stage1h_r3.py`; their docstrings):
+- the stop rule `r8list` for both models (`stops_s1h.py`, shared with R3b and R4);
+- per-unit caps for multivalue and vt: the larger of tasks_ruler's limit and 16 + 1.5 × the
+  tokens of the expected answer written as a numbered list in the run's tokenizer;
+- NEAR_FP and EQUIV at the cell's own margin, clip(hi90 of FP8 KV's mean dP in the cell,
+  0.05, 0.10), with R1's m_FP reported beside it. R1's margin was measured on Llama's RULER
+  answer values at 128K, and R2–R4 are other models, tasks and answer spans.
+- the ladder is rerun (`--run-r3-ladder`), and blocks are tagged `R3a2`.
+
+**2026-10-05: R4b frozen** (real tasks at 128K), replacing the first R4 design (LongBench v2 +
+a LongBench v1 subset at 32K), which never ran. The rules are in `read_stage1h_r4.py`'s
+docstring. R4 depends on no result of R1–R3b.
+
+**Why the change.** At their natural lengths most LongBench v1 items are short enough that
+the system's floor (16,384 rows) reads everything, so they do not test its reads; the
+LongBench v2 Qwen cell at 32K sat in the same regime. R4b runs both suites at 128K, where
+the reads matter.
+
+**Tasks** (`tasks_s1h4.py`):
+- **LongBench v2**, scored by forced choice as bug 9's V5–V7.
+- **HELMET** (code @aeadacc6, data @dddb209d), its 128K configs, no chat template, a newline
+  stop:
+  - RAG: kilt_nq and kilt_hotpotqa (1,000 passages, 2 demonstrations; substring exact match);
+  - re-ranking: msmarco_rerank_psg (1,000 passages; NDCG@10, 200-token rankings);
+  - many-shot ICL: trec_coarse (6,600 shots) and banking77 (5,900), labels mapped to random
+    integers per item, so a closed-book answer is at chance.
+
+**Items** (`make_r4_manifest.py` → `data/r4/manifest_r4.json`, pinned):
+- LongBench v2: bug 9's V7 pool (qualification + development; V7's confirmation untouched),
+  rendered per model at 131,072 tokens;
+- HELMET ICL: HELMET's own test selection; RAG and re-ranking: a salted-hash order (HELMET's
+  sampling depends on its global random state); HELMET's demonstrations and its end-of-context
+  truncation.
+
+**Method fixes from the 2026-10-05 review:**
+- **The vote on LongBench v2** observes 32 rows spread evenly over the question and its four
+  choices. The question's last 32 rows are the official format instruction, the chat
+  template's tail and the response prefix; even the last 32 rows of the user message are
+  mostly the format line and the end of choice D. RULER and HELMET keep the last rows (their
+  questions are short).
+- **A closed-book arm** (an empty document, or empty passages and demonstrations, the same
+  question): the context-dependent units are those where FP's accuracy beats it by ≥ 0.5,
+  and every accuracy label is also given on them.
+- **A pilot and a gate per cell** (validity, noise, ≤ 76 GiB per device, the projected block
+  within 90% of its wall time) before its blocks.
+- **Margins** per cell and family from FP8 KV's own cost.
+- **Labels per family** (lbv2, RAG, re-ranking, ICL), never pooled across metrics; every unit
+  its own bootstrap cluster.
+- **The split** is the first token boundary after the document where the separate
+  tokenization equals the whole prompt's.
+- **Reported**: the change in the gold choice's log-probability (lbv2).
+
+**New arms:** `quest_v16@1/8`, `quest4_v4@1/8`, the floor system `qread2t4kqF_v4` (as the first
+design) and `closedbook`: 20 arms per cell, stop rule `r8list`.
+
+**Cells**, a pilot, a gate and two blocks each:
+- LongBench v2: Llama 128K (1 GPU) and Qwen3-30B-A3B 128K (2 GPUs), 40 items each;
+- HELMET: Llama 128K and Qwen 128K, 10 items × 5 tasks each.
+
+About 18 GPU-h, of which Qwen's 2-GPU cells are about 10.

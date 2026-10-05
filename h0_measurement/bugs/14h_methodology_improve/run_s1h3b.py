@@ -8,9 +8,8 @@ and tasks_s1h's tasks. Installed for the run in this process only and removed af
   tasks          tasks_ruler.TASKS / build / score / generation_limit also serve cwe, fwe,
                  nolima and nolima_direct (only these may be run here);
   --task-cfg     freq_cw=F,alpha=A: the difficulty (tasks_s1h.parse_cfg);
-  stop 'r8list'  run_r8._decode stops at EOS, the limit, or the first newline after content
-                 that ends a line other than a single list item (tasks_s1h.stops_at_line;
-                 presets with stop='r8list'; run_s1e only knows r8 / eos_only);
+  stop 'r8list'  both models (stops_s1h.py): no stop before a line with content; a single
+                 list item does not stop the answer; anything else stops at its first line;
   masks          s1d_lib.answer_tokens and run_r8.answer_positions on whole words,
                  case-insensitive (tasks_s1h), s1d_lib.query_term from the prompt's meta.
 
@@ -34,10 +33,11 @@ import s1d_lib  # noqa: E402
 from sievelib import tasks_ruler as TR  # noqa: E402
 import s1h3b_lib as L  # noqa: E402
 import tasks_s1h as T  # noqa: E402
+import stops_s1h as STOPS  # noqa: E402
 
 _ORIG = dict(TASKS=TR.TASKS, build=TR.build, score=TR.score, generation_limit=TR.generation_limit,
              answer_tokens=s1d_lib.answer_tokens, query_term=s1d_lib.query_term,
-             answer_positions=RR.answer_positions, install_stop_rule=S1E.install_stop_rule, decode=RR._decode)
+             answer_positions=RR.answer_positions)
 
 
 class _S:
@@ -67,39 +67,13 @@ def query_term_h(task, meta):
     return str(meta.get("query_term") or "") if task in T.TASKS else _ORIG["query_term"](task, meta)
 
 
-def decode_line(model, past, first, max_new, eos, tok=None):
-    """Greedy until EOS, the generation limit, or tasks_s1h.stops_at_line (run_r8._decode's
-    loop, with that stop)."""
-    dev = first.device
-    cur, gen = first.view(1, 1), []
-    for _ in range(max_new):
-        with torch.no_grad():
-            out = model(cur, past_key_values=past, use_cache=True)
-        past = out.past_key_values
-        nxt = int(out.logits[0, -1].argmax())
-        if nxt in eos:
-            break
-        gen.append(nxt)
-        if tok is not None and T.stops_at_line(tok.decode(gen)):
-            break
-        cur = torch.tensor([[nxt]], device=dev)
-    return gen, past
-
-
-def install_stop_rule_h(rule):
-    if rule == L.STOP_LINE:
-        RR._decode = decode_line
-    else:
-        _ORIG["install_stop_rule"](rule)
-
-
 def install_tasks(cfg):
     S.cfg = T.task_config_r3b(**cfg) if cfg else dict(T.DEFAULT_CFG)
     TR.TASKS = tuple(_ORIG["TASKS"]) + T.TASKS
     TR.build, TR.score, TR.generation_limit = build_h, score_h, generation_limit_h
     s1d_lib.answer_tokens, s1d_lib.query_term = T.answer_tokens_wb, query_term_h
     RR.answer_positions = T.answer_positions_wb
-    S1E.install_stop_rule = install_stop_rule_h
+    STOPS.install(S1E, RR)
 
 
 def uninstall_tasks():
@@ -108,7 +82,7 @@ def uninstall_tasks():
                                                          _ORIG["generation_limit"])
     s1d_lib.answer_tokens, s1d_lib.query_term = _ORIG["answer_tokens"], _ORIG["query_term"]
     RR.answer_positions = _ORIG["answer_positions"]
-    S1E.install_stop_rule, RR._decode = _ORIG["install_stop_rule"], _ORIG["decode"]
+    STOPS.uninstall(S1E, RR)
 
 
 def _pop_task_cfg(argv):

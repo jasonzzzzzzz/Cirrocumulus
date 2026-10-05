@@ -2,14 +2,17 @@
 """R14 Stage 1h R3a driver (design: s1h3_lib.py, plan.md; frozen rules: read_stage1h_r3.py).
 
 run_s1h2.py's driver (every R1 and R2 arm, KL, per-arm memory) with s1h3_lib's presets,
-harder RULER tasks and the contrastive multikey panel. Two additions, installed for the
-run in this process only and removed after it (sievelib is not edited):
+harder RULER tasks and the contrastive multikey panel. Installed for the run in this
+process only and removed after it (sievelib is not edited):
   --task-cfg n_keys=K,n_values=V,n_hops=H   the difficulty: tasks_ruler.task_config() with
                                             no arguments (what run_s1e.main calls) returns it;
                                             build and generation_limit follow from it.
   task 'mk_panel'                           tasks_ruler.build_multikey_panel's context with one
                                             of its four questions (prompt_idx mod 4), scored and
                                             limited as niah_multikey.
+  stop 'r8list' and per-unit caps           amendment R3a2 (s1h3_lib's docstring; stops_s1h.py):
+                                            the cap of a multivalue / vt unit is answer_cap of
+                                            its expected values in the run's tokenizer.
 
     python run_s1h3.py --mode evaluate --preset h3ladder_llama --ctx 131072 --n-prompts 5 --prompt-offset 3200 \
         --tasks niah_multikey,niah_multivalue,vt,mk_panel --task-cfg n_keys=16,n_values=8,n_hops=8 --out-dir DIR
@@ -26,6 +29,8 @@ import run_s1e as S1E  # noqa: E402
 import run_s1f as S1F  # noqa: E402
 from sievelib import tasks_ruler as TR  # noqa: E402
 import s1h3_lib as L  # noqa: E402
+import stops_s1h as STOPS  # noqa: E402
+import run_r8 as RR  # noqa: E402
 
 _ORIG_TR = dict(TASKS=TR.TASKS, build=TR.build, score=TR.score, generation_limit=TR.generation_limit,
                 task_config=TR.task_config)
@@ -33,6 +38,7 @@ _ORIG_TR = dict(TASKS=TR.TASKS, build=TR.build, score=TR.score, generation_limit
 
 class _S3:
     cfg = None
+    tok = expected = None              # the unit being run (run_s1e.main builds it, then runs its arms)
 
 
 S3 = _S3()
@@ -46,6 +52,13 @@ def task_config_h(*a, **k):
 
 
 def build_h(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False, **cfg):
+    text, meta = _build(tok, task, ctx, prompt_idx=prompt_idx, corpus_dir=corpus_dir, require_real=require_real,
+                        **cfg)
+    S3.tok, S3.expected = tok, list(meta["expected"])
+    return text, meta
+
+
+def _build(tok, task, ctx, *, prompt_idx, corpus_dir=None, require_real=False, **cfg):
     if task != L.PANEL:
         return _ORIG_TR["build"](tok, task, ctx, prompt_idx=prompt_idx, corpus_dir=corpus_dir,
                                  require_real=require_real, **cfg)
@@ -65,7 +78,8 @@ def score_h(task, pred, meta):
 
 
 def generation_limit_h(task, config):
-    return _ORIG_TR["generation_limit"]("niah_multikey" if task == L.PANEL else task, config)
+    legacy = _ORIG_TR["generation_limit"]("niah_multikey" if task == L.PANEL else task, config)
+    return L.answer_cap(S3.tok, task, S3.expected or [], legacy)
 
 
 def install_tasks(cfg):
@@ -75,7 +89,7 @@ def install_tasks(cfg):
 
 
 def uninstall_tasks():
-    S3.cfg = None
+    S3.cfg = S3.tok = S3.expected = None
     TR.TASKS, TR.build, TR.score = _ORIG_TR["TASKS"], _ORIG_TR["build"], _ORIG_TR["score"]
     TR.generation_limit, TR.task_config = _ORIG_TR["generation_limit"], _ORIG_TR["task_config"]
 
@@ -105,6 +119,8 @@ def _mark_outputs(out_dir, mode, cfg):
             p = os.path.join(out_dir, f)
             side = json.load(open(p))
             side.update(lib="s1h3_lib", amend_r3=L.AMEND_R3, task_cfg_r3=cfg,
+                        caps_r3=dict(rule="max(tasks_ruler limit, extra + factor x tokens(numbered expected))",
+                                     factor=L.CAP_FACTOR, extra=L.CAP_EXTRA),
                         driver="run_s1h3.py (run_s1h2.py's driver with s1h3_lib presets, harder tasks and mk_panel)")
             with open(p, "w") as fh:
                 json.dump(side, fh, indent=1, default=str)
@@ -119,12 +135,14 @@ def main():
         raise SystemExit("Stage 1h runs evaluation blocks only (no calibration, no reuse)")
     S1F._A2_CHECKED.clear()
     install_tasks(cfg)
+    STOPS.install(S1E, RR)
     RH.install()
     S1E.L, S1E.run_arm = L, RH2.run_arm_h2
     try:
         S1E.main()
     finally:
         RH.uninstall()
+        STOPS.uninstall(S1E, RR)
         uninstall_tasks()
     if out_dir and mode:
         RH._rename_outputs(out_dir, mode)

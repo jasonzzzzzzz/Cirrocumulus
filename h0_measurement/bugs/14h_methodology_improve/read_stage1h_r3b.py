@@ -29,8 +29,9 @@ STEP 2, THE MAIN CELLS ('r3bllama': h3bllama at 128K, prompts 9440-9459; 'r3bqwe
   is INVALID only if no task remains. Every block's task_cfg_r3b and tasks equal
   R3b_levels.json's for its model (INVALID otherwise). A2 self-check replays are required
   when the cell holds a multi-answer task (cwe or fwe).
-  NLL / KL LABELS: R2's (read_stage1h_r2.analyse_r2) at R1's m_FP, pooled over the
-  remaining tasks (as R3a).
+  NLL / KL LABELS: R2's (read_stage1h_r2.analyse_r2), pooled over the remaining tasks, at
+  the CELL'S OWN margin m_cell = s1h_lib.margin_fp(hi90 of fp8kv's mean dP in the cell), as
+  R3a2; R1's m_FP reported beside it when R1's reader output exists (the read does not wait).
   ACCURACY LABELS: R3a's (read_stage1h_r3.analyse_acc: ACC_SYSTEM, BEST_DENSE_ACC,
   SYS_VS_BEST_ACC, SYS_VS_D_ACC, SIMPLE_VS_BEST_ACC, REQ1_ACC, VOTE_LOSS_ACC), computed
   separately for each family present: AGG = cwe + fwe, LATENT = nolima, DIRECT =
@@ -48,10 +49,14 @@ STEP 2, THE MAIN CELLS ('r3bllama': h3bllama at 128K, prompts 9440-9459; 'r3bqwe
   REPORTED: accuracy per task and arm; FP's headroom per task; per task and arm the share of
   the answer's context positions the arm kept (needle_keep; cwe: every occurrence of the 10
   common words) and the share of answers stating a non-answer word of the list (cwe, fwe:
-  distractor); the FP-FAILED stratum.
+  distractor); the FP-FAILED stratum; on nolima / nolima_direct, per arm, the share of answers
+  naming none of NoLiMa's characters but some other capitalized name (OTHER_NAME: e.g. a
+  character of the PG-19 book the haystack comes from).
+STOP RULE 'r8list' for both models (stops_s1h.py; amended 2026-10-05 before any R3b output:
+  Qwen had eos_only, under which it never stops on raw text).
 """
 from __future__ import annotations
-import argparse, json, os, sys
+import argparse, json, os, re, sys
 
 import numpy as np
 import pandas as pd
@@ -250,6 +255,20 @@ def analyse_lexical(d):
     return out
 
 
+def other_names(d):
+    """nolima*: per task and arm, the share of answers naming none of NoLiMa's characters but
+    another capitalized name."""
+    names = set(L.T.nolima_sets()[0][L.T.nolima_pairs()[0][0]]["character_set"])
+    x = d[d.task.isin([L.NOLIMA, L.NOLIMA_DIRECT])]
+    out = {}
+    for (task, a, b), g in x.groupby(["task", "arm", "B"]):
+        def other(pred):
+            caps = set(re.findall(r"\b[A-Z][a-z]+\b", str(pred)))
+            return float(not (caps & names) and bool(caps - {"The", "A", "An", "Answer", "None", "No", "Yes"}))
+        out[f"{task} {a}@{R1R.bk(b)}"] = round(float(g.pred.map(other).mean()), 3)
+    return out
+
+
 def report_rows(d):
     g = d.groupby(["task", "arm", "B"])
     t = pd.DataFrame(dict(acc=g.score.mean(), needle_keep=g.needle_keep.mean(),
@@ -262,11 +281,7 @@ def read_r3b(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
     levels_json = levels_json or os.path.join(FINDINGS, "R3b_levels.json")
     if not os.path.exists(levels_json):
         raise SystemExit(f"INVALID R3b read: the ladder's levels {levels_json} are missing")
-    if not os.path.exists(r1_json):
-        raise SystemExit(f"INVALID R3b read: R1's reader output {r1_json} is missing (m_FP comes from R1)")
     lev = json.load(open(levels_json))["models"]
-    r1 = json.load(open(r1_json))["r1"]
-    m_fp, r1_best = float(r1["m_fp"]), (r1.get("best_dense") or {}).get("best")
     results, summary, problems = {}, {}, []
     for mk, jobs in jobs_by_model.items():
         model, _, tag = MODELS[mk]
@@ -293,7 +308,9 @@ def read_r3b(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
             problems.append(f"r3b{mk}: FP is below {L.HEAD_LO} on every task ({fps.round(3).to_dict()})")
         if problems:
             continue
-        res = RR2.analyse_r2(d, sides, m_fp, r1_best)
+        res = RR3.analyse_nll(d, sides, problems, f"r3b{mk}", r1_json)
+        if res is None:
+            continue
         res.update(cell=f"r3b{mk}", task_cfg=lev[mk]["task_cfg"], tasks=want_tasks, fp_low=low,
                    fp_by_task=fps.round(3).to_dict())
         res["accuracy"] = {}
@@ -303,6 +320,7 @@ def read_r3b(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
                 res["accuracy"][fam] = RR3.analyse_acc(sub)
         res["lexical"] = analyse_lexical(d)
         res["by_task_arm"] = report_rows(d)
+        res["other_name"] = other_names(d)
         results[mk] = res
         for fam, a in res["accuracy"].items():
             for k, z in a["labels"].items():
@@ -314,9 +332,7 @@ def read_r3b(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
         summary[f"FP accuracy {mk}"] = res["fp_by_task"] | ({"FP_LOW": low} if low else {})
         sk = name(SYSTEM)
         if sk in res["points"]:
-            p = res["points"][sk]
-            summary[f"SYSTEM NLL {mk}"] = (f"{p['vs_FP_m']['label']} at m_FP {m_fp:.3f} ({ci(p['vs_FP']['nll'])}); "
-                                           f"vs D_V4 {p['vs_D']['label']}")
+            summary[f"SYSTEM NLL {mk}"] = RR3.system_nll_line(res, sk)
         for k in ("SYS_VS_BEST", "REQ1", "STORE4", "FLOOR_SYS"):
             if k in res["labels_r2"]:
                 summary[f"{k} {mk}"] = res["labels_r2"][k]["label"]
@@ -324,7 +340,7 @@ def read_r3b(jobs_by_model, out_stem, root=RESULTS, levels_json=None, r1_json=RR
         raise SystemExit("INVALID Stage 1h R3b data:\n  " + "\n  ".join(problems))
     os.makedirs(os.path.dirname(os.path.abspath(out_stem)), exist_ok=True)
     with open(out_stem + ".json", "w") as fh:
-        json.dump(dict(rules=dict(m_fp=m_fp, fp_min=L.HEAD_LO, lex_min=LEX_MIN, lex_eps=LEX_EPS, acc_eps=ACC_EPS,
+        json.dump(dict(rules=dict(margin="per cell: s1h_lib.margin_fp(hi90 fp8kv dP)", fp_min=L.HEAD_LO, lex_min=LEX_MIN, lex_eps=LEX_EPS, acc_eps=ACC_EPS,
                                   levels_json=levels_json), summary=summary, cells=results), fh, indent=1, default=str)
     Lh = ["# R14 Stage 1h — R3b, aggregation and latent-association tasks (read_stage1h_r3b.py; rules frozen in "
           "its docstring)", "", "EXPLORATORY run: labels guide the design; they are not claims.", ""]

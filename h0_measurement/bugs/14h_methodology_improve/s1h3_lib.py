@@ -27,8 +27,21 @@ STEP 2, THE MAIN CELLS: Llama-3.1-8B at 128K (prompts 9400-9419) and Qwen3-30B-A
   h3qwen): FP; D, D_V4; TurboQuant-4 +v4; FP8; KIVI-4, KVQuant-4; reads over the 3-bit,
   exact and 4-bit stores; the second-pass read; the system and its exact-K+V variant (and
   the system at Qwen's floor r = 1/2); the exact-store oracle; fp_noise last.
+AMENDMENT R3a2 (2026-10-05, before any main-cell output; the first ladder, jobs 1032502-1032507,
+  is void). That ladder's FP answers showed two harness artifacts: Qwen writes multivalue as a
+  numbered list, one value per line, and never emits EOS on raw text, so every answer ran into
+  the generation cap (sized for a comma list) mid-list: FP scored exactly 14/16 and 19/24 on
+  every prompt; and an answer whose first token was ':\n\n' stopped there under R8's newline
+  stop (Llama, level 3). Its level-2 Llama job was also cancelled by the system. So:
+  - STOP RULE 'r8list' for both models (stops_s1h.py): no stop before a line with content, and
+    a line holding a single list item does not stop the answer;
+  - CAPS per unit for niah_multivalue and vt (answer_cap): the larger of tasks_ruler's limit
+    and 16 + 1.5 x the tokens of the expected answer written as a numbered list in the run's
+    tokenizer (Qwen spells digits one token each); multikey and mk_panel keep 24;
+  - NEAR_FP / EQUIV at the cell's own FP8 margin (read_stage1h_r3.py); the ladder is rerun.
 """
 from __future__ import annotations
+import math
 import os
 import sys
 
@@ -38,8 +51,11 @@ if _HERE not in sys.path:
 import s1h2_lib as L2  # noqa: E402
 from s1h2_lib import *  # noqa: E402,F401,F403  (run_s1e / run_s1h read every earlier name through this module)
 import s1h_lib as L1H  # noqa: E402
+import stops_s1h as STOPS  # noqa: E402
 
-AMEND_R3 = "R3a"
+AMEND_R3 = "R3a2"
+STOP_LINE = STOPS.STOP_LINE
+CAP_FACTOR, CAP_EXTRA = 1.5, 16
 PANEL = "mk_panel"
 R3_TASKS = ("niah_multikey", "niah_multivalue", "vt", PANEL)
 KNOB = {"niah_multikey": "n_keys", "niah_multivalue": "n_values", "vt": "n_hops"}
@@ -66,10 +82,10 @@ def _main_preset(model, ctx, stop):
 
 PRESETS = dict(L2.PRESETS)
 PRESETS.update({
-    "h3ladder_llama": dict(_LADDER, model="llama31-8b", ctx=LLAMA_CTX, stop="r8"),
-    "h3ladder_qwen": dict(_LADDER, model="qwen3-30b-a3b-2507", ctx=QWEN_CTX, stop="eos_only"),
-    "h3llama": _main_preset("llama31-8b", LLAMA_CTX, "r8"),
-    "h3qwen": _main_preset("qwen3-30b-a3b-2507", QWEN_CTX, "eos_only"),
+    "h3ladder_llama": dict(_LADDER, model="llama31-8b", ctx=LLAMA_CTX, stop=STOP_LINE),
+    "h3ladder_qwen": dict(_LADDER, model="qwen3-30b-a3b-2507", ctx=QWEN_CTX, stop=STOP_LINE),
+    "h3llama": _main_preset("llama31-8b", LLAMA_CTX, STOP_LINE),
+    "h3qwen": _main_preset("qwen3-30b-a3b-2507", QWEN_CTX, STOP_LINE),
 })
 # CPU smokes (excluded, never submitted). The haystack fills 92% of the context, so harder
 # levels need room: 4K for the main arms (light difficulty), 16K for the 48-needle panel.
@@ -81,7 +97,23 @@ MAIN_OF_MODEL = {"llama31-8b": "h3llama", "qwen3-30b-a3b-2507": "h3qwen"}
 
 
 def build_plan(p: dict) -> list:
+    """R2's plan. s1e_lib's check knows only r8 / eos_only; the stop rule does not enter
+    the plan, so r8list is passed on as r8."""
+    if p.get("stop") == STOP_LINE:
+        p = dict(p, stop="r8")
     return L2.build_plan(p)
+
+
+def numbered(values) -> str:
+    return "\n".join(f"{i + 1}. {v}" for i, v in enumerate(values))
+
+
+def answer_cap(tok, task: str, expected, legacy: int) -> int:
+    """R3a2's generation limit for one unit (module docstring)."""
+    if task not in ("niah_multivalue", "vt") or tok is None:
+        return int(legacy)
+    n = len(tok(numbered(expected), add_special_tokens=False).input_ids)
+    return max(int(legacy), CAP_EXTRA + math.ceil(CAP_FACTOR * n))
 
 
 # ----------------------------------------------------------- task config

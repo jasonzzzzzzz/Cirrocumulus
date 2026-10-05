@@ -226,4 +226,36 @@ run's read to `findings/R<n>.md`.
 
 ## Amendments
 
-(none yet)
+**2026-10-04: R2 frozen.** Written after R1 was submitted (jobs 1032158–1032165) and
+before any R2 output existed. The rules are in `read_stage1h_r2.py`'s docstring. R1's
+rules (§5) are unchanged.
+
+R2's code is in new files, because R1's jobs import the Stage 1h modules while they run:
+- `s1h2_lib.py`, `run_s1h2.py`, `read_stage1h_r2.py`;
+- `test_r14_stage1h_r2.py`, `submit_s1h2.slurm`;
+- `--run-r2` in `script_stage1h.sh`.
+
+**The run.** Qwen3-30B-A3B at 32K, with the stop rule eos_only:
+- the main cell (`h2qwen32`) is 22 arms on prompts 9300–9319 (2 blocks);
+- the regression block covers 8234, 8830, 8215, 8218 and 8235 at rotation seeds 0, 1
+  and 2.
+
+**The new arm, `qread4q_v4`:** a single-tier read over the 4-bit store with a second
+question pass. The question is prefilled again over the selected rows only, so its keys
+and values come from the same view the answer reads.
+
+**The other added arms:**
+- the floor arms at r = 1/2: the system, exact-store reads and 4-bit-store reads;
+- Stage 1f's 3-bit two-tier read, `qread2t_v4`.
+
+**Labels:**
+- NEAR_FP and EQUIV at R1's m_FP. R2 can't be read until R1 has been.
+- SYS_VS_DENSE4: the system against each same-memory dense 4-bit arm, and against R2's
+  own best dense quantizer (the strongest baseline on this model).
+- REQ1 (the second pass), STORE4, SYS_VS_TT3, and the FLOOR_* labels.
+- SEQUENTIAL: add 10-prompt blocks from 9320 while the system's interval straddles m_FP,
+  up to 60 prompts.
+- FIX, per seed and regression unit. The failing reference is `qread2t_v4` for 8830 and
+  D_V4 otherwise. VOTE_LOSES_NEEDLE is flagged if exact-store reads fix 8234 and the
+  system doesn't.
+- Reported beside Stage 1f's numbers: the seed-0 regression units.

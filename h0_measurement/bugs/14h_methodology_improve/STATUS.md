@@ -1,7 +1,6 @@
 # Stage 1h status (rewritten, not appended)
 
-**Phase:** M0, methodology code. The run-time code is done and tested. No GPU job
-submitted. Updated 2026-10-04.
+**Phase:** R1 running on Trillium; R2's code is ready and tested (not submitted). Updated 2026-10-04.
 
 ## M0 checklist (before R1 is submitted)
 - [x] Docs: `CLAUDE.md`, `STATUS.md`, `glossary.md`, `plan.md`
@@ -28,16 +27,19 @@ submitted. Updated 2026-10-04.
   3 seed regression jobs → reader). The preflight refuses until `read_stage1h.py`
   exists.
 
-## Before R1 is submitted
-- [ ] `read_stage1h.py`: R1's frozen rules (`plan.md` §5) in its docstring; the gate
-  (`--pilot`, including the NOISE_DEGENERATE check); the read (`--r1`, `--r1-seeds`);
-  synthetic-block tests added to `test_r14_stage1h.py`.
+- [x] `read_stage1h.py`: R1's rules frozen in its docstring (2026-10-04, before any
+  output), the gate (with the NOISE_DEGENERATE check), the R1 read; synthetic-block
+  tests pass; checked on real CPU driver output.
+
+**Don't edit files R1's jobs import while they are pending or running:** `s1h_lib.py`,
+`run_s1h.py`, `metrics_s1h.py`, `read_stage1h.py`, `test_r14_stage1h.py`,
+`submit_s1h.slurm`. R2's code goes in new files.
 
 ## Runs
 | run | jobs | state |
 |---|---|---|
-| R1 calibration and bridge | — | not submitted |
-| R2 Qwen | — | outline only (`plan.md` §6) |
+| R1 calibration and bridge | Trillium: pilot 1032158, gate 1032159, h1cal 1032160 (9100–9109) and 1032161 (9110–9119), seeds 1032162–1032164 (rot_seed 0, 1, 2), reader 1032165 (writes `findings/R1_reader.{json,md}`) | submitted 2026-10-04 21:05; **gate PASS** (noise measured: fp_noise KL ~0.005 on the pilot; peak 48 GiB; projected block 1.7 h); seed 0 done; blocks queued |
+| R2 Qwen 32K | — | code written and tested; rules frozen (`read_stage1h_r2.py`; `plan.md` Amendments); submit with `script_stage1h.sh --run-r2 1032165` once R1's gate passes |
 | R3–R5 | — | — |
 
 ## Notes

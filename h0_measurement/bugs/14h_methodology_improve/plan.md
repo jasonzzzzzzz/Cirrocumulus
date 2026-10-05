@@ -94,7 +94,7 @@ paper claims. Only the confirmatory campaign produces claims.
   passes are not reproducible across processes.
 - **Fresh prompts.** Each run's main cell uses a fresh range:
   - R2: 9300–9339;
-  - R3: 9400–9439;
+  - R3: 9400–9439 (R3a), 9440–9479 (R3b);
   - R5: 9500+.
 
   The exceptions are the bridges:
@@ -270,7 +270,7 @@ The code is in new files:
 - `--run-r3-ladder` and `--run-r3a` in `script_stage1h.sh`.
 
 R3a replaces the R3 outline in §6 for the RULER-style part. R3b (common- and
-frequent-word extraction, NoLiMa) follows separately.
+frequent-word extraction, NoLiMa) follows separately (its amendment is below).
 
 **Why.** On the default tasks FP scores 0.98–1.00, so accuracy can't show a loss or a
 gain.
@@ -309,3 +309,61 @@ multikey panel:
 **Prompt fit.** The haystack fills 92% of the context, so even the hardest level fits:
 64 keys at 32K leaves about 1,100–1,400 tokens spare. Only 2K CPU smokes overflow; the
 smokes therefore run at 4K and 16K.
+
+**2026-10-05: R3b frozen** (aggregation and latent-association tasks, both models).
+Written after R3a's ladder was submitted (jobs 1032502–1032508) and before any R3b output
+existed. The rules are in `read_stage1h_r3b.py`'s docstring. R3b depends on no result of
+R1–R3a: R1's m_FP is read at read time, as in R2 and R3a.
+
+The code is in new files:
+- `tasks_s1h.py` (the tasks; no model), with its data in `data/r3b/` pinned by sha256;
+- `s1h3b_lib.py`, `run_s1h3b.py`, `read_stage1h_r3b.py`;
+- `test_r14_stage1h_r3b.py`, `submit_s1h3b.slurm`;
+- `--run-r3b-ladder` and `--run-r3b` in `script_stage1h.sh`.
+
+**Why.** Every task so far is retrieval: the question names the needle. The design reads
+1/8 of the rows, chosen by the question's attention. Two kinds of task can break that
+while retrieval does not:
+- **aggregation**: the answer is a count over the whole context;
+- **latent association**: the question shares no word with the needle, so its attention
+  may not find it.
+
+**Tasks** (`tasks_s1h.py`):
+- `cwe`, `fwe`: RULER's common- and frequent-word extraction (RULER@c3f5e3b4, templates
+  verbatim);
+- `nolima`: NoLiMa's one-hop questions (its 32 needle–test pairs; Adobe Research License,
+  non-commercial research);
+- `nolima_direct`: the same prompt with NoLiMa's direct question, which repeats the
+  needle's words. This is the control for the vote.
+
+**Deviations from the sources:**
+- raw text, as every R14 task;
+- the context fills 92% of C;
+- `cwe` uses wonderwords' 8,050 lowercase single words;
+- scoring matches whole words;
+- `nolima` uses the project's PG-19 haystack, with a character whose name the window
+  does not contain;
+- Llama's stop rule is `r8list`: R8's stop at the first newline after content, except
+  after a line holding one list item, so a list answered one item per line is not cut.
+  Without a newline stop, raw-text Llama runs on past a one-line answer and can state
+  list words by chance. Qwen keeps eos_only.
+
+**Step 1, the ladder (excluded from every result).**
+- Arms: FP, D and D_V4.
+- `cwe` and `fwe` at three levels, on prompts 3210–3217. Level 1 is RULER's setting
+  (`freq_cw` 30, `alpha` 2.0); then (100, 1.5) and (300, 1.2). `cwe` gets easier, `fwe`
+  harder.
+- `nolima` and `nolima_direct` at their one setting, on prompts 3210–3225.
+- `choose_level_r3b`: the lowest level with FP in [0.5, 0.95]; otherwise the level whose
+  FP is closest to 0.75.
+- A task enters step 2 only if FP scores ≥ 0.5 at its level. `nolima_direct` enters with
+  `nolima`. NoLiMa's own table puts Llama-3.1-8B at 0.14 by 32K, so `nolima` may not enter
+  at Llama 128K.
+
+**Step 2, the main cells.**
+- Llama 128K on prompts 9440–9459 and Qwen 32K on 9460–9479, with R3a's arms (16 / 17).
+- The accuracy labels are R3a's, per family: AGG (`cwe` + `fwe`), LATENT, DIRECT.
+- R2's NLL and KL labels apply at R1's m_FP.
+- **LEX_VOTE**: the vote's loss against the oracle on `nolima` minus on `nolima_direct`,
+  over prompts FP gets right on both. **LEX_SYS**: the same for the system.
+- A task whose FP falls below 0.5 in the cell leaves the labels (FP_LOW).

@@ -33,6 +33,17 @@
 | `router_*_calib@B` | calibrated quant-and-evict routers (Stages 1b–1f); `nest` = nested dense sets |
 | `snapq_v{v}@r` | SnapKV-with-question: the first question's selection made permanent (reuse runs) |
 
+## Tasks
+- **`niah_single`, `niah_multikey`, `niah_multivalue`, `vt`** — the RULER retrieval tasks
+  (`sievelib/tasks_ruler.py`). R3a raises their difficulty (n_keys, n_values, n_hops) and adds
+  **`mk_panel`**, 48 near-duplicate keys.
+- **`cwe`, `fwe`** — (R3b) RULER's common- and frequent-word extraction: the answer is a
+  count over the whole context. Difficulty: `freq_cw` (repeats of the 10 common words; RULER
+  30) and `alpha` (the Zipf exponent; RULER 2.0). `tasks_s1h.py`.
+- **`nolima`** — (R3b) NoLiMa one-hop: the question shares no word with the needle
+  ("Which character has been to Dresden?" for "Yuki lives next to the Semper Opera House").
+  **`nolima_direct`** — the same prompt with the question in the needle's own words.
+
 ## Metrics (per unit, minus FP's value in the same process)
 - **`a_sum_nll`** (dA) — teacher-forced NLL of FP's answer-value tokens. This was the
   Stage 1d–1e primary. It is order-sensitive and blind to truncation.
@@ -65,3 +76,11 @@
   wherever D is not.
 - **VOTE_LOSS_*** — (1h) the vote's selection minus the oracle's selection.
 - **BRIDGE_OK / DRIFT** — (1h) arms rerun on Stage 1g's prompts agree within ±0.05 nats.
+- **HEADROOM / CEILING_REMAINS / TOO_HARD / CLOSEST** — (R3a, R3b ladders) how a task's
+  difficulty level was chosen from FP's score. In R3b a task **ENTERS** the main cell only if
+  FP scores ≥ 0.5 at its chosen level.
+- **ACC_*** — (R3a, R3b) the accuracy labels: ACC_NEAR_FP if the system's accuracy interval
+  stays above −0.03; the `_ACC` effect labels use ±0.02.
+- **LEX_VOTE / LEX_SYS** — (R3b) the vote loss, or the system's loss, on `nolima` minus on
+  `nolima_direct`: _HURTS = the read loses more when the question shares no word with the
+  needle.

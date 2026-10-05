@@ -22,6 +22,10 @@ history; its Parts K–L are the summary.
 | `test_r14_stage1h.py` | `--fast` (CPU, no model); the default adds Llama-3.2-1B on CPU and a driver smoke |
 | `read_stage1h.py` | the frozen reader (written before R1's output exists) |
 | `submit_s1h.slurm`, `script_stage1h.sh` | the worker and the submission chains |
+| `*_r2`, `s1h2_lib.py`, `run_s1h2.py` | R2 (Qwen 32K); the same roles |
+| `*_r3`, `s1h3_lib.py`, `run_s1h3.py` | R3a (harder RULER tasks, `mk_panel`) |
+| `*_r3b`, `s1h3b_lib.py`, `run_s1h3b.py` | R3b (`cwe`, `fwe`, `nolima`) |
+| `tasks_s1h.py`, `data/r3b/` | R3b's tasks (no model) and their pinned data (NoLiMa: Adobe Research License) |
 | `findings/R<n>.md` | each run's tables and read |
 
 ## Rules

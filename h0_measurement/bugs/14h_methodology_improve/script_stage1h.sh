@@ -20,6 +20,11 @@
 #   h2regress x 3     8234 multikey, 8830 vt, 8215 / 8218 / 8235 multivalue at rotation seeds 0, 1, 2  ~20 min each
 #   reader            read_stage1h_r2.py -> findings/R2_reader.{json,md}; after R1's reader (it needs m_FP)
 # --add-r2-block OFFSET   one more h2qwen32 block (SEQUENTIAL = ADD), e.g. 9320
+# --run-r3-ladder (R3a step 1; read_stage1h_r3.py's frozen rules; worker submit_s1h3.slurm):
+#   6 jobs: {Llama 128K, Qwen 32K} x levels 1-3 (s1h3_lib.LEVELS), prompts 3200-3204, FP / D / D_V4 only;
+#   mk_panel in level 1 only -> reader -> findings/R3a_levels.{json,md} (each task's level for step 2)
+# --run-r3a [R1_READ_JOB] (R3a step 2, needs R3a_levels.json): h3llama 9400 / 9410 (128K), h3qwen 9420 / 9430
+#   (32K) at the ladder's levels -> reader -> findings/R3a_reader.{json,md} (after R1's reader: m_FP)
 #
 #   --status ID...   /   --cancel ID...   /   --read-r1 A1 A2 S0 S1 S2   /   --read-r2 S0 S1 S2 A1 A2 [A3 ...]
 set -euo pipefail
@@ -29,6 +34,7 @@ cd "$PROJECT_ROOT"
 DIR=h0_measurement/bugs/14h_methodology_improve
 W=$DIR/submit_s1h.slurm
 W2=$DIR/submit_s1h2.slurm
+W3=$DIR/submit_s1h3.slurm
 REG2="8234:niah_multikey,8830:vt,8215:niah_multivalue,8218:niah_multivalue,8235:niah_multivalue"   # s1h2_lib.REGRESS_R2
 PY=.venv/bin/python
 REG="8109:niah_multikey,8901:niah_multikey,8937:niah_multikey"     # s1h_lib.REGRESS_R1
@@ -58,6 +64,65 @@ preflight_r2() {
   bash -n "$W2"
   OMP_NUM_THREADS=8 $PY -u $DIR/test_r14_stage1h_r2.py --fast | tail -1
   echo "R14 Stage 1h R2 preflight passed"
+}
+
+preflight_r3() {
+  preflight_r2
+  [[ -f $DIR/read_stage1h_r3.py ]] || { echo "ERROR: read_stage1h_r3.py (R3a's frozen rules) must exist" >&2; exit 1; }
+  bash -n "$W3"
+  OMP_NUM_THREADS=8 $PY -u $DIR/test_r14_stage1h_r3.py --fast | tail -1
+  echo "R14 Stage 1h R3a preflight passed"
+}
+
+LEV_CFG() {   # LEV_CFG llama|qwen -> the ladder's task_cfg for that model
+  $PY -c "import json,sys; print(json.load(open('$DIR/findings/R3a_levels.json'))['models'][sys.argv[1]]['task_cfg'])" "$1"
+}
+
+chain_r3_ladder() {
+  local RD lv cfg tasks dep
+  local -a J=() LJ=() QJ=()
+  for lv in 1 2 3; do
+    cfg=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h3_lib as L; print(L.task_cfg_str(L.LEVELS[$lv]))")
+    tasks="niah_multikey,niah_multivalue,vt"
+    [[ $lv == 1 ]] && tasks="$tasks,mk_panel"
+    LJ+=("$(sub --job-name=r14s1h3-lad-l$lv --time=01:30:00 $W3 S1H_TAG=h3ladder_llama S1H_PRESET=h3ladder_llama \
+        S1H_CTX=131072 S1H_N_PROMPTS=5 S1H_PROMPT_OFFSET=3200 S1H_TASKS=$tasks S1H_TASK_CFG=$cfg)")
+    QJ+=("$(sub --job-name=r14s1h3-lad-q$lv --time=01:00:00 $W3 S1H_TAG=h3ladder_qwen S1H_PRESET=h3ladder_qwen \
+        S1H_CTX=32768 S1H_N_PROMPTS=5 S1H_PROMPT_OFFSET=3200 S1H_TASKS=$tasks S1H_TASK_CFG=$cfg)")
+  done
+  echo "LADDER_LLAMA=${LJ[*]} LADDER_QWEN=${QJ[*]}" >&2
+  dep=$(IFS=:; echo "${LJ[*]}:${QJ[*]}")
+  RD=$(sub --dependency=afterany:$dep --job-name=r14s1h3-ladread $READER_SB \
+      --output=h0_measurement/logs/r14s1h3lad_%j.out --error=h0_measurement/logs/r14s1h3lad_%j.err \
+      --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r3.py --ladder --llama ${LJ[*]} \
+--qwen ${QJ[*]} --out-stem $PROJECT_ROOT/$DIR/findings/R3a_levels")
+  echo "LADREAD=$RD" >&2
+  echo "next: bash $DIR/script_stage1h.sh --status ${LJ[*]} ${QJ[*]} $RD   (then --run-r3a R1_READ_JOB)"
+}
+
+chain_r3a() {
+  local RD o cl cq dep r1dep=""
+  local -a A=() B=()
+  [[ -f $DIR/findings/R3a_levels.json ]] || { echo "ERROR: run and read the ladder first (findings/R3a_levels.json)" >&2; exit 1; }
+  [[ -n "${R1READ:-}" ]] && { need_id "$R1READ"; r1dep=":$R1READ"; }
+  cl=$(LEV_CFG llama); cq=$(LEV_CFG qwen)
+  echo "levels: llama $cl; qwen $cq" >&2
+  for o in 9400 9410; do
+    A+=("$(sub --job-name=r14s1h3-l128-$o --time=06:00:00 $W3 S1H_TAG=h3llama S1H_PRESET=h3llama S1H_CTX=131072 \
+        S1H_N_PROMPTS=10 S1H_PROMPT_OFFSET=$o S1H_TASKS=niah_multikey,niah_multivalue,vt,mk_panel S1H_TASK_CFG=$cl S1H_SEED=0)")
+  done
+  for o in 9420 9430; do
+    B+=("$(sub --job-name=r14s1h3-q32-$o --time=03:00:00 $W3 S1H_TAG=h3qwen S1H_PRESET=h3qwen S1H_CTX=32768 \
+        S1H_N_PROMPTS=10 S1H_PROMPT_OFFSET=$o S1H_TASKS=niah_multikey,niah_multivalue,vt,mk_panel S1H_TASK_CFG=$cq S1H_SEED=0)")
+  done
+  echo "H3LLAMA=${A[*]} H3QWEN=${B[*]}" >&2
+  dep=$(IFS=:; echo "${A[*]}:${B[*]}")
+  RD=$(sub --dependency=afterany:$dep$r1dep --job-name=r14s1h3-read $READER_SB \
+      --output=h0_measurement/logs/r14s1h3read_%j.out --error=h0_measurement/logs/r14s1h3read_%j.err \
+      --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r3.py --r3a --llama ${A[*]} --qwen ${B[*]} \
+--out-stem $PROJECT_ROOT/$DIR/findings/R3a_reader")
+  echo "READ=$RD" >&2
+  echo "next: bash $DIR/script_stage1h.sh --status ${A[*]} ${B[*]} $RD"
 }
 
 SUBMITTED=()
@@ -131,6 +196,8 @@ case "$MODE" in
   --preflight) preflight ;;
   --run-r1-dry|--run-r1) preflight; chain_r1 ;;
   --run-r2-dry|--run-r2) R1READ="${2:-}"; preflight_r2; chain_r2 ;;
+  --run-r3-ladder-dry|--run-r3-ladder) preflight_r3; chain_r3_ladder ;;
+  --run-r3a-dry|--run-r3a) R1READ="${2:-}"; preflight_r3; chain_r3a ;;
   --add-r2-block)
     [[ "${2:-}" =~ ^9[3-9][0-9]0$ ]] || { echo "ERROR: --add-r2-block needs a block offset such as 9320" >&2; exit 2; }
     sub --job-name=r14s1h2-q32-$2 --time=03:00:00 $W2 S1H_TAG=h2qwen32 S1H_PRESET=h2qwen32 S1H_CTX=32768 \

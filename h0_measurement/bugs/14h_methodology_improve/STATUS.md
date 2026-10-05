@@ -1,6 +1,6 @@
 # Stage 1h status (rewritten, not appended)
 
-**Phase:** R1 running on Trillium; R2's code is ready and tested (not submitted). Updated 2026-10-04.
+**Phase:** R1 and R2 queued on Trillium; R3a's code is ready and tested (ladder not submitted). Updated 2026-10-04.
 
 ## M0 checklist (before R1 is submitted)
 - [x] Docs: `CLAUDE.md`, `STATUS.md`, `glossary.md`, `plan.md`
@@ -33,14 +33,17 @@
 
 **Don't edit files R1's jobs import while they are pending or running:** `s1h_lib.py`,
 `run_s1h.py`, `metrics_s1h.py`, `read_stage1h.py`, `test_r14_stage1h.py`,
-`submit_s1h.slurm`. R2's code goes in new files.
+`submit_s1h.slurm`, and R2's `s1h2_lib.py`, `run_s1h2.py`, `read_stage1h_r2.py`, `test_r14_stage1h_r2.py`, `submit_s1h2.slurm`.
+Once R3a is submitted, also `s1h3_lib.py`, `run_s1h3.py`, `read_stage1h_r3.py`, `test_r14_stage1h_r3.py`,
+`submit_s1h3.slurm`. New work goes in new files.
 
 ## Runs
 | run | jobs | state |
 |---|---|---|
 | R1 calibration and bridge | Trillium: pilot 1032158, gate 1032159, h1cal 1032160 (9100–9109) and 1032161 (9110–9119), seeds 1032162–1032164 (rot_seed 0, 1, 2), reader 1032165 (writes `findings/R1_reader.{json,md}`) | submitted 2026-10-04 21:05; **gate PASS** (noise measured: fp_noise KL ~0.005 on the pilot; peak 48 GiB; projected block 1.7 h); seed 0 done; blocks queued |
-| R2 Qwen 32K | — | code written and tested; rules frozen (`read_stage1h_r2.py`; `plan.md` Amendments); submit with `script_stage1h.sh --run-r2 1032165` once R1's gate passes |
-| R3–R5 | — | — |
+| R2 Qwen 32K | Trillium: pilot 1032364, gate 1032365, h2qwen32 1032366 (9300–9309) and 1032367 (9310–9319), seeds 1032368–1032370, reader 1032371 (after R1's reader; writes `findings/R2_reader.{json,md}`) | submitted 2026-10-04 |
+| R3a harder synthetic tasks (both models) | step 1 ladder: 6 jobs (3 levels × Llama 128K / Qwen 32K, prompts 3200–3204, FP / D / D_V4) + ladder reader (writes `findings/R3a_levels.{json,md}`); step 2: `--run-r3a <R1 reader job>` (h3llama 9400–9419, h3qwen 9420–9439) | code ready: fast tests, the CPU driver smokes (16K ladder with mk_panel; all 16 main arms at 4K) and the trig-login01 preflight (`--run-r3-ladder-dry`) pass; ladder not submitted |
+| R3b, R4, R5 | — | — |
 
 ## Notes
 - On CPU (float32), `fp_noise` was bit-identical to FP. On the GPU it should differ:

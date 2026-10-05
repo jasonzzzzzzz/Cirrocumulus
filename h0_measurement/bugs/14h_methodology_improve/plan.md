@@ -259,3 +259,53 @@ and values come from the same view the answer reads.
   D_V4 otherwise. VOTE_LOSES_NEEDLE is flagged if exact-store reads fix 8234 and the
   system doesn't.
 - Reported beside Stage 1f's numbers: the seed-0 regression units.
+
+**2026-10-04: R3a frozen** (harder synthetic tasks, both models). Written after R2 was
+submitted (jobs 1032364–1032371) and before any R3a output existed. The rules are in
+`read_stage1h_r3.py`'s docstring.
+
+The code is in new files:
+- `s1h3_lib.py`, `run_s1h3.py`, `read_stage1h_r3.py`;
+- `test_r14_stage1h_r3.py`, `submit_s1h3.slurm`;
+- `--run-r3-ladder` and `--run-r3a` in `script_stage1h.sh`.
+
+R3a replaces the R3 outline in §6 for the RULER-style part. R3b (common- and
+frequent-word extraction, NoLiMa) follows separately.
+
+**Why.** On the default tasks FP scores 0.98–1.00, so accuracy can't show a loss or a
+gain.
+
+**Tasks.** The RULER generators' own difficulty knobs, plus sievelib's contrastive
+multikey panel:
+- `niah_multikey`: n_keys;
+- `niah_multivalue`: n_values;
+- `vt`: n_hops;
+- `mk_panel`: 48 needles in 4 clusters of 12 near-duplicate keys; one of its four
+  questions per prompt.
+
+**Step 1, the ladder (excluded from every result).**
+- Arms: FP, D and D_V4.
+- Levels (n_keys, n_values, n_hops): (16, 8, 8), (32, 16, 12), (64, 24, 16).
+- Prompts 3200–3204, on Llama 128K and Qwen 32K.
+- `choose_level` picks each task's level: the lowest level with FP in [0.5, 0.95]. If FP
+  is above 0.95 at every level, the highest (CEILING_REMAINS). If below 0.5 at every
+  level, the lowest (TOO_HARD). Otherwise the level whose FP is closest to 0.75.
+- The rule uses FP only, so it can't favour the design over the baselines.
+
+**Step 2, the main cells.**
+- Llama 128K on prompts 9400–9419 (16 arms) and Qwen 32K on 9420–9439 (17 arms), at the
+  chosen levels.
+- FP_MIN is 0.5, because the tasks are hard on purpose.
+- Accuracy is co-primary:
+  - ACC_SYSTEM: the system is near FP in accuracy if the interval's lower bound is at
+    least −0.03;
+  - the system against the best same-memory dense 4-bit arm (chosen by accuracy) and
+    against D_V4;
+  - the simple design against the best dense 4-bit arm;
+  - the second question pass, and vote loss.
+- R2's NLL and KL labels apply at R1's m_FP.
+- A block run at any other difficulty is INVALID.
+
+**Prompt fit.** The haystack fills 92% of the context, so even the hardest level fits:
+64 keys at 32K leaves about 1,100–1,400 tokens spare. Only 2K CPU smokes overflow; the
+smokes therefore run at 4K and 16K.

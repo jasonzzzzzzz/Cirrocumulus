@@ -40,7 +40,10 @@ VALIDITY (any failure -> INVALID): R2's (R1's with the stop rule r8list, the qre
   last; a quest row stores its width dense and reads within 0.01 of r over all layers; lbv2
   rows carry the forced-choice columns and FP's forced choice equals its greedy letter on >=
   90% of units; lbv2 rows record a 32-row vote span. A2 self-checks are not required (no unit
-  has more than one answer value).
+  has more than one answer value). R1's answer-value mask check (the mask found in >= 90% of
+  FP's correct answers) holds vacuously when FP answers no unit correctly (amended 2026-10-05,
+  before any R4 output: R1's code counted that as 0% and failed every 1-item lbv2 pilot FP
+  gets wrong, and HELMET pilots whose re-ranking NDCG is below 1).
 GATE (a cell's pilot, excluded; s1h4_lib.pilot_units): R4's validity (no main checks); FP's KL
   0; fp_noise not degenerate (R1's NOISE_DEGENERATE); peak GPU memory <= 76 GiB on every
   device; the projected block (s1h4_lib.block_units x the pilot's seconds per unit of each task
@@ -104,7 +107,10 @@ def validate_h4(d, sides, problems, main=True):
         if s.get("stop_rule") != stop:
             problems.append(f"block {s.get('_job')}: stop rule {s.get('stop_rule')}, expected {stop}")
         ss.append(dict(s, stop_rule="r8", preset_name=None, plan=[x for x in s["plan"] if x[0] != L.FLOOR_ARM]))
+    n0 = len(problems)
     out = RR2.validate_h2(d[~fl], ss, problems, False)
+    if not (d[(d.arm == "fp").to_numpy()].score >= 1).any():   # no correct FP answer: nothing to cover
+        problems[n0:] = [p for p in problems[n0:] if not p.startswith("FP's answer-value mask")]
     x = d[fl]
     if len(x):
         units = d[d.arm == "fp"].set_index(R1R.KEY).index

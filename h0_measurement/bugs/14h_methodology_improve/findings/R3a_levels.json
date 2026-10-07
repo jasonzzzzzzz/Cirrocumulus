@@ -1,0 +1,135 @@
+{
+ "rule": "s1h3_lib.choose_level",
+ "levels": {
+  "1": {
+   "n_keys": 16,
+   "n_values": 8,
+   "n_hops": 8
+  },
+  "2": {
+   "n_keys": 32,
+   "n_values": 16,
+   "n_hops": 12
+  },
+  "3": {
+   "n_keys": 64,
+   "n_values": 24,
+   "n_hops": 16
+  }
+ },
+ "head": [
+  0.5,
+  0.95,
+  0.75
+ ],
+ "models": {
+  "llama": {
+   "model": "llama31-8b",
+   "main_preset": "h3llama",
+   "fp_by_level": {
+    "niah_multikey": {
+     "1": 1.0,
+     "2": 1.0,
+     "3": 1.0
+    },
+    "niah_multivalue": {
+     "1": 1.0,
+     "2": 0.825,
+     "3": 0.8666666666666668
+    },
+    "vt": {
+     "1": 0.9777777777777779,
+     "2": 0.9384615384615385,
+     "3": 0.9058823529411765
+    }
+   },
+   "dv4_minus_fp": {
+    "niah_multikey": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "niah_multivalue": {
+     "1": -0.075,
+     "2": 0.0875,
+     "3": -0.35
+    },
+    "vt": {
+     "1": -0.0666666666666667,
+     "2": -0.09230769230769231,
+     "3": -0.12941176470588237
+    }
+   },
+   "levels": {
+    "niah_multikey": 3,
+    "niah_multivalue": 2,
+    "vt": 2
+   },
+   "labels": {
+    "niah_multikey": "CEILING_REMAINS",
+    "niah_multivalue": "HEADROOM",
+    "vt": "HEADROOM"
+   },
+   "panel": {
+    "fp": 1.0,
+    "dv4_minus_fp": 0.0,
+    "headroom": false
+   },
+   "task_cfg": "n_keys=64,n_values=16,n_hops=12"
+  },
+  "qwen": {
+   "model": "qwen3-30b-a3b-2507",
+   "main_preset": "h3qwen",
+   "fp_by_level": {
+    "niah_multikey": {
+     "1": 1.0,
+     "2": 1.0,
+     "3": 1.0
+    },
+    "niah_multivalue": {
+     "1": 1.0,
+     "2": 1.0,
+     "3": 0.9583333333333333
+    },
+    "vt": {
+     "1": 1.0,
+     "2": 1.0,
+     "3": 0.9764705882352942
+    }
+   },
+   "dv4_minus_fp": {
+    "niah_multikey": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "niah_multivalue": {
+     "1": -0.025,
+     "2": -0.075,
+     "3": -0.025
+    },
+    "vt": {
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.011764705882352944
+    }
+   },
+   "levels": {
+    "niah_multikey": 3,
+    "niah_multivalue": 3,
+    "vt": 3
+   },
+   "labels": {
+    "niah_multikey": "CEILING_REMAINS",
+    "niah_multivalue": "CEILING_REMAINS",
+    "vt": "CEILING_REMAINS"
+   },
+   "panel": {
+    "fp": 1.0,
+    "dv4_minus_fp": 0.0,
+    "headroom": false
+   },
+   "task_cfg": "n_keys=64,n_values=24,n_hops=16"
+  }
+ }
+}

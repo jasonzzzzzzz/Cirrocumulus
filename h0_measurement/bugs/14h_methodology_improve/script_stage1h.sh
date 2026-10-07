@@ -32,8 +32,12 @@
 #   (32K), the ladder's tasks and levels -> reader -> findings/R3b_reader.{json,md} (after R1's reader: m_FP)
 # --run-r4 [R1_READ_JOB] (R4b, real tasks at 128K; read_stage1h_r4.py's frozen rules; worker submit_s1h4.slurm):
 #   s1h4_lib.CELLS: LongBench v2 and HELMET at Llama 128K (h4llama128, 1 GPU) and Qwen 128K (h4qwen128,
-#   2 GPUs); per cell a pilot -> gate (read_stage1h_r4.py --gate) -> 2 blocks; then the reader ->
-#   findings/R4_reader.{json,md} (R1's reader is optional: margins are each cell's own)
+#   2 GPUs per block; Trillium takes 1 GPU or whole nodes, so both blocks run at once in one 4-GPU job);
+#   per cell a pilot -> gate (read_stage1h_r4.py --gate) -> 2 blocks; then the reader ->
+#   findings/R4_reader.{json,md} (R1's reader is optional: margins are each cell's own).
+#   R4_CELLS=a,b submits only those cells; R4_EXTRA="--cell JOB JOB ..." adds blocks submitted earlier
+#   to the reader and its dependency, e.g.
+#   R4_CELLS=hmllama,lb2qwen,hmqwen R4_EXTRA="--lb2llama 1036792 1036793" bash $0 --run-r4
 #
 #   --status ID...   /   --cancel ID...   /   --read-r1 A1 A2 S0 S1 S2   /   --read-r2 S0 S1 S2 A1 A2 [A3 ...]
 set -euo pipefail
@@ -166,29 +170,50 @@ preflight_r4() {
 }
 
 chain_r4() {   # cells, blocks, walls, GPUs and pilots: s1h4_lib.CELLS / pilot_units
-  local RD G P b dep cells cell preset ctx tasks per nb wall gpus plist r1dep=""
-  local -a ALL=() RA=() J=()
+  local RD G P b i x dep cells cell preset ctx tasks per nb wall gpus split jg pg plist r1dep="" xc=""
+  local -a ALL=() RA=() J=() R=() EX=()
   [[ -n "${R1READ:-}" ]] && { need_id "$R1READ"; r1dep=":$R1READ"; }
+  # R4_EXTRA="--cell JOB ...": blocks already submitted; the reader reads them and waits for them
+  read -ra EX <<< "${R4_EXTRA:-}"
+  for x in "${EX[@]}" --; do
+    if [[ "$x" == --* ]]; then
+      [[ -z "$xc" || "${RA[-1]}" != --* ]] || { echo "ERROR: R4_EXTRA: ${RA[-1]} has no job IDs" >&2; exit 2; }
+      [[ "$x" == -- ]] || { xc="$xc,${x#--}"; RA+=("$x"); }
+    else [[ "$x" =~ ^[0-9]+(_[0-9]+)?$ && -n "$xc" ]] || { echo "ERROR: R4_EXTRA is --cell JOB ... ('$x')" >&2; exit 2; }
+      RA+=("$x"); [[ " ${ALL[*]} " == *" ${x%%_*} "* ]] || ALL+=("${x%%_*}"); fi
+  done
   cells=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h4_lib as L
+want, extra = [c for c in sys.argv[1].split(',') if c], [c for c in sys.argv[2].split(',') if c]
+bad = sorted(set(want + extra) - set(L.CELLS))
+if bad or len(set(extra)) != len(extra) or set(want) & set(extra):
+    raise SystemExit(f'R4_CELLS / R4_EXTRA: unknown or repeated cells {bad or sorted(set(want) & set(extra)) or extra}')
 for c, x in L.CELLS.items():
+    if (want and c not in want) or c in extra:
+        continue
+    assert x['blocks'] % x['split'] == 0, c
     print(c, x['preset'], L.PRESETS[x['preset']]['ctx'], ','.join(x['tasks']), x['per'], x['blocks'], x['wall'], x['gpus'],
-          ','.join(f'{p}:{t}' for p, t in L.pilot_units(c)))")
+          x['split'], L.job_gpus(x['gpus'] * x['split']), L.job_gpus(x['gpus']),
+          ','.join(f'{p}:{t}' for p, t in L.pilot_units(c)))" "${R4_CELLS:-}" "${xc#,}") || exit 1
   PWALL=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h4_lib as L; print(L.PILOT_WALL)")
-  while read -r cell preset ctx tasks per nb wall gpus plist; do
-    P=$(sub --job-name=r14s1h4-$cell-pilot --time=$PWALL --gpus-per-node=$gpus $W4 S1H_TAG=$preset S1H_PRESET=$preset \
-        S1H_CTX=$ctx S1H_TASKS=$tasks S1H_PROMPT_LIST=$plist </dev/null)
+  while read -r cell preset ctx tasks per nb wall gpus split jg pg plist; do
+    [[ -n "$cell" ]] || continue
+    # the pilot runs on a block's GPUs (S1H_GPUS) in a job of whole nodes when a block needs more than 1
+    P=$(sub --job-name=r14s1h4-$cell-pilot --time=$PWALL --gpus-per-node=$pg $W4 S1H_TAG=$preset S1H_PRESET=$preset \
+        S1H_CTX=$ctx S1H_TASKS=$tasks S1H_PROMPT_LIST=$plist S1H_GPUS=$gpus </dev/null)
     G=$(sub --dependency=afterok:$P --job-name=r14s1h4-$cell-gate $READER_SB \
         --output=h0_measurement/logs/r14s1h4gate_%j.out --error=h0_measurement/logs/r14s1h4gate_%j.err \
         --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r4.py --gate $cell $P" </dev/null)
-    J=()
-    for ((b = 0; b < nb; b++)); do
-      J+=("$(sub --dependency=afterok:$G --job-name=r14s1h4-$cell-$b --time=$wall --gpus-per-node=$gpus $W4 \
+    J=(); R=()
+    for ((b = 0; b < nb; b += split)); do   # one job runs blocks b..b+split-1 at once (results <job>_<i> if split)
+      x=$(sub --dependency=afterok:$G --job-name=r14s1h4-$cell-$b --time=$wall --gpus-per-node=$jg $W4 \
           S1H_TAG=$preset S1H_PRESET=$preset S1H_CTX=$ctx S1H_TASKS=$tasks S1H_N_PROMPTS=$per \
-          S1H_PROMPT_OFFSET=$((b * per)) S1H_SEED=0 </dev/null)")
+          S1H_PROMPT_OFFSET=$((b * per)) S1H_SPLIT=$split S1H_GPUS=$gpus S1H_SEED=0 </dev/null)
+      J+=("$x")
+      if ((split == 1)); then R+=("$x"); else for ((i = 0; i < split; i++)); do R+=("${x}_$i"); done; fi
     done
-    echo "$cell: pilot $P, gate $G, blocks ${J[*]}" >&2
+    echo "$cell: pilot $P, gate $G, block jobs ${J[*]} (read as ${R[*]})" >&2
     ALL+=("${J[@]}")
-    RA+=(--$cell "${J[@]}")
+    RA+=(--$cell "${R[@]}")
   done <<< "$cells"
   (( ${#ALL[@]} > 0 )) || { echo "ERROR: no R4 block submitted" >&2; exit 1; }
   dep=$(IFS=:; echo "${ALL[*]}")

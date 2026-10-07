@@ -1,0 +1,15 @@
+{
+ "cell": "hmllama",
+ "job": "1036923",
+ "verdict": "PASS",
+ "problems": [],
+ "peak_gib_dev": [
+  45.5071234703064
+ ],
+ "seconds_per_unit": {
+  "icl_banking77": 86.53275489807129,
+  "msmarco_rerank_psg": 696.421462059021
+ },
+ "projected_block_h": 1.7,
+ "wall_h": 6.0
+}

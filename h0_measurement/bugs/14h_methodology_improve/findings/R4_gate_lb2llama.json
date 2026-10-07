@@ -1,0 +1,14 @@
+{
+ "cell": "lb2llama",
+ "job": "1036790",
+ "verdict": "PASS",
+ "problems": [],
+ "peak_gib_dev": [
+  48.867122650146484
+ ],
+ "seconds_per_unit": {
+  "lbv2": 113.5778169631958
+ },
+ "projected_block_h": 0.88,
+ "wall_h": 4.0
+}

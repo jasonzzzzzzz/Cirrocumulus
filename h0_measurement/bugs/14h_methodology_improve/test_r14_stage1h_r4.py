@@ -86,6 +86,14 @@ def test_plans():
               "lb2llama": ("h4llama128", 1), "lb2qwen": ("h4qwen128", 2), "hmllama": ("h4llama128", 1),
               "hmqwen": ("h4qwen128", 2)}
           and all(p >= L.CELLS[c]["per"] * L.CELLS[c]["blocks"] for c in L.CELLS for p, _ in L.pilot_units(c)))
+    check("jobs: 1 GPU or whole 4-GPU nodes (Trillium); a Qwen node job runs its cell's 2 blocks at once, "
+          "its pilot a node with a block's 2 GPUs; Llama 1 block per 1-GPU job",
+          [L.job_gpus(n) for n in (1, 2, 3, 4, 5)] == [1, 4, 4, 4, 8]
+          and {c: (x["split"], L.job_gpus(x["gpus"] * x["split"]), L.job_gpus(x["gpus"]))
+               for c, x in L.CELLS.items()} == {
+              "lb2llama": (1, 1, 1), "lb2qwen": (2, 4, 4), "hmllama": (1, 1, 1), "hmqwen": (2, 4, 4)}
+          and all(x["blocks"] % x["split"] == 0 and x["gpus"] * x["split"] <= L.job_gpus(x["gpus"] * x["split"])
+                  for x in L.CELLS.values()))
 
 
 # ------------------------------------------------------------------- tasks
@@ -381,6 +389,13 @@ def test_reader_synthetic():
               and "SYS_VS_QUEST_ACC_CTX lb2llama/lbv2" in s and f["gold_logp"] and f["fc_kl"]
               and "cell's margin" in s["SYSTEM NLL lb2llama/lbv2"] and "R1's" not in s["SYSTEM NLL lb2llama/lbv2"],
               f"({ {k: v for k, v in s.items() if 'QUEST' in k or 'FP accuracy' in k} })")
+        # a Qwen node job's two blocks: results r14s1h_<tag>_<job>_<i>, read as job IDs <job>_<i>
+        for job, off in (("7_0", 0), ("7_1", 20)):
+            _fake_block(tmp, job, "lb2qwen", [(off + k, "lbv2") for k in range(20)], eff, acc_of)
+        rc = R.read_r4({"lb2qwen": ["7_0", "7_1"]}, stem + "q", root=tmp, r1_json=os.path.join(tmp, "absent.json"))
+        oq = json.load(open(stem + "q.json"))
+        check("split blocks: a node job's two blocks (job IDs 7_0, 7_1) read as one cell of 40 items",
+              rc == 0 and oq["cells"]["lb2qwen"]["families"]["lbv2"]["accuracy"]["n_units"] == 40)
         # HELMET: RAG kept near FP by the floor; ICL and re-rank families labelled separately
         acc_h = lambda a, B, t, p: 0.0 if a == "closedbook" else 1.0  # noqa: E731
         eff_h = lambda a, B, t, p: 0.0 if a == "fp" else (2.0 if a == "closedbook" else 0.02)  # noqa: E731
@@ -398,6 +413,15 @@ def test_reader_synthetic():
         _fake_block(tmp, "p2", "hmllama", [(10, "msmarco_rerank_psg"), (10, "icl_banking77")], eff_h, acc_h, peak=80.0)
         g_bad = R.read_gate("hmllama", "p2", root=tmp, out_dir=tmp) == 1
         check("gate: PASS within memory and wall time; FAIL above 76 GiB per device", g_ok and g_bad)
+        # a pilot FP answers wrong (one lbv2 item, or re-ranking NDCG below 1 and banking77 wrong): the
+        # answer-value mask check has no correct answer to cover, and the gate still passes
+        _fake_block(tmp, "p3", "lb2llama", [(59, "lbv2")], eff, lambda a, B, t, p: 0.0)
+        g_lb = R.read_gate("lb2llama", "p3", root=tmp, out_dir=tmp) == 0
+        _fake_block(tmp, "p4", "hmllama", [(10, "msmarco_rerank_psg"), (10, "icl_banking77")], eff_h,
+                    lambda a, B, t, p: 0.6 if t == "msmarco_rerank_psg" else 0.0)
+        g_hm = R.read_gate("hmllama", "p4", root=tmp, out_dir=tmp) == 0
+        check("gate: a pilot FP answers wrong passes (the answer-value mask check is vacuous without a correct "
+              "FP answer)", g_lb and g_hm)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -412,16 +436,19 @@ def _drive(args, log):
 
 
 def test_driver_smoke():
-    print("\n[S1h R4] driver smokes (CPU, Llama-3.2-1B at 4K, items cut in the middle): lbv2; kilt_nq + icl_trec_coarse")
+    print("\n[S1h R4] driver smokes (CPU at 4K, items cut in the middle; Llama-3.2-1B, and Qwen3-0.6B as Qwen's "
+          "stand-in (models.yaml validate_with): lbv2; kilt_nq + icl_trec_coarse")
     import read_stage1h_r4  # noqa: F401  (installs R4's validity into read_stage1h)
     import read_stage1h as R1R
     tmp = tempfile.mkdtemp(prefix="s1h4_drive_")
-    lov = ["--model", "llama31-8b", "--override", "id=meta-llama/Llama-3.2-1B-Instruct", "dtype=float32", "tier=smoke"]
+    lov = {"": ["--model", "llama31-8b", "--override", "id=meta-llama/Llama-3.2-1B-Instruct", "dtype=float32",
+                "tier=smoke"],
+           "q": ["--model", "qwen3-30b-a3b-2507", "--override", "id=Qwen/Qwen3-0.6B", "dtype=float32", "tier=smoke"]}
     try:
-        for nm, tasks in (("lb2", "lbv2"), ("hm", "kilt_nq,icl_trec_coarse")):
+        for nm, tasks, mk in [(m + n, t, m) for m in lov for n, t in (("lb2", "lbv2"), ("hm", "kilt_nq,icl_trec_coarse"))]:
             rc = _drive(["--mode", "evaluate", "--preset", "h4smoke", "--ctx", "4096", "--n-prompts", "1",
                          "--prompt-offset", "0", "--tasks", tasks, "--out-dir", os.path.join(tmp, f"r14s1h_h4smoke_{nm}")]
-                        + lov, os.path.join(tmp, f"{nm}.log"))
+                        + lov[mk], os.path.join(tmp, f"{nm}.log"))
             if rc != 0:
                 check(f"{nm} smoke ran", False, f"(rc {rc})")
                 print(open(os.path.join(tmp, f"{nm}.log")).read()[-4000:])
@@ -439,10 +466,10 @@ def test_driver_smoke():
                     and (cb.kl_all > 0).all()
                     and (cb.closedbook_ctx_tokens.to_numpy() < fp.n_context_tokens.to_numpy()).all()
                     and (fp.a_len > 0).all())
-            if nm == "lb2":
+            if nm.endswith("lb2"):
                 good &= (d.fc_correct.notna().all() and (fp.max_new_tokens == 1).all() and (d.vote_rows == 32).all())
             check(f"{nm} smoke: every arm (the 4K preset adds the floor system at r = 1); validity passes; Quest at its budget; the closed-book arm on its own short "
-                  f"cache, away from FP" + ("; forced choice and a 32-row vote span" if nm == "lb2" else ""),
+                  f"cache, away from FP" + ("; forced choice and a 32-row vote span" if nm.endswith("lb2") else ""),
                   good, f"({probs}; FP {fp.set_index('task').score.round(2).to_dict()}; "
                         f"closed book {cb.set_index('task').score.round(2).to_dict()})")
     finally:

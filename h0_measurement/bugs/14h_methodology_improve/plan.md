@@ -441,3 +441,18 @@ design) and `closedbook`: 20 arms per cell, stop rule `r8list`.
 - HELMET: Llama 128K and Qwen 128K, 10 items × 5 tasks each.
 
 About 18 GPU-h, of which Qwen's 2-GPU cells are about 10.
+
+**Execution note (2026-10-05, before any R4 output):** Trillium gives a GPU job 1 GPU or whole
+4-GPU nodes; the 2-GPU Qwen pilot was refused. A Qwen cell's two blocks now run at once in one
+node job (2 GPUs each; the same items, arms and processes per block as two jobs; results
+`r14s1h_<tag>_<job>_0/` and `_1/`, read as job IDs `<job>_0`, `<job>_1`). Its pilot takes a node
+but runs on 2 GPUs, so the gate's per-GPU peak is a block's; 2 GPUs sit idle for the pilot's
+≤ 2 h. No rule of the read changes.
+
+**Validity fix (2026-10-05, before any R4 output):** R1's answer-value mask check (the mask
+found in ≥ 90% of FP's correct answers) scored a unit set with no correct FP answer as 0% and
+failed it. That would have failed most 1-item LongBench v2 pilots (FP is right on about a third
+of items) and HELMET pilots whose re-ranking NDCG is below 1. In R4 the check now holds
+vacuously when FP answers no unit correctly (`read_stage1h_r4.validate_h4`). The Qwen paths
+(Quest, closed book, forced choice, the vote span, `r8list`) now also have a CPU smoke on
+Qwen3-0.6B, Qwen's `validate_with` model.

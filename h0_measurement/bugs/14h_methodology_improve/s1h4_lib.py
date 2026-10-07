@@ -35,6 +35,10 @@ CELLS (CELLS; a pilot and a gate before the blocks of each cell)
   hmllama   HELMET (kilt_nq, kilt_hotpotqa, msmarco_rerank_psg, icl_trec_coarse,
             icl_banking77), Llama at 128K, items 0-9 of each task (2 blocks of 5).
   hmqwen    the same, Qwen at 128K on 2 GPUs.
+  GPUS: Trillium gives a GPU job 1 GPU or whole 4-GPU nodes (job_gpus). A Qwen cell's two
+  blocks therefore run at once in one node job (split 2: 2 GPUs each, prompt ranges as two
+  jobs would have had; results r14s1h_<tag>_<job>_<i>/), and its pilot takes a node but runs
+  on 2 GPUs, so the gate's per-GPU peak is a block's.
 """
 from __future__ import annotations
 import math
@@ -134,15 +138,26 @@ PRESETS.update({
 # CPU smoke (excluded; Llama-3.2-1B at 4K, items cut in the middle): 16 layers, so Quest's two
 # dense layers would spend the whole 1/8; its Quest arms run at r = 1/4
 PRESETS["h4smoke"] = dict(_r4_preset("llama31-8b", 4096), quest=[("quest_v16", 0.25), ("quest4_v4", 0.25)])
-CELLS = {   # cell: suite, preset, tasks, items per task per block, blocks, wall time per block, GPUs
-    "lb2llama": dict(suite="lbv2", preset="h4llama128", tasks=(T.LBV2,), per=20, blocks=2, wall="04:00:00", gpus=1),
-    "lb2qwen": dict(suite="lbv2", preset="h4qwen128", tasks=(T.LBV2,), per=20, blocks=2, wall="04:00:00", gpus=2),
-    "hmllama": dict(suite="helmet", preset="h4llama128", tasks=T.TASKS_HM, per=5, blocks=2, wall="06:00:00", gpus=1),
-    "hmqwen": dict(suite="helmet", preset="h4qwen128", tasks=T.TASKS_HM, per=5, blocks=2, wall="06:00:00", gpus=2),
+CELLS = {   # cell: suite, preset, tasks, items per task per block, blocks, wall time per block,
+            # GPUs per block, blocks run at once per job
+    "lb2llama": dict(suite="lbv2", preset="h4llama128", tasks=(T.LBV2,), per=20, blocks=2, wall="04:00:00", gpus=1,
+                     split=1),
+    "lb2qwen": dict(suite="lbv2", preset="h4qwen128", tasks=(T.LBV2,), per=20, blocks=2, wall="04:00:00", gpus=2,
+                    split=2),
+    "hmllama": dict(suite="helmet", preset="h4llama128", tasks=T.TASKS_HM, per=5, blocks=2, wall="06:00:00", gpus=1,
+                    split=1),
+    "hmqwen": dict(suite="helmet", preset="h4qwen128", tasks=T.TASKS_HM, per=5, blocks=2, wall="06:00:00", gpus=2,
+                   split=2),
 }
+NODE_GPUS = 4   # Trillium: a GPU job takes 1 GPU or whole nodes
 PILOT_WALL = "02:00:00"
 GATE_PEAK_GIB = 76.0
 GATE_WALL_FRAC = 0.9
+
+
+def job_gpus(n: int) -> int:
+    """The GPUs a job using n of them must request (1, or whole nodes)."""
+    return 1 if n == 1 else NODE_GPUS * math.ceil(n / NODE_GPUS)
 
 
 def manifest_cell(preset_name: str, suite: str) -> str:

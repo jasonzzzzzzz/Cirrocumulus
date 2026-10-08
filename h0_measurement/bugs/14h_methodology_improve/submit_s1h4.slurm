@@ -23,6 +23,10 @@
 #                                         OFFSET + i x N_PROMPTS on its own group of the job's GPUs, and writes
 #                                         r14s1h_<tag>_<job>_<i>/ (log logs/r14s1h4_<job>_<i>.log)
 #   S1H_GPUS                              GPUs per process (default: the job's GPUs / S1H_SPLIT)
+#   S1H_STAGE                             1: copy the preset's model to $SLURM_TMPDIR before the run (Rorqual,
+#                                         2026-10-07: Qwen's weights loaded at ~2 min per tensor from the shared
+#                                         cache and a pilot hit its time limit); other cached models stay
+#                                         reachable by links; on any failure the shared cache is used
 # GPUs: the submit line's --gpus-per-node. Trillium gives a GPU job 1 GPU or whole nodes (4): Qwen at
 # 128K needs 2, so its blocks take a node and run S1H_SPLIT=2 blocks on 2 GPUs each, and its pilot
 # takes a node and runs on S1H_GPUS=2 (the gate's per-GPU peak is then a block's).
@@ -43,7 +47,8 @@ S1H_PROMPT_LIST="${S1H_PROMPT_LIST:-}"
 S1H_SEED="${S1H_SEED:-}"
 S1H_SPLIT="${S1H_SPLIT:-1}"
 S1H_GPUS="${S1H_GPUS:-0}"
-for _v in S1H_CTX S1H_N_PROMPTS S1H_PROMPT_OFFSET S1H_SPLIT S1H_GPUS; do
+S1H_STAGE="${S1H_STAGE:-0}"
+for _v in S1H_CTX S1H_N_PROMPTS S1H_PROMPT_OFFSET S1H_SPLIT S1H_GPUS S1H_STAGE; do
   [[ "${!_v}" =~ ^[0-9]+$ ]] || { echo "ERROR: $_v must be an integer" >&2; exit 1; }
 done
 [[ -z "$S1H_SEED" || "$S1H_SEED" =~ ^[0-9]+$ ]] || { echo "ERROR: S1H_SEED must be an integer" >&2; exit 1; }
@@ -82,6 +87,28 @@ python -u $DIR/test_r14_stage1h_r2.py --fast || { echo "ERROR: Stage 1h R2 tests
 python -u $DIR/test_r14_stage1h.py --fast || { echo "ERROR: Stage 1h tests failed -- not running"; exit 1; }
 python -u h0_measurement/bugs/14_kernel_tpot/test_r14_stage1g.py --fast || { echo "ERROR: Stage 1g tests failed -- not running"; exit 1; }
 python -u tests/test_r8.py --fast || { echo "ERROR: R8 tests failed -- not running"; exit 1; }
+
+stage_model() {   # copy the preset's model into a node-local hub; link every other cached model
+  local mid src dst t0
+  mid=$(python -c "import sys, yaml; sys.path.insert(0, '$DIR'); import s1h4_lib as L
+cfg = yaml.safe_load(open('h0_measurement/models.yaml'))
+rows = cfg if isinstance(cfg, list) else next(v for v in cfg.values() if isinstance(v, list))
+tag = L.PRESETS['$S1H_PRESET']['model']
+print(next(r['id'] for r in rows if isinstance(r, dict) and r.get('tag') == tag))") || return 1
+  src="$HF_HUB_CACHE/models--${mid//\//--}"
+  dst="${SLURM_TMPDIR:?}/hub"
+  [[ -d "$src" ]] || { echo "stage: $src not found" >&2; return 1; }
+  mkdir -p "$dst"
+  for d in "$HF_HUB_CACHE"/models--*; do [[ "$d" == "$src" ]] || ln -sfn "$d" "$dst/"; done
+  t0=$SECONDS
+  cp -a "$src" "$dst/" || return 1
+  echo "stage: $mid copied to $dst in $((SECONDS - t0)) s ($(du -sh "$dst/$(basename "$src")" | cut -f1))"
+  export HF_HUB_CACHE="$dst" HUGGINGFACE_HUB_CACHE="$dst"
+}
+if (( S1H_STAGE == 1 )); then
+  stage_model || { echo "WARN: model staging failed; loading from the shared cache" >&2
+                   export HF_HUB_CACHE="$HF_HOME/hub" HUGGINGFACE_HUB_CACHE="$HF_HOME/hub"; }
+fi
 
 SEL=(--tasks "$S1H_TASKS")
 if [[ -n "$S1H_PROMPT_LIST" ]]; then SEL+=(--prompt-list "$S1H_PROMPT_LIST")

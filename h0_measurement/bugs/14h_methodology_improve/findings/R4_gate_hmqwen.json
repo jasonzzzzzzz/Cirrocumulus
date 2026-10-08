@@ -1,0 +1,16 @@
+{
+ "cell": "hmqwen",
+ "job": "22694021",
+ "verdict": "PASS",
+ "problems": [],
+ "peak_gib_dev": [
+  41.85463571548462,
+  41.873711585998535
+ ],
+ "seconds_per_unit": {
+  "icl_banking77": 109.52707386016846,
+  "msmarco_rerank_psg": 823.2812104225159
+ },
+ "projected_block_h": 2.0,
+ "wall_h": 6.0
+}

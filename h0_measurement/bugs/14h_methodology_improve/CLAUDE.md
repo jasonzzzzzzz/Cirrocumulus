@@ -29,6 +29,10 @@ history; its Parts K–L are the summary.
 | `*_r4`, `s1h4_lib.py`, `run_s1h4.py` | R4b (LongBench v2 and HELMET at 128K, Quest, the floor system, closed book, pilots and gates) |
 | `stops_s1h.py` | the `r8list` stop rule (R3a2, R3b, R4b) |
 | `tasks_s1h4.py`, `make_r4_manifest.py`, `data/r4/` | R4's tasks, the item manifest and its builder, HELMET's ICL data (the large data under `.h0_corpus/longbench_v2/` and `.h0_corpus/helmet/`) |
+| `cert_s1h5.py` | R5's theory as code: missed mass, the certificate, certified / page-certified selection, Lemma 1 and 3 bounds (pure torch) |
+| `probe_s1h5.py`, `s1h5_lib.py`, `run_s1h5.py` | R5.1/R5.2: the measurement and injected-error hooks, presets and arms (probe, inj_top/inj_rnd, the tail arm), the driver on any suite (`--suite r3 \| r3b \| r4`) |
+| `test_r14_stage1h_r5.py`, `consolidate_r5.py` | R5's tests (the lemmas by brute force; driver smokes) and R5.0's loss split (`findings/R5_0_split.md`) |
+| `submit_s1h5.slurm`, `script_stage1h_r5.sh`, `read_stage1h_r5.py` | R5's worker (`S1H_SUITE`, `S1H_TASK_CFG`), its chains (`--pilot-r5`, `--run-r5`, `--run-r53`) and its readers (`--pilot`, `--r5`, `--r53`); R5.3's tail scan is family `tail5` in `s1h5_lib.py` / `run_s1h5.py` |
 | `findings/R<n>.md` | each run's tables and read |
 
 ## Rules

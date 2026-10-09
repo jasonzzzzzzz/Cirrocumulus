@@ -48,6 +48,7 @@ from sievelib.kv_quant_baselines import fp8_e4m3
 import cert_s1h5 as K
 
 PAGE = 16
+EXTRA_FRAC = (1 / 128, 1 / 32, 1 / 8)   # Mode T: context share read exactly on top of the vote's rows (tailx_p128/p32/p8)
 Z_HP = 5.0          # high-probability bound: |<q, dk>| <= z |q| |dk| / sqrt(d) for a rotated (direction-random) error
 CHUNK_PROBE = 4
 CHUNK_INJ = 8
@@ -131,6 +132,45 @@ def _layer_tensors(li, key, value, Cn):
     return Kc, Vc, Kh, Vh
 
 
+def _dist(ot, Vh, vn2):
+    """|v_hat_i - o_T| for every row: ot [Hkv, r, n, d], Vh [Hkv, C, d], vn2 = |v_hat|^2 [Hkv, 1, 1, C]."""
+    d2 = vn2 - 2.0 * torch.einsum("grnd,gcd->grnc", ot, Vh) + (ot * ot).sum(-1, keepdim=True)
+    return d2.clamp_min(0.0).sqrt()
+
+
+def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
+    """Mode T's certificates (plan.md, "R5 theory, part 3"; cert_s1h5 Lemmas 4 and 5) for the tail design
+    at the vote's rows with 4-bit ('tail') and exact ('tailx') values on them, and for tailx with
+    EXTRA_FRAC of the context read exactly on top, per step, in order of the largest upper-bound share
+    e^{s_hat + t} over the group (t = Lemma 5's truncation): error, Lemma 4 (worst-case key bound b),
+    Lemma 5 (sigma = b / sqrt(d), DELTA_T) with its parts, Lemma 5's one-pass form for tailx, and the
+    share of unread rows whose score error leaves Lemma 5's truncation."""
+    Hkv, r, n, Cn = s.shape
+    km = v1n.unsqueeze(1)                                                  # [Hkv, 1, n, C]
+    sig = b / qg.shape[-1] ** 0.5
+    for k_, xr in (("tail", False), ("tailx", True)):
+        dist = _dist(outs[k_], Vh, vn2)
+        rec[f"l4_{k_}"] = K.tail_bound_det(s, sh, b, km, nu_r, dist, lf, x_read=xr)
+        rec[f"l5_{k_}"], pr = K.tail_bound_conc(s, sh, sig, km, nu_r, dist, lf, x_read=xr, parts=True)
+        for p_ in ("mean", "B", "a"):
+            rec[f"l5{p_}_{k_}"] = pr[p_]
+        if xr:
+            rec["l5p_tailx"] = K.tail_bound_conc(s, sh, sig, km, nu_r, dist, lf, x_read=True, one_pass=True,
+                                                 vnorm=vn2.sqrt(), onorm=outs["tailx"].norm(dim=-1))
+        del dist
+    n_t = (~v1n).sum(-1).view(Hkv, 1, n, 1)
+    t = K.trunc_z(n_t, K.DELTA_T / 2).to(s.dtype) * sig
+    rec["trunc_viol"] = (((sh - s).abs() > t) & ~km).sum(-1).float() / n_t.squeeze(-1).clamp_min(1)
+    ub = sh + t
+    pri = (ub - torch.logsumexp(ub, -1, keepdim=True)).amax(1).masked_fill(v1n, NEG)   # [Hkv, n, C]
+    for f in EXTRA_FRAC:
+        ke = v1n | K.topk_keep(pri, int(round(f * Cn)))
+        oe = _out(s, Vc, lf, of, keep=ke, s_alt=sh, V_alt=Vh)
+        tag = f"tailx_p{int(round(1 / f))}"
+        rec[f"err_{tag}"] = (oe - o).norm(dim=-1)
+        rec[f"l5_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, _dist(oe, Vh, vn2), lf, x_read=True)
+
+
 def _probe_layer(li, query, key, value, sc, i0):
     q_len, k_len = query.shape[2], key.shape[2]
     base, Cn = k_len - q_len, C.STATE.ctx_len
@@ -145,7 +185,10 @@ def _probe_layer(li, query, key, value, sc, i0):
     eta = (Kc - Kh).norm(dim=-1)                                          # [Hkv, C] exact per-row error
     Kf, Vf = key[0, :, Cn:].float(), value[0, :, Cn:].float()
     vmax = value[0].float().norm(dim=-1).amax(-1).view(Hkv, 1, 1)
-    nu = (Vc - Vh).norm(dim=-1).amax(-1).view(Hkv, 1, 1)
+    nu_r = (Vc - Vh).norm(dim=-1)                                         # [Hkv, C] per-row value error
+    nu = nu_r.amax(-1).view(Hkv, 1, 1)
+    nu_r = nu_r.view(Hkv, 1, 1, Cn)
+    vn2 = (Vh * Vh).sum(-1).view(Hkv, 1, 1, Cn)
     kmin, kmax = K.page_minmax(Kc, PAGE)
     keeps = {k: v[li].to(dev) for k, v in P.keep.items() if li in v}
     v1 = keeps["vote1"]
@@ -179,6 +222,7 @@ def _probe_layer(li, query, key, value, sc, i0):
         v1n = v1.view(Hkv, 1, Cn).expand(Hkv, n, Cn)
         outs = dict(sys=_out(s, Vh, lf, of, keep=v1n),
                     tail=_out(s, Vh, lf, of, keep=v1n, s_alt=sh, V_alt=Vh),
+                    tailx=_out(s, Vc, lf, of, keep=v1n, s_alt=sh, V_alt=Vh),
                     fp8=_out(s8, V8, lf, of), d4=_out(sh, Vh, lf, of))
         if "static1" in keeps:
             outs["static1"] = _out(s, Vc, lf, of, keep=keeps["static1"].view(Hkv, 1, Cn).expand(Hkv, n, Cn))
@@ -191,6 +235,7 @@ def _probe_layer(li, query, key, value, sc, i0):
         rec["l1_bound"] = K.lemma1_bound(eb, 1.0, 0.0) * vmax + nu          # 2 V eps_bar + nu
         bt = b.masked_fill(v1.view(Hkv, 1, 1, Cn), 0).amax(-1)
         rec["l3_bound"] = eb * ((torch.exp(2 * bt) - 1) * (3 * vmax + nu) + nu) + nu
+        _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of)
         bm = K.bmin_counts(s, GRID, lf)                                   # [len, Hkv, r, n]
         for i, e in enumerate(GRID):
             rec[f"bmin_{e}"] = bm[i].float()

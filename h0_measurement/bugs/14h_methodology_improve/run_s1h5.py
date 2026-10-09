@@ -116,9 +116,23 @@ def _probe_summary(hf, gf, tf):
         out["probe_tightness_med"] = float((hf.epsbar_vote1[pos] / hf.eps_vote1[pos]).median()) if pos.any() else np.nan
         out["probe_l1_ok"] = float((hf.err_sys <= hf.l1_bound * (1 + 1e-4) + 1e-6).mean())
         out["probe_l3_ok"] = float((hf.err_tail <= hf.l3_bound * (1 + 1e-4) + 1e-6).mean())
-        for k in ("sys", "tail", "fp8", "d4", "static1"):
+        for k in ("sys", "tail", "tailx", "fp8", "d4", "static1"):
             if f"rel_{k}" in hf:
                 out[f"probe_rel_{k}_med"] = float(hf[f"rel_{k}"].median())
+        # Mode T's certificates (Lemmas 4 and 5): validity / coverage, and how often the bound is within
+        # FP8's own error at the same head and step (certified at FP8's level)
+        tags = ["tail", "tailx"] + [f"tailx_p{int(round(1 / f))}" for f in PB.EXTRA_FRAC]
+        for k in tags:
+            if f"l5_{k}" not in hf:
+                continue
+            err = hf[f"err_{k}"]
+            if f"l4_{k}" in hf:
+                out[f"probe_l4_{k}_ok"] = float((err <= hf[f"l4_{k}"] * (1 + 1e-4) + 1e-6).mean())
+            out[f"probe_l5_{k}_cover"] = float((err <= hf[f"l5_{k}"] * (1 + 1e-4) + 1e-6).mean())
+            out[f"probe_l5_{k}_fp8"] = float((hf[f"l5_{k}"] <= hf.err_fp8).mean())
+            out[f"probe_err_{k}_fp8"] = float((err <= hf.err_fp8).mean())
+        if "trunc_viol" in hf:
+            out["probe_trunc_viol_any"] = float((hf.trunc_viol > 0).mean())
     if len(gf):
         for e in L.TRACE_EPS:
             for k in ("union", "cert", "cert_warm", "cert_hp", "page"):

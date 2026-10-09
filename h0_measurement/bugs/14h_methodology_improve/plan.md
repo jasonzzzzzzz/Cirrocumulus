@@ -770,3 +770,96 @@ each model × cell × family separately; `read_stage1h_r5.py --r53`):*
 - **Q4** selection with nothing evicted: `tail2xo_v2` − `tail2x_v2`.
 - **Q5** against eviction: `tail2x_v2` − the system, − the exact oracle (at 1/8).
 - **The frontier:** every arm's traffic, KL/token, dP/token and accuracy change (FP-correct units).
+
+**2026-10-09: R5 theory, part 3 — a certificate for the tail design (draft; no run uses it yet).**
+Code: `cert_s1h5.py` (`tail_bound_det`, `tail_bound_conc`, `bernstein_radius`, `trunc_z`,
+`center_dist`), tests `test_r14_stage1h_r5.py` (`test_cert_tail`), probe columns `probe_s1h5.py`
+(`_tail_certs`).
+
+*Why.* R5: Lemma 3 never certified the tail at FP8's error (0% of head-steps). R5's head records
+show why no worst-case bound can: the Cauchy–Schwarz score bound b_i = ‖q‖η_i/√d (largest per head
+and step) has median 8.1 nats on Llama 128K and 8.0 on Qwen 32K (p99 12 and 30), so any factor
+e^{b} is about 3,000; the high-probability bound (z = 5) is about 3.5 nats, still a factor of 33. Yet
+the actual score errors are small and unbiased in direction (the z = 5 bound is exceeded on 0.45%
+of head-steps). The certificate has to use the errors' independence, not their worst case.
+
+*Setting.* One head; S = rows read with exact keys (values exact with `x`, else from tier 1),
+T = unread rows from tier 1, fixed rows exact (weight W_F). w_i = e^{s_i}, ŵ_i = e^{ŝ_i},
+δ_i = s_i − ŝ_i, e_i = v_i − v̂_i, ν_i = ‖e_i‖, õ = the design's output, Z = W_F + Σ_S w + Σ_T w.
+Per row the design stores η_i = ‖k_i − k̂_i‖ and ν_i (one scalar each, computed at write time; an
+8-bit log code rounded up keeps every bound valid: 16 bits on a 4/4-bit row of 1,024 at d = 128,
++1.6%).
+
+- **Identity.** Z(o − õ) = Σ_S w_i(v_i − ṽ_i) + Σ_T w_i e_i + Σ_T (w_i − ŵ_i)(v̂_i − õ), ṽ_i the
+  value the design reads on S. *Proof:* Zo and Ẑõ (Ẑ = W_F + Σ_S w + Σ_T ŵ) are the two weighted
+  sums; subtract Zõ = Ẑõ + (Z − Ẑ)õ. Checked exactly in the tests (deviation 2e-15).
+- **Lemma 4 (deterministic, per row).** With |δ_i| ≤ b_i:
+  ‖o − õ‖ ≤ [Σ_S w_i ν_i + Σ_T ŵ_i(e^{b_i}ν_i + (e^{b_i} − 1)‖v̂_i − õ‖)] / (W_F + Σ_S w_i +
+  Σ_T ŵ_i e^{−b_i}), the S sum only with 4-bit read values. *Proof:* triangle inequality on the
+  identity; w_i ∈ [ŵ_i e^{−b_i}, ŵ_i e^{b_i}] gives |w_i − ŵ_i| ≤ ŵ_i(e^{b_i} − 1), w_i ≤ ŵ_i e^{b_i}
+  and Z ≥ the denominator. Lemma 3 with each row's own b_i, ν_i and its distance from the output
+  (the tail's mass-weighted value spread) instead of maxima; never above Lemma 3 in the tests
+  (median 0.05 of it), still carries e^{b_i}.
+- **Model M.** Given everything stored and the rows read (S chosen from those, e.g. the vote):
+  (M1) rows' errors are independent, and each row's key and value errors are independent;
+  (M2) E[e_i | δ_i] = 0, ‖e_i‖ = ν_i; (M3) δ_i is symmetric and sub-Gaussian with proxy σ_i², i.e.
+  E e^{λδ_i} ≤ e^{λ²σ_i²/2}. A uniformly random error direction gives σ_i = b_i/√d (the uniform
+  sphere's coordinates are sub-Gaussian with proxy 1/d). Lloyd-Max's centroid condition (each level
+  is its cell's conditional mean under the design distribution) is what makes (M2)/(M3)'s zero
+  mean plausible for a rotated store. R5's hp record (the z = 5 bound exceeded on 0.45% of
+  head-steps, fewer than a Gaussian with σ_i = b_i/√d would give at 128K rows) suggests that σ_i
+  is, if anything, an overestimate.
+- **Lemma 5 (concentration).** Under M, with probability ≥ 1 − δ: ‖o − õ‖ ≤ (m + r)/D with
+  t_i = zσ_i, z = √(2 ln(4|T|/δ)); D = W_F + Σ_S w_i + Σ_T ŵ_i e^{−t_i};
+  m = Σ_T ŵ_i(e^{min(σ_i²/2, t_i)} − 1)‖v̂_i − õ‖;
+  B² = Σ_S (w_iν_i)² + Σ_T ŵ_i²[g_iν_i² + (g_i − 1)‖v̂_i − õ‖²], g_i = e^{min(2σ_i², 2t_i)};
+  a = max(max_S w_iν_i, max_T ŵ_i(e^{t_i}ν_i + (e^{t_i} − 1)‖v̂_i − õ‖));
+  r = La/3 + √((La/3)² + 2LB²), L = ln(4/δ); the S terms only with 4-bit read values.
+  *Proof.* (i) Truncation: P(|δ_i| > t_i) ≤ 2e^{−z²/2} per row, so all of T stay within t_i except
+  with probability ≤ δ/2; on that event Z ≥ D. (ii) Write the identity's right side as Σ X_i,
+  X_i = w_i e_i on S, X_i = ŵ_i[e^{δ_i}e_i + (e^{δ_i} − 1)u_i] on T, u_i = v̂_i − õ (fixed given
+  the conditioning; õ uses no unread row's true key or value, nor, with 4-bit read values, a read
+  row's true value). Conditioned on the event, the X_i stay independent. Mean: E X_i = 0 on S;
+  on T, E X_i = ŵ_i(E[e^{δ_i}] − 1)u_i, and since δ_i is symmetric, E[e^{δ_i} | |δ_i| ≤ t_i] =
+  E[cosh δ_i | ·] ≤ min(E cosh δ_i, cosh t_i) ≤ e^{min(σ_i²/2, t_i)}, and ≥ 1 by Jensen; so
+  ‖Σ E X_i‖ ≤ m. Second moment: the cross term vanishes by (M2), and E[e^{2δ}] ≤ g_i, Var(e^δ) ≤
+  g_i − 1, so Σ E‖X_i − EX_i‖² ≤ B². Range: |e^{δ} − E e^{δ}| ≤ e^{t} − 1 on the event, so
+  ‖X_i − EX_i‖ ≤ a. (iii) Pinelis' Bernstein inequality for independent zero-mean vectors in a
+  Hilbert space (Ann. Probab. 22, 1994, Thm 3.4): P(‖Σ(X_i − EX_i)‖ ≥ r) ≤
+  2exp(−r²/(2(B² + ra/3))) = δ/2 at the r above. (iv) ‖o − õ‖ ≤ (‖Σ EX_i‖ + ‖Σ(X_i − EX_i)‖)/Z. ∎
+  Tests (synthetic data drawn from M, 2,400 head cases): no failure at δ = 0.3, 0.1, 0.01, 0.001;
+  median bound/error 14 (conservative), 0.1 of Lemma 4. Negative control: with every key error
+  along +q and value errors aligned, Lemma 5 fails on 332 of 640 cases and Lemma 4 on none, so the
+  independence assumption carries real weight and has to be measured, not assumed.
+- **One-pass form.** Replacing Σ a_i‖u_i‖ by √(Σa_i · Σa_i‖u_i‖²) and ‖u_i‖ ≤ ‖v̂_i‖ + ‖õ‖ in the
+  max, every sum expands into running sums the attention pass already visits (‖u_i‖² = ‖v̂_i‖² −
+  2⟨v̂_i, õ⟩ + ‖õ‖²), so a kernel can emit the bound with its output. Never below the two-pass form.
+
+*What it predicts.* (1) With 4-bit values on S (`tail4_v4`, R5's tail arm) the S term ≈ the
+read rows' own 4-bit error, about 3× FP8's per-row error, so the bound cannot reach FP8's level:
+certifying at FP8 needs exact values on the read rows (`x`). (2) With `x`, the variance term
+shrinks like 1/√(effective tail rows), so a flat tail certifies; the range term a is set by the
+largest single tail row's e^{t}-inflated weight, so reading the rows of largest e^{ŝ_i + t_i}
+exactly (the theorem's controller, with Lemma 5 as its bound) is what certifies. (3) The mean term
+m is a real bias, not slack: E w_i = ŵ_i E e^{δ_i} ≥ ŵ_i, so unbiased key errors under-weight the
+tail by ≈ σ_i²/2 on average. A design could add σ_i²/2 to tier-1 scores (computable from η_i and
+‖q‖); it would remove the bias from the error but not from the bound (M gives only an upper bound
+on E e^{δ}). Not tested.
+
+*The probe's new columns* (per head and answer step; side file `s1h5_probe_heads`):
+`err_tailx`/`rel_tailx` (the vote's rows with exact keys and values, the rest from tier 1);
+`l4_tail`, `l4_tailx` (Lemma 4, worst-case b); `l5_tail`, `l5_tailx` (Lemma 5, σ = b/√d,
+δ = 1e-3) with their parts `l5mean_*`, `l5B_*`, `l5a_*` (÷ D: the bound at another δ is
+mean + bernstein_radius(B, a, δ/2)); `l5p_tailx` (one-pass); `trunc_viol` (share of unread rows
+outside t_i); and, for `x` with C/128, C/32 or C/8 more rows read exactly per step (largest
+e^{ŝ + t} share over the group), `err_tailx_p128|p32|p8` and `l5_tailx_p128|p32|p8`. Row
+summaries in the results file: `probe_l4_*_ok`, `probe_l5_*_cover`, `probe_l5_*_fp8` (share of
+head-steps where the bound is within FP8's own error there), `probe_err_*_fp8`,
+`probe_trunc_viol_any`.
+
+*For the run that uses it (to be frozen as its own amendment):* V = Lemma 4 holds on every
+head-step; Lemma 5's coverage (error ≤ bound) per model × cell, with `trunc_viol` and the sign of
+the realized mean term separating which part of M fails if coverage is below 1 − δ; the answer =
+`probe_l5_*_fp8` at the vote's rows and with each extra-row read, against the extra rows' traffic.
+Probe cost: about one more attention-sized product per design and per extra-row read (8 per
+chunk), and about 2 GB of float64 temporaries at 128K (Llama, 4 steps per chunk).

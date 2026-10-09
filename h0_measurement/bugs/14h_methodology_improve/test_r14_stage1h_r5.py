@@ -5,7 +5,7 @@ random and adversarial inputs. CPU only; same PASS/FAIL convention as test_r8.
     .venv/bin/python h0_measurement/bugs/14h_methodology_improve/test_r14_stage1h_r5.py --fast
     .venv/bin/python h0_measurement/bugs/14h_methodology_improve/test_r14_stage1h_r5.py   # + Llama-3.2-1B driver smokes
 """
-import glob, os, shutil, subprocess, sys, tempfile
+import glob, math, os, shutil, subprocess, sys, tempfile
 
 import torch
 
@@ -195,6 +195,154 @@ def test_cert():
           "cold and warm, page-certified)", mism == 0, f"({mism} mismatches)")
 
 
+def _unit(g, *shape):
+    x = torch.randn(*shape, generator=g, dtype=DT)
+    return x / x.norm(dim=-1, keepdim=True)
+
+
+def _model_instance(g, Hkv=2, r=4, C=256, d=64, key_err=0.1, val_err=0.1, kind="random", align=False):
+    """Lemma 5's model: tier 1 (k_hat, v_hat) drawn first, the truth = tier 1 + an independent error of
+    norm eta_i (keys) / nu_i (values) in a uniformly random direction; the read rows chosen from tier 1
+    (top C/8 tier-1 shares over the group). align: the adversarial opposite (every key error along +q,
+    every value error in one direction, tail values offset from the read ones)."""
+    q = torch.randn(Hkv, r, d, generator=g, dtype=DT)
+    Kh = torch.randn(Hkv, C, d, generator=g, dtype=DT)
+    if kind == "spiky":
+        idx = torch.randint(0, C, (Hkv, 4), generator=g)
+        for h in range(Hkv):
+            Kh[h, idx[h]] += 2.0 * q[h].mean(0)
+    Vh = torch.randn(Hkv, C, d, generator=g, dtype=DT)
+    eta = key_err * Kh.norm(dim=-1) * (0.5 + torch.rand(Hkv, C, generator=g, dtype=DT))
+    nu = val_err * Vh.norm(dim=-1) * (0.5 + torch.rand(Hkv, C, generator=g, dtype=DT))
+    sc = d ** -0.5
+    s_hat = torch.einsum("grd,gcd->grc", q, Kh) * sc
+    pri = torch.softmax(s_hat, -1).amax(1)
+    keep = K.topk_keep(pri, C // 8)                                        # [Hkv, C], from tier 1 only
+    if align:
+        qd = q.mean(1) / q.mean(1).norm(dim=-1, keepdim=True)              # one direction per KV head
+        Kx = Kh + eta.unsqueeze(-1) * qd.unsqueeze(1)
+        u = _unit(g, Hkv, 1, d)
+        Vh = Vh + 3.0 * torch.where(keep.unsqueeze(-1), -u, u)
+        Vx = Vh + nu.unsqueeze(-1) * u
+    else:
+        Kx = Kh + eta.unsqueeze(-1) * _unit(g, Hkv, C, d)
+        Vx = Vh + nu.unsqueeze(-1) * _unit(g, Hkv, C, d)
+    s = torch.einsum("grd,gcd->grc", q, Kx) * sc
+    b = K.score_bound(q, eta.unsqueeze(1), sc)
+    sf = torch.randn(Hkv, r, 3, generator=g, dtype=DT)
+    Vf = torch.randn(Hkv, 3, d, generator=g, dtype=DT)
+    return dict(s=s, s_hat=s_hat, b=b, sigma=b / d ** 0.5, keep=keep.unsqueeze(1), nu=nu.unsqueeze(1),
+                V=Vx.unsqueeze(1), Vh=Vh.unsqueeze(1), lse_fix=torch.logsumexp(sf, -1),
+                o_fix=torch.einsum("grf,gfd->grd", torch.softmax(sf, -1), Vf))
+
+
+def _tail_case(x, keep, nu, xr):
+    """Exact output, the tail design's output, its error and dist, for exact (xr) or 4-bit read values."""
+    s, s_hat, lf, of = x["s"], x["s_hat"], x["lse_fix"], x["o_fix"]
+    o = K.attend(s, x["V"], lf, of)
+    oT = K.tail_output(s, s_hat, x["V"] if xr else x["Vh"], x["Vh"], keep, lf, of)
+    return o, oT, (o - oT).norm(dim=-1), K.center_dist(x["Vh"], oT)
+
+
+def test_cert_tail():
+    print("\n[S1h R5] cert_s1h5: the tail certificate with per-row errors (Lemmas 4 and 5), by brute force")
+    g = torch.Generator().manual_seed(1)
+    # the identity behind both lemmas, and Lemma 4 on the R5 instances (random, spiky, flat, key errors to 1.0)
+    idev, viol4, viol4p, n4, tighter, ratio43 = 0.0, 0, 0, 0, 0, []
+    for trial in range(60):
+        kind = ("random", "spiky", "flat")[trial % 3]
+        x = _instance(g, kind=kind, key_err=(0.02, 0.2, 1.0)[trial % 3], val_err=(0.02, 0.1, 0.3)[trial % 3])
+        s, s_hat, b, lf = x["s"], x["s_hat"], x["b"], x["lse_fix"]
+        keep = torch.rand(s.shape[0], 1, s.shape[-1], generator=g, dtype=DT) < (0.1, 0.3, 0.6)[trial % 3]
+        nu = (x["V"] - x["Vh"]).norm(dim=-1)                               # [Hkv, 1, C] per-row value error
+        for xr in (False, True):
+            o, oT, err, dist = _tail_case(x, keep, nu, xr)
+            # Z (o - o_T) = sum_S w (v - v_read) + sum_T w (v - v_hat) + sum_T (w - w_hat)(v_hat - o_T)
+            w, wh = torch.exp(s), torch.exp(s_hat)
+            Z = w.sum(-1) + torch.exp(lf)
+            kS, kT = keep.expand_as(s).double(), (~keep).expand_as(s).double()
+            dv = x["V"] - x["Vh"]
+            rhs = (torch.einsum("grc,gxcd->grd", kS * w, dv) * (0.0 if xr else 1.0)
+                   + torch.einsum("grc,gxcd->grd", kT * w, dv)
+                   + torch.einsum("grc,grcd->grd", kT * (w - wh), x["Vh"].expand(*s.shape, -1) - oT.unsqueeze(-2)))
+            idev = max(idev, float(((Z.unsqueeze(-1) * (o - oT) - rhs).norm(dim=-1) / Z).max()))
+            l4 = K.tail_bound_det(s, s_hat, b, keep, nu, dist, lf, x_read=xr)
+            l4p = K.tail_bound_det(s, s_hat, b, keep, nu, dist, lf, x_read=xr, one_pass=True)
+            viol4 += int(((err - l4) > 1e-12).sum())
+            viol4p += int(((l4 - l4p) > 1e-12).sum())
+            n4 += err.numel()
+            if not xr:
+                eb = K.certificate(s, s_hat, b, keep, lf)
+                bt = b.masked_fill(keep.expand_as(b), 0).amax(-1)
+                vmax = float(torch.cat([x["V"].norm(dim=-1).flatten(), x["Vh"].norm(dim=-1).flatten()]).max())
+                l3 = K.lemma3_bound(eb, bt, vmax, float(nu.max()), float(nu.max()))
+                tighter += int((l4 <= l3).sum())
+                ratio43 += (l4 / l3).flatten().tolist()
+    check("Lemma 4's identity: Z (o - o_T) = sum_S w dv_read + sum_T w dv + sum_T (w - w_hat)(v_hat - o_T), "
+          "exact and 4-bit read values", idev < 1e-10, f"(max deviation / Z {idev:.1e})")
+    check("Lemma 4 never below the true error (60 instances x 2 designs: random, spiky, flat; key errors "
+          "0.02-1.0); the one-pass form never below it", viol4 == 0 and viol4p == 0,
+          f"({n4} head cases; violations {viol4}, one-pass below two-pass {viol4p})")
+    rs = sorted(ratio43)
+    check("Lemma 4 is tighter than Lemma 3 (4-bit read values, same instances)", tighter >= 0.99 * len(rs),
+          f"(tighter on {tighter}/{len(rs)}; median L4/L3 {rs[len(rs) // 2]:.3f})")
+
+    # adversarial: every key error raises every unread score by its full bound, value errors aligned
+    viol_adv, fail5_adv, n_adv = 0, 0, 0
+    for trial in range(40):
+        x = _model_instance(g, align=True, key_err=(0.05, 0.2)[trial % 2])
+        s, s_hat, b, lf = x["s"], x["s_hat"], x["b"], x["lse_fix"]
+        for xr in (False, True):
+            o, oT, err, dist = _tail_case(x, x["keep"], x["nu"], xr)
+            l4 = K.tail_bound_det(s, s_hat, b, x["keep"], x["nu"], dist, lf, x_read=xr)
+            l5 = K.tail_bound_conc(s, s_hat, x["sigma"], x["keep"], x["nu"], dist, lf, x_read=xr)
+            viol_adv += int(((err - l4) > 1e-12).sum())
+            fail5_adv += int((err > l5).sum())
+            n_adv += err.numel()
+    check("Lemma 4 holds against adversarial (aligned) errors; Lemma 5, a model bound, does not "
+          "(negative control: its independence assumption carries weight)", viol_adv == 0 and fail5_adv > 0,
+          f"({n_adv} head cases; Lemma 4 violations {viol_adv}; Lemma 5 failures {fail5_adv})")
+
+    # Lemma 5 under its model: coverage at several delta; one-pass never below; parts reproduce the bound
+    fails = {d: 0 for d in (0.3, 0.1, 0.01, K.DELTA_T)}
+    n5, below_p, parts_dev, r54, r5e = 0, 0, 0.0, [], []
+    for trial in range(150):
+        x = _model_instance(g, kind=("random", "spiky")[trial % 2], key_err=(0.05, 0.1, 0.2)[trial % 3],
+                            val_err=(0.05, 0.1, 0.2)[trial % 3])
+        s, s_hat, b, sig, lf, kp, nu = x["s"], x["s_hat"], x["b"], x["sigma"], x["lse_fix"], x["keep"], x["nu"]
+        for xr in (False, True):
+            o, oT, err, dist = _tail_case(x, kp, nu, xr)
+            for dl in fails:
+                fails[dl] += int((err > K.tail_bound_conc(s, s_hat, sig, kp, nu, dist, lf, x_read=xr, delta=dl)).sum())
+            l5, pr = K.tail_bound_conc(s, s_hat, sig, kp, nu, dist, lf, x_read=xr, parts=True)
+            l5p = K.tail_bound_conc(s, s_hat, sig, kp, nu, dist, lf, x_read=xr, one_pass=True,
+                                    vnorm=x["Vh"].norm(dim=-1), onorm=oT.norm(dim=-1))
+            below_p += int(((l5 - l5p) > 1e-12).sum())
+            parts_dev = max(parts_dev, float((pr["mean"] + K.bernstein_radius(pr["B"], pr["a"], K.DELTA_T / 2) - l5).abs().max()))
+            l4 = K.tail_bound_det(s, s_hat, b, kp, nu, dist, lf, x_read=xr)
+            r54 += (l5 / l4).flatten().tolist()
+            r5e += (l5 / err).flatten().tolist()
+            n5 += err.numel()
+    ok_cov = all(f <= dl * n5 for dl, f in fails.items()) and fails[K.DELTA_T] == 0
+    check("Lemma 5 under its model: failures <= delta x cases at every delta, none at DELTA_T", ok_cov,
+          f"({n5} head cases; failures {fails})")
+    r54.sort(), r5e.sort()
+    check("Lemma 5: one-pass form never below the two-pass; parts reproduce the bound; tighter than Lemma 4",
+          below_p == 0 and parts_dev < 1e-9 and r54[len(r54) // 2] < 1.0,
+          f"(median L5/L4 {r54[len(r54) // 2]:.3f}, median L5/error {r5e[len(r5e) // 2]:.1f})")
+
+    # edge cases: every row read -> Lemma 4 = Lemma 5 = 0 with exact read values; trunc_z
+    x = _model_instance(g)
+    allk = torch.ones_like(x["keep"])
+    o, oT, err, dist = _tail_case(x, allk, x["nu"], True)
+    e4 = K.tail_bound_det(x["s"], x["s_hat"], x["b"], allk, x["nu"], dist, x["lse_fix"], x_read=True)
+    e5 = K.tail_bound_conc(x["s"], x["s_hat"], x["sigma"], allk, x["nu"], dist, x["lse_fix"], x_read=True)
+    zz = float(K.trunc_z(1000, 0.01))
+    check("every row read, exact values: both bounds 0; trunc_z solves 2 n e^{-z^2/2} = delta",
+          float(err.max()) < 1e-12 and float(e4.max()) == 0.0 and float(e5.max()) == 0.0
+          and abs(2000 * math.exp(-zz * zz / 2) - 0.01) < 1e-12)
+
+
 def _raises(f):
     try:
         f()
@@ -330,6 +478,20 @@ def test_driver_smoke():
                   f"{float((h.epsbar_vote1 / h.eps_vote1.clip(lower=1e-9)).median()):.1f}; KL by eps "
                   f"{kl.round(4).to_dict()}; quarters' KL {klq:.4f} vs all layers {kl_all01:.4f}; controller rows "
                   f"{ {f'{b}@{e}': round(float((g.F_sum / g.steps / g.ctx).mean()), 3) for (b, e), g in tf.groupby(['bound', 'eps'])} })")
+            tags = ["tail", "tailx", "tailx_p128", "tailx_p32", "tailx_p8"]
+            cols = {f"{p}_{k}" for k in tags for p in ("err", "l5")} | {"l4_tail", "l4_tailx", "l5p_tailx", "trunc_viol"}
+            good_t = (cols <= set(h)
+                      and all(float((h[f"err_{k}"] <= h[f"l4_{k}"] * (1 + 1e-4) + 1e-6).mean()) == 1.0 for k in ("tail", "tailx"))
+                      and float((h.l5p_tailx >= h.l5_tailx * (1 - 1e-5)).mean()) == 1.0
+                      and {"probe_l5_tailx_fp8", "probe_l5_tailx_cover", "probe_l4_tail_ok"} <= set(pr.columns))
+            check(f"{suite} smoke: Mode T certificates — Lemma 4 holds on every head and step (4-bit and exact read "
+                  f"values); Lemma 5's one-pass form never below its two-pass; extra-row reads and summaries present",
+                  bool(good_t),
+                  f"(Lemma 5 coverage { {k: round(float((h[f'err_{k}'] <= h[f'l5_{k}'] * (1 + 1e-4) + 1e-6).mean()), 4) for k in tags} }; "
+                  f"bound within FP8's error { {k: round(float((h[f'l5_{k}'] <= h.err_fp8).mean()), 3) for k in tags} }; "
+                  f"error within FP8's { {k: round(float((h[f'err_{k}'] <= h.err_fp8).mean()), 3) for k in tags} }; "
+                  f"median L5 / error tailx {float((h.l5_tailx / h.err_tailx.clip(lower=1e-12)).median()):.1f}; "
+                  f"truncation left on {float((h.trunc_viol > 0).mean()):.4f} of head-steps)" if cols <= set(h) else "(columns missing)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -337,6 +499,7 @@ def test_driver_smoke():
 if __name__ == "__main__":
     fast = "--fast" in sys.argv
     test_cert()
+    test_cert_tail()
     test_plans()
     if not fast:
         test_driver_smoke()

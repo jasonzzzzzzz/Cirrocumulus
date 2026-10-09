@@ -27,6 +27,9 @@
 #     Llama 128K  r3  RULER 9100-9102 x 4;  R3a levels 9400-9404 x 4;  r3b R3b levels 9440-9444 x cwe,fwe;
 #                 r4  HELMET items 0-4 x 5 tasks
 #     Qwen 32K    r3  RULER 9300-9302 x 4;  R3a levels 9420-9424 x 4;  r3b R3b levels 9460-9464 x cwe,fwe
+#   Resubmitting is safe: a block whose results are already in results/ (same tag, preset, prompts) is reused,
+#   not rerun; a block already queued stops the script. Off Trillium the model is copied to node-local disk
+#   (R5_STAGE=1) and R5_WALL_EXTRA (default 2) hours are added to every wall time.
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -37,6 +40,12 @@ PY=.venv/bin/python
 READER_PART=""
 [[ "$(hostname -s)" == trig* ]] && READER_PART="--partition=compute"
 READER_SB="$READER_PART --nodes=1 --gpus-per-node=1 --ntasks-per-node=1 --cpus-per-task=16 --time=00:30:00"
+# Off Trillium (Rorqual, 2026-10-09: Qwen's weights loaded at ~250 s per tensor from the shared cache and two
+# R5.3 jobs hit their wall while loading): copy the model to node-local disk first, and add hours for the load.
+ON_TRIG=0; [[ "$(hostname -s)" == trig* ]] && ON_TRIG=1
+R5_STAGE="${R5_STAGE:-$((1 - ON_TRIG))}"
+R5_WALL_EXTRA="${R5_WALL_EXTRA:-$((2 * (1 - ON_TRIG)))}"
+[[ "$R5_STAGE" =~ ^[01]$ && "$R5_WALL_EXTRA" =~ ^[0-9]+$ ]] || { echo "ERROR: R5_STAGE 0|1, R5_WALL_EXTRA hours" >&2; exit 2; }
 MODE="${1:-}"
 
 SUBMITTED=()
@@ -92,11 +101,37 @@ h5pilot_llama:$P2 h5pilot_qwen:$P3 h5pilot_qwen:$P4 --out-stem $PROJECT_ROOT/$DI
   echo "next: bash $DIR/script_stage1h.sh --status $P1 $P2 $P3 $P4 $RD"
 }
 
-blk() {   # blk NAME WALL TAG PRESET CTX SUITE CFG TASKS N OFFSET -> job id
-  local cfg=()
+done_job() {   # done_job TAG PRESET N OFFSET -> the job id of a finished block with these settings, or nothing
+  $PY - "$@" <<'PYEOF'
+import glob, json, os, sys
+tag, preset, n, off = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+for d in sorted(glob.glob(f"h0_measurement/results/r14s1h_{tag}_*")):
+    js = glob.glob(os.path.join(d, "s1h_evaluate_*.json"))
+    if len(js) != 1:
+        continue
+    s = json.load(open(js[0]))
+    if (s.get("preset_name") == preset and int(s.get("n_prompts") or -1) == n and int(s.get("prompt_offset") or -1) == off
+            and not s.get("prompt_list") and os.path.exists(os.path.join(d, s.get("parquet", "")))):
+        print(os.path.basename(d)[len(f"r14s1h_{tag}_"):])
+        break
+PYEOF
+}
+
+walltime() {   # walltime HH:MM:SS -> plus R5_WALL_EXTRA hours
+  local h m s; IFS=: read -r h m s <<< "$1"
+  printf '%02d:%s:%s' $((10#$h + R5_WALL_EXTRA)) "$m" "$s"
+}
+
+blk() {   # blk NAME WALL TAG PRESET CTX SUITE CFG TASKS N OFFSET -> job id (a finished or queued block is not resubmitted)
+  local cfg=() j
+  j=$(done_job "$3" "$4" "$9" "${10}")
+  if [[ -n "$j" ]]; then echo "  $1: finished as $j, not resubmitted" >&2; echo "DONE:$j"; return; fi
+  if squeue --me -h -o %j 2>/dev/null | grep -qx "r14s1h5-$1"; then
+    echo "ERROR: r14s1h5-$1 is already queued or running; cancel it or wait" >&2; exit 1
+  fi
   [[ -n "$7" ]] && cfg=(S1H_TASK_CFG=$7)
-  sub --job-name=r14s1h5-$1 --time=$2 --gpus-per-node=1 $W5 S1H_TAG=$3 S1H_PRESET=$4 S1H_CTX=$5 S1H_SUITE=$6 \
-      "${cfg[@]}" S1H_TASKS=$8 S1H_N_PROMPTS=$9 S1H_PROMPT_OFFSET=${10} S1H_SEED=0 </dev/null
+  sub --job-name=r14s1h5-$1 --time=$(walltime $2) --gpus-per-node=1 $W5 S1H_TAG=$3 S1H_PRESET=$4 S1H_CTX=$5 \
+      S1H_SUITE=$6 "${cfg[@]}" S1H_TASKS=$8 S1H_N_PROMPTS=$9 S1H_PROMPT_OFFSET=${10} S1H_SEED=0 S1H_STAGE=$R5_STAGE </dev/null
 }
 
 chain_r5() {
@@ -109,7 +144,8 @@ chain_r5() {
   echo "levels: R3a llama $CL, qwen $CQ; R3b llama $BL, qwen $BQ" >&2
   local STD=niah_single,niah_multikey,niah_multivalue,vt HARD=niah_multikey,niah_multivalue,vt,mk_panel
   local HM=kilt_nq,kilt_hotpotqa,msmarco_rerank_psg,icl_trec_coarse,icl_banking77
-  add() { PAIRS+=("$1:$2"); echo "  $1: $2" >&2; }
+  local -a NEWJOBS=()
+  add() { local j="${2#DONE:}"; PAIRS+=("$1:$j"); [[ "$2" == DONE:* ]] || NEWJOBS+=("$j"); echo "  $1: $2" >&2; }
   x=$(blk l-r1a 04:00:00 h5llama128_r1 h5llama128 131072 r3 "" $STD 5 9100); add h5llama128_r1 $x
   x=$(blk l-r1b 04:00:00 h5llama128_r1 h5llama128 131072 r3 "" $STD 5 9105); add h5llama128_r1 $x
   x=$(blk l-r3a 05:00:00 h5llama128_r3a h5llama128 131072 r3 "$CL" $HARD 5 9400); add h5llama128_r3a $x
@@ -121,9 +157,10 @@ chain_r5() {
   x=$(blk q-r3a 04:00:00 h5qwen32_r3a h5qwen32 32768 r3 "$CQ" $HARD 5 9420); add h5qwen32_r3a $x
   x=$(blk q-r3b 04:00:00 h5qwen32_r3a h5qwen32 32768 r3 "$CQ" $HARD 5 9425); add h5qwen32_r3a $x
   x=$(blk q-agg 03:00:00 h5qwen32_r3b h5qwen32 32768 r3b "$BQ" cwe,fwe 10 9460); add h5qwen32_r3b $x
-  local ids=() p
+  local ids=() p dep=()
   for p in "${PAIRS[@]}"; do ids+=("${p#*:}"); done
-  RD=$(sub --dependency=afterany:$(IFS=:; echo "${ids[*]}") --job-name=r14s1h5-check $READER_SB \
+  (( ${#NEWJOBS[@]} )) && dep=(--dependency=afterany:$(IFS=:; echo "${NEWJOBS[*]}"))
+  RD=$(sub "${dep[@]}" --job-name=r14s1h5-check $READER_SB \
       --output=h0_measurement/logs/r14s1h5check_%j.out --error=h0_measurement/logs/r14s1h5check_%j.err \
       --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r5.py --pilot ${PAIRS[*]} \
 --out-stem $PROJECT_ROOT/$DIR/findings/R5_blocks_check" </dev/null)
@@ -133,14 +170,17 @@ chain_r5() {
 
 chain_r53() {
   local CL CQ BL BQ RD x
-  local -a PAIRS=()
+  local -a PAIRS=() NEWJOBS=()
   CL=$(level $DIR/findings/R3a_levels.json llama)
   CQ=$(level $DIR/findings/R3a_levels.json qwen)
   BL=$(level $DIR/findings/R3b_levels.json llama)
   BQ=$(level $DIR/findings/R3b_levels.json qwen)
   local STD=niah_single,niah_multikey,niah_multivalue,vt HARD=niah_multikey,niah_multivalue,vt,mk_panel
   local HM=kilt_nq,kilt_hotpotqa,msmarco_rerank_psg,icl_trec_coarse,icl_banking77
-  add() { PAIRS+=("$1:$2"); echo "  $1: $2" >&2; }
+  add() {   # add TAG ID|DONE:ID -- the reader reads every block, and waits for the new ones
+    local j="${2#DONE:}"
+    PAIRS+=("$1:$j"); [[ "$2" == DONE:* ]] || NEWJOBS+=("$j"); echo "  $1: $2" >&2
+  }
   x=$(blk t-l-r1 03:00:00 h53llama128_r1 h53llama128 131072 r3 "" $STD 3 9100); add h53llama128_r1 $x
   x=$(blk t-l-r3a 04:00:00 h53llama128_r3a h53llama128 131072 r3 "$CL" $HARD 5 9400); add h53llama128_r3a $x
   x=$(blk t-l-agg 03:00:00 h53llama128_r3b h53llama128 131072 r3b "$BL" cwe,fwe 5 9440); add h53llama128_r3b $x
@@ -148,9 +188,11 @@ chain_r53() {
   x=$(blk t-q-r2 02:00:00 h53qwen32_r2 h53qwen32 32768 r3 "" $STD 3 9300); add h53qwen32_r2 $x
   x=$(blk t-q-r3a 03:00:00 h53qwen32_r3a h53qwen32 32768 r3 "$CQ" $HARD 5 9420); add h53qwen32_r3a $x
   x=$(blk t-q-agg 02:00:00 h53qwen32_r3b h53qwen32 32768 r3b "$BQ" cwe,fwe 5 9460); add h53qwen32_r3b $x
-  local ids=() p
+  local ids=() p dep=() new=()
   for p in "${PAIRS[@]}"; do ids+=("${p#*:}"); done
-  RD=$(sub --dependency=afterany:$(IFS=:; echo "${ids[*]}") --job-name=r14s1h53-read $READER_SB \
+  for p in "${NEWJOBS[@]}"; do new+=("$p"); done
+  (( ${#new[@]} )) && dep=(--dependency=afterany:$(IFS=:; echo "${new[*]}"))
+  RD=$(sub "${dep[@]}" --job-name=r14s1h53-read $READER_SB \
       --output=h0_measurement/logs/r14s1h53read_%j.out --error=h0_measurement/logs/r14s1h53read_%j.err \
       --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r5.py --r53 ${PAIRS[*]} \
 --out-stem $PROJECT_ROOT/$DIR/findings/R5_3_reader" </dev/null)

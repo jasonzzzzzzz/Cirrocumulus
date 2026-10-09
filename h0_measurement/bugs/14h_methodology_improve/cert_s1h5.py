@@ -21,6 +21,9 @@ dims; a KV head's r query heads share one row set, so selections are [Hkv, C] an
                      values on read rows)
   tail at 4 bits (L3)  |o - o_T| <= eps [ (e^{2b} - 1)(3V + nu) + nu ]   (+ nu, likewise)
 with V = max |v| over all rows and nu = max |v - v_hat| over the rows read at 4 bits.
+  tail, per row (L4)   Lemma 3 with each row's own b_i, nu_i and |v_hat_i - o_T| (deterministic)
+  tail, model (L5)     the same identity with a Bernstein bound for the rows' independent errors
+                       (holds with probability >= 1 - delta under a stated error model)
 """
 from __future__ import annotations
 import math
@@ -246,6 +249,114 @@ def lemma3_bound(eps_bar: torch.Tensor, b_tail: torch.Tensor, v_max: float, nu_t
                  nu_read: float = 0.0) -> torch.Tensor:
     """b_tail = the largest score bound over the unread rows (per head)."""
     return eps_bar * ((torch.exp(2.0 * b_tail) - 1.0) * (3.0 * v_max + nu_tail) + nu_tail) + nu_read
+
+
+# ------------------------------------- Mode T with per-row errors (Lemmas 4 and 5)
+# plan.md, amendment "R5 theory, part 3". One query head (leading dims broadcast); every input is
+# per row [.., C] and computable by the design: exact scores s (used on the read rows only), tier-1
+# scores s_hat with |s - s_hat| <= b (unread rows only), nu = |v - v_hat| per row (stored at write
+# time, like eta), dist = |v_hat - o_T| (the design's own output as the center). x_read: the read
+# rows' values are exact (they then add nothing). With w = e^s, w_hat = e^s_hat, the exact identity
+#   Z (o - o_T) = sum_S w (v - v_read) + sum_T w (v - v_hat) + sum_T (w - w_hat)(v_hat - o_T)
+# (Z the exact softmax denominator) gives both lemmas.
+DELTA_T = 1e-3          # Lemma 5's failure probability per head and step (half truncation, half Bernstein)
+
+
+def trunc_z(n_rows, delta: float):
+    """z with n_rows * 2 e^{-z^2 / 2} = delta: every one of n_rows sub-Gaussian score errors stays within
+    z sigma_i with probability >= 1 - delta (union bound). n_rows int or tensor."""
+    n = torch.as_tensor(n_rows, dtype=torch.float64).clamp_min(1.0)
+    return torch.sqrt(2.0 * torch.log(2.0 * n / delta))
+
+
+def center_dist(V_hat: torch.Tensor, o_t: torch.Tensor) -> torch.Tensor:
+    """dist_i = |v_hat_i - o_T|: V_hat [.., C, d], o_t [.., d] -> [.., C]."""
+    return (V_hat - o_t.unsqueeze(-2)).norm(dim=-1)
+
+
+def _tail_prep(s, s_hat, rng, keep, lse_fix):
+    """float64 weights shifted by m = max(read scores, s_hat + rng, lse_fix) (nothing exceeds 1):
+    w (read rows, 0 elsewhere), w_hat and w_hat e^{-rng} (unread rows, 0 elsewhere), the fixed rows'
+    weight, and the unread mask."""
+    s, s_hat, rng = s.double(), s_hat.double(), rng.double()
+    keep = keep.expand_as(s)
+    lse_fix = torch.as_tensor(lse_fix, dtype=s.dtype, device=s.device).expand(s.shape[:-1])
+    xs, xt = s.masked_fill(~keep, NEG), s_hat.masked_fill(keep, NEG)
+    rt = rng.masked_fill(keep, 0.0)
+    m = torch.maximum(torch.maximum(xs.amax(-1), (xt + rt).amax(-1)), lse_fix)
+    m = torch.where(torch.isfinite(m), m, torch.zeros_like(m)).unsqueeze(-1)
+    return (torch.exp(xs - m), torch.exp(xt - m), torch.exp(xt - rt - m),
+            torch.exp(lse_fix - m.squeeze(-1)), rt, ~keep)
+
+
+def _wsum(a, dist, one_pass):
+    """sum a dist (a >= 0); one_pass: its Cauchy-Schwarz bound sqrt(sum a * sum a dist^2), which a
+    single attention pass can accumulate (sum a |v_hat - o|^2 expands into running sums)."""
+    if not one_pass:
+        return (a * dist).sum(-1)
+    return torch.sqrt(a.sum(-1) * (a * dist * dist).sum(-1))
+
+
+def tail_bound_det(s, s_hat, b, keep, nu, dist, lse_fix=NEG, x_read=False, one_pass=False):
+    """Lemma 4 (deterministic; only |s - s_hat| <= b and |v - v_hat| <= nu per row):
+      |o - o_T| <= [sum_S w nu (4-bit read values only) + sum_T w_hat (e^b nu + (e^b - 1) dist)]
+                   / (e^lse_fix + sum_S w + sum_T w_hat e^-b)."""
+    w, wh, wl, wf, bt, _ = _tail_prep(s, s_hat, b, keep, lse_fix)
+    nu, dist = nu.double().expand_as(w), dist.double().expand_as(w)
+    wd = wh * torch.expm1(bt)                                              # >= |w - w_hat| on unread rows
+    num = (wh * torch.exp(bt) * nu).sum(-1) + _wsum(wd, dist, one_pass)
+    if not x_read:
+        num = num + (w * nu).sum(-1)
+    return (num / (wf + w.sum(-1) + wl.sum(-1))).to(s.dtype)
+
+
+def bernstein_radius(B: torch.Tensor, a: torch.Tensor, delta: float) -> torch.Tensor:
+    """r with 2 exp(-r^2 / (2 (B^2 + r a / 3))) = delta (Pinelis' Bernstein inequality for sums of
+    independent zero-mean vectors with |X_i| <= a and sum E|X_i|^2 <= B^2)."""
+    L = math.log(2.0 / delta)
+    h = L * a / 3.0
+    return h + torch.sqrt(h * h + 2.0 * L * B * B)
+
+
+def tail_bound_conc(s, s_hat, sigma, keep, nu, dist, lse_fix=NEG, x_read=False, delta: float = DELTA_T,
+                    one_pass=False, vnorm=None, onorm=None, parts=False):
+    """Lemma 5: with probability >= 1 - delta under model M (given what is stored and the rows read:
+    row errors independent; value errors zero-mean, |v - v_hat| = nu; score errors symmetric,
+    sub-Gaussian with proxy sigma, e.g. sigma = b / sqrt(d) for a random-direction key error),
+      |o - o_T| <= (mean + r) / den,
+    t = z sigma (z = trunc_z(unread rows, delta / 2)), den = e^lse_fix + sum_S w + sum_T w_hat e^-t,
+    mean = sum_T w_hat (e^min(sigma^2/2, t) - 1) dist,
+    B^2  = sum_S (w nu)^2 + sum_T w_hat^2 [g nu^2 + (g - 1) dist^2],  g = e^min(2 sigma^2, 2t),
+    a    = max(max_S w nu, max_T w_hat (e^t nu + (e^t - 1) dist)),  r = bernstein_radius(B, a, delta / 2).
+    The S terms drop with x_read. one_pass: the dist sums by Cauchy-Schwarz and dist <= vnorm + onorm in a
+    (vnorm = |v_hat| per row, onorm = |o_T|), all accumulable in the attention pass. parts: also return
+    dict(mean, B, a, den, z) (mean, B, a divided by den), to recompute the bound at another delta."""
+    keep_e = keep.expand_as(s)
+    n_t = (~keep_e).sum(-1)
+    z = trunc_z(n_t, delta / 2.0).to(s.device)
+    sig = sigma.double()
+    t = z.unsqueeze(-1) * sig
+    w, wh, wl, wf, tt, unread = _tail_prep(s, s_hat, t, keep, lse_fix)
+    sig = sig.masked_fill(~unread, 0.0)
+    nu, dist = nu.double().expand_as(w), dist.double().expand_as(w)
+    den = wf + w.sum(-1) + wl.sum(-1)
+    mean = _wsum(wh * torch.expm1(torch.minimum(sig * sig / 2.0, tt)), dist, one_pass)
+    g = torch.exp(torch.minimum(2.0 * sig * sig, 2.0 * tt))
+    wu, wd = wh * torch.exp(tt), wh * torch.expm1(tt)
+    B2 = (wh * wh * (g * nu * nu + (g - 1.0) * dist * dist)).sum(-1)        # dist^2: accumulable as is
+    if one_pass:
+        a = (wu * nu + wd * vnorm.double().expand_as(w)).amax(-1) + wd.amax(-1) * onorm.double()
+    else:
+        a = (wu * nu + wd * dist).amax(-1)
+    if not x_read:
+        B2 = B2 + ((w * nu) ** 2).sum(-1)
+        a = torch.maximum(a, (w * nu).amax(-1))
+    B = torch.sqrt(B2)
+    bound = ((mean + bernstein_radius(B, a, delta / 2.0)) / den).to(s.dtype)
+    if not parts:
+        return bound
+    return bound, dict(mean=(mean / den).to(s.dtype), B=(B / den).to(s.dtype), a=(a / den).to(s.dtype),
+                       den=den, z=z.to(s.dtype))
 
 
 # -------------------------------------------- budgets at several targets (one sort)

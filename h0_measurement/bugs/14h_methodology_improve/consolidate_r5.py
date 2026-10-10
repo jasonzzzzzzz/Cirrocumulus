@@ -36,6 +36,8 @@ CELLS = [   # name, tag, jobs
     ("R3b Qwen 32K cwe/fwe", "h3bqwen", ["22560819", "22560820"]),
     ("R4 Llama 128K LongBench v2", "h4llama128", ["1036792", "1036793"]),
     ("R4 Llama 128K HELMET", "h4llama128", ["1036925", "1036926"]),
+    ("R4 Qwen 128K LongBench v2", "h4qwen128", ["22694019", "22694020"]),
+    ("R4 Qwen 128K HELMET", "h4qwen128", ["22694023", "22694024"]),
 ]
 ARMS = [   # label, arm, B (None = the arm's only B)
     ("FP8 KV", "fp8kv", 8.0), ("noise", "fp_noise", 0.0),

@@ -24,6 +24,7 @@ CORPUS = os.environ.get("H0_CORPUS") or os.path.join(ROOT, ".h0_corpus/pg19")
 OK, BAD = "\033[32mPASS\033[0m", "\033[31mFAIL\033[0m"
 fails = 0
 DT = torch.float64
+FAST = "--fast" in sys.argv
 
 
 def check(name, cond, detail=""):
@@ -392,6 +393,214 @@ def test_cert_tail():
           and abs(2000 * math.exp(-zz * zz / 2) - 0.01) < 1e-12)
 
 
+def _rand_data(g, Hkv=2, r=4, C=256, d=64, kind="random"):
+    """Exact keys, values, queries and fixed rows (the data are fixed; only tier 1's coins are random).
+    kinds: random, spiky (a few rows aligned with the queries), outlier (one huge channel, the store's worst
+    case), adversarial (every key along the queries' mean, tail values offset from the head rows')."""
+    q = torch.randn(Hkv, r, d, generator=g, dtype=DT)
+    Kx = torch.randn(Hkv, C, d, generator=g, dtype=DT)
+    V = torch.randn(Hkv, C, d, generator=g, dtype=DT)
+    if kind == "spiky":
+        idx = torch.randint(0, C, (Hkv, 4), generator=g)
+        for h in range(Hkv):
+            Kx[h, idx[h]] += 2.0 * q[h].mean(0)
+    if kind == "outlier":
+        Kx[..., 0] *= 30.0
+        V[..., 1] *= 30.0
+    if kind == "adversarial":
+        qd = q.mean(1) / q.mean(1).norm(dim=-1, keepdim=True)
+        Kx = 0.3 * Kx + (torch.rand(Hkv, C, 1, generator=g, dtype=DT) * 4.0) * qd.unsqueeze(1)
+        V = V + 3.0 * qd.unsqueeze(1)
+    sf = torch.randn(Hkv, r, 3, generator=g, dtype=DT)
+    Vf = torch.randn(Hkv, 3, d, generator=g, dtype=DT)
+    return dict(q=q, Kx=Kx, V=V, lse_fix=torch.logsumexp(sf, -1),
+                o_fix=torch.einsum("grf,gfd->grd", torch.softmax(sf, -1), Vf), sc=d ** -0.5)
+
+
+def _rand_eval(x, keep, seed, coupled=False, bits=4, deltas=(K.DELTA_T,)):
+    """One draw of the dithered tier 1 (x design: exact keys and values on keep), for the plain tail ('p') and
+    the unbiased tail ('u', tier-1 weights divided by E e^{-delta}): errors and Theorem R at each delta; for
+    the plain tail also Lemma 4 with the dither's a.s. bounds and Lemma 5's model form with the dither's sigma."""
+    import rquant_s1h5 as RQ
+    from sievelib import quant as Q
+    q, Kx, V, lf, of, sc = x["q"], x["Kx"], x["V"], x["lse_fix"], x["o_fix"], x["sc"]
+    Hkv, C, d = Kx.shape
+    R = Q.random_rotation(d, "cpu", torch.float64, 0)
+    Kh, stk = RQ.dither_quantize(Kx, bits, R, seed)
+    if coupled:                                            # MLA: one latent draw makes key and value
+        V, Vh, stv = Kx, Kh, stk
+    else:
+        Vh, stv = RQ.dither_quantize(V, bits, Q.random_rotation(d, "cpu", torch.float64, 1), seed + 7919)
+    s = torch.einsum("grd,gcd->grc", q, Kx) * sc
+    sh = torch.einsum("grd,gcd->grc", q, Kh) * sc
+    qr = q @ R.T
+    sig = RQ.score_sigma(q.norm(dim=-1, keepdim=True), stk.unsqueeze(1), sc)
+    b_as = RQ.score_bound(qr.abs().sum(-1, keepdim=True), stk.unsqueeze(1), sc)
+    mom = RQ.coin_moments(qr, stk.unsqueeze(1), sc)
+    ldb = RQ.debias_log(mom)
+    n2, nm = RQ.value_moments(stv.unsqueeze(1), d)
+    kp = keep.unsqueeze(1)
+    o = K.attend(s, V.unsqueeze(1), lf, of)
+    c = K.attend(s, V.unsqueeze(1), lf, of, kp)            # exact output of the read and fixed rows (coin-free)
+    if coupled:
+        rho = V.norm(dim=-1).unsqueeze(1) + c.norm(dim=-1, keepdim=True)   # coin-free bound on |v_i - c|
+    else:
+        rho = K.center_dist(Vh.unsqueeze(1), c)
+    out = dict(sh=sh)
+    for tag, shd, lg in (("p", sh, None), ("u", sh - ldb, ldb)):
+        oT = K.tail_output(s, shd, V.unsqueeze(1), Vh.unsqueeze(1), kp, lf, of)
+        oc = (oT - c).norm(dim=-1)
+        out[f"err_{tag}"] = (o - oT).norm(dim=-1)
+        out[f"thr_{tag}"] = {d_: K.tail_bound_rand(s, shd, sig, kp, rho, nm, n2, oc, lf, delta=d_, coupled=coupled,
+                                                   b_as=b_as, mom=mom, ldebias=lg) for d_ in deltas}
+        if coupled:      # Theorem R v2's coupled form: the observed distance |v_hat - c| brackets |v - c| within nu
+            out[f"thr2_{tag}"] = {d_: K.tail_bound_rand_coupled(s, shd, sig, kp, K.center_dist(Vh.unsqueeze(1), c), nm,
+                                                                n2, oc, lf, delta=d_, b_as=b_as, mom=mom, ldebias=lg)
+                                  for d_ in deltas}
+        else:
+            out[f"thr2_{tag}"] = {d_: K.tail_bound_rand_v2(s, shd, sig, kp, rho, nm, n2, oc, lf, delta=d_, b_as=b_as,
+                                                           mom=mom, ldebias=lg) for d_ in deltas}
+        if tag == "p":
+            dist = K.center_dist(Vh.unsqueeze(1), oT)
+            out["l4"] = K.tail_bound_det(s, sh, b_as, kp, nm, dist, lf, x_read=True)
+            out["l5"] = K.tail_bound_conc(s, sh, sig, kp, (V - Vh).norm(dim=-1).unsqueeze(1), dist, lf, x_read=True,
+                                          coupled=coupled)
+    return out
+
+
+def test_cert_rand():
+    print("\n[S1h R5] rquant_s1h5 + Theorem R: the randomized tier 1 and its guarantee, by brute force")
+    import rquant_s1h5 as RQ
+    from sievelib import quant as Q
+    g = torch.Generator().manual_seed(7)
+    # the dither's facts, on every kind of data (incl. a 30x outlier channel and adversarially aligned keys)
+    worst_clip, mean_z, unif, corr, regen, mse_ratio = 0.0, 0.0, 0.0, 0.0, True, []
+    for kind in ("random", "spiky", "outlier", "adversarial"):
+        x = _rand_data(g, kind=kind)
+        Kx, d = x["Kx"], x["Kx"].shape[-1]
+        R = Q.random_rotation(d, "cpu", torch.float64, 0)
+        y = Kx @ R.T
+        errs = []
+        for seed in range(200):
+            Kh, st = RQ.dither_quantize(Kx, 4, R, seed)
+            eps = (Kh - Kx) @ R.T / st.unsqueeze(-1)       # rotated error in units of the step
+            worst_clip = max(worst_clip, float(eps.abs().max()))
+            errs.append(eps)
+        E = torch.stack(errs)                                # [seeds, G, C, d]
+        mean_z = max(mean_z, float((E.mean(0).abs() / (E.std(0) / 200 ** 0.5)).quantile(0.999)))
+        qs = torch.quantile(E.flatten()[:200000], torch.tensor([0.1, 0.25, 0.5, 0.75, 0.9], dtype=DT))
+        unif = max(unif, float((qs - torch.tensor([-0.4, -0.25, 0.0, 0.25, 0.4], dtype=DT)).abs().max()))
+        corr = max(corr, float(torch.corrcoef(torch.stack([E[0].flatten(), y.flatten()]))[0, 1].abs()))
+        regen &= torch.equal(RQ.dither_quantize(Kx, 4, R, 3)[0], RQ.dither_quantize(Kx, 4, R, 3)[0])
+        lm = Q.quantize_keys(Kx.float(), 4, R.float()).double()
+        mse_ratio.append(float(((RQ.dither_quantize(Kx, 4, R, 0)[0] - Kx) ** 2).sum() / ((lm - Kx) ** 2).sum()))
+    check("dither: every error within half a step (no clipping); zero-mean per entry over 200 draws; uniform; "
+          "uncorrelated with the data; regenerated exactly from its seed (random, spiky, 30x outlier, adversarial)",
+          worst_clip <= 0.5 + 1e-9 and mean_z < 5.0 and unif < 0.02 and corr < 0.02 and regen,
+          f"(max |error| / step {worst_clip:.4f}; max |mean| / s.e. {mean_z:.2f}; quantile gap {unif:.4f}; "
+          f"|corr| {corr:.4f}; MSE vs the store's Lloyd-Max 4-bit: {', '.join(f'{m:.2f}' for m in mse_ratio)})")
+
+    # the moment bounds behind the unbiased tail: log sinhc on a grid, and E e^{-delta} by Monte Carlo
+    xs = torch.linspace(1e-4, 60.0, 200001, dtype=DT)
+    lsc = xs + torch.log1p(-torch.exp(-2 * xs)) - torch.log(2 * xs)
+    lo_b, hi_b = RQ._log_sinhc_bounds(xs)
+    x = _rand_data(g, kind="outlier", C=64)
+    R = Q.random_rotation(x["Kx"].shape[-1], "cpu", torch.float64, 0)
+    qr = x["q"] @ R.T
+    draws = []
+    n_mc = 1000 if FAST else 4000
+    for seed in range(n_mc):
+        Kh, stk = RQ.dither_quantize(x["Kx"], 4, R, seed)
+        draws.append(torch.exp(-(torch.einsum("grd,gcd->grc", x["q"], x["Kx"] - Kh) * x["sc"])))
+    mc = torch.stack(draws).mean(0)
+    mom = RQ.coin_moments(qr, stk.unsqueeze(1), x["sc"])
+    se = torch.stack(draws).std(0) / n_mc ** 0.5
+    inside = float(((mc >= torch.exp(mom["lmu_lo"]) - 4 * se) & (mc <= torch.exp(mom["lmu_hi"]) + 4 * se)).double().mean())
+    check("unbiased tail: x^2/6 - x^4/180 <= log(sinh x / x) <= x^2/6 on (0, 60]; Monte Carlo E e^{-delta} "
+          f"({n_mc} draws) inside coin_moments' interval for every row and head", bool(((lsc >= lo_b - 1e-12) &
+          (lsc <= hi_b + 1e-12)).all()) and inside == 1.0, f"(share inside {inside:.4f}; median interval width "
+          f"{float((mom['lmu_hi'] - mom['lmu_lo']).median()):.2e} in log)")
+
+    # Theorem R: coverage over the coins (data fixed), read set chosen from exact scores (coin-free)
+    deltas = (0.3, 0.1, 0.01, K.DELTA_T)
+    fails = {(tg, d_): 0 for tg in ("p", "u") for d_ in deltas}
+    fails2 = {(tg, d_): 0 for tg in ("p", "u") for d_ in deltas}
+    n, viol4, ratio, f5, fsel, errs = 0, 0, {"p": [], "u": []}, 0, 0, {"p": [], "u": []}
+    v2_over_v1 = []
+    for trial in range(8 if FAST else 16):
+        kind = ("random", "spiky", "outlier", "adversarial")[trial % 4]
+        x = _rand_data(g, kind=kind, C=256)
+        s_ex = torch.einsum("grd,gcd->grc", x["q"], x["Kx"]) * x["sc"]
+        keep = K.topk_keep(torch.softmax(s_ex, -1).amax(1), 32)           # coin-free: exact scores
+        for seed in range(10 if FAST else 25):
+            r_ = _rand_eval(x, keep, 1000 * trial + seed, deltas=deltas)
+            for tg in ("p", "u"):
+                for d_ in deltas:
+                    fails[(tg, d_)] += int((r_[f"err_{tg}"] > r_[f"thr_{tg}"][d_]).sum())
+                    fails2[(tg, d_)] += int((r_[f"err_{tg}"] > r_[f"thr2_{tg}"][d_]).sum())
+                v2_over_v1 += (r_[f"thr2_{tg}"][K.DELTA_T] / r_[f"thr_{tg}"][K.DELTA_T]).flatten().tolist()
+                ratio[tg] += (r_[f"thr_{tg}"][K.DELTA_T] / r_[f"err_{tg}"]).flatten().tolist()
+                errs[tg].append(r_[f"err_{tg}"])
+            n += r_["err_p"].numel()
+            viol4 += int(((r_["err_p"] - r_["l4"]) > 1e-12).sum())
+            f5 += int((r_["err_p"] > r_["l5"]).sum())
+            # informational: the read set chosen from the randomized tier's own scores (looks at the coins)
+            keep_c = K.topk_keep(torch.softmax(r_["sh"], -1).amax(1), 32)
+            rc_ = _rand_eval(x, keep_c, 1000 * trial + seed)
+            fsel += int((rc_["err_u"] > rc_["thr_u"][K.DELTA_T]).sum())
+    med = {tg: sorted(v)[len(v) // 2] for tg, v in ratio.items()}
+    gain = float((torch.cat([e.flatten() for e in errs["u"]]) / torch.cat([e.flatten() for e in errs["p"]])).median())
+    check("Theorem R (x design; any data incl. adversarial and 30x outliers; read set from exact scores), plain "
+          "and unbiased tail: failures <= delta x cases at every delta and none at DELTA_T; Lemma 4 with the "
+          "dither's a.s. bounds always holds",
+          all(f <= d_ * n for (tg, d_), f in fails.items()) and fails[("p", K.DELTA_T)] == 0
+          and fails[("u", K.DELTA_T)] == 0 and viol4 == 0,
+          f"({n} head cases over 400 coin draws; failures {dict((f'{tg}@{d_}', f) for (tg, d_), f in fails.items())}; "
+          f"median bound / error: plain {med['p']:.1f}, unbiased {med['u']:.1f}; median error unbiased / plain "
+          f"{gain:.2f}; Lemma 4 violations {viol4}; informational: Lemma 5's model form misses {f5}, Theorem R "
+          f"with the read set chosen from the coins misses {fsel})")
+    v2_over_v1.sort()
+    check("Theorem R v2 (cert_s1h5.tail_bound_rand_v2: row-wise moments, second-moment variance, Bennett): failures "
+          "<= delta x cases at every delta and none at DELTA_T; never more than 5% above v1, below it at the median",
+          all(f <= d_ * n for (tg, d_), f in fails2.items()) and fails2[("p", K.DELTA_T)] == 0
+          and fails2[("u", K.DELTA_T)] == 0 and v2_over_v1[-1] <= 1.05 and v2_over_v1[len(v2_over_v1) // 2] < 1.0,
+          f"(failures {dict((f'{tg}@{d_}', f) for (tg, d_), f in fails2.items())}; v2 / v1 median "
+          f"{v2_over_v1[len(v2_over_v1) // 2]:.3f}, max {v2_over_v1[-1]:.3f})")
+    # Bennett's radius never exceeds Bernstein's, and meets its tail exactly
+    Bt = torch.rand(2000, generator=g, dtype=DT) * 10
+    at = torch.rand(2000, generator=g, dtype=DT) * 10 + 1e-3
+    rb, rn = K.bennett_radius(Bt, at, 1e-3), K.bernstein_radius(Bt, at, 1e-3)
+    u = rb * at / (Bt * Bt)
+    tail = 2 * torch.exp(-(Bt * Bt / (at * at)) * ((1 + u) * torch.log1p(u) - u))
+    check("bennett_radius <= bernstein_radius, and its tail equals delta (to 1e-6 relative)",
+          bool((rb <= rn * (1 + 1e-12)).all()) and float((tail / 1e-3 - 1).abs().max()) < 1e-6,
+          f"(median Bennett / Bernstein {float((rb / rn).median()):.3f})")
+    # (the check that v2 equals theory2_s1h5's development form lives in ../14h_theory/test_theory4_s1h5.py: the GPU
+    #  workers run this file, so it imports no theory module; 14h_theory/ISOLATION_PLAN.md, step 0)
+
+    # coupled (MLA): one latent draw makes key and value; coin-free |v - c| bound
+    fc, fc2, nc_, rc, rc2 = 0, 0, 0, [], []
+    for trial in range(4 if FAST else 8):
+        x = _rand_data(g, Hkv=1, r=8, kind=("random", "adversarial")[trial % 2], C=256)
+        s_ex = torch.einsum("grd,gcd->grc", x["q"], x["Kx"]) * x["sc"]
+        keep = K.topk_keep(torch.softmax(s_ex, -1).amax(1), 32)
+        for seed in range(10 if FAST else 25):
+            r_ = _rand_eval(x, keep, 90000 + 100 * trial + seed, coupled=True)
+            for tg in ("p", "u"):
+                fc += int((r_[f"err_{tg}"] > r_[f"thr_{tg}"][K.DELTA_T]).sum())
+                fc2 += int((r_[f"err_{tg}"] > r_[f"thr2_{tg}"][K.DELTA_T]).sum())
+            nc_ += r_["err_u"].numel()
+            rc += (r_["thr_u"][K.DELTA_T] / r_["err_u"]).flatten().tolist()
+            rc2 += (r_["thr2_u"][K.DELTA_T] / r_["err_u"]).flatten().tolist()
+    rc.sort()
+    rc2.sort()
+    check("Theorem R, coupled (MLA latent: key and value from one draw): no failure, plain or unbiased, with the "
+          "coin-free |v - c| bound (tail_bound_rand, coupled) or the observed distance (tail_bound_rand_coupled)",
+          fc == 0 and fc2 == 0,
+          f"({nc_} head cases x 2 designs; failures {fc} / {fc2}; median bound / error, unbiased "
+          f"{rc[len(rc) // 2]:.1f} / {rc2[len(rc2) // 2]:.1f})")
+
+
 def _raises(f):
     try:
         f()
@@ -434,6 +643,16 @@ def test_plans():
           and abs(L.traffic_frac("tail2_v2", 0.125, 131072) - (0.875 * 4 + 0.125 * 18) / 32) < 1e-3
           and abs(L.traffic_frac("tail2x_v2", 0.125, 131072) - (0.875 * 4 + 0.125 * 32) / 32) < 1e-3
           and _raises(lambda: L.parse_arm("tail5_v4")), f"({len(p53)} arms)")
+    p54 = L.build_plan(L.PRESETS["h54llama128"])
+    pd_ = L.parse_arm("dtail6ux_v4")
+    check("R5.4: fp, the probe, tail4x_v4, four dtail arms (4-bit plain and unbiased, 6- and 8-bit keys unbiased), dense "
+          "4-bit (keys; keys and values), FP8, fp_noise last; dtail's cost model is tail5's at its key width; the probe's Theorem R setting parses",
+          p54 == [("fp", 0), ("probe", 0), ("tail4x_v4", 0.125)] + L.DTAIL_ARMS
+          + [("uniform", 4), ("uniform+v4", 4), ("fp8kv", 8), ("fp_noise", 0)]
+          and pd_["family"] == "dtail" and pd_["tier1_key_bits"] == 6 and pd_["unbiased"] and pd_["kv"]
+          and abs(L.traffic_frac("dtail6ux_v4", 0.125, 131072) - (0.875 * 10 + 0.125 * 32) / 32) < 1e-3
+          and L.traffic_frac("dtail4x_v4", 0.125, 4096) == L.traffic_frac("tail4x_v4", 0.125, 4096)
+          and _raises(lambda: L.parse_arm("dtail5ux_v4")) and L.DITHER_PROBE == "1:6,8", f"({len(p54)} arms)")
     pa = L.parse_arm("inj_rnd")
     check("arm grammar: probe / inject (policy) / tail; references unchanged",
           L.family("probe") == "probe" and pa["family"] == "inject" and pa["policy"] == "rnd"
@@ -449,6 +668,46 @@ def _drive(args, log):
         r = subprocess.run([sys.executable, "-u", os.path.join(HERE, "run_s1h5.py")] + args, stdout=fh,
                            stderr=subprocess.STDOUT, env=env, cwd=ROOT, timeout=3300)
     return r.returncode
+
+
+def test_driver_smoke_r54():
+    print("\n[S1h R5] R5.4 driver smoke (CPU, Llama-3.2-1B at 4K, r3: multivalue): the randomized tier, then the reader")
+    import pandas as pd
+    import read_stage1h_r5 as RD
+    tmp = tempfile.mkdtemp(prefix="s1h54_drive_")
+    lov = ["--model", "llama31-8b", "--override", "id=meta-llama/Llama-3.2-1B-Instruct", "dtype=float32", "tier=smoke"]
+    try:
+        od = os.path.join(tmp, "r14s1h_h54smoke_r3")
+        rc = _drive(["--suite", "r3", "--mode", "evaluate", "--preset", "h54smoke", "--ctx", "4096", "--n-prompts", "1",
+                     "--prompt-offset", "0", "--tasks", "niah_multivalue", "--dither-seeds", "1", "--dither-key-bits", "6,8",
+                     "--out-dir", od] + lov, os.path.join(tmp, "r54.log"))
+        if rc != 0:
+            check("R5.4 smoke ran", False, f"(rc {rc})")
+            print(open(os.path.join(tmp, "r54.log")).read()[-3000:])
+            return
+        d = pd.read_parquet(glob.glob(os.path.join(od, "s1h_evaluate_*.parquet"))[0])
+        h = pd.read_parquet(glob.glob(os.path.join(od, "s1h5_probe_heads_*.parquet"))[0])
+        dt = d[d.arm.str.startswith("dtail")].set_index("arm")
+        kl = d.set_index("arm").kl_span_tok
+        rcov = {c[5:]: float(h[c].mean()) for c in h.columns if c.startswith("rcov_")}
+        good = (set(RD.R54_ARMS) <= set(d.arm) and len(dt) == 4 and dt.evict_frac.eq(0).all()
+                and (dt.exact_rows_frac - dt.B).abs().max() < 1e-3 and dt.kl_span.notna().all()
+                and kl["dtail4x_v4"] != kl["tail4x_v4"] and kl["dtail4ux_v4"] != kl["dtail4x_v4"]
+                and len([k for k in rcov if not k.endswith("_v2")]) == 16 and len(rcov) == 32   # v1 and v2 (RAND_V2)
+                and min(rcov.values()) == 1.0 and dt.traffic_frac.notna().all())
+        check("R5.4 smoke: every arm ran; the dithered tails evict nothing, read r of the rows exactly and differ from "
+              "the Lloyd-Max tail and from each other (the unbiased correction is applied); Theorem R covers every "
+              "head-step at 6- and 8-bit keys, plain and unbiased, every read, v1 and v2", bool(good),
+              f"(KL/token { {a: round(float(kl[a]), 5) for a in RD.R54_ARMS if a in kl.index and a != 'probe'} }; "
+              f"Theorem R coverage min {min(rcov.values()) if rcov else float('nan')})")
+        stem = os.path.join(tmp, "R5_4_reader")
+        rrc = RD.read_r54([("h54smoke", "r3")], stem, root=tmp)
+        txt = open(stem + ".md").read() if os.path.exists(stem + ".md") else ""
+        check("R5.4 reader runs on the smoke's output (validity, the five questions, R6's test, Theorem R's table)",
+              rrc == 0 and "Q2b" in txt and "Theorem R in the probe" in txt and "R6's draft test" in txt,
+              f"(rc {rrc}, {len(txt.splitlines())} lines)")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def test_driver_smoke_r53():
@@ -486,8 +745,9 @@ def test_driver_smoke():
     try:
         for suite, tasks in (("r3", "niah_multivalue,vt"), ("r3b", "cwe"), ("r4", "kilt_nq")):
             od = os.path.join(tmp, f"r14s1h_h5smoke_{suite}")
+            dith = ["--dither-seeds", "1"] if suite == "r3b" else []           # Theorem R's probe columns
             rc = _drive(["--suite", suite, "--mode", "evaluate", "--preset", "h5smoke", "--ctx", "4096", "--n-prompts",
-                         "1", "--prompt-offset", "0", "--tasks", tasks, "--out-dir", od] + lov,
+                         "1", "--prompt-offset", "0", "--tasks", tasks, "--out-dir", od] + dith + lov,
                         os.path.join(tmp, f"{suite}.log"))
             if rc != 0:
                 check(f"{suite} smoke ran", False, f"(rc {rc})")
@@ -548,6 +808,14 @@ def test_driver_smoke():
                   f"error within FP8's { {k: round(float((h[f'err_{k}'] <= h.err_fp8).mean()), 3) for k in tags} }; "
                   f"median L5 / error tailx {float((h.l5_tailx / h.err_tailx.clip(lower=1e-12)).median()):.1f}; "
                   f"truncation left on {float((h.trunc_viol > 0).mean()):.4f} of head-steps)" if cols <= set(h) else "(columns missing)")
+            if suite == "r3b":
+                rc_cols = [c for c in h.columns if c.startswith("rcov_")]
+                cov = {c[5:]: float(h[c].mean()) for c in rc_cols}
+                check("r3b smoke: Theorem R (dithered tier, one draw; read sets from the Lloyd-Max store) covers every "
+                      "head-step for the plain and the unbiased tail at the vote's rows and every extra-row read",
+                      len([c for c in rc_cols if not c.endswith("_v2")]) == 8 and len(rc_cols) == 16
+                      and min(cov.values()) == 1.0 and "probe_R_cover_tailx_u_k4" in pr.columns,
+                      f"(coverage {cov}; median bound / error, unbiased: {float(h.rratio_tailx_u_k4.median()):.0f})")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -556,9 +824,11 @@ if __name__ == "__main__":
     fast = "--fast" in sys.argv
     test_cert()
     test_cert_tail()
+    test_cert_rand()
     test_plans()
     if not fast:
         test_driver_smoke()
         test_driver_smoke_r53()
+        test_driver_smoke_r54()
     print(f"\n{'ALL R14 STAGE-1H R5 TESTS PASSED' if not fails else f'{fails} R14 STAGE-1H R5 TEST(S) FAILED'}")
     sys.exit(1 if fails else 0)

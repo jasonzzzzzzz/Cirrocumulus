@@ -362,3 +362,97 @@ Change against FP per unit, averaged. dP = span NLL (nats), /tok = per span toke
 | msmarco_rerank_psg | Quest exact 1/8 | +13.85 | +0.217 | +12.14 | +0.187 | -0.085 |
 | msmarco_rerank_psg | Quest 4-bit 1/8 | +14.22 | +0.233 | +13.18 | +0.210 | -0.052 |
 
+## R4 Qwen 128K LongBench v2 (jobs 22694019, 22694020)
+
+| task | n | FP acc | span tok | budget | vote | store | budget/tok | vote/tok | store/tok |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| lbv2 | 40 | 0.450 | 1 | -0.01 | +0.01 | +0.03 | -0.006 | +0.007 | +0.035 |
+
+| task | arm | dP | dP/tok | KL | KL/tok | dAcc |
+|---|---|---:|---:|---:|---:|---:|
+| lbv2 | FP8 KV | -0.00 | -0.000 | +0.01 | +0.014 | +0.000 |
+| lbv2 | noise | -0.00 | -0.000 | +0.02 | +0.019 | -0.025 |
+| lbv2 | dense KIVI-4 | +0.02 | +0.020 | +0.02 | +0.025 | -0.025 |
+| lbv2 | dense KVQuant-4 | -0.00 | -0.001 | +0.02 | +0.018 | +0.025 |
+| lbv2 | dense uniform-4 | +0.20 | +0.205 | +0.21 | +0.208 | +0.050 |
+| lbv2 | oracle 1/8 (exact) | -0.01 | -0.006 | +0.00 | +0.001 | +0.000 |
+| lbv2 | vote 1/8 (exact) | +0.00 | +0.001 | +0.00 | +0.004 | +0.000 |
+| lbv2 | vote 1/8 (4-bit) | +0.20 | +0.198 | +0.20 | +0.200 | +0.025 |
+| lbv2 | system 1/8 | +0.04 | +0.036 | +0.02 | +0.020 | -0.050 |
+| lbv2 | system floor (R4) | +0.00 | +0.000 | +0.01 | +0.013 | -0.025 |
+| lbv2 | Quest exact 1/8 | -0.00 | -0.004 | +0.00 | +0.003 | +0.000 |
+| lbv2 | Quest 4-bit 1/8 | +0.21 | +0.209 | +0.21 | +0.213 | +0.025 |
+
+## R4 Qwen 128K HELMET (jobs 22694023, 22694024)
+
+| task | n | FP acc | span tok | budget | vote | store | budget/tok | vote/tok | store/tok |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| icl_banking77 | 10 | 1.000 | 2 | +0.01 | -0.00 | -0.00 | +0.004 | -0.002 | -0.002 |
+| icl_trec_coarse | 10 | 1.000 | 1 | +0.01 | -0.01 | +0.00 | +0.013 | -0.013 | +0.002 |
+| kilt_hotpotqa | 10 | 0.500 | 5 | +0.04 | -0.01 | -0.01 | +0.007 | -0.003 | -0.002 |
+| kilt_nq | 10 | 0.500 | 13 | +0.25 | +0.37 | -0.18 | +0.017 | +0.030 | -0.006 |
+| msmarco_rerank_psg | 10 | 0.266 | 121 | +0.77 | +39.82 | -2.72 | +0.007 | +0.320 | -0.031 |
+
+| task | arm | dP | dP/tok | KL | KL/tok | dAcc |
+|---|---|---:|---:|---:|---:|---:|
+| icl_banking77 | FP8 KV | -0.00 | -0.000 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | noise | +0.00 | +0.001 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | dense KIVI-4 | -0.01 | -0.003 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | dense KVQuant-4 | +0.00 | +0.002 | +0.00 | +0.001 | +0.000 |
+| icl_banking77 | dense uniform-4 | +0.00 | +0.001 | +0.00 | +0.002 | +0.000 |
+| icl_banking77 | oracle 1/8 (exact) | +0.01 | +0.004 | +0.00 | +0.001 | +0.000 |
+| icl_banking77 | vote 1/8 (exact) | +0.00 | +0.002 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | vote 1/8 (4-bit) | +0.00 | +0.001 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | system 1/8 | -0.00 | -0.000 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | system floor (R4) | -0.00 | -0.000 | +0.00 | +0.000 | +0.000 |
+| icl_banking77 | Quest exact 1/8 | -0.00 | -0.002 | +0.00 | +0.001 | +0.000 |
+| icl_banking77 | Quest 4-bit 1/8 | -0.00 | -0.001 | +0.00 | +0.002 | +0.000 |
+| icl_trec_coarse | FP8 KV | -0.00 | -0.003 | +0.00 | +0.001 | +0.000 |
+| icl_trec_coarse | noise | -0.00 | -0.001 | +0.00 | +0.001 | +0.000 |
+| icl_trec_coarse | dense KIVI-4 | -0.01 | -0.008 | +0.00 | +0.004 | +0.000 |
+| icl_trec_coarse | dense KVQuant-4 | +0.01 | +0.008 | +0.00 | +0.001 | +0.000 |
+| icl_trec_coarse | dense uniform-4 | +0.01 | +0.005 | +0.00 | +0.001 | +0.000 |
+| icl_trec_coarse | oracle 1/8 (exact) | +0.01 | +0.013 | +0.00 | +0.003 | +0.000 |
+| icl_trec_coarse | vote 1/8 (exact) | +0.00 | +0.000 | +0.00 | +0.002 | +0.000 |
+| icl_trec_coarse | vote 1/8 (4-bit) | +0.01 | +0.009 | +0.00 | +0.002 | +0.000 |
+| icl_trec_coarse | system 1/8 | +0.00 | +0.002 | +0.00 | +0.002 | +0.000 |
+| icl_trec_coarse | system floor (R4) | +0.01 | +0.007 | +0.00 | +0.001 | +0.000 |
+| icl_trec_coarse | Quest exact 1/8 | +0.01 | +0.006 | +0.00 | +0.003 | +0.000 |
+| icl_trec_coarse | Quest 4-bit 1/8 | +0.01 | +0.009 | +0.01 | +0.005 | +0.000 |
+| kilt_hotpotqa | FP8 KV | -0.03 | -0.005 | +0.01 | +0.002 | +0.000 |
+| kilt_hotpotqa | noise | -0.02 | -0.005 | +0.01 | +0.001 | +0.000 |
+| kilt_hotpotqa | dense KIVI-4 | -0.01 | +0.004 | +0.01 | +0.004 | +0.000 |
+| kilt_hotpotqa | dense KVQuant-4 | -0.06 | -0.007 | +0.04 | +0.006 | +0.000 |
+| kilt_hotpotqa | dense uniform-4 | -0.00 | -0.003 | +0.01 | +0.002 | +0.100 |
+| kilt_hotpotqa | oracle 1/8 (exact) | +0.04 | +0.007 | +0.02 | +0.003 | +0.100 |
+| kilt_hotpotqa | vote 1/8 (exact) | +0.03 | +0.004 | +0.02 | +0.003 | +0.100 |
+| kilt_hotpotqa | vote 1/8 (4-bit) | +0.09 | +0.016 | +0.04 | +0.010 | +0.100 |
+| kilt_hotpotqa | system 1/8 | +0.02 | +0.002 | +0.01 | +0.003 | +0.100 |
+| kilt_hotpotqa | system floor (R4) | +0.06 | +0.012 | +0.03 | +0.004 | +0.100 |
+| kilt_hotpotqa | Quest exact 1/8 | +0.01 | +0.003 | +0.01 | +0.003 | +0.100 |
+| kilt_hotpotqa | Quest 4-bit 1/8 | +0.06 | +0.010 | +0.04 | +0.009 | +0.100 |
+| kilt_nq | FP8 KV | +0.25 | +0.016 | +0.13 | +0.011 | +0.000 |
+| kilt_nq | noise | +0.01 | +0.001 | +0.05 | +0.003 | +0.000 |
+| kilt_nq | dense KIVI-4 | -0.01 | +0.002 | +0.12 | +0.008 | +0.000 |
+| kilt_nq | dense KVQuant-4 | +0.00 | +0.008 | +0.18 | +0.013 | +0.000 |
+| kilt_nq | dense uniform-4 | +0.10 | +0.009 | +0.22 | +0.014 | -0.100 |
+| kilt_nq | oracle 1/8 (exact) | +0.25 | +0.017 | +0.14 | +0.009 | +0.000 |
+| kilt_nq | vote 1/8 (exact) | +0.62 | +0.047 | +0.60 | +0.041 | +0.000 |
+| kilt_nq | vote 1/8 (4-bit) | +0.58 | +0.043 | +0.80 | +0.053 | +0.000 |
+| kilt_nq | system 1/8 | +0.43 | +0.042 | +0.57 | +0.041 | +0.000 |
+| kilt_nq | system floor (R4) | +0.40 | +0.032 | +0.49 | +0.035 | +0.000 |
+| kilt_nq | Quest exact 1/8 | +0.01 | -0.000 | +0.34 | +0.023 | +0.000 |
+| kilt_nq | Quest 4-bit 1/8 | +0.24 | +0.012 | +0.62 | +0.042 | +0.000 |
+| msmarco_rerank_psg | FP8 KV | +0.55 | +0.005 | +0.39 | +0.003 | -0.037 |
+| msmarco_rerank_psg | noise | -0.08 | -0.001 | +0.16 | +0.001 | +0.042 |
+| msmarco_rerank_psg | dense KIVI-4 | +0.63 | +0.005 | +0.77 | +0.006 | -0.144 |
+| msmarco_rerank_psg | dense KVQuant-4 | +0.15 | +0.003 | +1.24 | +0.010 | -0.107 |
+| msmarco_rerank_psg | dense uniform-4 | -0.18 | -0.000 | +0.80 | +0.006 | +0.052 |
+| msmarco_rerank_psg | oracle 1/8 (exact) | +0.77 | +0.007 | +0.54 | +0.005 | -0.129 |
+| msmarco_rerank_psg | vote 1/8 (exact) | +40.59 | +0.326 | +47.23 | +0.387 | -0.261 |
+| msmarco_rerank_psg | vote 1/8 (4-bit) | +38.24 | +0.298 | +45.69 | +0.368 | -0.261 |
+| msmarco_rerank_psg | system 1/8 | +37.86 | +0.295 | +44.99 | +0.361 | -0.261 |
+| msmarco_rerank_psg | system floor (R4) | +37.00 | +0.285 | +43.38 | +0.344 | -0.266 |
+| msmarco_rerank_psg | Quest exact 1/8 | +1.05 | +0.009 | +1.59 | +0.014 | +0.018 |
+| msmarco_rerank_psg | Quest 4-bit 1/8 | +1.02 | +0.010 | +2.44 | +0.022 | +0.011 |
+

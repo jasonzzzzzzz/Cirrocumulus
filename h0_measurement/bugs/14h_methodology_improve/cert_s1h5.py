@@ -24,6 +24,9 @@ with V = max |v| over all rows and nu = max |v - v_hat| over the rows read at 4 
   tail, per row (L4)   Lemma 3 with each row's own b_i, nu_i and |v_hat_i - o_T| (deterministic)
   tail, model (L5)     the same identity with a Bernstein bound for the rows' independent errors
                        (holds with probability >= 1 - delta under a stated error model)
+  tail, randomized (Theorem R)   tail_bound_rand (v1), tail_bound_rand_v2 (row-wise moments, second-moment
+                       variance, Bennett) and tail_bound_rand_coupled (MLA): probability over a dithered
+                       tier 1's coins, for any cache content (theory.md §6)
 """
 from __future__ import annotations
 import math
@@ -386,6 +389,294 @@ def tail_bound_conc(s, s_hat, sigma, keep, nu, dist, lse_fix=NEG, x_read=False, 
     return bound, dict(mean=(mean / den).to(s.dtype), B=(B / den).to(s.dtype), a=(a / den).to(s.dtype),
                        den=den, z=z.to(s.dtype))
 
+
+# ------------------------- Theorem R: the randomized tier (plan.md "R5 theory, part 4")
+def self_bound(X: torch.Tensor, a_max: torch.Tensor, m: torch.Tensor, delta: float, lo=1.0) -> torch.Tensor:
+    """Upper bound on A = sum_i a_i (a_i >= 0, unknown) from the observed X = sum_i a_i Z_i, Z_i >= 0
+    independent with E Z_i >= lo > 0 and E Z_i^2 <= m, a_i <= a_max: with probability >= 1 - delta,
+    sqrt(A) <= (sqrt(2 L m a_max) + sqrt(2 L m a_max + 4 lo X)) / (2 lo), L = ln(1/delta). (Maurer 2003:
+    P(E S - S >= x) <= exp(-x^2 / (2 sum E X_i^2)) for independent non-negative X_i, and
+    sum E X_i^2 <= m a_max A, so lo A <= X + sqrt(2 L m a_max A).)"""
+    k = 2.0 * math.log(1.0 / delta) * a_max * m
+    lo = torch.as_tensor(lo, dtype=X.dtype, device=X.device)
+    return ((torch.sqrt(k) + torch.sqrt(k + 4.0 * lo * X)) / (2.0 * lo)) ** 2
+
+
+def tail_bound_rand(s, s_hat, sigma, keep, rho, nu_max, nu2, oc, lse_fix=NEG, delta: float = DELTA_T,
+                    coupled=False, b_as=None, mom=None, ldebias=None, parts=False):
+    """Theorem R: the tail design with exact keys AND values on the read rows (S) and a randomized tier 1 on
+    the rest (T), e.g. rquant_s1h5.dither_quantize. With probability >= 1 - delta over tier 1's coins, for
+    ANY cache content, any query and any read set S chosen without looking at the coins:
+        |o - o_T| <= [mY + r(BY, aY) + |o_T - c| (mD + r(BD, aD))] / M,
+    from the exact identity Z (o - o_T) = sum_T Y_i - (o_T - c) sum_T D_i, with c = the exact output of the
+    read and fixed rows (coin-free), M their exact mass (<= Z), Y_i = w_i (v_i - c) - w~_i (v_hat_i - c),
+    D_i = w_i - w~_i (independent across rows), w~_i = e^{s_hat_i} the design's tier-1 weight.
+    Inputs, all per row [.., C]: s exact scores (read rows only); s_hat the design's tier-1 scores (with
+    ldebias, the debiased ones: raw score - ldebias); sigma the score error delta_i's sub-Gaussian proxy
+    (e.g. rquant_s1h5.score_sigma); keep (coin-free); nu_max / nu2 the value error's a.s. bound and E|e|^2;
+    rho = |v_hat_i - c| (widened by nu_max here), or with coupled (MLA: one coin draw makes the key and the
+    value error) a coin-free bound on |v_i - c|; oc = |o_T - c| [..]; b_as an optional a.s. bound on |delta|;
+    mom = dict(lmu_lo, lmu_hi, lmu2_hi, lmu4_hi): log bounds on the coins' moments E e^{-delta},
+    E e^{-2 delta}, E e^{-4 delta} (rquant_s1h5.coin_moments; default: 0, sigma^2/2, 2 sigma^2, 8 sigma^2 from
+    sub-Gaussianity); ldebias: log of the factor the design divided its tier-1 weights by (0 = none).
+    Proof outline (plan.md "R5 theory, part 4"): truncation |delta_i| <= t_i = min(z sigma_i, b_as_i),
+    z = trunc_z(|T|, delta / 2), failing with probability p_i <= 2 e^{-t_i^2 / (2 sigma_i^2)} (0 where t = b_as);
+    on it, with Z_i = w~_i / w_i = e^{-delta_i - ldebias_i}: E Z_i in [lo1, hi1], E Z_i^2 <= hi2, E Z_i^4 <= hi4,
+    |Z_i - E Z_i| <= rng_i, w_i <= w_bar_i = w~_i e^{ldebias_i + t_i}; then |E Y_i| <= w kappa rho, Var <=
+    w^2 [(hi2 - lo1^2) rho^2 + hi2 nu2], |Y - E Y| <= w (rng rho + e^{t - ldebias} nu_max), |E D_i| <= w kappa,
+    Var <= w^2 (hi2 - lo1^2), |D - E D| <= w rng (kappa = max(hi1 - 1, 1 - lo1)); each unknown sum over w or
+    w^2 is bounded by self_bound from its observed tier-1 version, and the two sums by bernstein_radius:
+    four self-bounds and two Bernstein events at delta / 12 each, plus truncation at delta / 2. The
+    denominator uses Z = M + sum_T w >= M + sum_T w~ - |sum_T D| with |sum_T D| <= mD + rD (same events).
+    coupled: |E[Z e]| <= sqrt(E (Z - 1)^2) sqrt(nu2) is added to the mean and range rows (joint symmetry of
+    (e, delta)), and Var becomes (sqrt(hi2 - lo1^2) rho + sqrt(hi2) nu_max)^2 (Minkowski)."""
+    keep_e = keep.expand_as(s)
+    n_t = (~keep_e).sum(-1)
+    z = trunc_z(n_t, delta / 2.0).to(s.device)
+    sig = sigma.double().expand_as(s)
+    t = z.unsqueeze(-1) * sig
+    exact_cap = torch.zeros_like(t, dtype=torch.bool)
+    if b_as is not None:
+        bb = b_as.double().expand_as(s)
+        exact_cap = bb <= t
+        t = torch.minimum(t, bb)
+    w, wh, _, wf, tt, unread = _tail_prep(s, s_hat, t, keep, lse_fix)
+    sig = sig.masked_fill(~unread, 0.0)
+    if mom is None:
+        mom = dict(lmu_lo=torch.zeros_like(sig), lmu_hi=sig * sig / 2.0, lmu2_hi=2.0 * sig * sig,
+                   lmu4_hi=8.0 * sig * sig)
+    ex = lambda k: mom[k].double().expand_as(w).masked_fill(~unread, 0.0)          # noqa: E731
+    lmu_lo, lmu_hi, lmu2_hi, lmu4_hi = ex("lmu_lo"), ex("lmu_hi"), ex("lmu2_hi"), ex("lmu4_hi")
+    ldb = (ldebias.double().expand_as(w).masked_fill(~unread, 0.0) if ldebias is not None
+           else torch.zeros_like(w))
+    p = torch.where(exact_cap | ~unread | (sig <= 0), torch.zeros_like(tt),
+                    2.0 * torch.exp(-(tt * tt) / (2.0 * sig * sig).clamp_min(1e-300))).clamp(max=0.5)
+    cap = 700.0
+    E = lambda x: torch.exp(x.clamp(max=cap))                                    # noqa: E731
+    lo1 = ((E(lmu_lo) - torch.sqrt(E(lmu2_hi) * p)) * E(-ldb)).clamp_min(1e-6)
+    hi1 = E(lmu_hi - ldb) / (1.0 - p)
+    hi2 = E(lmu2_hi - 2.0 * ldb) / (1.0 - p)
+    hi4 = E(lmu4_hi - 4.0 * ldb) / (1.0 - p)
+    kappa = torch.maximum(hi1 - 1.0, 1.0 - lo1).clamp_min(0.0)
+    var = (hi2 - lo1 * lo1).clamp_min(0.0)
+    rng = torch.maximum(E(tt - ldb) - lo1, hi1 - E(-tt - ldb)).clamp_min(0.0)
+    M = wf + w.sum(-1)
+    lwh = torch.log(wh)
+    wbar = torch.exp(lwh + ldb + tt)
+    nm, n2 = nu_max.double().expand_as(w), nu2.double().expand_as(w)
+    rb = rho.double().expand_as(w) + (0.0 if coupled else nm)
+    enu = E(tt - ldb) * nm
+    if coupled:
+        cm = torch.sqrt(((hi2 - 2.0 * lo1 + 1.0).clamp_min(0.0)) * n2)
+        g_mean = kappa * rb + cm
+        g_var = (torch.sqrt(var) * rb + torch.sqrt(hi2) * nm) ** 2
+        a_y = (wbar * (rng * rb + enu + cm)).amax(-1)
+    else:
+        g_mean = kappa * rb
+        g_var = var * rb * rb + hi2 * n2
+        a_y = (wbar * (rng * rb + enu)).amax(-1)
+    dk = delta / 12.0
+    unr = unread
+    big = torch.full_like(lo1, float("inf"))
+    lo_1 = torch.where(unr, lo1, big).amin(-1).clamp(max=1e6)
+    lo_2 = lo_1 * lo_1
+    m2, m4 = (hi2 * unr).amax(-1), (hi4 * unr).amax(-1)
+    mY = self_bound((wh * g_mean).sum(-1), (wbar * g_mean).amax(-1), m2, dk, lo_1)
+    B2Y = self_bound((wh * wh * g_var).sum(-1), (wbar * wbar * g_var).amax(-1), m4, dk, lo_2)
+    mD = self_bound((wh * kappa).sum(-1), (wbar * kappa).amax(-1), m2, dk, lo_1)
+    B2D = self_bound((wh * wh * var).sum(-1), (wbar * wbar * var).amax(-1), m4, dk, lo_2)
+    aD = (wbar * rng).amax(-1)
+    rY = bernstein_radius(torch.sqrt(B2Y), a_y, dk)
+    rD = bernstein_radius(torch.sqrt(B2D), aD, dk)
+    num_y, num_d = mY + rY, (mD + rD) * oc.double()
+    # Z = M + sum_T w >= M + (sum_T w~ - |sum_T D|), and |sum_T D| <= mD + rD on the events already used
+    den = M + (wh.sum(-1) - mD - rD).clamp_min(0.0)
+    bound = ((num_y + num_d) / den).to(s.dtype)
+    if not parts:
+        return bound
+    return bound, dict(mean=((mY + mD * oc.double()) / den).to(s.dtype),
+                       radius_v=(rY / den).to(s.dtype), radius_w=((rD * oc.double()) / den).to(s.dtype),
+                       range_v=(bernstein_radius(torch.zeros_like(a_y), a_y, dk) / den).to(s.dtype),
+                       den_ratio=(den / M).to(s.dtype), z=z.to(s.dtype))
+
+
+
+# ------------------------- Theorem R v2 (plan.md "R5 theory, part 5"; theory.md §6, "Tightening")
+# Ported from theory2_s1h5.py after R5.4's reader ran (2026-10-10); tail_bound_rand (v1) above is unchanged, so
+# R5.4's probe columns reproduce. v2 makes no new assumption; the brute-force checks are in test_r14_stage1h_r5.py
+# (test_cert_rand) and test_theory_s1h5.py.
+def bennett_radius(B: torch.Tensor, a: torch.Tensor, delta: float, iters: int = 80) -> torch.Tensor:
+    """The exact r with 2 exp(-(B^2/a^2) h(r a / B^2)) = delta, h(u) = (1 + u) ln(1 + u) - u: the Bennett form of
+    Pinelis' Theorem 3.4 (Hilbert space, independent zero-mean summands, |X_i| <= a, sum E|X_i|^2 <= B^2), of which
+    bernstein_radius is the relaxation h(u) >= u^2 / (2 (1 + u/3)); never larger than it. Bisection between 0 and
+    Bernstein's radius (the exponent is increasing in r)."""
+    L = math.log(2.0 / delta)
+    B = B.double()
+    a = a.double().clamp_min(1e-300)
+    hi = bernstein_radius(B, a, delta).double()
+    lo = torch.zeros_like(B)
+    v2 = (B * B).clamp_min(1e-300)
+
+    def g(r):
+        u = r * a / v2
+        return (v2 / (a * a)) * ((1.0 + u) * torch.log1p(u) - u)
+    for _ in range(iters):
+        mid = (lo + hi) / 2.0
+        ok = g(mid) >= L
+        hi = torch.where(ok, mid, hi)
+        lo = torch.where(ok, lo, mid)
+    return hi
+
+
+def self_bound_rowwise(X: torch.Tensor, am: torch.Tensor, delta: float, lo=1.0) -> torch.Tensor:
+    """self_bound with the second moments weighted row by row: sum E X_i^2 <= sum a_i^2 m_i <= max_i(a_i m_i) sum a_i,
+    so am = max_i (a_bar_i m_i) replaces a_max * max(m) (never larger)."""
+    k = 2.0 * math.log(1.0 / delta) * am
+    lo = torch.as_tensor(lo, dtype=X.dtype, device=X.device)
+    return ((torch.sqrt(k) + torch.sqrt(k + 4.0 * lo * X)) / (2.0 * lo)) ** 2
+
+
+def _rand_prep(s, s_hat, sigma, keep, lse_fix, delta, b_as, mom, ldebias):
+    """Theorem R's common quantities (truncation, the coins' moment bounds, the weights), as in tail_bound_rand."""
+    keep_e = keep.expand_as(s)
+    n_t = (~keep_e).sum(-1)
+    z = trunc_z(n_t, delta / 2.0).to(s.device)
+    sig = sigma.double().expand_as(s)
+    t = z.unsqueeze(-1) * sig
+    exact_cap = torch.zeros_like(t, dtype=torch.bool)
+    if b_as is not None:
+        bb = b_as.double().expand_as(s)
+        exact_cap = bb <= t
+        t = torch.minimum(t, bb)
+    w, wh, _, wf, tt, unread = _tail_prep(s, s_hat, t, keep, lse_fix)
+    sig = sig.masked_fill(~unread, 0.0)
+    if mom is None:
+        mom = dict(lmu_lo=torch.zeros_like(sig), lmu_hi=sig * sig / 2.0, lmu2_hi=2.0 * sig * sig,
+                   lmu4_hi=8.0 * sig * sig)
+    ex = lambda k_: mom[k_].double().expand_as(w).masked_fill(~unread, 0.0)        # noqa: E731
+    lmu_lo, lmu_hi, lmu2_hi, lmu4_hi = ex("lmu_lo"), ex("lmu_hi"), ex("lmu2_hi"), ex("lmu4_hi")
+    ldb = (ldebias.double().expand_as(w).masked_fill(~unread, 0.0) if ldebias is not None
+           else torch.zeros_like(w))
+    p = torch.where(exact_cap | ~unread | (sig <= 0), torch.zeros_like(tt),
+                    2.0 * torch.exp(-(tt * tt) / (2.0 * sig * sig).clamp_min(1e-300))).clamp(max=0.5)
+    E = lambda x: torch.exp(x.clamp(max=700.0))                                  # noqa: E731
+    lo1 = ((E(lmu_lo) - torch.sqrt(E(lmu2_hi) * p)) * E(-ldb)).clamp_min(1e-6)
+    hi1 = E(lmu_hi - ldb) / (1.0 - p)
+    hi2 = E(lmu2_hi - 2.0 * ldb) / (1.0 - p)
+    hi4 = E(lmu4_hi - 4.0 * ldb) / (1.0 - p)
+    lo_1 = torch.where(unread, lo1, torch.full_like(lo1, float("inf"))).amin(-1).clamp(max=1e6)
+    return dict(z=z, w=w, wh=wh, wf=wf, tt=tt, unread=unread, ldb=ldb, E=E, lo1=lo1, hi1=hi1, hi2=hi2, hi4=hi4,
+                kappa=torch.maximum(hi1 - 1.0, 1.0 - lo1).clamp_min(0.0), var=(hi2 - lo1 * lo1).clamp_min(0.0),
+                rng=torch.maximum(E(tt - ldb) - lo1, hi1 - E(-tt - ldb)).clamp_min(0.0),
+                M=wf + w.sum(-1), wbar=torch.exp(torch.log(wh) + ldb + tt), lo_1=lo_1, lo_2=lo_1 * lo_1)
+
+
+def tail_bound_rand_v2(s, s_hat, sigma, keep, rho, nu_max, nu2, oc, lse_fix=NEG, delta: float = DELTA_T,
+                       b_as=None, mom=None, ldebias=None, parts=False):
+    """Theorem R (GQA rows: key and value coins independent), tightened without new assumptions; inputs as
+    tail_bound_rand (coupled=False). Three changes, each valid on its own:
+      1. the self-bounds weight the coins' moments row by row (self_bound_rowwise: max_i a_i m_i instead of
+         max a x max m);
+      2. the value sum's variance is the smaller of its fourth-moment self-bound and
+         max_i(w_bar_i sqrt g_i) * [a self-bound on sum_i w_i sqrt g_i] (second moments only; w_i <= w_bar_i on
+         the truncation event);
+      3. both sums use the exact Bennett radius (bennett_radius) instead of its Bernstein relaxation.
+    Events: truncation at delta / 2; five self-bounds and two Bennett events at delta / 14 each."""
+    P = _rand_prep(s, s_hat, sigma, keep, lse_fix, delta, b_as, mom, ldebias)
+    w, wh, wbar, unr, E, tt, ldb = P["w"], P["wh"], P["wbar"], P["unread"], P["E"], P["tt"], P["ldb"]
+    kappa, var, rng, hi2, hi4 = P["kappa"], P["var"], P["rng"], P["hi2"], P["hi4"]
+    nm, n2 = nu_max.double().expand_as(w), nu2.double().expand_as(w)
+    rb = rho.double().expand_as(w) + nm
+    g_mean, g_var = kappa * rb, var * rb * rb + hi2 * n2
+    a_y = (wbar * (rng * rb + E(tt - ldb) * nm)).amax(-1)
+    dk = delta / 14.0
+
+    def sb(g, p_):
+        mm = hi2 if p_ == 1 else hi4
+        return self_bound_rowwise((wh ** p_ * g).sum(-1), (wbar ** p_ * g * mm * unr).amax(-1), dk,
+                                  P["lo_1"] if p_ == 1 else P["lo_2"])
+    mY = sb(g_mean, 1)
+    B2Y = torch.minimum(sb(g_var, 2), (wbar * torch.sqrt(g_var)).amax(-1) * sb(torch.sqrt(g_var), 1))
+    mD = sb(kappa, 1)
+    B2D = sb(var, 2)
+    aD = (wbar * rng).amax(-1)
+    rY = bennett_radius(torch.sqrt(B2Y), a_y, dk)
+    rD = bennett_radius(torch.sqrt(B2D), aD, dk)
+    num = mY + rY + (mD + rD) * oc.double()
+    den = P["M"] + (wh.sum(-1) - mD - rD).clamp_min(0.0)
+    bound = (num / den).to(s.dtype)
+    if not parts:
+        return bound
+    return bound, dict(mean=((mY + mD * oc.double()) / den).to(s.dtype), radius_v=(rY / den).to(s.dtype),
+                       radius_w=((rD * oc.double()) / den).to(s.dtype), den_ratio=(den / P["M"]).to(s.dtype),
+                       z=P["z"].to(s.dtype))
+
+
+def coupled_self_bound1(X, a_max, m, delta, lo, N1):
+    """MLA (coupled rows): an upper bound on S1 = sum w a rho from X = sum w~ a (rhat + nu), with |rhat - rho| <= nu
+    a.s. (rhat the observed distance |v_hat - c|) and N1 an upper bound on sum w a nu. X_i >= w~_i a_i rho_i, so
+    E X_i >= lo w_i a_i rho_i; X_i <= w~_i a_i (rho_i + 2 nu_i), so sum E X_i^2 <= m a_max (S1 + 2 N1); Maurer's
+    lower tail: lo S1 <= X + sqrt(2 L m a_max (S1 + 2 N1)), solved for S1."""
+    L = math.log(1.0 / delta)
+    k = 2.0 * L * a_max * m
+    lo = torch.as_tensor(lo, dtype=X.dtype, device=X.device)
+    u = ((torch.sqrt(k) + torch.sqrt(k + 4.0 * lo * (X + 2.0 * lo * N1))) / (2.0 * lo)) ** 2
+    return (u - 2.0 * N1).clamp_min(0.0)
+
+
+def coupled_self_bound2(X, a_max, m4, delta, lo2, N2):
+    """MLA: an upper bound on S2 = sum w^2 b rho^2 from X = sum w~^2 b (rhat + nu)^2, N2 an upper bound on
+    sum w^2 b nu^2: sum w^2 b (rho + 2 nu)^2 <= (sqrt(S2) + 2 sqrt(N2))^2 (Minkowski), so
+    lo2 S2 <= X + sqrt(2 L m4 a_max) (sqrt(S2) + 2 sqrt(N2)), a quadratic in sqrt(S2)."""
+    L = math.log(1.0 / delta)
+    k = 2.0 * L * a_max * m4
+    lo2 = torch.as_tensor(lo2, dtype=X.dtype, device=X.device)
+    q = (torch.sqrt(k) + torch.sqrt(k + 4.0 * lo2 * (X + 2.0 * torch.sqrt(k * N2)))) / (2.0 * lo2)
+    return q * q
+
+
+def tail_bound_rand_coupled(s, s_hat, sigma, keep, rhat, nu_max, nu2, oc, lse_fix=NEG, delta: float = DELTA_T,
+                            b_as=None, mom=None, ldebias=None, parts=False):
+    """Theorem R for coupled rows (MLA: one coin draw makes a row's key and value error), with the observed
+    distance rhat = |v_hat_i - c| bracketing rho_i = |v_i - c| (|rhat - rho| <= nu_max a.s.) instead of a coin-free
+    bound on rho, and the Bennett radius. In head space (theory.md §6, "MLA"), pass the head's projections:
+    rhat = |W_h (v_hat_i - c)|, nu_max = |W_h|_2 sqrt(d) D / 2 and nu2 = |W_h|_F^2 D^2 / 12 per row. Inputs otherwise
+    as tail_bound_rand (coupled=True). |E[Z e]| <= sqrt(E (Z - 1)^2) sqrt(nu2) enters the mean and range rows (joint
+    symmetry of (e, delta)); the variance splits by Minkowski into S2 (at b = var, from rhat) and Q = sum w^2 hi2 nu2
+    (coin-free weights). Events: truncation at delta / 2; N1, S1, the coin-free mean term, N2, S2, Q, mD, BD and the
+    two Bennett sums: ten at delta / 20."""
+    P = _rand_prep(s, s_hat, sigma, keep, lse_fix, delta, b_as, mom, ldebias)
+    w, wh, wbar, unr, E, tt, ldb = P["w"], P["wh"], P["wbar"], P["unread"], P["E"], P["tt"], P["ldb"]
+    kappa, var, rng, hi2, hi4, lo1 = P["kappa"], P["var"], P["rng"], P["hi2"], P["hi4"], P["lo1"]
+    nm, n2 = nu_max.double().expand_as(w), nu2.double().expand_as(w)
+    rh = rhat.double().expand_as(w)
+    cm = torch.sqrt(((hi2 - 2.0 * lo1 + 1.0).clamp_min(0.0)) * n2)
+    dk = delta / 20.0
+    lo_1, lo_2 = P["lo_1"], P["lo_2"]
+    m2, m4 = (hi2 * unr).amax(-1), (hi4 * unr).amax(-1)
+    sb = lambda g, p_: self_bound((wh ** p_ * g).sum(-1), (wbar ** p_ * g).amax(-1),          # noqa: E731
+                                  m2 if p_ == 1 else m4, dk, lo_1 if p_ == 1 else lo_2)
+    N1 = sb(kappa * nm, 1)
+    S1 = coupled_self_bound1((wh * kappa * (rh + nm)).sum(-1), (wbar * kappa * (rh + 3.0 * nm)).amax(-1), m2, dk,
+                             lo_1, N1)
+    mY = S1 + sb(cm, 1)
+    N2 = sb(var * nm * nm, 2)
+    S2 = coupled_self_bound2((wh * wh * var * (rh + nm) ** 2).sum(-1),
+                             (wbar * wbar * var * (rh + 3.0 * nm) ** 2).amax(-1), m4, dk, lo_2, N2)
+    Q = sb(hi2 * nm * nm, 2)
+    B_Y = torch.sqrt(S2) + torch.sqrt(Q)
+    a_y = (wbar * (rng * (rh + nm) + E(tt - ldb) * nm + cm)).amax(-1)
+    mD = sb(kappa, 1)
+    B2D = sb(var, 2)
+    aD = (wbar * rng).amax(-1)
+    rY = bennett_radius(B_Y, a_y, dk)
+    rD = bennett_radius(torch.sqrt(B2D), aD, dk)
+    num = mY + rY + (mD + rD) * oc.double()
+    den = P["M"] + (wh.sum(-1) - mD - rD).clamp_min(0.0)
+    bound = (num / den).to(s.dtype)
+    if not parts:
+        return bound
+    return bound, dict(mean=(mY / den).to(s.dtype), radius=(rY / den).to(s.dtype), z=P["z"].to(s.dtype))
 
 # -------------------------------------------- budgets at several targets (one sort)
 def _first_ok(curve: torch.Tensor, eps_list) -> torch.Tensor:

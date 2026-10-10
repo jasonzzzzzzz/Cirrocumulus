@@ -609,20 +609,169 @@ def read_r53(pairs, out_stem, root=RESULTS):
     return 0 if not problems else 1
 
 
+# ===================================================================== the R5.4 read
+# Rules: plan.md, amendment "R5.4" (frozen before any R5.4 output). Exploratory, no labels; unit-clustered
+# bootstrap 90% intervals; paired per unit within a block; each model x cell x family separately.
+R54_Q = {
+    "Q1 randomized vs Lloyd-Max tier (4-bit, plain)": [("dtail4x_v4", 0.125, "tail4x_v4", 0.125)],
+    "Q2 unbiased vs plain (randomized, 4-bit)": [("dtail4ux_v4", 0.125, "dtail4x_v4", 0.125)],
+    "Q2b the unbiased randomized tail vs R6's candidate": [("dtail4ux_v4", 0.125, "tail4x_v4", 0.125)],
+    "Q3 key bits (unbiased)": [("dtail6ux_v4", 0.125, "dtail4ux_v4", 0.125), ("dtail8ux_v4", 0.125, "dtail6ux_v4", 0.125)],
+    "Q4 against FP8": [(a, 0.125, "fp8kv", 8.0) for a in ("tail4x_v4", "dtail4x_v4", "dtail4ux_v4", "dtail6ux_v4",
+                                                        "dtail8ux_v4")] + [("fp_noise", 0.0, "fp8kv", 8.0)],
+}
+R54_ARMS = ["fp", "probe", "tail4x_v4", "dtail4x_v4", "dtail4ux_v4", "dtail6ux_v4", "dtail8ux_v4", "uniform", "uniform+v4",
+            "fp8kv", "fp_noise"]
+R6_MARGINS = ((1.25, 2e-4), (1.5, 5e-4))
+
+
+def _ni(rows, arm, B, rho, kappa):
+    """R6's draft test on one model x family: upper 90% bound of mean(KL_arm - rho KL_FP8) (point, upper)."""
+    a = rows[(rows.arm == arm) & np.isclose(rows.B, B)].set_index(["cell"] + UKEY)
+    e = rows[rows.arm == "fp8kv"].set_index(["cell"] + UKEY)
+    idx = a.index.intersection(e.index)
+    y = (a.kl_span_tok[idx] - rho * e.kl_span_tok[idx]).values
+    b = boot(y, np.mean)
+    return b[0], b[2], b[3], (b[0] <= kappa, b[2] <= kappa)
+
+
+def read_r54(pairs, out_stem, root=RESULTS):
+    problems, parts, heads = {}, [], []
+    for tag, job in pairs:
+        w = f"{tag}_{job}"
+        dd = os.path.join(root, f"r14s1h_{tag}_{job}")
+        sp = glob.glob(os.path.join(dd, "s1h_evaluate_*.json"))
+        if len(sp) != 1:
+            problems[w] = ["cannot load"]
+            continue
+        side = json.load(open(sp[0]))
+        d = pd.read_parquet(os.path.join(dd, side["parquet"]))
+        pr = []
+        units = d[d.arm == "fp"][UKEY].drop_duplicates()
+        for arm in R54_ARMS:
+            n = d[d.arm == arm][UKEY].drop_duplicates().shape[0]
+            if n != len(units):
+                pr.append(f"{arm} on {n} of {len(units)} units")
+        dt = d[d.arm.str.startswith("dtail")]
+        if len(dt) and "evict_frac" in dt and float(dt.evict_frac.fillna(0).abs().max()) > 0:
+            pr.append("a dtail arm evicted rows")
+        prb = d[d.arm == "probe"]
+        if len(prb) and float(prb.kl_all.abs().max()) > 1e-6:
+            pr.append(f"the probe's pass differs from FP's (max KL {float(prb.kl_all.abs().max()):.2e})")
+        peaks = [float(v) for v in side.get("peak_gib_dev_max") or []]           # as R5.3's validity
+        if int(side.get("n_gpus") or 0) > 0 and (not peaks or max(peaks) > PEAK_LIMIT):
+            pr.append(f"peak GPU memory per device {peaks}")
+        plan = [tuple(p_) for p_ in side.get("plan", [])]
+        if plan and len(d) != len(units) * len(plan):
+            pr.append(f"{len(d)} rows for {len(units)} units x {len(plan)} arms")
+        hf = (side.get("r5_files") or {}).get("probe_heads")
+        if hf:
+            h = pd.read_parquet(os.path.join(dd, hf))
+            h = h.assign(model=side["model"], cell=tag, family=h.task.map(FAMILY))
+            heads.append(h)
+        rows = d.assign(model=side["model"], cell=tag, family=d.task.map(FAMILY))[
+            ["model", "cell", "family", "prompt_idx", "task", "arm", "B", "a_span_nll_tok", "kl_span_tok", "kl_all",
+             "score", "traffic_frac", "exact_rows_frac"]]
+        (parts if not pr else parts).append(rows)
+        if pr:
+            problems[w] = pr
+        print(f"{w}: {'PROBLEMS: ' + '; '.join(pr) if pr else 'valid'}", flush=True)
+    out = dict(rules="plan.md amendment 'R5.4' (exploratory, no labels)", problems=problems)
+    md = ["# R14 Stage 1h — R5.4 read: the randomized tier 1 against tail4x_v4 (rules: plan.md, amendment 'R5.4')", "",
+          "Unit-clustered bootstrap 90% intervals; paired per unit; each model × cell × family separately.", ""]
+    md += [f"- PROBLEM: {w}: {'; '.join(p)}" for w, p in problems.items()] or ["- every block valid"]
+    if not parts:
+        open(out_stem + ".md", "w").write("\n".join(md) + "\n")
+        return 1
+    rows = pd.concat(parts, ignore_index=True)
+    res = dict(arms=arm_table(rows), questions={}, r6={}, theorem_r=[])
+    for q, pairs_ in R54_Q.items():
+        res["questions"][q] = []
+        for (m, c, f), g in rows.groupby(["model", "cell", "family"]):
+            piv = {k: v.set_index(UKEY) for k, v in g.groupby(["arm", "B"])}
+            for a, b, ra, rb in pairs_:
+                if (a, b) not in piv or (ra, rb) not in piv:
+                    continue
+                x, y = piv[(a, b)], piv[(ra, rb)]
+                idx = x.index.intersection(y.index)
+                res["questions"][q].append(dict(
+                    group=f"{m}/{c}/{f}", arm=f"{a}@{b:g}", against=f"{ra}@{rb:g}",
+                    d_KL_tok=boot(x.kl_span_tok[idx] - y.kl_span_tok[idx], np.mean),
+                    d_dP_tok=boot(x.a_span_nll_tok[idx] - y.a_span_nll_tok[idx], np.mean),
+                    d_acc=boot(x.score[idx] - y.score[idx], np.mean),
+                    traffic=float(x.traffic_frac.mean()), traffic_ref=float(y.traffic_frac.mean())))
+    for rho, kappa in R6_MARGINS:
+        key = f"{rho} x FP8 + {kappa}"
+        res["r6"][key] = []
+        for (m, f), g in rows.groupby(["model", "family"]):
+            for arm, B in [(a, 0.125) for a in R54_ARMS[2:7]] + [("uniform+v4", 4.0), ("fp_noise", 0.0)]:
+                pt, ub, n, ok = _ni(g, arm, B, rho, kappa)
+                res["r6"][key].append(dict(model=m, family=f, arm=arm, n=n, y=pt, ub=ub, point_ok=bool(ok[0]),
+                                           ub_ok=bool(ok[1])))
+    if heads:
+        H = pd.concat(heads, ignore_index=True)
+        for (m, c), g in H.groupby(["model", "cell"]):
+            for k in sorted(cn for cn in g.columns if cn.startswith("rcov_")):
+                tg = k[5:]
+                res["theorem_r"].append(dict(model=m, cell=c, read=tg, head_steps=int(len(g)), cover=float(g[k].mean()),
+                                             cover_min=float(g[k].min()), ratio_med=float(g[f"rratio_{tg}"].median()),
+                                             fp8=float(g[f"rfp8_{tg}"].mean()), rel_med=float(g[f"rrel_{tg}"].median())))
+    out["main"] = res
+    L = [f"## Main read ({int((rows.arm == 'fp').sum())} units)", ""]
+    for q, recs in res["questions"].items():
+        L += [f"### {q}", "", "| model / cell / family | arm | against | Δ KL/tok | Δ dP/tok | Δ accuracy | traffic (arm / ref) |",
+              "|---|---|---|---|---|---|---|"]
+        L += [f"| {r['group']} | {r['arm']} | {r['against']} | {_ci(r['d_KL_tok'])} | {_ci(r['d_dP_tok'])} | "
+              f"{_ci(r['d_acc'], 3)} | {r['traffic']:.3f} / {r['traffic_ref']:.3f} |" for r in recs]
+        L.append("")
+    for key, recs in res["r6"].items():
+        L += [f"### R6's draft test at {key} (point estimate / 90% upper bound of mean(KL − ρ·KL_FP8) ≤ κ)", "",
+              "| model | family | arm | n | mean | upper | point | upper |", "|---|---|---|---|---|---|---|---|"]
+        L += [f"| {r['model']} | {r['family']} | {r['arm']} | {r['n']} | {r['y']:+.5f} | {r['ub']:+.5f} | "
+              f"{'yes' if r['point_ok'] else 'no'} | {'yes' if r['ub_ok'] else 'no'} |" for r in recs]
+        L.append("")
+    if res["theorem_r"]:
+        L += ["### Theorem R in the probe (dithered tier; read sets from the Lloyd-Max store; FP's teacher-forced queries)", "",
+              "Read = rows read exactly (tailx = the vote's; _p128/_p32/_p8 = C/128, C/32, C/8 more), p = plain / u = "
+              "unbiased tail, k = key bits. Coverage is a guarantee: it must be 1.", "",
+              "| model | cell | read | head-steps | coverage (min) | median bound / error | certified within FP8 | rel. error |",
+              "|---|---|---|---|---|---|---|---|"]
+        L += [f"| {r['model']} | {r['cell']} | {r['read']} | {r['head_steps']} | {r['cover']:.4f} ({r['cover_min']:.3f}) | "
+              f"{r['ratio_med']:.1f} | {r['fp8']:.3f} | {r['rel_med']:.4f} |" for r in res["theorem_r"]]
+        L.append("")
+    L += ["### The accuracy–cost frontier (against FP, per span token; sorted by traffic)", "",
+          "| model / cell / family | arm@B | traffic | KL/tok | dP/tok | ΔAcc (FP right) |", "|---|---|---|---|---|---|"]
+    for r in sorted(res["arms"], key=lambda r: (r["model"], r["cell"], r["family"], r["traffic"])):
+        L.append(f"| {r['model']}/{r['cell']}/{r['family']} | {r['arm']}@{r['B']:g} | {r['traffic']:.3f} | "
+                 f"{_ci(r['KL_tok'])} | {_ci(r['dP_tok'])} | {_ci(r['dAcc_fp_correct'], 3)} |")
+    md += [""] + L
+    os.makedirs(os.path.dirname(os.path.abspath(out_stem)), exist_ok=True)
+    with open(out_stem + ".json", "w") as fh:
+        json.dump(out, fh, indent=1, default=float)
+    with open(out_stem + ".md", "w") as fh:
+        fh.write("\n".join(md) + "\n")
+    print("\n".join(md[:6]))
+    print(f"wrote {out_stem}.md / .json")
+    return 0 if not problems else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--pilot", nargs="+", metavar="TAG:JOB")
     g.add_argument("--r5", nargs="+", metavar="TAG:JOB", help="the frozen R5 read (plan.md 'R5 freeze')")
     g.add_argument("--r53", nargs="+", metavar="TAG:JOB", help="the R5.3 read (plan.md amendment 'R5.3')")
+    g.add_argument("--r54", nargs="+", metavar="TAG:JOB", help="the R5.4 read (plan.md amendment 'R5.4')")
     ap.add_argument("--out-stem", default=None)
     ap.add_argument("--results-root", default=RESULTS)
     a = ap.parse_args()
     pairs = []
-    for x in (a.pilot or a.r5 or a.r53):
+    for x in (a.pilot or a.r5 or a.r53 or a.r54):
         if ":" not in x:
             ap.error(f"takes TAG:JOB, not {x!r}")
         pairs.append(tuple(x.split(":", 1)))
+    if a.r54:
+        sys.exit(read_r54(pairs, a.out_stem or os.path.join(FINDINGS, "R5_4_reader"), a.results_root))
     if a.r53:
         sys.exit(read_r53(pairs, a.out_stem or os.path.join(FINDINGS, "R5_3_reader"), a.results_root))
     if a.r5:

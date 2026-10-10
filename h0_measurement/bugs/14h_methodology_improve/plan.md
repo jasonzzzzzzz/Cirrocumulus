@@ -974,3 +974,484 @@ meets on Qwen.
 
 Sizes at that margin: about 280 units for Llama 128K and 190 for Qwen 32K, ≈ 8 + 3.5 GPU-h for six
 arms plus loads (`findings/R5_sizing.md`, now pairing within blocks only).
+
+**2026-10-09: R5 theory, part 4 — a randomized tier 1: a guarantee for any cache content (draft; no run
+uses it yet).** Code: `rquant_s1h5.py` (the quantizer and its moments), `cert_s1h5.tail_bound_rand`
+(Theorem R), `self_bound`; tests `test_r14_stage1h_r5.py` (`test_cert_rand`), the adapters
+(`adapters_s1h5.py`, all seven models) and the probe (`run_s1h5 --dither-seeds N --dither-key-bits B`).
+
+*Why.* Lemma 5's probability is over a model of the data. Real keys break that model: tier-1 scores
+regress to the mean coherently, by about 0.25σ, and the model needed a calibrated allowance. A
+guarantee for every model and every input has to put the randomness in the algorithm instead.
+
+*Tier 1, randomized* (`rquant_s1h5.dither_quantize`):
+- Per row: rotate (R fixed; it only spreads outliers), set the step D_i = 2 max_j |y_ij| / (2^bits − 1)
+  (stored, as the norm is now), add a dither u_ij ~ U(−D_i/2, D_i/2) regenerated from
+  (seed, layer, head, row, channel) and never stored, then round.
+- Reconstruct ŷ = (code + ½)D − u.
+- The code never clips, so ŷ − y is uniform on ±D/2 and independent of y for every y (subtractive
+  dither; Schuchman 1964).
+- Same storage as now (codes + one 16-bit scalar per row). MSE 1.03–1.15× the store's Lloyd-Max at 4
+  bits; on real attention the tail's error is about the same as with Lloyd-Max (below).
+
+What follows, for any row and any query q:
+- the score error δ = scaling·⟨q, k − k̂⟩ is symmetric, sub-Gaussian with proxy
+  σ² = scaling²‖q‖²D²/12, and |δ| ≤ scaling·(D/2)‖Rq‖₁;
+- E e^{−kδ} = ∏_j sinh(k a_j)/(k a_j) exactly (a_j = scaling·|(Rq)_j|D/2), and its log lies in
+  [k²A₂/6 − k⁴A₄/180, k²A₂/6], computable from two per-query sums and the row's step;
+- the value error is zero-mean, independent of δ (separate dither), E‖e‖² = d D²/12, and
+  ‖e‖ ≤ √d D/2.
+
+*The unbiased tail (design change).* Divide each unread row's tier-1 weight by E e^{−δ_i}. The tail's
+numerator and denominator sums then become unbiased estimates of the true ones, which removes the
+systematic over-weighting of the tail (≈ σ²/2) that every tier-1 tail has.
+
+*Theorem R.* Assumptions:
+- (R1) the rows read exactly (the vote, any extra rows) are chosen without looking at tier 1's coins:
+  exact prefill attention, exact-key page metadata, or a separate sketch (here the Lloyd-Max store);
+- (R2) the query does not depend on the coins: prefill and teacher-forced passes satisfy this. In
+  free-running decode, a query depends weakly on earlier outputs, which is *not* covered.
+
+Then for every cache content (no assumption on keys, values or queries), with probability ≥ 1 − δ over
+the coins, the tail design (exact keys and values on the read rows, plain or unbiased tier-1 weights on
+the rest) satisfies
+
+  ‖o − õ‖ ≤ [m_Y + r(B_Y, a_Y) + ‖õ − c‖ (m_D + r(B_D, a_D))] / D_Z
+
+(`cert_s1h5.tail_bound_rand`; every symbol is computable at run time).
+
+*Proof.*
+1. **Identity.** With c the exact output of the read and fixed rows (coin-free by R1), M their mass,
+   and w̃ the design's tier-1 weights: Z(o − õ) = Σ_T Y_i − (õ − c) Σ_T D_i. Here
+   Y_i = w_i(v_i − c) − w̃_i(v̂_i − c) and D_i = w_i − w̃_i depend only on row i's coins, so they are
+   independent across rows.
+2. **Truncation.** Every |δ_i| ≤ t_i = min(zσ_i, a.s. bound), with z = √(2 ln(4|T|/δ)), except with
+   probability ≤ δ/2. The truncated variables stay independent.
+3. **Moments.** With Z_i = w̃_i/w_i = e^{−δ_i}/debias_i:
+   - E Z_i ∈ [lo, hi], from the exact moment interval corrected for truncation by
+     E[e^{−δ}1_{E^c}] ≤ √(E e^{−2δ} P(E^c)) and the factor 1/(1 − P(E^c));
+   - E Z² ≤ hi₂, E Z⁴ ≤ hi₄, and the range |Z − E Z| ≤ e^{t}/debias − lo.
+
+   These give, for each row:
+   - mean bounds ‖E Y_i‖ ≤ w_i κ_i ρ_i and |E D_i| ≤ w_i κ_i, with κ = max(hi − 1, 1 − lo): zero
+     up to truncation for the unbiased tail, ≈ σ²/2 for the plain one;
+   - variance bounds w_i²[(hi₂ − lo²)ρ_i² + hi₂ E‖e_i‖²] and w_i²(hi₂ − lo²);
+   - range bounds w_i[rng·ρ_i + e^{t}ν̄_i] and w_i·rng.
+4. **Self-bounding.** The true weights w_i and distances ρ_i = ‖v_i − c‖ are unknown. On the
+   truncation event, ρ_i ≤ ‖v̂_i − c‖ + ν̄_i and w_i ≤ w̃_i·debias·e^{t} (the latter used only in
+   maxima). Each unknown sum Σ w_i g_i or Σ w_i² g_i is bounded from its observed tier-1 version by
+   Maurer's lower-tail inequality for sums of independent non-negative variables (Maurer 2003),
+   solved as a quadratic (`self_bound`).
+5. **Concentration.** Pinelis' Bernstein inequality (Ann. Probab. 22, 1994, Thm 3.4) for each of the
+   two sums, with the bounds from 4 substituted: the radius only grows in B and a, so substituting
+   upper bounds keeps the probability statement.
+6. **Denominator.** Z ≥ D_Z = M + max(0, Σ_T w̃ − |Σ D|), and |Σ D| is already bounded in 5.
+
+The six events in 4–5 take δ/12 each, the truncation δ/2. ∎
+
+*MLA (coupled).* One latent draw makes a row's key error and value error, so the value error has no
+zero mean given δ. ‖E[Z e]‖ ≤ √E(Z − 1)² · √E‖e‖² is added to the mean and range rows; the variance row
+becomes (√var·ρ + √hi₂·ν̄)² (Minkowski); and ρ must be coin-free (‖v_i‖ + ‖c‖, from an exact stored norm).
+That last bound is loose (below).
+
+*Deterministic companion.* Lemma 4 with the dither's a.s. bounds (b_i = scaling·(D_i/2)‖Rq‖₁,
+ν_i = √d D_i/2) needs no stored error norms and holds always.
+
+*A whole decode.* Union over all N head-steps: run each call at δ/N; z and L grow like √ln N.
+
+*Evidence (CPU, 2026-10-09).*
+- **Brute force** (`test_cert_rand`): the dither's facts hold on random, spiky, 30×-outlier and
+  adversarially aligned data. Theorem R has no failure at any δ (0.3 to 1e-3) over 3,200 head cases
+  × 2 designs, nor in the coupled case (1,600).
+- **Real models** (`findings/R5_adapters.md`, 8 draws per layer, read sets from the Lloyd-Max sketch):
+  Theorem R covers every draw on every layer of all seven models (coverage 1.000).
+  - With 4-bit keys the bound is vacuous: bound/error 8 (Granite) to 4 × 10⁶ (GPT-OSS). The reason is
+    the score noise: σ ≈ 0.5–1.4 nats on real queries, and the bound must cover rows whose weight is
+    e^{zσ} times their estimate, through moments e^{8σ²}.
+  - **Key bits are the lever** (each bit halves σ). Llama-1B L1:
+
+    | key bits | bound/error | certified at FP8 (vote / +C/8) | rel. error (FP8 0.021) |
+    |---|---|---|---|
+    | 4 | 2,826 | 0 / 0 | 0.011 |
+    | 6 | 59 | 0.03 / 0.47 | 0.0035 |
+    | 8 | 21 | 0.19 / 0.79 | 0.0025 |
+
+  - GPT-OSS: 4.3 × 10⁶ → 275 → 36. Gemma 3 is limited by its 4-bit values (keys don't help), and
+    Moonlight (MLA) by the coin-free distance bound (bound/error ≈ 200).
+- **The unbiased tail is more accurate** than the Lloyd-Max tail in most layers (relative error: Kimi
+  0.010 vs 0.032, Llama L0 0.018 vs 0.022, Moonlight L0 0.008 vs 0.010). On GPT-OSS it halves the
+  plain dithered tail's error.
+- **The r3b unit where Lemma 5 had failed** (Llama-3.2-1B, 4K, the driver's probe on FP's
+  teacher-forced queries; vote and extra rows from the Lloyd-Max store). Theorem R covers every
+  head-step in every draw, including layer 0 KV head 7, where Lemma 5 (no allowance) missed 12–18
+  times. Shares certified within FP8's error are at the vote's rows / with C/32 more rows / with C/8
+  more:
+
+  | key bits | bound/error | certified within FP8 | rel. error (unbiased) | traffic (vote / +C/32 / +C/8) |
+  |---|---|---|---|---|
+  | 4 | 1,500–3,200 | 0 / 0 / 0 | 0.0068 (Lloyd-Max tail 0.0121) | 0.34 / 0.37 / 0.44 |
+  | 6 | 28–50 | 0.08 / 0.24 / 0.52 | 0.0024 | 0.40 / 0.42 / 0.48 |
+  | 8 | 11.5–18 | 0.29 / 0.61 / 0.85 | 0.0018 | 0.45 / 0.47 / 0.53 |
+
+  (Traffic of FP16 K+V per decode step, values at 4 bits; FP8 is 0.50.)
+- **What the guarantee costs:** a certified FP8-level read needs roughly FP8's traffic.
+  - The 4-bit design is at or below FP8's KL in most families (R5.3) but cannot be certified.
+  - With 6–8-bit keys the tail's relative error falls another 3–4× (r3b: 0.0068 → 0.0018–0.0024), and
+    the rigorous bound (12–50× loose) certifies it on 30–85% of head-steps.
+  - The rest would need more exact rows (the controller) or more key bits.
+
+*What this makes general.*
+- **Guaranteed for every model and input:** the attention-level error of each call, given (R1) and
+  (R2), for any softmax attention over cached rows. The adapters provide the view for GQA, sinks,
+  local/global, MLA (coupled) and hybrids' softmax layers.
+- **What a model can change:** only the cost of the certificate (σ, value precision, concentration),
+  never its validity.
+- **The design rule it implies:** choose tier-1 key bits per head so that σ = scaling·‖q‖D/√12 stays
+  below about 0.3 for typical queries (6 bits on Llama-1B, 8 on GPT-OSS), and value bits so the value
+  term fits τ. Read coin-free; divide tail weights by E e^{−δ}.
+- **Not covered:** adaptive decode queries (R2), end-to-end quality (R6 measures it), and a tight
+  coupled bound for MLA. A coupled self-bound using ρ_i ≤ ‖v̂_i − c‖ + ν̄_i ≤ ρ_i + 2ν̄_i would close
+  the last one.
+
+**2026-10-10: R5.4 frozen** (the randomized tier on GPU; before any R5.4 output). Theory: `theory.md` §6–7
+and "R5 theory, part 4" above.
+
+*Question.* Does the randomized tier 1 that Theorem R needs keep, or improve, R6's candidate's accuracy
+at 128K/32K, and how strong is Theorem R on GPU? Exploratory, no labels.
+
+*Arms* (one process per unit, `fp_noise` last; presets `h54llama128`, `h54qwen32`; rot_seed 0; 11 arms):
+- `fp`.
+- `probe`, with Theorem R's columns: 1 draw per layer at 6- and 8-bit dithered keys, 4-bit values
+  (`S1H_DITHER=1:6,8`).
+- `tail4x_v4` (R6's candidate: 4/4 Lloyd-Max tier; traffic 0.344).
+- `dtail4x_v4` (dithered 4/4, plain, 0.344), `dtail4ux_v4` (dithered 4/4, unbiased, 0.344),
+  `dtail6ux_v4` (6-bit keys, unbiased, 0.398), `dtail8ux_v4` (8-bit keys, unbiased, 0.453).
+- `uniform` and `uniform+v4` (dense 4-bit; the vote's store), `fp8kv`, `fp_noise`.
+
+Every dtail arm reads exactly the rows `tail4x_v4` reads: the system's vote from the 4/4 Lloyd-Max
+store, which never sees the dither (Theorem R's R1). Each has exact keys and values on those rows, and
+the dither is seeded per layer (the same draw in every arm and unit). Code: `run_s1h5.run_dtail_arm`,
+`_dither_swap`, `_unbiased_attention` (the correction −log E e^{−δ_i}(q) as an additive mask on unread
+context rows).
+
+*Cells* (4 blocks, 1 GPU each, `script_stage1h_r5.sh --run-r54`; about 75 units, ≈ 3–4 GPU-h):
+- Llama 128K: R3a levels 9400–9404 × niah_multikey, niah_multivalue, vt, mk_panel; HELMET items 0–4 ×
+  5 tasks.
+- Qwen 32K: R3a levels 9420–9424 × the same 4 tasks; R3b levels 9460–9464 × cwe, fwe.
+
+They reuse R5.3's prompts, so `tail4x_v4` is rerun beside the new arms. R6 will use fresh prompts.
+
+*Read rules (frozen; `read_stage1h_r5.py --r54` → `findings/R5_4_reader`).* Validity: every planned
+arm on every unit, the dtail arms evict nothing, the probe's pass is FP, peak ≤ 76 GiB per GPU. A
+failure is reported; it does not exclude a block. Then, paired per unit, each model × cell × family,
+on KL/token, dP/token and accuracy:
+- **Q1** `dtail4x_v4` − `tail4x_v4` (randomized vs Lloyd-Max at 4 bits);
+- **Q2** `dtail4ux_v4` − `dtail4x_v4` (unbiased vs plain);
+- **Q2b** `dtail4ux_v4` − `tail4x_v4`;
+- **Q3** key bits: 6 − 4 and 8 − 6 (unbiased);
+- **Q4** each against FP8, plus `fp_noise` − FP8;
+- R6's draft test at both candidate margins for every tail arm, dense 4/4 and `fp_noise` (the
+  calibration);
+- Theorem R in the probe per model × cell: coverage (a guarantee: anything below 1 is a finding),
+  median bound/error, the share certified within FP8 at the vote's rows and with C/128, C/32, C/8 more,
+  plain and unbiased, at 6 and 8 bits;
+- the accuracy–cost frontier.
+
+*What it decides.* Whether R6's arm becomes the unbiased randomized tail (if Q2b ≤ 0 everywhere, with
+no accuracy loss) and at which key width (Q3 against traffic), and whether R6 can carry Theorem R's
+certificate (probe shares at 6/8 bits).
+
+**2026-10-10: R6's margin, decided** (the user delegated the decision; R6 is still a draft, and its arm
+waits for R5.4).
+
+*Primary test:* mean KL/token(design) < **1.5 × mean KL/token(FP8) + 5e-4**, per model × family; one-sided
+95% unit-bootstrap upper bound, paired per unit.
+
+*Calibration rule (part of the test):* the same test is run on `fp_noise`. A family where `fp_noise`
+itself fails (upper bound over the margin) is reported as **not testable at this precision**, not as a
+pass or a failure of the design, and the model-level claim covers the testable families. The rule is
+fixed now, before any R6 output.
+
+*Why this margin:*
+1. **A test FP itself can fail measures noise, not the design.** Under the draft margin
+   (1.25 × FP8 + 2e-4), `fp_noise` (FP rerun) fails Qwen aggregation on the point estimate and Qwen
+   tracking on the upper bound (R5.3), exactly as often as `tail4x_v4`. Under 1.5 × FP8 + 5e-4,
+   `fp_noise` passes every family on the point estimate and 10/11 on the upper bound.
+2. **It is the tightest of the three margins evaluated that FP passes.**
+   - 1.25 × FP8 + 5e-4 sits at Qwen aggregation's noise floor (0.0036 + 0.0005 against `fp_noise`'s
+     0.0040), so FP fails its upper bound.
+   - Lowering κ below 5e-4 fails FP on Qwen's quiet families.
+3. **It still requires FP8-scale fidelity.** A design that passes is within 1.5× of FP8's KL in every
+   family, plus an absolute 5e-4 nats/token: FP8's own KL in the noisier Llama families, and about the
+   run-to-run floor in Qwen's.
+4. **The key secondary stays as drafted:** accuracy on FP-correct units outside aggregation,
+   lower bound > −0.02.
+
+*Sizes at this margin* (`findings/R5_sizing.md`; to be rerun with R5.4's arm): about 280 units for
+Llama 128K and 190 for Qwen 32K, ≈ 8 + 3.5 GPU-h for six arms plus loads.
+
+**2026-10-10: R5 theory, part 5 — tightening Theorem R, MLA, adaptive queries, the oracle (CPU; new files
+only, because R5.4's queued jobs import `cert_s1h5` and friends).** Code: `theory2_s1h5.py`
+(`tail_bound_rand_v2`, `bennett_radius`, `tail_bound_rand_coupled`, the coupled self-bounds), `adaptive_s1h5.py`,
+`oracle_s1h5.py`; tests `test_theory_s1h5.py`. The improvements move into `cert_s1h5` once R5.4's reader has
+run.
+
+- **Theorem R v2 (no new assumptions).** Three changes:
+  1. The self-bounds weight the coins' moments row by row (max_i a_i m_i instead of max a × max m).
+  2. The variance sum is the smaller of its fourth-moment self-bound and
+     max_i(w_i√g_i)·Σ_i w_i√g_i, which needs only second moments.
+  3. Both sums use the exact Bennett form of Pinelis' Theorem 3.4 instead of its Bernstein relaxation.
+     That gives a much smaller radius when one row's range dominates its standard deviation, the
+     heavy-row regime of a 4-bit tail.
+
+  The brute-force tests (any data, 2- and 4-bit keys) show no failure at any δ; v2 is 2× tighter at the
+  median and never more than 5% above v1. Llama-1B L1, bound/error: 4 bits 2,887 → 1,041; 6 bits
+  60 → 40; 8 bits 22 → 20.
+- **Where the slack is.** At 4 bits the range term dominates. It covers a single tail row whose true
+  weight is up to e^{t} times its estimate (t = zσ ≈ 2.4 nats, e^{t} ≈ 10), counted twice. Before v2,
+  the variance term was also inflated by fourth moments e^{8σ²}. At 6–8 bits the range and variance
+  parts are comparable.
+- **MLA in head space.** The concentration runs on W_h·(latent vectors) directly: E‖W_h e‖² =
+  ‖W_h‖_F²D²/12 exactly, with a.s. bound ‖W_h‖₂√d·D/2, instead of a latent-space bound times ‖W_h‖₂.
+  The coupled self-bounds use the observed distance ‖W_h(v̂_i − c)‖, which brackets the true one within
+  ±‖W_h‖₂ν̄ almost surely. Coverage is 1 on Moonlight, DeepSeek-V2-Lite and Kimi at 4/6/8 bits. At 8
+  bits, bound/error falls 246 → 74, 166 → 55 and 260 → 80.
+- **Adaptive queries (R2), measured.** Full Llama-3.2-1B, 2,048 tokens, 4 draws, the design substituted
+  at every answer position and layer, so every later query depends on the coins. Theorem R covered all
+  49,152 head-steps at 4 and 6 bits. The worst error/bound (0.051 at 4 bits, 0.138 at 6) was identical
+  to the oblivious pass on FP's queries. On a real model the dependence did not move the guarantee at
+  all. This is evidence, not a proof.
+- **The oracle.** For a fixed cache and query, the best any certificate at 1 − δ could do is the
+  (1 − δ)-quantile of the error over the coins (200 draws, δ = 0.05):
+  - Llama-1B L1: Theorem R / oracle = 541 (4 bits), 25 (6), 15 (8). Yet the oracle would certify 62%,
+    95% and 98% of head-steps within FP8's error. **At 4 bits the information exists and the proof is
+    the bottleneck.**
+  - GPT-OSS L1: oracle within FP8 0.08 / 0.39 / 0.87 at 4 / 6 / 8 bits.
+  - Gemma 3 L5: the oracle certifies 0% at every key width. **There the 4-bit values are the limit:**
+    no certificate can reach FP8's level without more value bits.
+
+  With v2 the slack falls as follows (coverage 1 everywhere); the share v2 certifies within FP8 is in
+  brackets:
+  - Llama: 541 → 206 at 4 bits (0), 25 → 20 at 6 (0.09), 15 → 14 at 8 (0.28);
+  - GPT-OSS: ~9 × 10⁵ → 4 × 10⁴ at 4 bits, 97 → 60 at 6, 21 → 19 at 8;
+  - Gemma: 14 → 8 (no change at 8 bits).
+
+  `theory.md` §6–§9 carries the statements, the table and the open problems.
+
+**2026-10-10: R5.4 and R4 read.** `findings/R5_4.md` (tables `R5_4_reader.md`, sizes `R5_4_sizing.md`),
+`findings/R4.md` (tables `R4_reader.md`; the loss split gains the two Qwen 128K cells in `R5_0_split.md`).
+All four R5.4 blocks and all four R4 cells are valid.
+
+*R5.4.*
+- **Theorem R:** 0 misses in 31,080,448 head-step checks (64 probe configurations).
+  - At 6-bit keys on the vote's rows it certifies FP8-level error on 0.44–0.52 (Llama) and 0.38–0.41
+    (Qwen) of head-steps; at 8 bits, 0.70–0.79 and 0.65.
+- **The plain dithered tail is biased** (Qwen aggregation +0.0015 KL/token against `tail4x_v4`). The
+  unbiased factor removes the bias.
+- **Q2b** (`dtail4ux_v4` − `tail4x_v4`, same traffic 0.344): lower in 7 of 10 groups, higher in 3 by at
+  most +0.0006, no interval above 0. No FP-correct accuracy change anywhere.
+- **The dithered tier fixes `tail4x_v4`'s two weak groups**, the same ones R5.3 flagged:
+  - Qwen multivalue: unit 9422, 0.0049 → 0.00002;
+  - Llama re-ranking: 0.0099 → 0.0074 at 4 bits, 0.0041 at 6.
+- **At R6's margin** (1.5 × FP8 + 5e-4, upper bound), units R6 would need:
+
+  | arm | groups passed | Llama 128K units | Qwen 32K units |
+  |---|---|---|---|
+  | `tail4x_v4` | 8/10 | 180 | ∞ (Qwen multivalue sits at the margin) |
+  | `dtail4ux_v4` | 10/10 | 110 | 50 |
+  | `dtail6ux_v4` | 10/10 | 80 | 50 |
+  | `dtail8ux_v4` | 10/10 | 80 | 60 |
+
+*The frozen rule's outcome.* "Q2b ≤ 0 everywhere, with no accuracy loss", read literally, is **not
+met**:
+- three point estimates are > 0 (+0.0006, +0.0002, +0.00002), none significant;
+- Llama tracking's all-unit accuracy is −0.046, from FP-failed units.
+
+So R6's arm stays `tail4x_v4` unless the user overrides the rule. Reasons to override:
+- the rule's criterion is the sign of a 5–10-unit point estimate;
+- `tail4x_v4` is expected to fail Qwen multivalue in R6 at any size;
+- only a dithered arm carries Theorem R.
+
+*Recommended, for the user's decision:* R6's arm becomes `dtail6ux_v4`, with `dtail4ux_v4` reported
+beside it.
+- `dtail6ux_v4`: traffic 0.398 against FP8's 0.50, the fewest units, Theorem R usable.
+- `dtail4ux_v4`: traffic 0.344, as a seventh arm, reported, not tested.
+- Rerun `size_confirm_r5.py` on R5.3 + R5.4 with the chosen arm before freezing.
+
+*R4.*
+- **LongBench v2 cannot separate any arm** from FP (±0.1 on 40 units; 6 and 11 units need the
+  context). HELMET ICL is at ceiling for every arm.
+- **Re-ranking fails under the old controller on both models**, and the vote is why:
+  - Qwen 128K NDCG −0.261, with every vote-read arm at 0.005 against FP's 0.266;
+  - split: vote +39.8 nats, budget +0.77, store −2.7;
+  - Llama: −0.166, with vote +28.6.
+- **Qwen 128K shows the same split as Llama**, so by this plan's rule Qwen 128K HELMET (rag,
+  re-ranking, ICL) joins R6.
+- **No tail-design data exists at 128K for Qwen.** Its R6 cell needs a pilot and gate first, and runs
+  as 4-GPU node jobs on Trillium (two 2-GPU blocks; ≈ 44 GiB per GPU under R4's arms).
+
+**2026-10-10: R6's arm, decided by the user.** The design is `dtail6ux_v4` at 1/8, with `dtail4ux_v4` run beside it as a
+reported, untested arm. This overrides the literal outcome of R5.4's frozen rule, which kept `tail4x_v4` (see "R5.4
+and R4 read" above). The reasons are recorded there.
+
+**2026-10-10: R6 frozen** (the confirmatory run; written before any R6 output, and not submitted). Code:
+- `s1h5_lib.py`: presets `h6llama128`, `h6qwen32`, `h6qwen128` and their `…p` probe variants; `R6_DESIGN`, `R6_LAYOUT`,
+  `R6_PILOT`, `r6_units`;
+- `run_s1h5.py`: the R6 presets, R6's HELMET manifest, the sidecar's `amend_r6`;
+- `tasks_s1h6.py` and `make_r6_manifest.py`;
+- `read_stage1h_r6.py`: the frozen rules, in its docstring;
+- `script_stage1h_r6.sh --run-r6[-dry]`;
+- `test_r14_stage1h_r6.py`.
+
+The worker is still `submit_s1h5.slurm`, which now also runs the R6 fast tests.
+
+*Claim.* For each claim group (Llama-3.1-8B at 128K, Qwen3-30B-A3B at 32K, Qwen3-30B-A3B at 128K), `dtail6ux_v4` is
+non-inferior to FP8 KV on KL per span token. `dtail6ux_v4` keeps the vote's rows exact and reads the rest from a
+dithered tier 1 at 6-bit keys and 4-bit values, with the unbiased tail. Its traffic is 0.398 of FP16 K+V, against
+FP8's 0.5.
+
+*Arms* (one process per unit, `fp_noise` last): `fp`; [`probe`]; `dtail6ux_v4`, the tested arm; `dtail4ux_v4`,
+reported; `uniform@4`; `uniform+v4@4`; `fp8kv`; `kivi4_v4`; `fp_noise`. The `uniform@4` arm comes with the vote's 4/4
+store and is reported.
+
+*Units* (fresh; `s1h5_lib.R6_LAYOUT`; 1 GPU per block for Llama and Qwen 32K):
+
+| claim group | blocks | retrieval | multivalue | tracking | aggregation | rag | icl | rerank | units |
+|---|---|---|---|---|---|---|---|---|---|
+| Llama 128K | RULER 9500–9514 ×4 tasks; R3a levels 9515–9529 ×4; R3b levels 9530–9544 cwe/fwe; HELMET items 11–40 ×5 tasks | 60 | 30 | 30 | 30 | 60 | 60 | 30 | 300 |
+| Qwen 32K | RULER 9600–9619; R3a levels 9620–9639; R3b levels 9640–9654 | 80 | 40 | 40 | 30 | — | — | — | 190 |
+| Qwen 128K | HELMET items 11–40 ×5 tasks: 3 node jobs, two 2-GPU blocks each, after a pilot and gate | — | — | — | — | 60 | 60 | 30 | 150 |
+
+- **Fresh prompts.** No R6 (task, prompt) appears in any of the 355 earlier sidecars under `results/`;
+  `test_r14_stage1h_r6.test_fresh` checks this before every job.
+- **HELMET items.** They come from `data/r6/manifest_r6.json` (41 items per task, R4's order, sha256-pinned).
+  - Its first 20 items are R4's manifest, checked by the builder and by the tests.
+  - Items 0–10 have been run before; R6 uses items 11–40.
+  - msmarco has only 41 distinct queries, which is why 30 re-ranking items is the maximum.
+- **LongBench v2 is not in R6.** R4 showed that no arm differs from FP on it, and R5's validity rule excludes its
+  decode path.
+- **Theorem R's probe** runs on the first block of each Llama and Qwen 32K kind (7 blocks) at the design's 6-bit keys
+  (`S1H_DITHER=1:6`), with v1 and v2 columns. It is not run at Qwen 128K, where it would cost about 4 GPU-h on node
+  jobs.
+
+*Sizes.* `findings/R5_4_sizing.md` gives the units `dtail6ux_v4` needs at this margin: ≤ 30 per family
+(max(normal, simulated); 3–10 units seen per group), except Llama icl, whose conservative count is 93.
+- R6 runs at least 30 per family.
+- Qwen 32K's RULER families are larger so that its accuracy pool reaches the 150 FP-correct units that δ = 0.02 needs.
+- Expected FP-correct units outside aggregation: Llama about 165, Qwen 32K about 156, Qwen 128K about 90. Qwen 128K's
+  key secondary is therefore expected to be ACC_UNDERPOWERED at 0.02 and testable at 0.05.
+
+*The test* (`read_stage1h_r6.py`, frozen):
+- **Primary test.** Per claim group × family, the one-sided 95% unit-bootstrap upper bound (2,000 resamples, seed 0)
+  of mean(KL_tok(design) − 1.5 · KL_tok(FP8)) must be < 5e-4.
+- **Calibration.** Where `fp_noise` fails the same test, the family is NOT_TESTABLE.
+- **Group verdict.**
+  - NONINFERIOR if every testable family passes and at least half of the planned families are testable.
+    (The half rule is new here: it stops a group with almost nothing testable from passing.)
+  - NOT_SHOWN if any testable family fails.
+  - INSUFFICIENT otherwise.
+  - The rule is intersection–union, with no multiplicity correction, and each group is its own claim.
+- **Key secondary.** FP-correct units outside aggregation; the one-sided 95% lower bound of
+  mean(acc_design − acc_FP8) must be > −0.02, with at least 3/δ units, else ACC_UNDERPOWERED. It is also reported at
+  0.05.
+- **Reported, not tested:** the same statistic for `dtail4ux_v4`, dense 4/4, dense 4-bit keys and KIVI-4; every arm's
+  KL, dP, accuracy and traffic; Theorem R's coverage (it must be 1), bound / error and the share certified within
+  FP8, v1 and v2.
+
+*Validity, per block; a failing block is excluded and reported:*
+- an R6 block whose tag, preset, suite and tasks are a row of the layout;
+- the preset's plan; every arm on every unit;
+- the units are R6's;
+- the dtail arms evict nothing;
+- the probe's pass is FP's;
+- peak memory ≤ 76 GiB per GPU;
+- HELMET blocks carry R6's manifest hash.
+
+*Qwen 128K's pilot and gate.* The pilot is R4's item 0 of re-ranking, kilt_nq and trec, on 2 GPUs of a node. The gate
+checks:
+- validity, FP's KL 0, and that `fp_noise` is not degenerate;
+- peak ≤ 76 GiB per GPU;
+- a projected block within 90% of its 4-hour wall.
+
+The node jobs wait on it (`afterok`).
+
+*Cost.* About 38 GPU-h:
+- Llama ≈ 15 (15 jobs, 4 with the probe);
+- Qwen 32K ≈ 7 (11 jobs, 3 with the probe);
+- Qwen 128K ≈ 16 (pilot plus 3 node jobs of 4 GPUs) plus the reader.
+
+The dry run on trig-login01 passes (`script_stage1h_r6.sh --run-r6-dry`). **Not submitted: submit only when the user
+asks.**
+
+*Frozen once R6 is submitted:*
+- `s1h5_lib.py`, `run_s1h5.py`, `probe_s1h5.py`, `cert_s1h5.py`, `rquant_s1h5.py`;
+- `tasks_s1h6.py` and the R6 manifest and items;
+- `read_stage1h_r6.py`, `read_stage1h_r5.py` (imported by the reader);
+- `submit_s1h5.slurm`, `test_r14_stage1h_r6.py`, `test_r14_stage1h_r5.py`;
+- R4's task files (`tasks_s1h4.py`, `run_s1h4.py`).
+
+*Theorem R v2 in `cert_s1h5`.* `tail_bound_rand_v2`, `tail_bound_rand_coupled` (MLA) and `bennett_radius` moved from
+`theory2_s1h5.py`, which now re-exports them. v1 is unchanged, so R5.4's columns reproduce. Brute force
+(`test_r14_stage1h_r5.test_cert_rand`): no failures at any δ; v2 / v1 has a median of 0.72 and a maximum of 0.93.
+
+**2026-10-10: R5 theory, part 6.** A tighter Theorem R and the certified adaptive read. This is CPU work only, in a
+new module (`certread_s1h5.py`), so R6's frozen files are untouched. Read: `findings/R5_theory6.md`; proofs:
+`theory.md` §6; tests: `test_theory_s1h5.py` (`test_split`, `test_certified_read`).
+
+*New results:*
+- **v3: sure sums on the truncation event.** No new event; it removes the self-bound's 7–17× inflation.
+- **The split by coin source.** On GQA, with independent key and value dithers, the value part Σ w_i e_i has fixed
+  weights and isotropic sub-Gaussian errors, so Hsu–Kakade–Zhang bounds it at about 1.4× its standard deviation,
+  against Bernstein's 4.2×.
+- **The certified adaptive read.** A coin-free nested schedule, a union bound at δ/m, and a stop at the first set
+  that meets the target.
+- **A negative result.** Bousquet's inequality for the whole sum gains nothing.
+
+*Evidence (Llama-1B, Gemma 3, Granite; early layers; 1,600 tokens; δ = 10⁻³):*
+- brute force: no failure;
+- coverage 1 everywhere;
+- at 8-bit keys the split form is 5–6× the error (v2: 15–19×);
+- the certified read meets FP8's per-head error (Llama L1–L3), or 1% of the output (Gemma 3), at traffic 0.46–0.49,
+  below FP8's 0.50.
+
+*Limits:*
+- 4-bit keys: the key part dominates;
+- layer 0 of Llama needs 45% of rows;
+- where the 4-bit values cannot reach the target (Gemma 3 at FP8's error, Granite at 1%), more value bits are the
+  only remedy.
+
+*Not in R6:* R6's probe reports v1 and v2 only. A GPU check of the split form and the certified read needs a probe
+column set after R6.
+
+**2026-10-10: R6, before submission — independent of the theory files.** `test_r14_stage1h_r5.py` (which R6's workers
+run) no longer imports `theory2_s1h5`. Its v2-agreement check moved to `../14h_theory/test_theory4_s1h5.py`
+(`../14h_theory/ISOLATION_PLAN.md`, step 0). No R6 file imports a theory module. The R5 and R6 fast suites pass with
+every theory module blocked from import, and the R6 dry run passes. No rule of R6 changed.
+
+**2026-10-10: theory isolated in `../14h_theory/`** (user's rule: every R14 theory update goes there;
+`../14h_theory/ISOLATION_PLAN.md`).
+- **Moved from this folder:** `theory2_s1h5`, `adapters_s1h5` (and its test), `oracle_s1h5`, `adaptive_s1h5`,
+  `test_theory_s1h5`, and the findings `R5_adapters`, `R5_theory_mla` and `R5_theory6` (archived).
+- **Deleted, after merging:** `certread_s1h5` (now `../14h_theory/theory4_s1h5`). `theory.md` is now a pointer.
+- **Kept here:** the run-time bounds (`cert_s1h5`, `rquant_s1h5`, `probe_s1h5`) and their tests. The "R5 theory"
+  amendments above stay as history; their file names now refer to `../14h_theory/`.
+- **No R6 file changed.** Every worker fast suite and the R6 dry run pass after the move.
+
+
+**2026-10-10: R6 execution on two clusters** (decided before any R6 output; no rule of R6 changes, only where blocks
+run).
+- **Trillium** runs Llama 128K and Qwen 32K: 26 one-GPU jobs, the seven probe blocks among them.
+- **Rorqual** runs Qwen 128K: pilot → gate → 6 blocks, each its own 2-GPU job, with the model staged to node-local
+  disk.
+- **Every claim group runs on one cluster**, so no family's test, calibration or verdict pools units across clusters.
+
+Code identity: `findings/R6_code.sha256` pins the 110 files an R6 job reads (the run code, Stage 1g, sievelib,
+`run_r8`/`run_h0`, the worker and its tests, the R4/R6 manifests and HELMET items, the R3a/R3b levels). Both clusters'
+preflights verify it.
+
+Commands (`script_stage1h_r6.sh`):
+- Trillium: `R6_ONLY=h6llama128_r1,h6llama128_r3a,h6llama128_r3b,h6llama128_hm,h6qwen32_r1,h6qwen32_r3a,h6qwen32_r3b`;
+- Rorqual: `R6_ONLY=h6qwen128_pilot,h6qwen128_hm`, after syncing the code and `.h0_corpus/helmet/r6_items/`.
+
+Neither half submits the reader. Once Rorqual's `results/r14s1h_h6qwen128_*` are copied here, the frozen reader runs
+once over every block: `read_stage1h_r6.py --r6 $(bash script_stage1h_r6.sh --list-r6)`.

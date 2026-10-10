@@ -15,7 +15,7 @@
 # one process), or S1H_SPLIT blocks at once on separate GPUs. Submit through script_stage1h.sh, from the project root (the
 # root is the submit directory, so the same file runs on Trillium and Rorqual).
 # Settings are ARGUMENTS (S1H_NAME=value): Trillium's sbatch adds --export=NONE.
-#   S1H_TAG S1H_PRESET S1H_CTX S1H_TASKS  required (an R5 preset h5*)
+#   S1H_TAG S1H_PRESET S1H_CTX S1H_TASKS  required (an R5 or R6 preset: h5*, h53*, h54*, h6*)
 #   S1H_SUITE                             r3 | r3b | r4 (run_s1h5.py --suite; default r3)
 #   S1H_TASK_CFG                          the suite's difficulty (r3: n_keys=..,n_values=..,n_hops=..;
 #                                         r3b: freq_cw=..,alpha=..); empty = the suite's default
@@ -53,6 +53,8 @@ S1H_GPUS="${S1H_GPUS:-0}"
 S1H_STAGE="${S1H_STAGE:-0}"
 S1H_SUITE="${S1H_SUITE:-r3}"
 S1H_TASK_CFG="${S1H_TASK_CFG:-}"
+S1H_DITHER="${S1H_DITHER:-}"                  # R5.4: the probe's Theorem R, "draws:key-bits[,key-bits]" (run_s1h5 --dither-seeds/--dither-key-bits)
+[[ -z "$S1H_DITHER" || "$S1H_DITHER" =~ ^[0-9]+:[0-9]+(,[0-9]+)*$ ]] || { echo "ERROR: S1H_DITHER must look like 1:6,8" >&2; exit 1; }
 [[ "$S1H_SUITE" =~ ^(r3|r3b|r4)$ ]] || { echo "ERROR: S1H_SUITE must be r3, r3b or r4" >&2; exit 1; }
 [[ -z "$S1H_TASK_CFG" || "$S1H_TASK_CFG" =~ ^[a-z_]+=[0-9.]+(,[a-z_]+=[0-9.]+)*$ ]] \
   || { echo "ERROR: S1H_TASK_CFG must look like k=v,k=v" >&2; exit 1; }
@@ -76,7 +78,7 @@ export OMP_NUM_THREADS=8
 source "$VENV/bin/activate"
 
 OUT_DIR="$PROJECT_ROOT/h0_measurement/results/r14s1h_${S1H_TAG}_${SLURM_JOB_ID:-manual}"
-echo "host=$(hostname) role=r14s1h5 suite=$S1H_SUITE task_cfg=${S1H_TASK_CFG:-default} tag=$S1H_TAG preset=$S1H_PRESET ctx=$S1H_CTX prompts=$S1H_N_PROMPTS@$S1H_PROMPT_OFFSET tasks=$S1H_TASKS list=${S1H_PROMPT_LIST:-none} seed=${S1H_SEED:-default} split=$S1H_SPLIT gpus=${S1H_GPUS/#0/all} out=$OUT_DIR"
+echo "host=$(hostname) role=r14s1h5 suite=$S1H_SUITE task_cfg=${S1H_TASK_CFG:-default} dither=${S1H_DITHER:-off} tag=$S1H_TAG preset=$S1H_PRESET ctx=$S1H_CTX prompts=$S1H_N_PROMPTS@$S1H_PROMPT_OFFSET tasks=$S1H_TASKS list=${S1H_PROMPT_LIST:-none} seed=${S1H_SEED:-default} split=$S1H_SPLIT gpus=${S1H_GPUS/#0/all} out=$OUT_DIR"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 GPUS=()
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then IFS=, read -ra GPUS <<< "$CUDA_VISIBLE_DEVICES"
@@ -88,6 +90,7 @@ if (( S1H_SPLIT > 1 || S1H_GPUS > 0 )); then
   (( PER >= 1 && PER * S1H_SPLIT <= NG )) || { echo "ERROR: GPUs [${GPUS[*]}] cannot run $S1H_SPLIT process(es) x $PER" >&2; exit 1; }
 fi
 python h0_measurement/prefetch_corpus.py --verify --out "$H0_CORPUS" || { echo "ERROR: corpus"; exit 1; }
+python -u $DIR/test_r14_stage1h_r6.py --fast || { echo "ERROR: Stage 1h R6 tests failed -- not running"; exit 1; }
 python -u $DIR/test_r14_stage1h_r5.py --fast || { echo "ERROR: Stage 1h R5 tests failed -- not running"; exit 1; }
 python -u $DIR/test_r14_stage1h_r4.py --fast || { echo "ERROR: Stage 1h R4 tests failed -- not running"; exit 1; }
 python -u $DIR/test_r14_stage1h_r3b.py --fast || { echo "ERROR: Stage 1h R3b tests failed -- not running"; exit 1; }
@@ -121,6 +124,7 @@ fi
 
 BASE=(--suite "$S1H_SUITE" --tasks "$S1H_TASKS")
 [[ -n "$S1H_TASK_CFG" ]] && BASE+=(--task-cfg "$S1H_TASK_CFG")
+[[ -n "$S1H_DITHER" ]] && BASE+=(--dither-seeds "${S1H_DITHER%%:*}" --dither-key-bits "${S1H_DITHER#*:}")
 SEL=("${BASE[@]}")
 if [[ -n "$S1H_PROMPT_LIST" ]]; then SEL+=(--prompt-list "$S1H_PROMPT_LIST")
 else SEL+=(--n-prompts "$S1H_N_PROMPTS" --prompt-offset "$S1H_PROMPT_OFFSET"); fi

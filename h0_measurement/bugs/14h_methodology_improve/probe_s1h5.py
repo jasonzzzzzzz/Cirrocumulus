@@ -50,6 +50,9 @@ import cert_s1h5 as K
 PAGE = 16
 EXTRA_FRAC = (1 / 128, 1 / 32, 1 / 8)   # Mode T: context share read exactly on top of the vote's rows (tailx_p128/p32/p8)
 BIAS_FRAC = 0.5     # Lemma 5's score-bias allowance (l5b_*), in sigma: 2x the top-decile regression to the mean on Llama-1B
+DITHER_SEEDS = 0    # Theorem R (plan.md "R5 theory, part 4"): draws of a dithered tier 1 per layer (0 = off); run_s1h5 --dither-seeds
+DITHER_KEY_BITS = (4,)  # its key widths (values stay at 4 bits); run_s1h5 --dither-key-bits 6,8 (columns *_k<bits>)
+RAND_V2 = True      # Theorem R v2 (cert_s1h5.tail_bound_rand_v2) beside v1, columns *_k<bits>_v2 (added 2026-10-10, after R5.4)
 Z_HP = 5.0          # high-probability bound: |<q, dk>| <= z |q| |dk| / sqrt(d) for a rotated (direction-random) error
 CHUNK_PROBE = 4
 CHUNK_INJ = 8
@@ -184,6 +187,7 @@ def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
     rec["trunc_viol"] = (((sh - s).abs() > t) & ~km).sum(-1).float() / n_t.squeeze(-1).clamp_min(1)
     ub = sh + t
     pri = (ub - torch.logsumexp(ub, -1, keepdim=True)).amax(1).masked_fill(v1n, NEG)   # [Hkv, n, C]
+    rec["__pri"] = pri
     for f in EXTRA_FRAC:
         ke = v1n | K.topk_keep(pri, int(round(f * Cn)))
         oe = _out(s, Vc, lf, of, keep=ke, s_alt=sh, V_alt=Vh)
@@ -193,6 +197,60 @@ def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
         rec[f"l5_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, de, lf, x_read=True)
         rec[f"l5b_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, de, lf, x_read=True, bias=BIAS_FRAC * sig)
         del de
+
+
+def _rand_certs(rec, li, o, s, qg, v1n, pri, Kc, Vc, lf, of, sc):
+    """Theorem R on a dithered tier 1 (rquant_s1h5), DITHER_SEEDS independent draws: the vote's rows and the
+    EXTRA_FRAC reads chosen from the Lloyd-Max store (a separate sketch, so they never see the dither), the
+    plain tail ('p') and the unbiased tail ('u': tier-1 weights divided by E e^{-delta}). Per head-step and
+    read: share of draws the bound covers (rcov_*, a guarantee: should be 1), median bound / error (rratio_*),
+    share of draws certified within FP8's error (rfp8_*), mean relative error (rrel_*); Theorem R v1, and with
+    RAND_V2 also v2 under the same keys suffixed _v2."""
+    import rquant_s1h5 as RQ
+    from sievelib import quant as Q
+    Hkv, r, n, Cn = s.shape
+    d, dv = Kc.shape[-1], Vc.shape[-1]
+    dev = s.device
+    Rk = Q.random_rotation(d, dev, torch.float64, 50)
+    Rv = Q.random_rotation(dv, dev, torch.float64, 150)
+    qr = qg.double() @ Rk.T
+    reads = [("tailx", v1n)] + [(f"tailx_p{int(round(1 / f))}", v1n | K.topk_keep(pri, int(round(f * Cn))))
+                                for f in EXTRA_FRAC]
+    on = o.norm(dim=-1).clamp_min(1e-12)
+    acc = {}
+    dt = torch.float32 if Kc.is_cuda else torch.float64
+    for sd, kbits in ((sd, kb) for sd in range(DITHER_SEEDS) for kb in DITHER_KEY_BITS):
+        Kh, stk = RQ.dither_quantize(Kc, kbits, Rk, 1000003 * sd + 2 * li, dtype=dt)
+        Vh, stv = RQ.dither_quantize(Vc, 4, Rv, 1000003 * sd + 2 * li + 1, dtype=dt)
+        sh = torch.einsum("grnd,gcd->grnc", qg, Kh) * sc
+        st = stk.view(Hkv, 1, 1, Cn)
+        sig = RQ.score_sigma(qg.norm(dim=-1, keepdim=True).double(), st, sc)
+        bas = RQ.score_bound(qr.abs().sum(-1, keepdim=True), st, sc)
+        mom = RQ.coin_moments(qr, st, sc)
+        ldb = RQ.debias_log(mom)
+        n2, nm = RQ.value_moments(stv.view(Hkv, 1, 1, Cn), dv)
+        vh2 = (Vh * Vh).sum(-1).view(Hkv, 1, 1, Cn)
+        for tag, ke in reads:
+            km = ke.unsqueeze(1)
+            c = _out(s.masked_fill(~km, NEG), Vc, lf, of)                 # exact output of the read and fixed rows
+            rho = _dist(c, Vh, vh2)
+            for dsg, shd, lg in (("p", sh, None), ("u", sh - ldb.to(sh.dtype), ldb)):
+                oT = _out(s, Vc, lf, of, keep=ke, s_alt=shd, V_alt=Vh)
+                err = _tail_err(s, shd, Vc, Vh, ke, lf, o, True)
+                args = (s, shd, sig, km, rho, nm, n2, (oT - c).norm(dim=-1), lf)
+                bd = K.tail_bound_rand(*args, b_as=bas, mom=mom, ldebias=lg)
+                acc.setdefault((f"{tag}_{dsg}_k{kbits}",), []).append((err.double(), bd.double()))
+                if RAND_V2:                                                # Theorem R v2 beside v1 (*_v2 columns)
+                    bd2 = K.tail_bound_rand_v2(*args, b_as=bas, mom=mom, ldebias=lg)
+                    acc.setdefault((f"{tag}_{dsg}_k{kbits}_v2",), []).append((err.double(), bd2.double()))
+        del Kh, Vh
+    for (key,), lst in acc.items():
+        E = torch.stack([e for e, _ in lst])
+        B = torch.stack([b for _, b in lst])
+        rec[f"rcov_{key}"] = (E <= B * (1 + 1e-4) + 1e-6).double().mean(0)
+        rec[f"rratio_{key}"] = (B / E.clamp_min(1e-30)).median(0).values
+        rec[f"rfp8_{key}"] = (B <= rec["err_fp8"].double().unsqueeze(0)).double().mean(0)
+        rec[f"rrel_{key}"] = (E / on.double().unsqueeze(0)).mean(0)
 
 
 def _probe_layer(li, query, key, value, sc, i0):
@@ -260,6 +318,9 @@ def _probe_layer(li, query, key, value, sc, i0):
         bt = b.masked_fill(v1.view(Hkv, 1, 1, Cn), 0).amax(-1)
         rec["l3_bound"] = eb * ((torch.exp(2 * bt) - 1) * (3 * vmax + nu) + nu) + nu
         _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of)
+        pri = rec.pop("__pri")
+        if DITHER_SEEDS:
+            _rand_certs(rec, li, o, s, qg, v1n, pri, Kc, Vc, lf, of, sc)
         bm = K.bmin_counts(s, GRID, lf)                                   # [len, Hkv, r, n]
         for i, e in enumerate(GRID):
             rec[f"bmin_{e}"] = bm[i].float()

@@ -27,6 +27,12 @@
 #     Llama 128K  r3  RULER 9100-9102 x 4;  R3a levels 9400-9404 x 4;  r3b R3b levels 9440-9444 x cwe,fwe;
 #                 r4  HELMET items 0-4 x 5 tasks
 #     Qwen 32K    r3  RULER 9300-9302 x 4;  R3a levels 9420-9424 x 4;  r3b R3b levels 9460-9464 x cwe,fwe
+#
+# --run-r54[-dry]   R5.4, the randomized tier 1 against tail4x_v4 (plan.md amendment "R5.4"), presets h54llama128 /
+#   h54qwen32 (fp, probe with Theorem R at 6- and 8-bit keys, tail4x_v4, dtail4x_v4, dtail4ux_v4, dtail6ux_v4,
+#   dtail8ux_v4, FP8, fp_noise), 4 block jobs (1 GPU), then the R5.4 reader (afterany) -> findings/R5_4_reader:
+#     Llama 128K  r3 R3a levels 9400-9404 x 4;  r4 HELMET items 0-4 x 5 tasks
+#     Qwen 32K    r3 R3a levels 9420-9424 x 4;  r3b R3b levels 9460-9464 x cwe,fwe
 #   Resubmitting is safe: a block whose results are already in results/ (same tag, preset, prompts) is reused,
 #   not rerun; a block already queued stops the script. Off Trillium the model is copied to node-local disk
 #   (R5_STAGE=1) and R5_WALL_EXTRA (default 2) hours are added to every wall time.
@@ -130,6 +136,7 @@ blk() {   # blk NAME WALL TAG PRESET CTX SUITE CFG TASKS N OFFSET -> job id (a f
     echo "ERROR: r14s1h5-$1 is already queued or running; cancel it or wait" >&2; exit 1
   fi
   [[ -n "$7" ]] && cfg=(S1H_TASK_CFG=$7)
+  [[ -n "${BLK_DITHER:-}" ]] && cfg+=(S1H_DITHER=$BLK_DITHER)
   sub --job-name=r14s1h5-$1 --time=$(walltime $2) --gpus-per-node=1 $W5 S1H_TAG=$3 S1H_PRESET=$4 S1H_CTX=$5 \
       S1H_SUITE=$6 "${cfg[@]}" S1H_TASKS=$8 S1H_N_PROMPTS=$9 S1H_PROMPT_OFFSET=${10} S1H_SEED=0 S1H_STAGE=$R5_STAGE </dev/null
 }
@@ -200,9 +207,39 @@ chain_r53() {
   echo "next: bash $DIR/script_stage1h.sh --status ${ids[*]} $RD"
 }
 
+chain_r54() {
+  local CL CQ BQ RD x
+  local -a PAIRS=() NEWJOBS=()
+  CL=$(level $DIR/findings/R3a_levels.json llama)
+  CQ=$(level $DIR/findings/R3a_levels.json qwen)
+  BQ=$(level $DIR/findings/R3b_levels.json qwen)
+  local HARD=niah_multikey,niah_multivalue,vt,mk_panel
+  local HM=kilt_nq,kilt_hotpotqa,msmarco_rerank_psg,icl_trec_coarse,icl_banking77
+  BLK_DITHER=$($PY -c "import sys; sys.path.insert(0, '$DIR'); import s1h5_lib as L; print(L.DITHER_PROBE)" 2>/dev/null | tail -1)
+  [[ "$BLK_DITHER" =~ ^[0-9]+:[0-9,]+$ ]] || { echo "ERROR: cannot read s1h5_lib.DITHER_PROBE" >&2; exit 1; }
+  add() {
+    local j="${2#DONE:}"
+    PAIRS+=("$1:$j"); [[ "$2" == DONE:* ]] || NEWJOBS+=("$j"); echo "  $1: $2" >&2
+  }
+  x=$(blk d-l-r3a 04:00:00 h54llama128_r3a h54llama128 131072 r3 "$CL" $HARD 5 9400); add h54llama128_r3a $x
+  x=$(blk d-l-hm 04:00:00 h54llama128_hm h54llama128 131072 r4 "" $HM 5 0); add h54llama128_hm $x
+  x=$(blk d-q-r3a 03:00:00 h54qwen32_r3a h54qwen32 32768 r3 "$CQ" $HARD 5 9420); add h54qwen32_r3a $x
+  x=$(blk d-q-agg 02:00:00 h54qwen32_r3b h54qwen32 32768 r3b "$BQ" cwe,fwe 5 9460); add h54qwen32_r3b $x
+  local ids=() p dep=()
+  for p in "${PAIRS[@]}"; do ids+=("${p#*:}"); done
+  (( ${#NEWJOBS[@]} )) && dep=(--dependency=afterany:$(IFS=:; echo "${NEWJOBS[*]}"))
+  RD=$(sub "${dep[@]}" --job-name=r14s1h54-read $READER_SB \
+      --output=h0_measurement/logs/r14s1h54read_%j.out --error=h0_measurement/logs/r14s1h54read_%j.err \
+      --wrap "cd $PROJECT_ROOT && OMP_NUM_THREADS=8 $PY -u $DIR/read_stage1h_r5.py --r54 ${PAIRS[*]} \
+--out-stem $PROJECT_ROOT/$DIR/findings/R5_4_reader" </dev/null)
+  echo "BLOCKS=${ids[*]} READ=$RD" >&2
+  echo "next: bash $DIR/script_stage1h.sh --status ${ids[*]} $RD"
+}
+
 case "$MODE" in
   --pilot-r5-dry|--pilot-r5) preflight_r5; chain_pilot_r5 ;;
   --run-r5-dry|--run-r5) preflight_r5; chain_r5 ;;
   --run-r53-dry|--run-r53) preflight_r5; chain_r53 ;;
-  *) sed -n 2,32p "$0" >&2; exit 2 ;;
+  --run-r54-dry|--run-r54) preflight_r5; chain_r54 ;;
+  *) sed -n 2,38p "$0" >&2; exit 2 ;;
 esac

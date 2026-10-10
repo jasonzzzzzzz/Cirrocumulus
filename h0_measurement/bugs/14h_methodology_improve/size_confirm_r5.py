@@ -9,6 +9,10 @@ a tail design non-inferior to FP8 on KL per span token, and the accuracy floor, 
 Writes findings/R5_sizing.{md,json}. No model, CPU only.
 
     .venv/bin/python h0_measurement/bugs/14h_methodology_improve/size_confirm_r5.py [--r53 TAG:JOB ...]
+    .venv/bin/python h0_measurement/bugs/14h_methodology_improve/size_confirm_r5.py --r54 [TAG:JOB ...]
+
+--r54 sizes R5.4's arms against each other instead (findings/R5_4_sizing.{md,json}): every arm on R5.4's own
+units, at R6's decided margin (plan.md "R6's margin, decided"), with fp_noise's test as the calibration.
 """
 from __future__ import annotations
 
@@ -36,6 +40,11 @@ R5_BLOCKS = [("h5llama128_r1", 1059655), ("h5llama128_r1", 1059656), ("h5llama12
 R53_BLOCKS = [("h53llama128_r1", 22773130), ("h53llama128_r3a", 1062541), ("h53llama128_r3b", 1062542),
               ("h53llama128_hm", 1062543), ("h53qwen32_r2", 1062544), ("h53qwen32_r3a", 1062545),
               ("h53qwen32_r3b", 1062546)]      # R5.3, every block (all valid: findings/R5_3_reader.md)
+R54_BLOCKS = [("h54llama128_r3a", 1066612), ("h54llama128_hm", 1066613), ("h54qwen32_r3a", 1066614),
+              ("h54qwen32_r3b", 1066615)]      # R5.4, every block (all valid: findings/R5_4_reader.md)
+R54_ARMS = [("tail4x_v4", 0.125), ("dtail4x_v4", 0.125), ("dtail4ux_v4", 0.125), ("dtail6ux_v4", 0.125),
+            ("dtail8ux_v4", 0.125), ("uniform+v4", 4.0), ("fp_noise", 0.0)]
+R6_MARGIN = (1.5, 5e-4)                               # decided 2026-10-10 (plan.md "R6's margin, decided")
 DESIGNS = [("qread2t4kqT_v4", 0.125), ("tail4x_v4", 0.125), ("tail3x_v3", 0.125), ("tail2x_v2", 0.125),
            ("tail2x_v2", 0.25)]                       # R5's tail arm (= tail4_v4) and R5.3's candidates
 REFS = [("uniform+v4", 4.0), ("kivi4_v4", 4.0)]      # baselines, for the plan's secondary comparisons
@@ -59,7 +68,8 @@ def load(blocks):
         x = pd.read_parquet(os.path.join(d, side["parquet"]))
         # pairs are made within one block (one process: forward passes are not reproducible across processes;
         # R5 and R5.3 share prompts, so the cell alone would pair a design with another run's FP8)
-        x = x.assign(model=side["model"], cell=f"{tag}_{job}", src="r53" if tag.startswith("h53") else "r5",
+        src = "r54" if tag.startswith("h54") else "r53" if tag.startswith("h53") else "r5"
+        x = x.assign(model=side["model"], cell=f"{tag}_{job}", src=src,
                      family=x.task.map(R.FAMILY))
         parts.append(x[["model", "cell", "src", "family"] + U + ["arm", "B", "kl_span_tok", "a_span_nll_tok", "score"]])
         six = x[x.arm.isin(SIX_ARMS)]
@@ -70,12 +80,12 @@ def load(blocks):
     return pd.concat(parts, ignore_index=True), pd.concat(secs, ignore_index=True)
 
 
-def paired(rows, arm, B, rho):
+def paired(rows, arm, B, rho, src=None):
     """Per unit: y = KL_d - rho KL_FP8, dKL, accuracy change on FP-correct units, per model x family; each unit
     paired with FP8 from its own block. R5.3's tail5 arms come from R5.3's blocks, every other arm from R5's
     (R5.3 reruns R5's prompts, so using both would count those units twice)."""
     out = {}
-    rows = rows[rows.src == ("r53" if arm.startswith("tail") else "r5")]
+    rows = rows[rows.src == (src or ("r53" if arm.startswith("tail") else "r5"))]
     for (m, f), g in rows.groupby(["model", "family"]):
         a = g[(g.arm == arm) & np.isclose(g.B, B)].drop_duplicates(["cell"] + U).set_index(["cell"] + U)
         e = g[g.arm == "fp8kv"].drop_duplicates(["cell"] + U).set_index(["cell"] + U)
@@ -175,8 +185,13 @@ def fmt(n):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--r53", nargs="*", default=[f"{t}:{j}" for t, j in R53_BLOCKS])
-    ap.add_argument("--out-stem", default=os.path.join(R.FINDINGS, "R5_sizing"))
+    ap.add_argument("--r54", nargs="*", default=None)
+    ap.add_argument("--out-stem", default=None)
     a = ap.parse_args()
+    if a.r54 is not None:
+        r54 = [(x.split(":")[0], int(x.split(":")[1])) for x in a.r54] or R54_BLOCKS
+        return compare_r54(r54, a.out_stem or os.path.join(R.FINDINGS, "R5_4_sizing"))
+    a.out_stem = a.out_stem or os.path.join(R.FINDINGS, "R5_sizing")
     r53 = [(x.split(":")[0], int(x.split(":")[1])) for x in a.r53]
     rows, secs = load(R5_BLOCKS + r53)
     fams = {m: sorted(g.family.dropna().unique()) for m, g in rows[rows.arm == "fp"].groupby("model")}
@@ -221,6 +236,71 @@ def main():
     for (m, f), s in s_unit.items():
         res["cost"].append(dict(model=m, family=f, s_per_unit_6arms=float(s)))
     _write(res, a.out_stem)
+
+
+def compare_r54(blocks, stem):
+    """R5.4's arms side by side on R5.4's own units at R6's margin: per model x family the units R6 would need
+    (normal approximation, conservative pair, simulated test), the calibration (fp_noise's own test), and the
+    accuracy change against FP8 on FP-correct units outside aggregation."""
+    rows, secs = load(blocks)
+    rho, kappa = R6_MARGIN
+    fams = {m: sorted(g.family.dropna().unique()) for m, g in rows[rows.arm == "fp"].groupby("model")}
+    res = dict(margin=R6_MARGIN, alpha=ALPHA, power_model=POWER_MODEL, r54=blocks, groups=[], totals=[], accuracy=[])
+    for arm, B in R54_ARMS:
+        P = paired(rows, arm, B, rho, src="r54")
+        for (m, f), p in sorted(P.items()):
+            pw = POWER_MODEL ** (1 / len(fams[m]))
+            y = p["y"]
+            mu, sd = float(y.mean()), float(y.std(ddof=1)) if len(y) > 1 else float("nan")
+            mu_c, sd_c = conservative(y) if len(y) > 2 else (mu, sd)
+            res["groups"].append(dict(arm=arm, B=B, model=m, family=f, m=len(y), power_group=pw,
+                                      kl_d=float(p["kd"].mean()), kl_fp8=float(p["k8"].mean()), mean_y=mu, sd_y=sd,
+                                      n_normal=n_normal(mu, sd, kappa, pw), n_normal_cons=n_normal(mu_c, sd_c, kappa, pw),
+                                      n_sim=n_sim(y, kappa, pw) if len(y) >= 5 else None))
+        for m in fams:
+            d = np.concatenate([p["dacc"] for (mm, f), p in P.items() if mm == m and f != "aggregation"] or [np.zeros(0)])
+            res["accuracy"].append(dict(model=m, arm=arm, fp_correct_units=len(d), losses=int((d < 0).sum()),
+                                        gains=int((d > 0).sum()), mean=float(d.mean()) if len(d) else float("nan")))
+    for (arm, B, m), gs in pd.DataFrame(res["groups"]).groupby(["arm", "B", "model"], sort=False):
+        plan = {r.family: max(r.n_normal, r.n_sim if r.n_sim is not None else 0) for r in gs.itertuples()}
+        plan = {f: (math.inf if not np.isfinite(n) else int(math.ceil(n / 10) * 10)) for f, n in plan.items()}
+        res["totals"].append(dict(arm=arm, B=B, model=m, per_family=plan, units=sum(plan.values()),
+                                  infinite=[f for f, n in plan.items() if not np.isfinite(n)]))
+    with open(stem + ".json", "w") as fh:
+        json.dump(res, fh, indent=1, default=lambda x: None if isinstance(x, float) and not np.isfinite(x) else str(x))
+    L = ["# R5.4 → R6's arm: units each candidate would need (`size_confirm_r5.py --r54`)", "",
+         f"Blocks: {', '.join(f'{t}_{j}' for t, j in blocks)}. Every arm on the same R5.4 units (paired with FP8 "
+         f"within the block). Margin: mean KL/token(arm) < {rho} × FP8 + {kappa} (R6's, decided), one-sided α = "
+         f"{ALPHA}, power {POWER_MODEL} per model (each family at {POWER_MODEL}^(1/K), K = the model's families "
+         f"here). 3–10 units per group, so every count is rough; ∞ = the mean already misses the margin. "
+         f"`fp_noise` is the calibration: where its own count is large the family is noise-limited.", "",
+         "| model | family | units seen | " + " | ".join(a for a, _ in R54_ARMS) + " |",
+         "|---|---|---|" + "---|" * len(R54_ARMS)]
+    G = {(g["arm"], g["model"], g["family"]): g for g in res["groups"]}
+    for m in fams:
+        for f in fams[m]:
+            cells = []
+            for arm, _ in R54_ARMS:
+                g = G.get((arm, m, f))
+                cells.append("—" if g is None else
+                             f"{g['kl_d']:.4f} / {fmt(g['n_normal'])}, {fmt(g['n_normal_cons'])}, "
+                             f"{fmt(g['n_sim']) if g['n_sim'] is not None else '—'}")
+            seen = G.get(("tail4x_v4", m, f), {}).get("m", "")
+            L.append(f"| {m} | {f} | {seen} | " + " | ".join(cells) + " |")
+    L += ["", "Cell = KL/token / units needed: normal, conservative, simulated. FP8's KL/token per group:", ""]
+    L += [f"- {m} {f}: {G[('tail4x_v4', m, f)]['kl_fp8']:.4f}" for m in fams for f in fams[m] if ("tail4x_v4", m, f) in G]
+    L += ["", "## Planned units per model (max of normal and simulated, rounded up to 10)", "",
+          "| arm | model | units | per family | families with no finite size |", "|---|---|---|---|---|"]
+    for t in res["totals"]:
+        L.append(f"| {t['arm']} | {t['model']} | {fmt(t['units'])} | "
+                 f"{', '.join(f'{f} {fmt(n)}' for f, n in t['per_family'].items())} | {', '.join(t['infinite']) or '—'} |")
+    L += ["", "## Accuracy against FP8 on FP-correct units (outside aggregation)", "",
+          "| arm | model | FP-correct units | lower / higher | mean Δ |", "|---|---|---|---|---|"]
+    for a in res["accuracy"]:
+        L.append(f"| {a['arm']} | {a['model']} | {a['fp_correct_units']} | {a['losses']} / {a['gains']} | {a['mean']:+.4f} |")
+    with open(stem + ".md", "w") as fh:
+        fh.write("\n".join(L) + "\n")
+    print(f"wrote {stem}.md / .json")
 
 
 def _write(res, stem):

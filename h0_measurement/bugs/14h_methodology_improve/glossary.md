@@ -35,6 +35,11 @@
 | `closedbook` | (R4b) FP on the prompt without the document (or passages and demonstrations): which units need the context |
 | `router_*_calib@B` | calibrated quant-and-evict routers (Stages 1b–1f); `nest` = nested dense sets |
 | `snapq_v{v}@r` | SnapKV-with-question: the first question's selection made permanent (reuse runs) |
+| `probe` | (R5) FP's answer teacher-forced again with the measurement hook (its KL to FP is 0): missed mass, certificates, output errors and their bounds, Theorem R's columns (`rcov_`, `rratio_`, `rfp8_`; `_v2` = Theorem R v2) |
+| `inj_top@ε`, `inj_rnd@ε` | (R5) FP with an injected exact read whose missed mass is at most ε (least important rows evicted first / random order) |
+| `qread2t4kqT_v4@r` | (R5) the **tail design**: the system's vote, its rows exact, the rest read from the 4-bit tier instead of evicted |
+| `tail{k}[x][o]_v{v}@r` | (R5.3) the tail design with a k-bit Lloyd-Max tier 1 and v-bit values; `x` = exact keys and values on the read rows; `o` = the static oracle's rows instead of the vote's. `tail4x_v4` (traffic 0.344) was R6's candidate |
+| `dtail{k}[u]x_v{v}@r` | (R5.4) the tail design with a **dithered** tier 1 (subtractive dither, uniform k-bit keys, v-bit values; Theorem R applies) and the vote's rows exact; `u` = the unbiased tail (tier-1 weights divided by E e^{−δ}). **`dtail6ux_v4@1/8` is R6's design** (traffic 0.398); `dtail4ux_v4` is reported beside it |
 
 ## Tasks
 - **`niah_single`, `niah_multikey`, `niah_multivalue`, `vt`** — the RULER retrieval tasks

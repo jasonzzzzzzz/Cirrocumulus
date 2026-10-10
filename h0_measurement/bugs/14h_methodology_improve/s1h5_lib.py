@@ -47,10 +47,16 @@ INJ_LAYER_EPS = (0.1,)                       # the per-quarter injections
 N_QUARTERS = 4
 TRACE_EPS = (0.01, 0.1)                      # the controller emulation's targets
 CAP_FRAC = 0.25                              # the emulated row cap (share of the context)
-NEW_FAMILIES = L4.NEW_FAMILIES + ("probe", "inject", "tail", "tail5")
+NEW_FAMILIES = L4.NEW_FAMILIES + ("probe", "inject", "tail", "tail5", "dtail")
 # R5.3 (plan.md amendment "R5.3", draft): the tail design's precision / budget scan
 TAIL5_RE = r"tail([234])(x?)(o?)_v([234])"
 AMEND_R53 = "R5.3"                            # frozen 2026-10-08 (plan.md amendment "R5.3")
+# R5.4 (plan.md amendment "R5.4"): the randomized tier 1 (plan.md "R5 theory, part 4") against tail4x_v4.
+# dtail{kb}[u]x_v{vb}: the vote's rows exact (keys and values) as tail4x_v4 (the same vote, from the system's
+# 4/4 Lloyd-Max store, which never sees the dither), the rest from a dithered tier at kb-bit keys and vb-bit
+# values; u = the unbiased tail (tier-1 weights divided by E e^{-delta}).
+DTAIL_RE = r"dtail([468])(u?)x_v(4)"
+AMEND_R54 = "R5.4"
 
 
 def _plain(arm, family, **kw):
@@ -77,6 +83,12 @@ def parse_arm(arm: str) -> dict:
         return dict(base=arm, twin="", protect=False, store=kb, family="tail5", v_bits=vb, lens=L1E.LENS.get(vb, f"V{vb}"),
                     tier2="exact", tier2_bits=16, kv=x, requestion=True, read_v_bits=16 if x else vb, floor=False,
                     tier1_key_bits=kb, oracle_sel=o)
+    m = re.fullmatch(DTAIL_RE, arm)
+    if m:
+        kb, u, vb = int(m.group(1)), bool(m.group(2)), int(m.group(3))
+        return dict(base=arm, twin="", protect=False, store=kb, family="dtail", v_bits=vb, lens=L1E.LENS.get(vb, f"V{vb}"),
+                    tier2="exact", tier2_bits=16, kv=True, requestion=True, read_v_bits=16, floor=False,
+                    tier1_key_bits=kb, oracle_sel=False, unbiased=u)
     return L4.parse_arm(arm)
 
 
@@ -89,7 +101,7 @@ def key_side_bits(fam: str, evict_frac: float, d: int = L1E.D_DEFAULT) -> float:
         return float("nan")
     if fam == "tail":
         return float(L1H.STORE4)
-    if fam == "tail5":
+    if fam in ("tail5", "dtail"):
         return float("nan")
     return L4.key_side_bits(fam, evict_frac, d)
 
@@ -135,7 +147,7 @@ def traffic_frac(arm: str, B: float, C: int) -> float:
         return k * (float(pa["tier2_bits"]) + rv) / FP16_KV
     if fam == "tail":
         return ((1 - k) * (L1H.STORE4 + v) + k * (float(pa["tier2_bits"]) + rv)) / FP16_KV
-    if fam == "tail5":
+    if fam in ("tail5", "dtail"):
         return ((1 - k) * (float(pa["store"]) + v) + k * (float(pa["tier2_bits"]) + rv)) / FP16_KV
     return float("nan")
 
@@ -150,7 +162,7 @@ def exact_rows_frac(arm: str, B: float, C: int) -> float:
         return 1.0
     if fam == "quest":
         return float(B) if int(pa["store"]) == L1E.EXACT_WIDTH else 0.0
-    if fam in ("qreadfp", "qoraclefp") or (fam in ("qread2t", "tail", "tail5") and int(pa["tier2_bits"]) == 16):
+    if fam in ("qreadfp", "qoraclefp") or (fam in ("qread2t", "tail", "tail5", "dtail") and int(pa["tier2_bits"]) == 16):
         return _read_r(pa, B, C)
     return 0.0
 
@@ -201,10 +213,97 @@ PRESETS.update({
 })
 
 
+# R5.4: tail4x_v4 (R6's candidate) against the randomized tier, plus the probe with Theorem R's columns
+DTAIL_ARMS = [("dtail4x_v4", 0.125), ("dtail4ux_v4", 0.125), ("dtail6ux_v4", 0.125), ("dtail8ux_v4", 0.125)]
+DITHER_PROBE = "1:6,8"                        # the probe's Theorem R: draws per layer : key widths
+
+
+def _r54_preset(model, ctx):
+    base = L3._main_preset(model, ctx, STOPS.STOP_LINE)
+    # dense 4-bit stays planned: the probe's and the vote's 4/4 store is allocated from it (and dense 4/4 is R6's baseline)
+    return dict(base, dense=[(4, ["+v4"])], qread=[], qreadfp=[], qread4=[], readq=[], kq=[], oracle=[], g2t=[],
+                quest=[], probe=True, tail5=[("tail4x_v4", 0.125)], dtail=list(DTAIL_ARMS))
+
+
+PRESETS.update({
+    "h54llama128": _r54_preset("llama31-8b", 131072),
+    "h54qwen32": _r54_preset("qwen3-30b-a3b-2507", 32768),
+    "h54smoke": _r54_preset("llama31-8b", 4096),
+})
+R4_PRESET_OF.update({"h54llama128": "h4llama128", "h54smoke": "h4smoke"})
+
+# R6 (plan.md amendment "R6 frozen"): the confirmatory non-inferiority run against FP8. The tested design is
+# dtail6ux_v4 at 1/8 (decided 2026-10-10 after R5.4: the vote's rows exact, the rest from a dithered tier at 6-bit keys
+# and 4-bit values, unbiased); dtail4ux_v4 (the same at 4-bit keys) is reported, not tested. The references are
+# R6's draft's: FP8, dense 4/4 (and dense 4-bit keys with FP16 values, which the vote's store comes with), KIVI-4,
+# fp_noise last. Presets ending in "p" add the probe (Theorem R at the design's 6-bit keys, DITHER_PROBE_R6) and run
+# on a subset of blocks (one per cell and task set): the probe costs 4-8x an arm.
+AMEND_R6 = "R6"
+R6_DESIGN = ("dtail6ux_v4", 0.125)
+R6_REPORTED = [("dtail4ux_v4", 0.125)]
+R6_MARGIN = (1.5, 5e-4)                       # mean KL/tok(design) < 1.5 x mean KL/tok(FP8) + 5e-4 (decided 2026-10-10)
+DITHER_PROBE_R6 = "1:6"
+
+
+def _r6_preset(model, ctx, probe=False):
+    base = L3._main_preset(model, ctx, STOPS.STOP_LINE)
+    return dict(base, dense=[(4, ["+v4"])], qread=[], qreadfp=[], qread4=[], readq=[], kq=[("kivi", 4, 4)], oracle=[],
+                g2t=[], quest=[], probe=probe, dtail=[R6_DESIGN] + list(R6_REPORTED))
+
+
+for _nm, _model, _ctx in (("h6llama128", "llama31-8b", 131072), ("h6qwen32", "qwen3-30b-a3b-2507", 32768),
+                          ("h6qwen128", "qwen3-30b-a3b-2507", 131072), ("h6smoke", "llama31-8b", 4096)):
+    PRESETS[_nm] = _r6_preset(_model, _ctx)
+    PRESETS[_nm + "p"] = _r6_preset(_model, _ctx, probe=True)
+R6_PRESETS = ("h6llama128", "h6llama128p", "h6qwen32", "h6qwen32p", "h6qwen128", "h6qwen128p", "h6smoke", "h6smokep")
+R4_PRESET_OF.update({"h6llama128": "h4llama128", "h6llama128p": "h4llama128", "h6qwen128": "h4qwen128",
+                     "h6qwen128p": "h4qwen128", "h6smoke": "h4smoke", "h6smokep": "h4smoke"})
+
+# R6's blocks (plan.md amendment "R6 frozen"; the single source for script_stage1h_r6.sh and read_stage1h_r6.py).
+# (name, tag, preset, ctx, suite, level, tasks, n_prompts, offset, wall, split): level '' = the suite's default
+# difficulty, 'r3a' / 'r3b' = findings/R3a_levels.json / R3b_levels.json; split 2 = one node job running two blocks
+# on 2 GPUs each (offset, offset + n_prompts), read as JOB_0 / JOB_1. Fresh prompts: RULER 9500-9544 (Llama) and
+# 9600-9654 (Qwen), never used by any earlier block (test_r14_stage1h_r6 checks every sidecar under results/);
+# HELMET items 11-40 of R6's manifest (tasks_s1h6.R6_ITEMS).
+R6_STD = "niah_single,niah_multikey,niah_multivalue,vt"
+R6_HARD = "niah_multikey,niah_multivalue,vt,mk_panel"
+R6_HM = "kilt_nq,kilt_hotpotqa,msmarco_rerank_psg,icl_trec_coarse,icl_banking77"
+R6_LAYOUT = (
+    [(f"l-r1{c}", "h6llama128_r1", "h6llama128" + ("p" if i == 0 else ""), 131072, "r3", "", R6_STD, 5, 9500 + 5 * i,
+      "04:00:00" if i == 0 else "03:00:00", 1) for i, c in enumerate("abc")]
+    + [(f"l-r3a{c}", "h6llama128_r3a", "h6llama128" + ("p" if i == 0 else ""), 131072, "r3", "r3a", R6_HARD, 5,
+        9515 + 5 * i, "04:00:00" if i == 0 else "03:00:00", 1) for i, c in enumerate("abc")]
+    + [(f"l-agg{c}", "h6llama128_r3b", "h6llama128" + ("p" if i == 0 else ""), 131072, "r3b", "r3b", "cwe,fwe", 5,
+        9530 + 5 * i, "04:00:00" if i == 0 else "03:00:00", 1) for i, c in enumerate("abc")]
+    + [(f"l-hm{c}", "h6llama128_hm", "h6llama128" + ("p" if i == 0 else ""), 131072, "r4", "", R6_HM, 5, 11 + 5 * i,
+        "04:00:00" if i == 0 else "03:00:00", 1) for i, c in enumerate("abcdef")]
+    + [(f"q-r1{c}", "h6qwen32_r1", "h6qwen32" + ("p" if i == 0 else ""), 32768, "r3", "", R6_STD, 5, 9600 + 5 * i,
+        "03:00:00" if i == 0 else "02:00:00", 1) for i, c in enumerate("abcd")]
+    + [(f"q-r3a{c}", "h6qwen32_r3a", "h6qwen32" + ("p" if i == 0 else ""), 32768, "r3", "r3a", R6_HARD, 5, 9620 + 5 * i,
+        "03:00:00" if i == 0 else "02:00:00", 1) for i, c in enumerate("abcd")]
+    + [(f"q-agg{c}", "h6qwen32_r3b", "h6qwen32" + ("p" if i == 0 else ""), 32768, "r3b", "r3b", "cwe,fwe", 5,
+        9640 + 5 * i, "03:00:00" if i == 0 else "02:00:00", 1) for i, c in enumerate("abc")]
+    + [(f"w-hm{c}", "h6qwen128_hm", "h6qwen128", 131072, "r4", "", R6_HM, 5, 11 + 10 * i, "04:00:00", 2)
+       for i, c in enumerate("abc")])
+# Qwen 128K's pilot (2 GPUs on a node; excluded): items run before (R4's item 0), one per HELMET family
+R6_PILOT = ("w-pilot", "h6qwen128_pilot", "h6qwen128", 131072, "r4", "",
+            "msmarco_rerank_psg,kilt_nq,icl_trec_coarse", "0:msmarco_rerank_psg,0:kilt_nq,0:icl_trec_coarse", "03:00:00")
+R6_GROUP_OF = {"h6llama128": "llama128", "h6qwen32": "qwen32", "h6qwen128": "qwen128"}   # claim groups (model x ctx)
+
+
+def r6_units():
+    """{(tag, task): set of prompt indices} R6 plans (every block of R6_LAYOUT)."""
+    out = {}
+    for _n, tag, _p, _c, _s, _l, tasks, n, off, _w, split in R6_LAYOUT:
+        for t in tasks.split(","):
+            out.setdefault((tag, t), set()).update(range(off, off + n * split))
+    return out
+
+
 def build_plan(p: dict) -> list:
     """fp, then R5's arms (probe, injected errors, the tail arm), then the reference arms in R4's
     order (L4.build_plan: R3a's arms, Quest), fp_noise last."""
-    if not (p.get("probe") or p.get("inject") or p.get("tail") or p.get("tail5")):
+    if not (p.get("probe") or p.get("inject") or p.get("tail") or p.get("tail5") or p.get("dtail")):
         return L4.build_plan(p)
     base = L4.build_plan(dict(p, noise=False))
     if base[0] != ("fp", 0):
@@ -225,6 +324,10 @@ def build_plan(p: dict) -> list:
     for arm, r in p.get("tail5", []):
         if parse_arm(arm)["family"] != "tail5" or not 0 < float(r) <= 1:
             raise ValueError(f"bad R5.3 tail arm {arm}@{r}")
+        plan.append((arm, L1E.norm_b(r)))
+    for arm, r in p.get("dtail", []):
+        if parse_arm(arm)["family"] != "dtail" or not 0 < float(r) <= 1:
+            raise ValueError(f"bad R5.4 arm {arm}@{r}")
         plan.append((arm, L1E.norm_b(r)))
     plan += base[1:]
     if p.get("noise"):

@@ -45,6 +45,7 @@ import run_s1h3 as R3D  # noqa: E402
 import run_s1h3b as R3BD  # noqa: E402
 import run_s1h4 as R4D  # noqa: E402
 import tasks_s1h as T3B  # noqa: E402
+from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS  # noqa: E402
 
 SUITES = ("r3", "r3b", "r4")
 
@@ -136,6 +137,12 @@ def _probe_summary(hf, gf, tf):
             out[f"probe_err_{k}_fp8"] = float((err <= hf.err_fp8).mean())
         if "trunc_viol" in hf:
             out["probe_trunc_viol_any"] = float((hf.trunc_viol > 0).mean())
+        for k in [c for c in hf.columns if c.startswith("rcov_")]:          # Theorem R (--dither-seeds)
+            tg = k[5:]
+            out[f"probe_R_cover_{tg}"] = float(hf[k].mean())
+            out[f"probe_R_fp8_{tg}"] = float(hf[f"rfp8_{tg}"].mean())
+            out[f"probe_R_ratio_{tg}_med"] = float(hf[f"rratio_{tg}"].median())
+            out[f"probe_R_rel_{tg}_med"] = float(hf[f"rrel_{tg}"].median())
     if len(gf):
         for e in L.TRACE_EPS:
             for k in ("union", "cert", "cert_warm", "cert_hp", "page"):
@@ -263,6 +270,7 @@ def _tf_tail(model, past, L0, q_ids, ids, r, pa, alloc, R, Rv, nc, nL):
         S1D.HOOK.sel = None
         S1D._uninstall()
         C.STATE.enabled = False
+        UNB.update(on=False, layers={}, orig=None)
     C.crop_to(past, L0)
     return lg[:len(ids)]
 
@@ -303,7 +311,7 @@ def _tier1(past, kb, vb, R, Rv, nc, nL):
     S1E.apply_store(past, store, int(kb), R, nc, L1B.v_quantizer(int(vb), Rv, nc), nL)
 
 
-def _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, teacher, fp_gen):
+def _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, teacher, fp_gen, swap=None):
     """tail{kb}[x][o]_v{vb}: tier 1, the question over it, the selection (the system's vote, or the static
     oracle's rows of FP's answer), tier 2's exact keys (and values with 'x') on the selected rows, the question
     again, then nothing evicted for the answer."""
@@ -325,6 +333,8 @@ def _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, teacher, fp_gen):
         sel = {li: e.clone() for li, e in C.STATE.evict.items()}
     else:
         sel = {li: e.to(C.STATE.kdeq[li].device).clone() for li, e in ev_or.items()}
+    if swap is not None:                          # R5.4: replace tier 1 after the selection (dtail arms)
+        swap(past, sel)
     S1G.to_tier2(past, nL, sel, pa["tier2"], pa["kv"])
     if pa["requestion"]:
         past = S1G._requestion(model, past, L0, q_ids, sel, teacher)
@@ -336,11 +346,11 @@ def _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, teacher, fp_gen):
     return past, sel
 
 
-def _tf_tail5(model, past, L0, q_ids, ids, r, pa, R, Rv, nc, nL, fp_gen):
+def _tf_tail5(model, past, L0, q_ids, ids, r, pa, R, Rv, nc, nL, fp_gen, swap=None):
     if not ids:
         return None
     try:
-        past, _ = _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, True, fp_gen)
+        past, _ = _tail5_steps(model, past, L0, q_ids, r, pa, R, Rv, nc, nL, True, fp_gen, swap)
         C.STATE.enabled = True
         x = [int(q_ids[0, -1])] + [int(t) for t in ids[:-1]]
         with torch.no_grad():
@@ -350,6 +360,7 @@ def _tf_tail5(model, past, L0, q_ids, ids, r, pa, R, Rv, nc, nL, fp_gen):
         S1D.HOOK.sel = None
         S1D._uninstall()
         C.STATE.enabled = False
+        UNB.update(on=False, layers={}, orig=None)
     C.crop_to(past, L0)
     return lg[:len(ids)]
 
@@ -380,6 +391,100 @@ def run_tail5_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, nL, R, Rv
         sel, t_arm, t_tf, (arm, B), dict(au, evict_frac=0.0), {}
 
 
+# --------------------------------------------- R5.4: the randomized tier 1 (dtail arms)
+# plan.md "R5 theory, part 4" and amendment "R5.4". The vote is the system's (4/4 Lloyd-Max store, as
+# tail4x_v4: the same rows read exactly), so it never sees the dither (Theorem R's condition C1); then tier 1
+# is replaced by rquant_s1h5's dithered quantization of the exact cache at kb-bit keys and vb-bit values; the
+# unbiased variant subtracts log E e^{-delta_i}(q) from every unread context row's score (an additive mask).
+UNB = dict(on=False, layers={}, orig=None)
+DITHER_SEED = 7000
+
+
+def _unbiased_attention(module, query, key, value, attention_mask=None, scaling=None, dropout=0.0, **kwargs):
+    li = C._layer(module)
+    st = UNB["layers"].get(li)
+    if UNB["on"] and st is not None and C.STATE.enabled and li in C.STATE.kdeq:
+        sc = scaling if scaling is not None else module.head_dim ** -0.5
+        D, keep, Rk = st                                                   # [Hkv, C], [Hkv, C] read exactly, [d, d]
+        H, q_len, k_len = query.shape[1], query.shape[2], key.shape[2]
+        Cn = C.STATE.ctx_len
+        rep = H // D.shape[0]
+        keep_h = keep.repeat_interleave(rep, 0).unsqueeze(1)               # [H, 1, C]
+        a2 = ((sc * D / 2.0) ** 2).repeat_interleave(rep, 0).unsqueeze(1)  # [H, 1, C]
+        q = query[0].float()                                               # [H, q_len, d]
+        bias = torch.zeros(1, H, q_len, k_len, dtype=query.dtype, device=query.device)
+        for j0 in range(0, q_len, 64):                                     # rquant_s1h5.debias_log, chunked
+            qj = q[:, j0:j0 + 64]
+            s2 = (qj * qj).sum(-1, keepdim=True)
+            s4 = ((qj @ Rk.T) ** 4).sum(-1, keepdim=True)
+            A2, A4 = a2 * s2, a2 * a2 * s4
+            ldb = ((A2 / 6.0 - A4 / 180.0).clamp_min(0.0) + A2 / 6.0) / 2.0
+            bias[0, :, j0:j0 + 64, :Cn] = (-ldb.masked_fill(keep_h, 0.0)).to(query.dtype)
+            del A2, A4, ldb
+        if attention_mask is not None:
+            bias = bias + C._additive(attention_mask[:, :, -q_len:, :k_len], query.dtype)
+        attention_mask = bias
+    return UNB["orig"](module, query, key, value, attention_mask=attention_mask, scaling=scaling, dropout=dropout,
+                       **kwargs)
+
+
+def _dither_swap(past, sel, nL, kb, vb, unbiased):
+    """Tier 1 := the dithered quantization of the exact cache (seeded per layer; the same draw in every dtail arm
+    and unit); with `unbiased`, install the score correction over whatever attention is installed now."""
+    import rquant_s1h5 as RQ
+    from sievelib.probe import cache_kv
+    from sievelib import quant as Q
+    Cn = C.STATE.ctx_len
+    layers = {}
+    for li in range(nL):
+        K, V = cache_kv(past, li)
+        dt = torch.float32 if K.is_cuda else torch.float64
+        Rk = Q.random_rotation(K.shape[-1], K.device, dt, 50)
+        Rvv = Q.random_rotation(V.shape[-1], V.device, dt, 150)
+        Kh, stk = RQ.dither_quantize(K[:, :Cn], int(kb), Rk, DITHER_SEED + 2 * li, dtype=dt)
+        Vh, _ = RQ.dither_quantize(V[:, :Cn], int(vb), Rvv, DITHER_SEED + 2 * li + 1, dtype=dt)
+        C.STATE.kdeq[li] = Kh.to(K.dtype)
+        C.STATE.vdeq[li] = Vh.to(V.dtype)
+        if unbiased:
+            layers[li] = (stk.float(), (~sel[li]).to(K.device), Rk.float())
+        del Kh, Vh
+    if unbiased:
+        UNB.update(on=True, layers=layers, orig=ALL_ATTENTION_FUNCTIONS[C.IMPL])
+        ALL_ATTENTION_FUNCTIONS[C.IMPL] = _unbiased_attention
+
+
+def run_dtail_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, nL, R, Rv, nc, eos, max_new, L0, tok):
+    vpa = dict(pa, tier1_key_bits=4, v_bits=4, store=4)                  # the vote's store: the system's 4/4
+    kb, vb, unb = pa["tier1_key_bits"], pa["v_bits"], pa["unbiased"]
+    swap = lambda past_, sel_: _dither_swap(past_, sel_, nL, kb, vb, unb)  # noqa: E731
+    t1 = time.time()
+    try:
+        past, sel = _tail5_steps(model, past, L0, q_ids, B, vpa, R, Rv, nc, nL, False, fp_gen, swap)
+        for li, e in sel.items():
+            C.STATE.bits[li] = torch.where(~e, 16, int(kb)).long()
+        gen, past = RR._decode(model, past, q_ids[0, -1], max_new, eos, tok)
+    finally:
+        S1D.HOOK.sel = None
+        S1D._uninstall()
+        C.STATE.enabled = False
+        UNB.update(on=False, layers={}, orig=None)
+    t_arm = time.time() - t1
+    au = C.bits_audit()
+    tt = time.time()
+    lg = _tf_tail5(model, past, L0, q_ids, fp_gen, B, vpa, R, Rv, nc, nL, fp_gen, swap)
+    tfm = RH.tfm_of_h(lg, fp_gen, content, am)
+    del lg
+    t_tf = time.time() - tt
+    S1F.a2_defaults(tfm, am)
+    replay = lambda ids: _tf_tail5(model, past, L0, q_ids, ids, B, vpa, R, Rv, nc, nL, fp_gen, swap)  # noqa: E731
+    tfm.update(S1F.a2_columns(tok, fp_gen, am, gen, tfm, replay, ("dtail", "", False, arm)))
+    extra = dict(store_width=int(kb), tier1_value_bits=int(vb), tier2="exact", tier2_bits=16,
+                 exact_values_on_selected=True, oracle_selection=False, requestion=True, read_rows_exact=float(B),
+                 dithered=True, unbiased=bool(unb), dither_seed=DITHER_SEED, vote_store="lloyd4/4")
+    return gen, past, tfm, dict(stored_bits_per_token=float(kb), stored_evict_frac=0.0), extra, \
+        sel, t_arm, t_tf, (arm, B), dict(au, evict_frac=0.0), {}
+
+
 # ------------------------------------------------------------------ dispatch
 def run_arm_h5(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, protect, nL, R, Rv, nc, eos, max_new,
                L0, tok, last, sel_q1=None):
@@ -387,7 +492,7 @@ def run_arm_h5(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, prote
     if fam == "quest":                                   # Quest in every suite (run_s1h4's arm, unchanged)
         return R4D.run_arm_h4(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, protect, nL, R, Rv, nc,
                               eos, max_new, L0, tok, last, sel_q1)
-    if fam not in ("probe", "inject", "tail", "tail5"):
+    if fam not in ("probe", "inject", "tail", "tail5", "dtail"):
         return S.run_ref(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, protect, nL, R, Rv, nc, eos,
                          max_new, L0, tok, last, sel_q1)
     RH._fold()
@@ -400,6 +505,8 @@ def run_arm_h5(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, prote
         res = run_inject_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, L0, nL)
     elif fam == "tail5":
         res = run_tail5_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, nL, R, Rv, nc, eos, max_new, L0, tok)
+    elif fam == "dtail":
+        res = run_dtail_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, nL, R, Rv, nc, eos, max_new, L0, tok)
     else:
         res = run_tail_arm(model, past, arm, B, pa, q_ids, fp_gen, content, am, alloc, nL, R, Rv, nc, eos, max_new,
                            L0, tok)
@@ -468,13 +575,21 @@ def main():
     argv = sys.argv[1:]
     suite = _arg(argv, "--suite") or "r3"
     argv = _drop(argv, "--suite")
+    if "--dither-seeds" in argv:                    # Theorem R columns in the probe (plan.md "R5 theory, part 4")
+        PB.DITHER_SEEDS = int(_arg(argv, "--dither-seeds"))
+        argv = _drop(argv, "--dither-seeds")
+    if "--dither-key-bits" in argv:
+        PB.DITHER_KEY_BITS = tuple(int(x) for x in _arg(argv, "--dither-key-bits").split(","))
+        argv = _drop(argv, "--dither-key-bits")
     if suite not in SUITES:
         raise SystemExit(f"--suite must be one of {SUITES}")
     mode, out_dir, preset = _arg(argv, "--mode"), _arg(argv, "--out-dir"), _arg(argv, "--preset")
     if mode != "evaluate":
         raise SystemExit("R5 runs evaluation blocks only")
-    if preset not in L.PRESETS or not (L.PRESETS[preset].get("probe") or L.PRESETS[preset].get("tail5")):
-        raise SystemExit(f"--preset must be an R5 preset (h5*, h53*), not {preset!r}")
+    if preset not in L.PRESETS or not (L.PRESETS[preset].get("probe") or L.PRESETS[preset].get("tail5")
+                                       or L.PRESETS[preset].get("dtail")):
+        raise SystemExit(f"--preset must be an R5 or R6 preset (h5*, h53*, h54*, h6*), not {preset!r}")
+    r6 = preset in L.R6_PRESETS
     cfg = None
     if suite == "r3":
         argv, cfg = R3D._pop_task_cfg(argv)
@@ -494,7 +609,10 @@ def main():
         if preset not in L.R4_PRESET_OF:
             raise SystemExit(f"--suite r4 runs at 128K (or the smoke): {sorted(L.R4_PRESET_OF)}")
         R4D.CUR.preset, R4D.CUR.model = L.R4_PRESET_OF[preset], L.PRESETS[preset]["model"]
-        R4D.CUR.smoke = preset.endswith("smoke")
+        R4D.CUR.smoke = preset.endswith("smoke") or preset.endswith("smokep")
+        if r6:                                      # R6: HELMET from R6's longer manifest (tasks_s1h6)
+            import tasks_s1h6 as T6
+            T6.install()
         R4D.install_tasks()
         S.run_ref = R4D.run_arm_h4
     STOPS.install(S1E, RR)
@@ -514,6 +632,9 @@ def main():
         STOPS.uninstall(S1E, RR)
         (R3D.uninstall_tasks() if suite == "r3" else R3BD.uninstall_tasks() if suite == "r3b"
          else R4D.uninstall_tasks())
+        if r6 and suite == "r4":
+            import tasks_s1h6 as T6
+            T6.uninstall()
     if out_dir:
         RH._rename_outputs(out_dir, mode)
         _add_columns(out_dir, mode)
@@ -522,8 +643,17 @@ def main():
                     suite=suite, task_cfg_r5=cfg, r5_files=files,
                     probe=dict(grid=list(K.EPS_GRID), page=PB.PAGE, max_rows=PB.MAX_ROWS),
                     driver="run_s1h5.py (run_s1e.main on a suite's units; R5 probe, injected errors, tail arm)")
+        if r6:
+            import tasks_s1h6 as T6
+            side.update(amend_r6=L.AMEND_R6, r6_design=list(L.R6_DESIGN), r6_reported=[list(x) for x in L.R6_REPORTED],
+                        r6_margin=list(L.R6_MARGIN), probe_dither=[PB.DITHER_SEEDS, list(PB.DITHER_KEY_BITS)],
+                        probe_rand_v2=bool(PB.RAND_V2))
+            if suite == "r4":
+                T6.install()                        # the sidecar names R6's manifest
         if suite == "r4":
             side.update(manifest_sha256=R4D.T.MANIFEST_SHA256, manifest_cell=R4D._cell(side["tasks"][0]))
+        if r6 and suite == "r4":
+            T6.uninstall()
         with open(sp, "w") as fh:
             json.dump(side, fh, indent=1, default=str)
 

@@ -1455,3 +1455,13 @@ Commands (`script_stage1h_r6.sh`):
 
 Neither half submits the reader. Once Rorqual's `results/r14s1h_h6qwen128_*` are copied here, the frozen reader runs
 once over every block: `read_stage1h_r6.py --r6 $(bash script_stage1h_r6.sh --list-r6)`.
+- **Trillium half SUBMITTED 2026-10-10** (user asked), from trig-login01, preflight passed (code manifest verified):
+  - Llama 128K: r1 1072639–41; R3a 1072643, 1072646, 1072647; R3b 1072648–50; HELMET 1072651–56;
+  - Qwen 32K: r1 1072657–60; R3a 1072661–64; R3b 1072665–67.
+
+  The probe blocks are 1072639, 1072643, 1072648, 1072651, 1072657, 1072661 and 1072665. All 26 were pending at
+  submission; the first start was estimated at 21:08. R6's frozen files may not change until the reader has run.
+- **Memory per job (user, 2026-10-10):** Rorqual jobs need `--mem=96G`; Trillium jobs must have no `--mem`. The pinned
+  worker `submit_s1h5.slurm` therefore carries none, and `script_stage1h_r6.sh` passes `--mem` on the sbatch command
+  line off Trillium (`R6_MEM`, default 96G), which overrides `#SBATCH` lines. On Trillium the script refuses `R6_MEM`.
+  Editing the `.slurm` file on Rorqual instead fails the code check by design: restore the pinned file.

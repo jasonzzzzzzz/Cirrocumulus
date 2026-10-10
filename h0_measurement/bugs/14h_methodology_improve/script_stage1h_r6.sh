@@ -20,6 +20,9 @@
 #   R6_READER=0|1       submit the reader after the blocks (default: 1 for every block, 0 for a partial half)
 #   R6_NODE_SPLIT=0|1   Qwen 128K's paired blocks as one 4-GPU node job (1, default on Trillium) or one 2-GPU job
 #                       each (0, default elsewhere: Rorqual takes 2-GPU jobs)
+#   R6_MEM=96G          memory per job, passed on the sbatch command line (it overrides #SBATCH lines, so the pinned
+#                       worker submit_s1h5.slurm stays identical on both clusters): 96G by default off Trillium
+#                       (Rorqual needs it); none on Trillium, which must not get --mem
 #   Trillium:  R6_ONLY=h6llama128_r1,h6llama128_r3a,h6llama128_r3b,h6llama128_hm,h6qwen32_r1,h6qwen32_r3a,h6qwen32_r3b
 #   Rorqual:   R6_ONLY=h6qwen128_pilot,h6qwen128_hm
 # --pin-code        write findings/R6_code.sha256: every file an R6 job reads (code, worker, data). Done once, on
@@ -47,6 +50,14 @@ R6_NODE_SPLIT="${R6_NODE_SPLIT:-$ON_TRIG}"
 [[ "$R6_READER" =~ ^[01]$ && "$R6_NODE_SPLIT" =~ ^[01]$ ]] || { echo "ERROR: R6_READER and R6_NODE_SPLIT are 0|1" >&2; exit 2; }
 [[ -z "$R6_ONLY" || "$R6_ONLY" =~ ^h6[a-z0-9_]+(,h6[a-z0-9_]+)*$ ]] || { echo "ERROR: R6_ONLY is a comma list of h6* tags" >&2; exit 2; }
 want() { [[ -z "$R6_ONLY" || ",$R6_ONLY," == *",$1,"* ]]; }
+if (( ON_TRIG )); then
+  [[ -z "${R6_MEM:-}" ]] || { echo "ERROR: Trillium jobs take no --mem; unset R6_MEM" >&2; exit 2; }
+  MEM=()
+else
+  R6_MEM="${R6_MEM:-96G}"
+  [[ "$R6_MEM" =~ ^[0-9]+[GM]$ ]] || { echo "ERROR: R6_MEM looks like 96G" >&2; exit 2; }
+  MEM=(--mem=$R6_MEM)
+fi
 CODE_SHA=$DIR/findings/R6_code.sha256
 
 code_files() {   # every file an R6 job reads (the code manifest's scope), relative to the project root
@@ -66,12 +77,12 @@ verify_code() {
 }
 
 SUBMITTED=()
-sub() {   # sbatch, print only the job ID (or DRY)
+sub() {   # sbatch (with this cluster's --mem, if any), print only the job ID (or DRY)
   if [[ "$MODE" == *-dry ]]; then
-    { printf 'sbatch'; printf ' %q' "$@"; printf '\n'; } >&2; echo "DRY$RANDOM"; return
+    { printf 'sbatch'; printf ' %q' "${MEM[@]}" "$@"; printf '\n'; } >&2; echo "DRY$RANDOM"; return
   fi
   local out id
-  out=$(sbatch --parsable "$@") || { echo "ERROR: sbatch failed after ${SUBMITTED[*]:-nothing}" >&2; exit 1; }
+  out=$(sbatch --parsable "${MEM[@]}" "$@") || { echo "ERROR: sbatch failed after ${SUBMITTED[*]:-nothing}" >&2; exit 1; }
   id="${out%%;*}"; id="${id##* }"
   [[ "$id" =~ ^[0-9]+$ ]] || { echo "ERROR: no job id from: $out" >&2; exit 1; }
   SUBMITTED+=("$id"); echo "$id"

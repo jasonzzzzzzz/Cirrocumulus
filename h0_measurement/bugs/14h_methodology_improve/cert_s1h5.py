@@ -318,36 +318,64 @@ def bernstein_radius(B: torch.Tensor, a: torch.Tensor, delta: float) -> torch.Te
     return h + torch.sqrt(h * h + 2.0 * L * B * B)
 
 
+def _lcosh(x):
+    return x + torch.log1p(torch.exp(-2.0 * x)) - math.log(2.0)
+
+
 def tail_bound_conc(s, s_hat, sigma, keep, nu, dist, lse_fix=NEG, x_read=False, delta: float = DELTA_T,
-                    one_pass=False, vnorm=None, onorm=None, parts=False):
-    """Lemma 5: with probability >= 1 - delta under model M (given what is stored and the rows read:
-    row errors independent; value errors zero-mean, |v - v_hat| = nu; score errors symmetric,
-    sub-Gaussian with proxy sigma, e.g. sigma = b / sqrt(d) for a random-direction key error),
-      |o - o_T| <= (mean + r) / den,
-    t = z sigma (z = trunc_z(unread rows, delta / 2)), den = e^lse_fix + sum_S w + sum_T w_hat e^-t,
-    mean = sum_T w_hat (e^min(sigma^2/2, t) - 1) dist,
-    B^2  = sum_S (w nu)^2 + sum_T w_hat^2 [g nu^2 + (g - 1) dist^2],  g = e^min(2 sigma^2, 2t),
-    a    = max(max_S w nu, max_T w_hat (e^t nu + (e^t - 1) dist)),  r = bernstein_radius(B, a, delta / 2).
+                    one_pass=False, vnorm=None, onorm=None, parts=False, coupled=False, bias=0.0):
+    """Lemma 5: with probability >= 1 - delta under model M (given what is stored and the rows read: row
+    errors independent; value errors zero-mean given the score error, |v - v_hat| = nu; each score error
+    delta_i = beta_i + xi_i with |beta_i| <= bias_i (a bias allowance, 0 = none) and xi_i symmetric and
+    sub-Gaussian with proxy sigma_i, e.g. sigma = b / sqrt(d) for a random-direction key error),
+      |o - o_T| <= (mean + r) / den,  r = bernstein_radius(B, a, delta / 2),
+    with zs = z sigma (z = trunc_z(unread rows, delta / 2): every xi_i within zs on an event of probability
+    >= 1 - delta / 2), t = zs + bias, and per unread row the moment bounds on that event
+      M1 = e^bias min(e^{sigma^2/2}, cosh zs) >= E e^delta >= m1 = e^-bias,   M2 = e^{2 bias} min(e^{2 sigma^2}, cosh 2zs) >= E e^{2 delta}:
+    den  = e^lse_fix + sum_S w + sum_T w_hat e^-t,
+    mean = sum_T w_hat (M1 - 1) dist,
+    B^2  = sum_S (w nu)^2 + sum_T w_hat^2 [M2 nu^2 + (M2 - m1^2) dist^2],
+    a    = max(max_S w nu, max_T w_hat (e^t nu + max(e^t - m1, M1 - e^-t) dist)).
     The S terms drop with x_read. one_pass: the dist sums by Cauchy-Schwarz and dist <= vnorm + onorm in a
     (vnorm = |v_hat| per row, onorm = |o_T|), all accumulable in the attention pass. parts: also return
-    dict(mean, B, a, den, z) (mean, B, a divided by den), to recompute the bound at another delta."""
+    dict(mean, B, a, den, z) (mean, B, a divided by den), to recompute the bound at another delta.
+    coupled: a row's key and value errors share one source (MLA: both come from the token latent), so
+    E[e | delta] = 0 is dropped: mean gains sum_T w_hat c nu with c = sqrt(M2 - 2 m1 + 1) (joint symmetry of
+    (e, delta), no bias) or c = M1 (no assumption: |E e^delta e| <= nu E e^delta), a's T term gains
+    w_hat c nu, and B^2's T term becomes w_hat^2 (sqrt(M2) nu + sqrt(M2 - m1^2) dist)^2 (Minkowski)."""
     keep_e = keep.expand_as(s)
     n_t = (~keep_e).sum(-1)
     z = trunc_z(n_t, delta / 2.0).to(s.device)
-    sig = sigma.double()
-    t = z.unsqueeze(-1) * sig
-    w, wh, wl, wf, tt, unread = _tail_prep(s, s_hat, t, keep, lse_fix)
-    sig = sig.masked_fill(~unread, 0.0)
+    sig = sigma.double().expand_as(s)
+    mu = torch.as_tensor(bias, dtype=torch.float64, device=s.device).expand_as(sig)
+    zs = z.unsqueeze(-1) * sig
+    w, wh, wl, wf, tt, unread = _tail_prep(s, s_hat, zs + mu, keep, lse_fix)
+    sig, zs, mu = (x.masked_fill(~unread, 0.0) for x in (sig, zs, mu))
     nu, dist = nu.double().expand_as(w), dist.double().expand_as(w)
     den = wf + w.sum(-1) + wl.sum(-1)
-    mean = _wsum(wh * torch.expm1(torch.minimum(sig * sig / 2.0, tt)), dist, one_pass)
-    g = torch.exp(torch.minimum(2.0 * sig * sig, 2.0 * tt))
-    wu, wd = wh * torch.exp(tt), wh * torch.expm1(tt)
-    B2 = (wh * wh * (g * nu * nu + (g - 1.0) * dist * dist)).sum(-1)        # dist^2: accumulable as is
-    if one_pass:
-        a = (wu * nu + wd * vnorm.double().expand_as(w)).amax(-1) + wd.amax(-1) * onorm.double()
+    lwh = torch.log(wh)                                                    # -inf on read rows
+    m1 = torch.exp(-mu)
+    wM1 = torch.exp(lwh + mu + torch.minimum(sig * sig / 2.0, _lcosh(zs)))            # w_hat M1
+    wM2 = torch.exp(2.0 * lwh + 2.0 * mu + torch.minimum(2.0 * sig * sig, _lcosh(2.0 * zs)))   # w_hat^2 M2
+    wt = torch.exp(lwh + tt)                                               # w_hat e^t
+    var_c = (wM2 - (wh * m1) ** 2).clamp_min(0.0)                          # >= w_hat^2 Var e^delta
+    rng_c = torch.maximum(wt - wh * m1, wM1 - torch.exp(lwh - tt)).clamp_min(0.0)  # >= w_hat |e^delta - E e^delta|
+    mean = _wsum((wM1 - wh).clamp_min(0.0), dist, one_pass)
+    a_nu = wt * nu
+    if coupled:
+        if float(mu.abs().max()) == 0.0:
+            cpl = torch.sqrt((wM2 - 2.0 * wh * wh * m1 + wh * wh).clamp_min(0.0)) * nu
+        else:
+            cpl = wM1 * nu
+        mean = mean + cpl.sum(-1)
+        a_nu = a_nu + cpl
+        B2 = (wM2 * nu * nu + var_c * dist * dist).sum(-1) + 2.0 * _wsum(torch.sqrt(wM2 * var_c) * nu, dist, one_pass)
     else:
-        a = (wu * nu + wd * dist).amax(-1)
+        B2 = (wM2 * nu * nu + var_c * dist * dist).sum(-1)                 # dist^2: accumulable as is
+    if one_pass:
+        a = (a_nu + rng_c * vnorm.double().expand_as(w)).amax(-1) + rng_c.amax(-1) * onorm.double()
+    else:
+        a = (a_nu + rng_c * dist).amax(-1)
     if not x_read:
         B2 = B2 + ((w * nu) ** 2).sum(-1)
         a = torch.maximum(a, (w * nu).amax(-1))

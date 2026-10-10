@@ -200,7 +200,7 @@ def _unit(g, *shape):
     return x / x.norm(dim=-1, keepdim=True)
 
 
-def _model_instance(g, Hkv=2, r=4, C=256, d=64, key_err=0.1, val_err=0.1, kind="random", align=False):
+def _model_instance(g, Hkv=2, r=4, C=256, d=64, key_err=0.1, val_err=0.1, kind="random", align=False, bias_frac=0.0):
     """Lemma 5's model: tier 1 (k_hat, v_hat) drawn first, the truth = tier 1 + an independent error of
     norm eta_i (keys) / nu_i (values) in a uniformly random direction; the read rows chosen from tier 1
     (top C/8 tier-1 shares over the group). align: the adversarial opposite (every key error along +q,
@@ -229,9 +229,12 @@ def _model_instance(g, Hkv=2, r=4, C=256, d=64, key_err=0.1, val_err=0.1, kind="
         Vx = Vh + nu.unsqueeze(-1) * _unit(g, Hkv, C, d)
     s = torch.einsum("grd,gcd->grc", q, Kx) * sc
     b = K.score_bound(q, eta.unsqueeze(1), sc)
+    if bias_frac:                                         # every true score above tier 1 by bias_frac sigma
+        s = s + bias_frac * b / d ** 0.5
+        b = b * (1 + bias_frac / d ** 0.5)
     sf = torch.randn(Hkv, r, 3, generator=g, dtype=DT)
     Vf = torch.randn(Hkv, 3, d, generator=g, dtype=DT)
-    return dict(s=s, s_hat=s_hat, b=b, sigma=b / d ** 0.5, keep=keep.unsqueeze(1), nu=nu.unsqueeze(1),
+    return dict(s=s, s_hat=s_hat, b=b, sigma=(b / (1 + bias_frac / d ** 0.5)) / d ** 0.5, keep=keep.unsqueeze(1), nu=nu.unsqueeze(1),
                 V=Vx.unsqueeze(1), Vh=Vh.unsqueeze(1), lse_fix=torch.logsumexp(sf, -1),
                 o_fix=torch.einsum("grf,gfd->grd", torch.softmax(sf, -1), Vf))
 
@@ -330,6 +333,52 @@ def test_cert_tail():
     check("Lemma 5: one-pass form never below the two-pass; parts reproduce the bound; tighter than Lemma 4",
           below_p == 0 and parts_dev < 1e-9 and r54[len(r54) // 2] < 1.0,
           f"(median L5/L4 {r54[len(r54) // 2]:.3f}, median L5/error {r5e[len(r5e) // 2]:.1f})")
+
+    # a coherent score bias (tier 1 under every true score by one sigma): Lemma 5 without an allowance
+    # misses; with the allowance bias = sigma it covers; Lemma 4 (b widened by the bias) holds
+    miss0, miss1, viol4b, nb = 0, 0, 0, 0
+    for trial in range(60):
+        x = _model_instance(g, kind=("random", "spiky")[trial % 2], key_err=(0.1, 0.2)[trial % 2], val_err=0.02,
+                            bias_frac=1.0, C=512)
+        s, s_hat, b, sig, lf, kp, nu = x["s"], x["s_hat"], x["b"], x["sigma"], x["lse_fix"], x["keep"], x["nu"]
+        o, oT, err, dist = _tail_case(x, kp, nu, True)
+        miss0 += int((err > K.tail_bound_conc(s, s_hat, sig, kp, nu, dist, lf, x_read=True, delta=0.3)).sum())
+        miss1 += int((err > K.tail_bound_conc(s, s_hat, sig, kp, nu, dist, lf, x_read=True, bias=sig)).sum())
+        viol4b += int(((err - K.tail_bound_det(s, s_hat, b, kp, nu, dist, lf, x_read=True)) > 1e-12).sum())
+        nb += err.numel()
+    check("coherent score bias (1 sigma on every row): Lemma 5 without an allowance misses; with bias = sigma "
+          "it covers; Lemma 4 holds", miss0 > 0 and miss1 == 0 and viol4b == 0,
+          f"({nb} head cases; misses without {miss0} (at delta 0.3), with {miss1}; Lemma 4 violations {viol4b})")
+
+    # coupled errors (MLA: a row's key and value are one latent, so the score error is a projection of the
+    # value error): Lemma 4 still holds; the coupled Lemma 5 covers; it is never below the uncoupled one
+    fails_c, n_c, viol4c, below_c = 0, 0, 0, 0
+    for trial in range(100):
+        Hkv, r, C, d = 1, 8, 256, 64                                       # one row group, all heads
+        q = torch.randn(Hkv, r, d, generator=g, dtype=DT) * (0.5, 1.0, 2.0)[trial % 3]
+        Ch = torch.randn(Hkv, C, d, generator=g, dtype=DT)
+        nu = 0.1 * Ch.norm(dim=-1) * (0.5 + torch.rand(Hkv, C, generator=g, dtype=DT))
+        Cx = Ch + nu.unsqueeze(-1) * _unit(g, Hkv, C, d)                    # truth = tier 1 + error
+        sc = d ** -0.5
+        s, s_hat = torch.einsum("grd,gcd->grc", q, Cx) * sc, torch.einsum("grd,gcd->grc", q, Ch) * sc
+        b = K.score_bound(q, nu.unsqueeze(1), sc)
+        keep = K.topk_keep(torch.softmax(s_hat, -1).amax(1), C // 8).unsqueeze(1)
+        sf = torch.randn(Hkv, r, 3, generator=g, dtype=DT)
+        x = dict(s=s, s_hat=s_hat, lse_fix=torch.logsumexp(sf, -1), V=Cx.unsqueeze(1), Vh=Ch.unsqueeze(1),
+                 o_fix=torch.einsum("grf,gfd->grd", torch.softmax(sf, -1), torch.randn(Hkv, 3, d, generator=g, dtype=DT)))
+        o, oT, err, dist = _tail_case(x, keep, nu.unsqueeze(1), True)        # exact latent on read rows
+        l4 = K.tail_bound_det(s, s_hat, b, keep, nu.unsqueeze(1), dist, x["lse_fix"], x_read=True)
+        lc = K.tail_bound_conc(s, s_hat, b / d ** 0.5, keep, nu.unsqueeze(1), dist, x["lse_fix"], x_read=True, coupled=True)
+        lu = K.tail_bound_conc(s, s_hat, b / d ** 0.5, keep, nu.unsqueeze(1), dist, x["lse_fix"], x_read=True)
+        lcp = K.tail_bound_conc(s, s_hat, b / d ** 0.5, keep, nu.unsqueeze(1), dist, x["lse_fix"], x_read=True,
+                                coupled=True, one_pass=True, vnorm=Ch.norm(dim=-1).unsqueeze(1), onorm=oT.norm(dim=-1))
+        viol4c += int(((err - l4) > 1e-12).sum())
+        fails_c += int((err > lc).sum())
+        below_c += int(((lu - lc) > 1e-12).sum()) + int(((lc - lcp) > 1e-12).sum())
+        n_c += err.numel()
+    check("coupled key/value errors (MLA latent): Lemma 4 holds; the coupled Lemma 5 covers at DELTA_T; never "
+          "below the uncoupled form; its one-pass form never below it", viol4c == 0 and fails_c == 0 and below_c == 0,
+          f"({n_c} head cases; Lemma 4 violations {viol4c}, coupled failures {fails_c}, order violations {below_c})")
 
     # edge cases: every row read -> Lemma 4 = Lemma 5 = 0 with exact read values; trunc_z
     x = _model_instance(g)
@@ -479,16 +528,23 @@ def test_driver_smoke():
                   f"{kl.round(4).to_dict()}; quarters' KL {klq:.4f} vs all layers {kl_all01:.4f}; controller rows "
                   f"{ {f'{b}@{e}': round(float((g.F_sum / g.steps / g.ctx).mean()), 3) for (b, e), g in tf.groupby(['bound', 'eps'])} })")
             tags = ["tail", "tailx", "tailx_p128", "tailx_p32", "tailx_p8"]
-            cols = {f"{p}_{k}" for k in tags for p in ("err", "l5")} | {"l4_tail", "l4_tailx", "l5p_tailx", "trunc_viol"}
+            cols = ({f"{p}_{k}" for k in tags for p in ("err", "l5")}
+                    | {"l4_tail", "l4_tailx", "l5p_tailx", "trunc_viol", "errd_tail", "errd_tailx"}
+                    | {f"l5b_{k}" for k in tags if k != "tail"})
+            ed = lambda k: h[f"errd_{k}"] if f"errd_{k}" in h else h[f"err_{k}"]  # noqa: E731
             good_t = (cols <= set(h)
-                      and all(float((h[f"err_{k}"] <= h[f"l4_{k}"] * (1 + 1e-4) + 1e-6).mean()) == 1.0 for k in ("tail", "tailx"))
+                      and all(float((ed(k) <= h[f"l4_{k}"] * (1 + 1e-4) + 1e-6).mean()) == 1.0 for k in ("tail", "tailx"))
+                      and float(((h.errd_tailx - h.err_tailx).abs() <= 1e-4 * h.onorm + 1e-5).mean()) == 1.0
                       and float((h.l5p_tailx >= h.l5_tailx * (1 - 1e-5)).mean()) == 1.0
+                      and all(float((h[f"l5b_{k}"] >= h[f"l5_{k}"] * (1 - 1e-5)).mean()) == 1.0 for k in tags if k != "tail")
                       and {"probe_l5_tailx_fp8", "probe_l5_tailx_cover", "probe_l4_tail_ok"} <= set(pr.columns))
             check(f"{suite} smoke: Mode T certificates — Lemma 4 holds on every head and step (4-bit and exact read "
                   f"values); Lemma 5's one-pass form never below its two-pass; extra-row reads and summaries present",
                   bool(good_t),
-                  f"(Lemma 5 coverage { {k: round(float((h[f'err_{k}'] <= h[f'l5_{k}'] * (1 + 1e-4) + 1e-6).mean()), 4) for k in tags} }; "
-                  f"bound within FP8's error { {k: round(float((h[f'l5_{k}'] <= h.err_fp8).mean()), 3) for k in tags} }; "
+                  f"(Lemma 5 coverage { {k: round(float((ed(k) <= h[f'l5_{k}'] * (1 + 1e-4) + 1e-6).mean()), 4) for k in tags} }; "
+                  f"with a 0.5 sigma bias allowance { {k: round(float((ed(k) <= h[f'l5b_{k}'] * (1 + 1e-4) + 1e-6).mean()), 4) for k in tags if k != 'tail'} }; "
+                  f"bound within FP8's error { {k: round(float((h[f'l5_{k}'] <= h.err_fp8).mean()), 3) for k in tags} } "
+                  f"(with the allowance { {k: round(float((h[f'l5b_{k}'] <= h.err_fp8).mean()), 3) for k in tags if k != 'tail'} }); "
                   f"error within FP8's { {k: round(float((h[f'err_{k}'] <= h.err_fp8).mean()), 3) for k in tags} }; "
                   f"median L5 / error tailx {float((h.l5_tailx / h.err_tailx.clip(lower=1e-12)).median()):.1f}; "
                   f"truncation left on {float((h.trunc_viol > 0).mean()):.4f} of head-steps)" if cols <= set(h) else "(columns missing)")

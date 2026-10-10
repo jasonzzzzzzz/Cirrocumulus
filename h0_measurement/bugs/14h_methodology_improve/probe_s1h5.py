@@ -49,6 +49,7 @@ import cert_s1h5 as K
 
 PAGE = 16
 EXTRA_FRAC = (1 / 128, 1 / 32, 1 / 8)   # Mode T: context share read exactly on top of the vote's rows (tailx_p128/p32/p8)
+BIAS_FRAC = 0.5     # Lemma 5's score-bias allowance (l5b_*), in sigma: 2x the top-decile regression to the mean on Llama-1B
 Z_HP = 5.0          # high-probability bound: |<q, dk>| <= z |q| |dk| / sqrt(d) for a rotated (direction-random) error
 CHUNK_PROBE = 4
 CHUNK_INJ = 8
@@ -138,17 +139,36 @@ def _dist(ot, Vh, vn2):
     return d2.clamp_min(0.0).sqrt()
 
 
+def _tail_err(s, sh, Vc, Vh, keep, lf, o, x_read):
+    """|o_T - o| for the tail design (rows in keep [Hkv, n, C] with exact scores, values exact if x_read else
+    4-bit; the rest from tier 1) from the rows that differ only: o_T - o = (dN - o dD) / (D + dD), so fp32
+    noise stays relative to the error, not to |o| (the coverage check needs this when the error is tiny)."""
+    km = keep.unsqueeze(1)
+    m = torch.maximum(torch.maximum(s.amax(-1), sh.amax(-1)), lf).unsqueeze(-1)
+    w = torch.exp(s - m)
+    wh, wt = torch.exp(sh - m) * ~km, w * ~km
+    dN = _bmm(wh, Vh) - _bmm(wt, Vc)
+    if not x_read:
+        dN = dN + _bmm(w * km, Vh - Vc)
+    dD = (wh - wt).sum(-1)
+    D = w.sum(-1) + torch.exp(lf - m.squeeze(-1))
+    return ((dN - o * dD.unsqueeze(-1)) / (D + dD).unsqueeze(-1)).norm(dim=-1)
+
+
 def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
     """Mode T's certificates (plan.md, "R5 theory, part 3"; cert_s1h5 Lemmas 4 and 5) for the tail design
     at the vote's rows with 4-bit ('tail') and exact ('tailx') values on them, and for tailx with
     EXTRA_FRAC of the context read exactly on top, per step, in order of the largest upper-bound share
     e^{s_hat + t} over the group (t = Lemma 5's truncation): error, Lemma 4 (worst-case key bound b),
-    Lemma 5 (sigma = b / sqrt(d), DELTA_T) with its parts, Lemma 5's one-pass form for tailx, and the
-    share of unread rows whose score error leaves Lemma 5's truncation."""
+    Lemma 5 (sigma = b / sqrt(d), DELTA_T) with its parts, Lemma 5 with a score-bias allowance of
+    BIAS_FRAC sigma for tailx and its extra-row reads (l5b_*), Lemma 5's one-pass form for tailx, and the
+    share of unread rows whose score error leaves Lemma 5's truncation. The errors the bounds are checked
+    against (errd_tail, errd_tailx, err_tailx_p*) are computed by _tail_err."""
     Hkv, r, n, Cn = s.shape
     km = v1n.unsqueeze(1)                                                  # [Hkv, 1, n, C]
     sig = b / qg.shape[-1] ** 0.5
     for k_, xr in (("tail", False), ("tailx", True)):
+        rec[f"errd_{k_}"] = _tail_err(s, sh, Vc, Vh, v1n, lf, o, xr)
         dist = _dist(outs[k_], Vh, vn2)
         rec[f"l4_{k_}"] = K.tail_bound_det(s, sh, b, km, nu_r, dist, lf, x_read=xr)
         rec[f"l5_{k_}"], pr = K.tail_bound_conc(s, sh, sig, km, nu_r, dist, lf, x_read=xr, parts=True)
@@ -157,6 +177,7 @@ def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
         if xr:
             rec["l5p_tailx"] = K.tail_bound_conc(s, sh, sig, km, nu_r, dist, lf, x_read=True, one_pass=True,
                                                  vnorm=vn2.sqrt(), onorm=outs["tailx"].norm(dim=-1))
+            rec["l5b_tailx"] = K.tail_bound_conc(s, sh, sig, km, nu_r, dist, lf, x_read=True, bias=BIAS_FRAC * sig)
         del dist
     n_t = (~v1n).sum(-1).view(Hkv, 1, n, 1)
     t = K.trunc_z(n_t, K.DELTA_T / 2).to(s.dtype) * sig
@@ -167,8 +188,11 @@ def _tail_certs(rec, o, outs, s, sh, b, qg, v1n, nu_r, vn2, Vc, Vh, lf, of):
         ke = v1n | K.topk_keep(pri, int(round(f * Cn)))
         oe = _out(s, Vc, lf, of, keep=ke, s_alt=sh, V_alt=Vh)
         tag = f"tailx_p{int(round(1 / f))}"
-        rec[f"err_{tag}"] = (oe - o).norm(dim=-1)
-        rec[f"l5_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, _dist(oe, Vh, vn2), lf, x_read=True)
+        rec[f"err_{tag}"] = _tail_err(s, sh, Vc, Vh, ke, lf, o, True)
+        de = _dist(oe, Vh, vn2)
+        rec[f"l5_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, de, lf, x_read=True)
+        rec[f"l5b_{tag}"] = K.tail_bound_conc(s, sh, sig, ke.unsqueeze(1), nu_r, de, lf, x_read=True, bias=BIAS_FRAC * sig)
+        del de
 
 
 def _probe_layer(li, query, key, value, sc, i0):

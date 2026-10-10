@@ -125,11 +125,14 @@ def _probe_summary(hf, gf, tf):
         for k in tags:
             if f"l5_{k}" not in hf:
                 continue
-            err = hf[f"err_{k}"]
+            err = hf[f"errd_{k}"] if f"errd_{k}" in hf else hf[f"err_{k}"]   # the difference-form error
             if f"l4_{k}" in hf:
                 out[f"probe_l4_{k}_ok"] = float((err <= hf[f"l4_{k}"] * (1 + 1e-4) + 1e-6).mean())
             out[f"probe_l5_{k}_cover"] = float((err <= hf[f"l5_{k}"] * (1 + 1e-4) + 1e-6).mean())
             out[f"probe_l5_{k}_fp8"] = float((hf[f"l5_{k}"] <= hf.err_fp8).mean())
+            if f"l5b_{k}" in hf:                                  # with the score-bias allowance
+                out[f"probe_l5b_{k}_cover"] = float((err <= hf[f"l5b_{k}"] * (1 + 1e-4) + 1e-6).mean())
+                out[f"probe_l5b_{k}_fp8"] = float((hf[f"l5b_{k}"] <= hf.err_fp8).mean())
             out[f"probe_err_{k}_fp8"] = float((err <= hf.err_fp8).mean())
         if "trunc_viol" in hf:
             out["probe_trunc_viol_any"] = float((hf.trunc_viol > 0).mean())

@@ -802,35 +802,52 @@ Per row the design stores η_i = ‖k_i − k̂_i‖ and ν_i (one scalar each, 
   (median 0.05 of it), still carries e^{b_i}.
 - **Model M.** Given everything stored and the rows read (S chosen from those, e.g. the vote):
   (M1) rows' errors are independent, and each row's key and value errors are independent;
-  (M2) E[e_i | δ_i] = 0, ‖e_i‖ = ν_i; (M3) δ_i is symmetric and sub-Gaussian with proxy σ_i², i.e.
-  E e^{λδ_i} ≤ e^{λ²σ_i²/2}. A uniformly random error direction gives σ_i = b_i/√d (the uniform
+  (M2) E[e_i | δ_i] = 0, ‖e_i‖ = ν_i; (M3) δ_i = β_i + ξ_i with |β_i| ≤ μ_i (a score-bias allowance;
+  μ = 0 is the pure model) and ξ_i symmetric and sub-Gaussian with proxy σ_i², i.e.
+  E e^{λξ_i} ≤ e^{λ²σ_i²/2}. A uniformly random error direction gives σ_i = b_i/√d (the uniform
   sphere's coordinates are sub-Gaussian with proxy 1/d). Lloyd-Max's centroid condition (each level
-  is its cell's conditional mean under the design distribution) is what makes (M2)/(M3)'s zero
-  mean plausible for a rotated store. R5's hp record (the z = 5 bound exceeded on 0.45% of
-  head-steps, fewer than a Gaussian with σ_i = b_i/√d would give at 128K rows) suggests that σ_i
-  is, if anything, an overestimate.
-- **Lemma 5 (concentration).** Under M, with probability ≥ 1 − δ: ‖o − õ‖ ≤ (m + r)/D with
-  t_i = zσ_i, z = √(2 ln(4|T|/δ)); D = W_F + Σ_S w_i + Σ_T ŵ_i e^{−t_i};
-  m = Σ_T ŵ_i(e^{min(σ_i²/2, t_i)} − 1)‖v̂_i − õ‖;
-  B² = Σ_S (w_iν_i)² + Σ_T ŵ_i²[g_iν_i² + (g_i − 1)‖v̂_i − õ‖²], g_i = e^{min(2σ_i², 2t_i)};
-  a = max(max_S w_iν_i, max_T ŵ_i(e^{t_i}ν_i + (e^{t_i} − 1)‖v̂_i − õ‖));
+  is its cell's conditional mean under the design distribution) is what would make β = 0 for a
+  rotated store; the store's norm correction and real keys break it slightly (below). R5's hp record
+  (the z = 5 bound exceeded on 0.45% of head-steps, fewer than a Gaussian with σ_i = b_i/√d would give
+  at 128K rows) suggests that σ_i is, if anything, an overestimate.
+- **Lemma 5 (concentration).** Under M, with probability ≥ 1 − δ: ‖o − õ‖ ≤ (m + r)/D, where
+  z = √(2 ln(4|T|/δ)), ζ_i = zσ_i, t_i = ζ_i + μ_i, and per unread row
+  M1_i = e^{μ_i} min(e^{σ_i²/2}, cosh ζ_i), m1_i = e^{−μ_i}, M2_i = e^{2μ_i} min(e^{2σ_i²}, cosh 2ζ_i);
+  D = W_F + Σ_S w_i + Σ_T ŵ_i e^{−t_i};  m = Σ_T ŵ_i(M1_i − 1)‖v̂_i − õ‖;
+  B² = Σ_S (w_iν_i)² + Σ_T ŵ_i²[M2_iν_i² + (M2_i − m1_i²)‖v̂_i − õ‖²];
+  a = max(max_S w_iν_i, max_T ŵ_i(e^{t_i}ν_i + max(e^{t_i} − m1_i, M1_i − e^{−t_i})‖v̂_i − õ‖));
   r = La/3 + √((La/3)² + 2LB²), L = ln(4/δ); the S terms only with 4-bit read values.
-  *Proof.* (i) Truncation: P(|δ_i| > t_i) ≤ 2e^{−z²/2} per row, so all of T stay within t_i except
-  with probability ≤ δ/2; on that event Z ≥ D. (ii) Write the identity's right side as Σ X_i,
-  X_i = w_i e_i on S, X_i = ŵ_i[e^{δ_i}e_i + (e^{δ_i} − 1)u_i] on T, u_i = v̂_i − õ (fixed given
+  *Proof.* (i) Truncation: P(|ξ_i| > ζ_i) ≤ 2e^{−z²/2} per row, so all of T stay within ζ_i except
+  with probability ≤ δ/2; on that event |δ_i| ≤ t_i and Z ≥ D. (ii) Write the identity's right side as
+  Σ X_i, X_i = w_i e_i on S, X_i = ŵ_i[e^{δ_i}e_i + (e^{δ_i} − 1)u_i] on T, u_i = v̂_i − õ (fixed given
   the conditioning; õ uses no unread row's true key or value, nor, with 4-bit read values, a read
-  row's true value). Conditioned on the event, the X_i stay independent. Mean: E X_i = 0 on S;
-  on T, E X_i = ŵ_i(E[e^{δ_i}] − 1)u_i, and since δ_i is symmetric, E[e^{δ_i} | |δ_i| ≤ t_i] =
-  E[cosh δ_i | ·] ≤ min(E cosh δ_i, cosh t_i) ≤ e^{min(σ_i²/2, t_i)}, and ≥ 1 by Jensen; so
-  ‖Σ E X_i‖ ≤ m. Second moment: the cross term vanishes by (M2), and E[e^{2δ}] ≤ g_i, Var(e^δ) ≤
-  g_i − 1, so Σ E‖X_i − EX_i‖² ≤ B². Range: |e^{δ} − E e^{δ}| ≤ e^{t} − 1 on the event, so
-  ‖X_i − EX_i‖ ≤ a. (iii) Pinelis' Bernstein inequality for independent zero-mean vectors in a
-  Hilbert space (Ann. Probab. 22, 1994, Thm 3.4): P(‖Σ(X_i − EX_i)‖ ≥ r) ≤
+  row's true value). Conditioned on the event, the X_i stay independent. Mean: E X_i = 0 on S; on T,
+  E X_i = ŵ_i(E[e^{δ_i}] − 1)u_i; ξ_i is symmetric, so E[e^{ξ_i} | |ξ_i| ≤ ζ_i] = E[cosh ξ_i | ·] ≤
+  min(E cosh ξ_i, cosh ζ_i) ≤ min(e^{σ_i²/2}, cosh ζ_i), and ≥ 1 by Jensen; with the bias,
+  E e^{δ_i} ∈ [m1_i, M1_i], so ‖Σ E X_i‖ ≤ m. Second moment: the cross term vanishes by (M2);
+  E e^{2δ} ≤ M2 and Var e^{δ} ≤ M2 − m1², so Σ E‖X_i − EX_i‖² ≤ B². Range: e^{δ} ∈ [e^{−t}, e^{t}] and
+  E e^{δ} ∈ [m1, M1] give ‖X_i − EX_i‖ ≤ a. (iii) Pinelis' Bernstein inequality for independent
+  zero-mean vectors in a Hilbert space (Ann. Probab. 22, 1994, Thm 3.4): P(‖Σ(X_i − EX_i)‖ ≥ r) ≤
   2exp(−r²/(2(B² + ra/3))) = δ/2 at the r above. (iv) ‖o − õ‖ ≤ (‖Σ EX_i‖ + ‖Σ(X_i − EX_i)‖)/Z. ∎
+  *Coupled (MLA)*: a row's key and value come from one latent, so (M2) is dropped: m gains
+  Σ_T ŵ_i c_iν_i, with c = √(M2 − 2m1 + 1) under joint symmetry of (e, δ) and μ = 0 (‖E(e^δ − 1)e‖ ≤
+  ν√E(e^δ − 1)²), else c = M1 (‖E e^δ e‖ ≤ νE e^δ); a's T term gains ŵ_ic_iν_i; B²'s T term becomes
+  ŵ_i²(√M2_i ν_i + √(M2_i − m1_i²)‖u_i‖)² (Minkowski).
   Tests (synthetic data drawn from M, 2,400 head cases): no failure at δ = 0.3, 0.1, 0.01, 0.001;
-  median bound/error 14 (conservative), 0.1 of Lemma 4. Negative control: with every key error
-  along +q and value errors aligned, Lemma 5 fails on 332 of 640 cases and Lemma 4 on none, so the
-  independence assumption carries real weight and has to be measured, not assumed.
+  median bound/error 14 (conservative), 0.1 of Lemma 4. Negative controls: with every key error
+  along +q and value errors aligned, Lemma 5 fails on 332 of 640 cases and Lemma 4 on none; with a
+  coherent bias of one σ on every row, Lemma 5 without the allowance misses (3 of 480 at δ = 0.3) and
+  with μ = σ it covers. The independence and zero-mean assumptions carry real weight and have to be
+  measured, not assumed.
+- **What real keys do (Llama-3.2-1B, CPU, 2026-10-09).** The tier-1 score error is not zero-mean
+  given the store: rows in the top decile of tier-1 score are 0.08–0.11 nats *lower* in truth on
+  average, the bottom decile 0.016–0.019 higher (σ ≈ 0.4): regression to the mean, about 0.25σ, coherent
+  across rows. It explains the one coverage failure seen so far: in the r3b CPU smoke (16,384
+  head-steps), Lemma 5 with μ = 0 misses on 12, 18 and 16 head-steps at the C/128, C/32 and C/8
+  extra-row reads (error/bound up to 1.36), all in one row group (layer 0, KV head 7), and never at
+  the vote's rows; with μ = 0.5σ it misses nowhere (error/bound ≤ 0.48), at a price: the share
+  certified at FP8's level with C/8 more rows falls from 0.26 to 0.13. The probe records both
+  (`l5_*`, `l5b_*`); the GPU run calibrates μ.
 - **One-pass form.** Replacing Σ a_i‖u_i‖ by √(Σa_i · Σa_i‖u_i‖²) and ‖u_i‖ ≤ ‖v̂_i‖ + ‖õ‖ in the
   max, every sum expands into running sums the attention pass already visits (‖u_i‖² = ‖v̂_i‖² −
   2⟨v̂_i, õ⟩ + ‖õ‖²), so a kernel can emit the bound with its output. Never below the two-pass form.
@@ -849,13 +866,16 @@ on E e^{δ}). Not tested.
 *The probe's new columns* (per head and answer step; side file `s1h5_probe_heads`):
 `err_tailx`/`rel_tailx` (the vote's rows with exact keys and values, the rest from tier 1);
 `l4_tail`, `l4_tailx` (Lemma 4, worst-case b); `l5_tail`, `l5_tailx` (Lemma 5, σ = b/√d,
-δ = 1e-3) with their parts `l5mean_*`, `l5B_*`, `l5a_*` (÷ D: the bound at another δ is
-mean + bernstein_radius(B, a, δ/2)); `l5p_tailx` (one-pass); `trunc_viol` (share of unread rows
-outside t_i); and, for `x` with C/128, C/32 or C/8 more rows read exactly per step (largest
-e^{ŝ + t} share over the group), `err_tailx_p128|p32|p8` and `l5_tailx_p128|p32|p8`. Row
-summaries in the results file: `probe_l4_*_ok`, `probe_l5_*_cover`, `probe_l5_*_fp8` (share of
-head-steps where the bound is within FP8's own error there), `probe_err_*_fp8`,
-`probe_trunc_viol_any`.
+δ = 1e-3, μ = 0) with their parts `l5mean_*`, `l5B_*`, `l5a_*` (÷ D: the bound at another δ is
+mean + bernstein_radius(B, a, δ/2)); `l5b_tailx` (μ = 0.5σ); `l5p_tailx` (one-pass); `trunc_viol`
+(share of unread rows outside ζ_i); `errd_tail`, `errd_tailx` (the errors the bounds are checked
+against, computed from the differing rows only, so fp32 noise scales with the error); and, for `x`
+with C/128, C/32 or C/8 more rows read exactly per step (largest e^{ŝ + t} share over the group),
+`err_tailx_p128|p32|p8`, `l5_tailx_p*` and `l5b_tailx_p*`. Row
+summaries in the results file: `probe_l4_*_ok`, `probe_l5_*_cover`, `probe_l5b_*_cover`,
+`probe_l5_*_fp8`, `probe_l5b_*_fp8` (share of head-steps where the bound is within FP8's own error
+there), `probe_err_*_fp8`, `probe_trunc_viol_any`. The adapters (`adapters_s1h5.py`, part 3's
+coupled form for MLA) compute the same quantities on any architecture (`findings/R5_adapters.md`).
 
 *For the run that uses it (to be frozen as its own amendment):* V = Lemma 4 holds on every
 head-step; Lemma 5's coverage (error ≤ bound) per model × cell, with `trunc_viol` and the sign of
@@ -863,3 +883,71 @@ the realized mean term separating which part of M fails if coverage is below 1 �
 `probe_l5_*_fp8` at the vote's rows and with each extra-row read, against the extra rows' traffic.
 Probe cost: about one more attention-sized product per design and per extra-row read (8 per
 chunk), and about 2 GB of float64 temporaries at 128K (Llama, 4 steps per chunk).
+
+**2026-10-09: R6 — the confirmatory campaign (draft; not frozen; the final arm waits for R5.3).**
+Sizes: `size_confirm_r5.py` → `findings/R5_sizing.{md,json}` (R5's valid blocks and R5.3's finished
+Llama RULER block 22773130; rerun with every R5.3 block before freezing).
+
+*Question.* On fresh units, is the tail design (nothing evicted; the vote's rows exact, the rest from
+tier 1) non-inferior to FP8 KV in per-token KL against FP, per model and task family, at lower
+memory traffic? Accuracy is the key secondary. R1–R5 were exploratory; R6 is the one test.
+
+*Arms (6, one process per unit, `fp_noise` last):* `fp` (reference), `fp8kv` (comparator, traffic
+0.50), **the design**, `uniform+v4` (dense 4/4, 0.25), `kivi4_v4` (0.25), `fp_noise` (run-to-run
+floor). The old system and Quest are not needed for the claim; the design's certificate is not
+tested here (a later run, with the probe's new columns).
+
+*The design (fixed from R5.3's read before R6 is frozen):* the lowest-traffic `tail5` arm whose
+R5.3 KL/token is within R6's margin (below) on every model × family as a point estimate, and
+within it at the 90% upper bound on at least three quarters of them; ties go to lower traffic.
+R5.3's first block (Llama RULER, 3–6 units per family, not yet its read) points at `tail4x_v4`
+(0.344) or `tail3x_v3` (0.289): `tail2x_v2` at 1/8 is 5× FP8's KL on multivalue.
+
+*Models and families.* Llama-3.1-8B at 128K and Qwen3-30B-A3B at 32K; Qwen at 128K joins once R4's
+Qwen 128K cells are read (same script). Families as R5: retrieval (RULER single/multikey and
+`mk_panel`, default and R3a levels), multivalue, tracking (`vt`), aggregation (`cwe`/`fwe` at R3b
+levels), and for Llama 128K HELMET rag, re-ranking and ICL. LongBench v2 is accuracy-only (its
+single-token answers run through the decode path, which failed R5's validity rule). Prompt indices
+come from a fresh range, checked against every earlier manifest before freezing.
+
+*Primary test, per model × family.* The one-sided 95% unit-bootstrap upper bound (2,000 resamples,
+paired per unit) of mean(KL_design − 1.25 · KL_FP8) per span token is below 2e-4 nats; i.e. the
+design's mean KL/token < 1.25 × FP8's + 2e-4. A model passes when every family passes
+(intersection–union, so no multiplicity correction; each family is powered at 0.8^(1/K): 0.969 for
+Llama's 7, 0.946 for Qwen's 4). The margin's two parts: 1.25 × FP8 scales with each family's own
+noise; 2e-4 ≈ `fp_noise`'s KL where FP8's is near 0 (Qwen retrieval). `findings/R5_sizing.md` shows
+the units at 1.0 × FP8 + 2e-4 and 1.5 × FP8 + 5e-4 as well.
+
+*Key secondary.* Accuracy on FP-correct units pooled over a model's families except aggregation:
+the lower 95% bound of mean(acc_design − acc_FP8) > −0.02 (also reported at −0.05). Aggregation's
+accuracy is reported, not tested: `fp_noise` alone moves it by 0.13 in R5 (Llama needs 1,063
+FP-correct units at −0.02 with it in the pool, 150 without).
+
+*Reported, not tested:* dP/token, accuracy per family, traffic, and the same non-inferiority test for
+dense 4/4 and KIVI-4 (R5 says both miss the margin in most families, so the test can fail).
+
+*Validity (as R5.3):* every planned arm on every unit, the design evicts nothing, peak ≤ 76 GiB per
+GPU; a failing block is excluded and reported.
+
+*Planning units (R5's tail arm, the conservative stand-in until R5.3 is read; units = max of the
+normal approximation and the simulated test, rounded up to 10, at least 30 per family):*
+
+| model | retrieval | multivalue | tracking | aggregation | rag | icl | rerank | total | 6-arm GPU-h |
+|---|---|---|---|---|---|---|---|---|---|
+| Llama 128K | 240 | 30 | 30 | 80 | 30 | 30 | 30 | 470 | ≈ 11 + loads ≈ 14 |
+| Qwen 32K | 30 | 80* | 80* | 160 | — | — | — | 350 | ≈ 5 + loads ≈ 6 |
+
+\* R5's tail arm (4-bit values on the read rows) misses the margin on Qwen multivalue (mean +0.0002
+over it) and tracking (one outlier unit), so no size exists for it there; 80 is a placeholder until
+R5.3's Qwen blocks give the exact-value arms' variance. Llama re-ranking is likewise unsized (R5's tail
+arm 0.0107 vs FP8 0.0078 on 5 units); R5.3's HELMET items supply it. Retrieval's 240 comes from
+outliers in R3a's harder retrieval; R5.3's `tail4x_v4` gives 10–15 (93 conservative) on 6 units.
+At R5's FP-correct shares outside aggregation (73% Llama, 97.5% Qwen) the accuracy pool holds ≈ 290
+(Llama) and ≈ 185 (Qwen) FP-correct units, above the 150 that −0.02 needs.
+Seconds per unit for the six arms (prefill included): Llama 49–135, Qwen 25–93
+(`findings/R5_sizing.md`).
+
+*Before freezing:* (1) R5.3's read fixes the design by the rule above; (2) rerun
+`size_confirm_r5.py --r53 <every R5.3 block>` with the design added to `DESIGNS` and replace the
+planning table with its output (mechanical, no judgment); (3) decide whether Qwen 128K joins
+(R4's Qwen); (4) fix the prompt range and job layout; (5) freeze the reader before any R6 output.

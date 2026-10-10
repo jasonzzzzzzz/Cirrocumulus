@@ -33,6 +33,8 @@ How the two folders connect:
 | `test_theory_s1h5.py`, `test_theory3_s1h5.py`, `test_theory4_s1h5.py`, `test_adapters_s1h5.py` | brute-force and real-weight checks for parts 5, 6, 7 and the adapters |
 | `findings/` | `findings_4bit`, `findings_part7`, `R5_adapters`, `R5_theory_mla`; `archive/` holds superseded write-ups |
 | `ISOLATION_PLAN.md` | how this folder was separated from `../14h_methodology_improve/` (executed 2026-10-10) |
+| `CLAIMS_LEDGER.md` | the design paper's claims (empirical C1–C7, theory T1–T7, systems S1–S3): evidence, status, theory-against-protocol checks, which paper owns what |
+| `paper_theory_section.md` | the design paper's theory section as a skeleton: statements in paper form, proof routes, evidence slots |
 
 ## Commands
 ```bash

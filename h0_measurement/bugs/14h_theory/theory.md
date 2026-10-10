@@ -1,13 +1,21 @@
-# Certified two-tier KV reads: the theory (updated 2026-10-10, part 6)
+# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–7)
 
 This file states what is proved about the two-tier KV design, under which assumptions, and how
-strong each result is in practice. Code: `cert_s1h5.py` (every bound), `rquant_s1h5.py` (the
-randomized tier), `theory2_s1h5.py` (Theorem R v2, Bennett, the MLA forms), `adapters_s1h5.py`
-(architectures), `adaptive_s1h5.py` and `oracle_s1h5.py` (experiments), all in
-`../14h_methodology_improve/`; part 6 in this folder: `theory3_s1h5.py` (Theorem R v3, Theorem M),
-`exp4bit_s1h5.py` (the 4-bit study, `findings_4bit.{json,md}`). Tests: `test_r14_stage1h_r5.py`,
-`test_adapters_s1h5.py`, `test_theory_s1h5.py`, and here `test_theory3_s1h5.py`. Run records: `plan.md`,
-amendments "R5 theory" parts 1–5.
+strong each result is in practice. **Every R14 theory update goes in this folder** (since 2026-10-10; `CLAUDE.md`).
+
+The run-time library stays in `../14h_methodology_improve/`, because GPU runs import it and freeze it per run:
+`cert_s1h5.py` (every bound through Theorem R v2, Bennett and the coupled MLA form) and `rquant_s1h5.py` (the
+randomized tier). This folder:
+- `theory2_s1h5.py`: the instrumented Theorem R (v2's development form);
+- `adapters_s1h5.py`: the architectures;
+- `adaptive_s1h5.py` and `oracle_s1h5.py`: the adaptive-query and oracle-width experiments;
+- part 6: `theory3_s1h5.py` (Theorem R v3, Theorem M) and `exp4bit_s1h5.py` (the 4-bit study);
+- part 7: `theory4_s1h5.py` (the sure-sum bound, the mirror split, the certified adaptive read).
+
+Findings: `findings/` (`findings_4bit`, `findings_part7`, `R5_adapters`, `R5_theory_mla`). Tests here:
+`test_theory_s1h5.py`, `test_theory3_s1h5.py`, `test_theory4_s1h5.py`, `test_adapters_s1h5.py`; the run-time bounds'
+brute force is `../14h_methodology_improve/test_r14_stage1h_r5.py`. Run records: `../14h_methodology_improve/plan.md`,
+amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 
 ## Summary
 
@@ -19,6 +27,8 @@ amendments "R5 theory" parts 1–5.
 | Lemmas 3–4: tail error, deterministic | every input | as Lemma 2, plus value-error norms | no: they carry e^b with b ≈ 8 nats |
 | Lemma 5: tail error, concentration | inputs that fit an error model | zero-mean, independent tier-1 errors | ≈ 15–60× tight, but real keys break the model |
 | **Theorem R** (v3): tail error, randomized tier | **every input and model** | read rows don't see tier 1's coins; seed independent of the input | with 6–8-bit tier-1 keys: 6–17× the best possible certificate (GPT-OSS at 6 bits: 39×) (§7); at 4 bits ≈ 50–160× on Llama, 12× on Gemma 3, ≈ 7,500× on GPT-OSS |
+| **Part 7: sure sums, the mirror split** (§6c–§6d) | every input; the split needs independent key and value dithers (GQA) | as Theorem R | the tightest certificates at 6–8 bits: Llama-1B 8-bit 5.6–5.7× the error (v3: 9.8–10.4×); 4-bit: v3 with sure sums is best (≈ 480–500×), still far from FP8 |
+| **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide: at 8-bit keys, FP8's per-head error at traffic 0.46–0.49 on Llama-1B L1–L3 (§7) |
 | **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA adds a cross term) | as Theorem R | predicts the measured MSE within 2% on every layer tested, 8% for GPT-OSS at 4-bit keys (§10); explains why the design works and which bits a model needs |
 | **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
 
@@ -236,6 +246,71 @@ one-row events share it too.
 data; 2-, 4- and 6-bit keys; plain and unbiased tails). There is no failure at any δ from 0.3 to 10⁻³, and v3 is
 never more than 5% above v2. Real layers: §7.
 
+**Part 7 (merged 2026-10-10; developed in parallel with part 6 in `14h_methodology_improve/certread_s1h5.py` (deleted after the merge), now
+`theory4_s1h5.py`).**
+
+**§6c. Sure sums on the truncation event.** On the truncation event that every version already pays for,
+w_i = w̃_i·e^{δ_i + ldebias_i} ≤ w̄_i := w̃_i·e^{t_i + ldebias_i} for every unread row. So every unknown weighted sum
+Σ w_i^p g_i (p = 1, 2, g_i an almost-sure per-row factor) is bounded *surely* by Σ w̄_i^p g_i, with no new event:
+Bennett's radius is increasing in B, so any variance bound that holds on the truncation event may be used.
+- The self-bound pays ln(1/δ) × the heaviest row.
+- The sure sum pays e^{p t_i} on every row.
+- Taking the smaller is valid.
+
+On Llama-1B L1 at 8-bit keys the self-bound inflated the value-and-key variance sum 7–17×, against e^{2t} ≈ 1.3 for
+the sure sum. The sure sums need only per-row factors that hold almost surely: κρ̄, var·ρ̄², √var·ρ̄, κ, var, with
+ρ̄ = ‖v̂ − c‖ + ν̄ ≥ ‖v − c‖.
+
+Implemented two ways:
+- `theory4_s1h5.tail_bound_rand_sure`: v2 plus sure sums;
+- `theory3_s1h5.tail_bound_rand_v3(..., sure=True)`: part 6's v3 plus sure sums, never above v3.
+
+**§6d. The mirror split by coin source** (`theory4_s1h5.tail_bound_rand_split`; GQA). Part 6 writes
+Y_i = D_i(v_i − c) − w̃_i e_i, i.e. observed weights on the value noise and unknown vectors on the key noise (D_i =
+w_i − w̃_i, e_i = v̂_i − v_i). The same identity can be grouped the other way:
+
+  Y_i = D_i(v̂_i − c) − w_i e_i,  so  Z(o − õ) = K − V − (õ − c)·Σ_T D_i,  K = Σ_T D_i(v̂_i − c),  V = Σ_T w_i e_i.
+
+- **V** has fixed weights (w_i = e^{s_i} is a property of the data) and involves the value coins only. It is a
+  sub-Gaussian vector with proxy v = Σ w_i²D_{v,i}²/12, the same argument as part 6's. Hsu–Kakade–Zhang (2012, Thm 1,
+  A = I) gives ‖V‖² ≤ v(d + 2√(dx) + 2x) with probability ≥ 1 − e^{−x}; that is Laurent–Massart's χ² form, as in part
+  6. Here v ≤ Σ w̄_i² E‖e_i‖²/d surely, which costs e^{2t} against part 6's observed w̃.
+- **K, given the value coins** (independent of the key coins), is a sum of independent vectors D_i·u_i with
+  u_i = v̂_i − c *observed*. Its mean is ≤ Σ w̄ κ‖u_i‖. Its fluctuation takes Bennett with B² = Σ w̄² var ‖u_i‖² and
+  range max w̄·rng·‖u_i‖, using sure sums throughout. Part 6's K_c has unknown vectors v_i − c, so it must widen by
+  ν̄ (ρ̄ = ‖v̂ − c‖ + ν̄) or self-bound ‖v̂ − c‖².
+- **Σ_T D_i** as in Theorem R, with sure sums.
+
+Events: the truncation at δ/2; V, K and Σ D at δ/6 each.
+
+**Which grouping is tighter depends on σ.**
+- At 6–8-bit keys (e^{2t} ≈ 1.1–1.3) the split's observed vectors win: Llama-1B 8-bit 5.6–5.7× the error, against
+  v3 + sure sums 6.5–6.6× and v3 9.8–10.4×; Gemma 3 L5 2.8× against 3.2× and 3.7×.
+- At 4 bits (e^{2t} ≫ 1) part 6's observed weights win: v3 + sure sums 484–505×, split 516–547×.
+
+Both need independent key and value dithers, so MLA keeps the coupled form.
+
+*A negative result.* A dimension-aware bound for the whole sum Z(o − õ) was also tried: Bousquet (2002), driven by the
+weak variance sup_u Σ Var⟨u, X_i⟩, which divides the value part by d. It gains nothing on real or synthetic data, because
+its 2·range·E‖S‖ term costs what the weak variance saves. Only the split (or part 6's regrouping) separates the
+isotropic value noise cleanly.
+
+**§6e. Corollary: the certified adaptive read** (`theory4_s1h5.certified_read`). Fix a nested schedule
+S_0 ⊂ S_1 ⊂ … ⊂ S_m = all rows, each set chosen without the coins. For example: the vote's rows, then rows in the order
+of a separate Lloyd-Max sketch's upper-bound share, up to context fractions f_j. Let B_j be any Theorem R form for S_j
+at confidence δ/m (S_m is exact and needs no bound). Read sets in order and stop at
+
+  J = min{ j : B_j ≤ τ_j for every query head of the KV head },
+
+where τ_j may depend on anything observed (e.g. ε·‖õ(S_j)‖). Return õ(S_J). Then, with probability ≥ 1 − δ,
+‖o − õ(S_J)‖ ≤ τ_J at every query head:
+- by the union bound, every B_j holds at once with probability ≥ 1 − δ;
+- on that event the chosen one holds, whatever the stopping rule.
+
+The coins may decide *how many* sets are read, but not *which* sets. The price is δ/m inside each bound (a ln m term).
+This certifies a controller that reads more only where the bound is loose. §9's open threshold rule ("read every row
+with w̃_i > θ") is the harder case where the sets themselves depend on the coins.
+
 **Proof details used by every version.**
 - *The Hilbert-space Bennett inequality.* Pinelis (1994), Thm 3.4 with D = 1, follows from
   E cosh(λ‖x + d‖) ≤ cosh(λ‖x‖)(1 + E φ(λ‖d‖)) for zero-mean d, where φ(u) = e^u − 1 − u. This holds because
@@ -371,6 +446,25 @@ On GPT-OSS it halves the plain dithered tail's error.
 **What the guarantee costs.** A read certified at FP8's level costs about FP8's traffic. The 4-bit
 design is at or below FP8's KL in most families (R5.3) but cannot be certified.
 
+**Part 7 on real weights** (`findings/findings_part7.md`; δ = 10⁻³ per head-step, the vote's rows read; median bound / error ·
+share certified within FP8):
+
+| view, key bits | v2 | v3 (part 6) | v3 + sure sums | split |
+|---|---|---|---|---|
+| Llama-1B L1, 6 | 41.7 · 0.04 | 33.0 · 0.06 | 21.6 · 0.10 | 18.3 · 0.13 |
+| Llama-1B L1, 8 | 19.3 · 0.24 | 10.4 · 0.43 | 6.6 · 0.61 | 5.7 · 0.66 |
+| Llama-1B L3, 8 | 18.2 · 0.32 | 9.8 · 0.56 | 6.5 · 0.69 | 5.6 · 0.75 |
+| Gemma 3 L5, 8 | 9.0 · 0 | 3.7 · 0 | 3.2 · 0 | 2.8 · 0 |
+
+At 4 bits: Llama-1B L1 1,054 / 637 / 484 / 516, nothing certified.
+
+The certified adaptive read at 8-bit keys (split form) reads 14–18% of rows exactly at traffic 0.46–0.49 (FP8: 0.50) on:
+- Llama-1B L1–L3, with FP8's per-head error as the target (an oracle target);
+- Gemma 3 L5, with 1% of the output's norm as the target.
+
+An oracle stop would read 12.5–13%. Gemma 3 at FP8's error and Granite-4.0-H at 1% cannot be met by any read set:
+their 4-bit values are the limit.
+
 ## 8. The general approach this implies
 
 For any model with softmax attention over cached rows:
@@ -413,14 +507,17 @@ A model changes the cost (σ, concentration, value precision), never the validit
     deterministic term) and v3's one-row maxima each recover 1.4–2×, and 2× together (201 → 98–114×).
   The information is there (the oracle certifies 62% of head-steps at FP8's level). What is missing is a proof
   that pays one row's deviation instead of a union over rows for the truncation, too (§12).
-- **Constants at 6–8 bits.** v3 is 6–17× the oracle (GPT-OSS at 6 bits: 39×). The rest:
+- **Constants at 6–8 bits.** Part 7's split brings 8-bit keys to 5.6–5.7× the *error* on Llama-1B (v3 9.8–10.4×), and
+  6-bit to about 18×, where the key part dominates. For v3 (part 6), measured against the oracle: 6–17× (GPT-OSS at
+  6 bits: 39×). The rest:
   - the dimension-free key radius, about 2.6× the true quantile in d = 64 at δ/32;
   - the union of 16 events, about 1.4×;
   - self-bounding, about 1.2–1.5×.
   A Hanson–Wright-type bound that uses the key term's dimension, as the χ² bound does for values, would
   address the first.
 - **Reads chosen from the dithered tier.** Consider the threshold rule "also read every row with w̃_i > θ", with
-  θ coin-free. Each unread summand still depends only on its own row's coins, so Theorem R's proof goes
+  θ coin-free. (A controller whose read *sets* are coin-free and whose *stopping* depends on the coins is already
+  covered: the certified adaptive read, §6e.) Each unread summand still depends only on its own row's coins, so Theorem R's proof goes
   through with Bennett's ranges capped by θ·e^{t}. It needs one more term, the selection bias
   Σ_i w_i·|E[(1 − Z_i)·1{w_i Z_i > θ}]|, which on the truncation event is bounded by the rows observed within
   e^{±2t} of θ. This would certify a controller whose extra reads look at the dithered tier. Not implemented.
@@ -525,7 +622,7 @@ first differing token. This agrees with `adaptive_s1h5.py`, where the dependence
 ## 12. Why 4-bit keys are not certified at FP8's level, and what would do it
 
 Setup: oracle_s1h5's: Llama-3.2-1B L1, 1,552 context rows, the vote's 1/8 exact, 16 queries × 32 heads, δ = 0.05.
-Details: `findings_4bit.md`.
+Details: `findings/findings_4bit.md`.
 
 **Where v2's 201× comes from.** Counterfactuals that use true quantities (not certificates):
 
@@ -598,3 +695,7 @@ certificate useful (§8, step 5), and Theorem M explains and predicts the 4-bit 
   (2000), Lemma 1.
 - S. V. Nagaev, "Large deviations of sums of independent random variables," Ann. Probab. 7 (1979) (truncation at the
   level of the summands, §12).
+- D. Hsu, S. Kakade, T. Zhang, "A tail inequality for quadratic forms of subgaussian random vectors,"
+  Electron. Commun. Probab. 17 (2012), Thm 1.
+- O. Bousquet, "A Bennett concentration inequality and its application to suprema of empirical processes,"
+  C. R. Acad. Sci. Paris 334 (2002).

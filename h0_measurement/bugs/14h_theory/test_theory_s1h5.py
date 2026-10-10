@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Checks for the theory added after R5.4 was submitted (theory2_s1h5.py, adaptive_s1h5.py), in a separate file so
-that R5.4's workers (which run test_r14_stage1h_r5.py --fast) are untouched.
+"""Checks for theory part 5 (theory2_s1h5.py: the coupled MLA form, v2's development form; the MLA head space on real
+models -> findings/R5_theory_mla.json). Part 6's checks are in test_theory3_s1h5.py, part 7's (the sure sums, the
+split, the certified read, and v2's agreement with cert_s1h5) in test_theory4_s1h5.py.
 
-    OMP_NUM_THREADS=8 .venv/bin/python -u h0_measurement/bugs/14h_methodology_improve/test_theory_s1h5.py --fast
-    OMP_NUM_THREADS=8 .venv/bin/python -u h0_measurement/bugs/14h_methodology_improve/test_theory_s1h5.py   # + real models
+    OMP_NUM_THREADS=8 .venv/bin/python -u h0_measurement/bugs/14h_theory/test_theory_s1h5.py --fast
+    OMP_NUM_THREADS=8 .venv/bin/python -u h0_measurement/bugs/14h_theory/test_theory_s1h5.py   # + real models
 """
 import json, math, os, sys
 
 import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+METH = os.path.join(os.path.dirname(HERE), "14h_methodology_improve")      # cert_s1h5, rquant_s1h5, the R5 test helpers
 sys.path.insert(0, HERE)
+if METH not in sys.path:
+    sys.path.append(METH)
 import test_r14_stage1h_r5 as T5  # noqa: E402  (its instance builders; nothing is run on import)
 import cert_s1h5 as K  # noqa: E402
 import theory2_s1h5 as K2  # noqa: E402

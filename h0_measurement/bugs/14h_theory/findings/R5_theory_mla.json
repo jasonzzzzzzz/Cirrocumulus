@@ -1,0 +1,116 @@
+{
+ "moonlight": {
+  "4bit_old": {
+   "cover": 1.0,
+   "ratio_med": 1107.2703570343267
+  },
+  "4bit_new": {
+   "cover": 1.0,
+   "ratio_med": 812.9573115548429
+  },
+  "4bit_head": {
+   "cover": 1.0,
+   "ratio_med": 517.322315582011
+  },
+  "6bit_old": {
+   "cover": 1.0,
+   "ratio_med": 210.46998052685936
+  },
+  "6bit_new": {
+   "cover": 1.0,
+   "ratio_med": 147.2435404910821
+  },
+  "6bit_head": {
+   "cover": 1.0,
+   "ratio_med": 80.6956182633426
+  },
+  "8bit_old": {
+   "cover": 1.0,
+   "ratio_med": 245.7845543046514
+  },
+  "8bit_new": {
+   "cover": 1.0,
+   "ratio_med": 172.38173549232187
+  },
+  "8bit_head": {
+   "cover": 1.0,
+   "ratio_med": 72.27713581604776
+  }
+ },
+ "dsv2lite": {
+  "4bit_old": {
+   "cover": 1.0,
+   "ratio_med": 32515.090041971114
+  },
+  "4bit_new": {
+   "cover": 1.0,
+   "ratio_med": 27432.85747407204
+  },
+  "4bit_head": {
+   "cover": 1.0,
+   "ratio_med": 17029.03165288072
+  },
+  "6bit_old": {
+   "cover": 1.0,
+   "ratio_med": 324.6685945673518
+  },
+  "6bit_new": {
+   "cover": 1.0,
+   "ratio_med": 212.84809694610942
+  },
+  "6bit_head": {
+   "cover": 1.0,
+   "ratio_med": 103.298793587242
+  },
+  "8bit_old": {
+   "cover": 1.0,
+   "ratio_med": 165.67068188684138
+  },
+  "8bit_new": {
+   "cover": 1.0,
+   "ratio_med": 121.67574968320264
+  },
+  "8bit_head": {
+   "cover": 1.0,
+   "ratio_med": 51.05703539966458
+  }
+ },
+ "kimilinear": {
+  "4bit_old": {
+   "cover": 1.0,
+   "ratio_med": 106.00289596081086
+  },
+  "4bit_new": {
+   "cover": 1.0,
+   "ratio_med": 103.72422398936932
+  },
+  "4bit_head": {
+   "cover": 1.0,
+   "ratio_med": 73.04358184966615
+  },
+  "6bit_old": {
+   "cover": 1.0,
+   "ratio_med": 116.93622940456636
+  },
+  "6bit_new": {
+   "cover": 1.0,
+   "ratio_med": 100.47604163901418
+  },
+  "6bit_head": {
+   "cover": 1.0,
+   "ratio_med": 59.85127110594832
+  },
+  "8bit_old": {
+   "cover": 1.0,
+   "ratio_med": 260.32893227353134
+  },
+  "8bit_new": {
+   "cover": 1.0,
+   "ratio_med": 199.81027292628457
+  },
+  "8bit_head": {
+   "cover": 1.0,
+   "ratio_med": 79.33584689407603
+  }
+ }
+}

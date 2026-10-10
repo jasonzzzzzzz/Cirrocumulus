@@ -1,7 +1,7 @@
 # Theorem R at 4-bit keys: where the gap comes from, what closes it, what explains the design (2026-10-10)
 
-CPU only, real weights. Code: `exp4bit_s1h5.py` (this folder; numbers in `findings_4bit.json`), `theory3_s1h5.py`
-(Theorem R v3, Theorem M), tests `test_theory3_s1h5.py` (all pass, `--fast` and full). Theory: `theory.md` §6 (v3),
+CPU only, real weights. Code: `../exp4bit_s1h5.py` (numbers in `findings_4bit.json`, next to this file), `../theory3_s1h5.py`
+(Theorem R v3, Theorem M), tests `../test_theory3_s1h5.py` (all pass, `--fast` and full). Theory: `../theory.md` §6 (v3),
 §10 (Theorem M), §11 (decode), §12 (this study, in short).
 
 ## The question

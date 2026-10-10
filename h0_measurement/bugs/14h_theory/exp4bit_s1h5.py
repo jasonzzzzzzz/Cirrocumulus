@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The 4-bit study behind theory.md §6b, §7 and §10 and findings_4bit.md (CPU, real weights, oracle_s1h5's setup).
+"""The 4-bit study behind theory.md §6b, §7 and §10 and findings/findings_4bit.md (CPU, real weights, oracle_s1h5's setup).
 
 The setup (as ../14h_methodology_improve/oracle_s1h5.py): one layer, context = the first L - 48 rows, the next 32
 queries vote (a Lloyd-Max 4-bit sketch, rotation seed 7, coin-free) for C/8 rows per KV head, the last 16 are measured;
@@ -387,7 +387,7 @@ def main():
     res = dict(diagnose=diagnose, remedies=remedies, lawcheck=lawcheck)[cmd](path) if cmd != "evaluate" \
         else evaluate(path, args[1])
     print(json.dumps(res, indent=1))
-    out = os.path.join(HERE, "findings_4bit.json")
+    out = os.path.join(HERE, "findings", "findings_4bit.json")
     allres = json.load(open(out)) if os.path.exists(out) else {}
     allres.setdefault(cmd, {})[os.path.basename(path) if cmd != "evaluate" else args[1]] = res
     json.dump(allres, open(out, "w"), indent=1)

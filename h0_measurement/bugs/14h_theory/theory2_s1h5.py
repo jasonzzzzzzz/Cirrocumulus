@@ -1,5 +1,7 @@
-"""Theorem R for coupled rows, tightened (theory.md §6, "MLA"; plan.md "R5 theory, part 5"). Pure torch; a new
-module so that R5.4's queued jobs, which import cert_s1h5, are untouched. Tests: test_theory_s1h5.py.
+"""Theorem R for coupled rows, tightened (theory.md §6, "MLA"; plan.md "R5 theory, part 5"). Pure torch. Written as a
+new module while R5.4's queued jobs imported cert_s1h5; since 2026-10-10 the bounds live in cert_s1h5
+(tail_bound_rand_v2, tail_bound_rand_coupled, bennett_radius) and this module keeps the instrumented
+tail_bound_rand_diag. Tests: test_theory_s1h5.py.
 
 In MLA a row is one latent: its key error and its value error come from the same dither draw. Theorem R's
 coupled form (cert_s1h5.tail_bound_rand, coupled=True) therefore bounded rho_i = |v_i - c| by a coin-free
@@ -20,132 +22,27 @@ S2 at b = var and Q = sum w^2 hi2 nu^2 (coin-free). Everything else is Theorem R
 from __future__ import annotations
 
 import math
+import os
+import sys
 
 import torch
 
-import cert_s1h5 as K
+_METH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "14h_methodology_improve")
+if _METH not in sys.path:
+    sys.path.append(_METH)                       # the run-time library (cert_s1h5)
+import cert_s1h5 as K  # noqa: E402
 
 
-def coupled_self_bound1(X, a_max, m, delta, lo, N1):
-    """Upper bound on S1 = sum w a rho (see the module docstring); X observed, N1 an upper bound on sum w a nu."""
-    L = math.log(1.0 / delta)
-    k = 2.0 * L * a_max * m
-    lo = torch.as_tensor(lo, dtype=X.dtype, device=X.device)
-    u = ((torch.sqrt(k) + torch.sqrt(k + 4.0 * lo * (X + 2.0 * lo * N1))) / (2.0 * lo)) ** 2
-    return (u - 2.0 * N1).clamp_min(0.0)
-
-
-def coupled_self_bound2(X, a_max, m4, delta, lo2, N2):
-    """Upper bound on S2 = sum w^2 b rho^2; X observed, N2 an upper bound on sum w^2 b nu^2."""
-    L = math.log(1.0 / delta)
-    k = 2.0 * L * a_max * m4
-    lo2 = torch.as_tensor(lo2, dtype=X.dtype, device=X.device)
-    s = (torch.sqrt(k) + torch.sqrt(k + 4.0 * lo2 * (X + 2.0 * torch.sqrt(k * N2)))) / (2.0 * lo2)
-    return s * s
-
-
-def tail_bound_rand_coupled(s, s_hat, sigma, keep, rhat, nu_max, nu2, oc, lse_fix=K.NEG, delta: float = K.DELTA_T,
-                            b_as=None, mom=None, ldebias=None, parts=False):
-    """Theorem R, coupled rows (MLA), with the observed distance rhat = |v_hat_i - c| bracketing rho_i. Inputs as
-    cert_s1h5.tail_bound_rand (coupled=True) except rhat. Events: truncation delta / 2; N1, S1, the coin-free mean
-    term, N2, S2, Q, mD, BD, and the two Bernstein sums: ten at delta / 20."""
-    keep_e = keep.expand_as(s)
-    n_t = (~keep_e).sum(-1)
-    z = K.trunc_z(n_t, delta / 2.0).to(s.device)
-    sig = sigma.double().expand_as(s)
-    t = z.unsqueeze(-1) * sig
-    exact_cap = torch.zeros_like(t, dtype=torch.bool)
-    if b_as is not None:
-        bb = b_as.double().expand_as(s)
-        exact_cap = bb <= t
-        t = torch.minimum(t, bb)
-    w, wh, _, wf, tt, unread = K._tail_prep(s, s_hat, t, keep, lse_fix)
-    sig = sig.masked_fill(~unread, 0.0)
-    if mom is None:
-        mom = dict(lmu_lo=torch.zeros_like(sig), lmu_hi=sig * sig / 2.0, lmu2_hi=2.0 * sig * sig,
-                   lmu4_hi=8.0 * sig * sig)
-    ex = lambda k_: mom[k_].double().expand_as(w).masked_fill(~unread, 0.0)        # noqa: E731
-    lmu_lo, lmu_hi, lmu2_hi, lmu4_hi = ex("lmu_lo"), ex("lmu_hi"), ex("lmu2_hi"), ex("lmu4_hi")
-    ldb = (ldebias.double().expand_as(w).masked_fill(~unread, 0.0) if ldebias is not None
-           else torch.zeros_like(w))
-    p = torch.where(exact_cap | ~unread | (sig <= 0), torch.zeros_like(tt),
-                    2.0 * torch.exp(-(tt * tt) / (2.0 * sig * sig).clamp_min(1e-300))).clamp(max=0.5)
-    E = lambda x: torch.exp(x.clamp(max=700.0))                                  # noqa: E731
-    lo1 = ((E(lmu_lo) - torch.sqrt(E(lmu2_hi) * p)) * E(-ldb)).clamp_min(1e-6)
-    hi1 = E(lmu_hi - ldb) / (1.0 - p)
-    hi2 = E(lmu2_hi - 2.0 * ldb) / (1.0 - p)
-    hi4 = E(lmu4_hi - 4.0 * ldb) / (1.0 - p)
-    kappa = torch.maximum(hi1 - 1.0, 1.0 - lo1).clamp_min(0.0)
-    var = (hi2 - lo1 * lo1).clamp_min(0.0)
-    rng = torch.maximum(E(tt - ldb) - lo1, hi1 - E(-tt - ldb)).clamp_min(0.0)
-    M = wf + w.sum(-1)
-    wbar = torch.exp(torch.log(wh) + ldb + tt)
-    nm, n2 = nu_max.double().expand_as(w), nu2.double().expand_as(w)
-    rh = rhat.double().expand_as(w)
-    cm = torch.sqrt(((hi2 - 2.0 * lo1 + 1.0).clamp_min(0.0)) * n2)              # |E[Z e]| (joint symmetry)
-    dk = delta / 20.0
-    unr = unread
-    lo_1 = torch.where(unr, lo1, torch.full_like(lo1, float("inf"))).amin(-1).clamp(max=1e6)
-    lo_2 = lo_1 * lo_1
-    m2, m4 = (hi2 * unr).amax(-1), (hi4 * unr).amax(-1)
-    sb = lambda g, p_: (K.self_bound((wh ** p_ * g).sum(-1), (wbar ** p_ * g).amax(-1),          # noqa: E731
-                                     m2 if p_ == 1 else m4, dk, lo_1 if p_ == 1 else lo_2))
-    # mean: sum w (kappa rho + cm) = S1(kappa) + sum w cm
-    N1 = sb(kappa * nm, 1)
-    S1 = coupled_self_bound1((wh * kappa * (rh + nm)).sum(-1), (wbar * kappa * (rh + 3.0 * nm)).amax(-1), m2, dk,
-                             lo_1, N1)
-    mY = S1 + sb(cm, 1)
-    # variance: (sqrt(S2(var)) + sqrt(Q))^2
-    N2 = sb(var * nm * nm, 2)
-    S2 = coupled_self_bound2((wh * wh * var * (rh + nm) ** 2).sum(-1), (wbar * wbar * var * (rh + 3.0 * nm) ** 2).amax(-1),
-                             m4, dk, lo_2, N2)
-    Q = sb(hi2 * nm * nm, 2)
-    B_Y = torch.sqrt(S2) + torch.sqrt(Q)
-    a_y = (wbar * (rng * (rh + nm) + E(tt - ldb) * nm + cm)).amax(-1)
-    mD = sb(kappa, 1)
-    B2D = sb(var, 2)
-    aD = (wbar * rng).amax(-1)
-    rY = bennett_radius(B_Y, a_y, dk)
-    rD = bennett_radius(torch.sqrt(B2D), aD, dk)
-    num = mY + rY + (mD + rD) * oc.double()
-    den = M + (wh.sum(-1) - mD - rD).clamp_min(0.0)
-    bound = (num / den).to(s.dtype)
-    if not parts:
-        return bound
-    return bound, dict(mean=(mY / den).to(s.dtype), radius=(rY / den).to(s.dtype), z=z.to(s.dtype))
-
-
-# ------------------------------------------- Bennett instead of Bernstein
-def bennett_radius(B: torch.Tensor, a: torch.Tensor, delta: float, iters: int = 80) -> torch.Tensor:
-    """The exact r with 2 exp(-(B^2/a^2) h(r a / B^2)) = delta, h(u) = (1 + u) ln(1 + u) - u: the Bennett form of
-    Pinelis' Theorem 3.4 (Hilbert space, independent zero-mean summands, |X_i| <= a, sum E|X_i|^2 <= B^2), of which
-    cert_s1h5.bernstein_radius is the relaxation h(u) >= u^2 / (2 (1 + u/3)); never larger than it. Bisection
-    in log space between the Gaussian radius and Bernstein's."""
-    L = math.log(2.0 / delta)
-    B = B.double()
-    a = a.double().clamp_min(1e-300)
-    hi = K.bernstein_radius(B, a, delta).double()
-    lo = torch.zeros_like(B)
-    v2 = (B * B).clamp_min(1e-300)
-
-    def g(r):                                           # exponent (positive): (B^2/a^2) h(r a / B^2)
-        u = r * a / v2
-        return (v2 / (a * a)) * ((1.0 + u) * torch.log1p(u) - u)
-    for _ in range(iters):
-        mid = (lo + hi) / 2.0
-        ok = g(mid) >= L                                # mid already achieves the tail -> shrink from above
-        hi = torch.where(ok, mid, hi)
-        lo = torch.where(ok, lo, mid)
-    return hi
+# The coupled form and the Bennett radius now live in cert_s1h5 (ported 2026-10-10 after R5.4's reader ran); the names
+# stay importable from here.
+coupled_self_bound1 = K.coupled_self_bound1
+coupled_self_bound2 = K.coupled_self_bound2
+tail_bound_rand_coupled = K.tail_bound_rand_coupled
+bennett_radius = K.bennett_radius
 
 
 # ------------------------------------------- Theorem R, instrumented (where does the slack come from?)
-def self_bound_rowwise(X, am, delta, lo):
-    """cert_s1h5.self_bound with the second moments weighted row by row: sum E X_i^2 <= sum a_i^2 m_i <=
-    max_i(a_i m_i) sum a_i, so `am` = max_i (a_bar_i m_i) replaces a_max * max(m) (never larger)."""
-    k = 2.0 * math.log(1.0 / delta) * am
-    lo = torch.as_tensor(lo, dtype=X.dtype, device=X.device)
-    return ((torch.sqrt(k) + torch.sqrt(k + 4.0 * lo * X)) / (2.0 * lo)) ** 2
+self_bound_rowwise = K.self_bound_rowwise
 
 
 def tail_bound_rand_diag(s, s_hat, sigma, keep, rho, nu_max, nu2, oc, lse_fix=K.NEG, delta: float = K.DELTA_T,
@@ -219,10 +116,8 @@ def tail_bound_rand_diag(s, s_hat, sigma, keep, rho, nu_max, nu2, oc, lse_fix=K.
 
 def tail_bound_rand_v2(s, s_hat, sigma, keep, rho, nu_max, nu2, oc, lse_fix=K.NEG, delta: float = K.DELTA_T,
                        b_as=None, mom=None, ldebias=None):
-    """Theorem R (GQA), tightened without new assumptions (theory.md §6, "Tightening"): the self-bounds weight the
-    coins' moments row by row; the variance sum is the smaller of its fourth-moment self-bound and
-    max_i(w_i sqrt g_i) * sum_i w_i sqrt g_i (second moments only); both sums use Pinelis' Bennett form exactly
-    (bennett_radius) instead of its Bernstein relaxation. Seven events at delta / 14 plus truncation at delta / 2."""
+    """The development form of cert_s1h5.tail_bound_rand_v2 (through the instrumented tail_bound_rand_diag); the
+    tests check that the two agree."""
     if mom is None:
         sg = sigma.double()
         mom = dict(lmu_lo=torch.zeros_like(sg), lmu_hi=sg * sg / 2.0, lmu2_hi=2.0 * sg * sg, lmu4_hi=8.0 * sg * sg)

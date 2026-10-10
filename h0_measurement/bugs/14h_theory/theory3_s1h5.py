@@ -1,6 +1,6 @@
 """Theory part 6 (theory.md §6b, §10–§11): Theorem R v3, Theorem M (the second moment), and their pieces. Pure torch.
 New file; it imports cert_s1h5 / rquant_s1h5 from ../14h_methodology_improve and theory2_s1h5 from this folder.
-Tests: test_theory3_s1h5.py. Experiments: exp4bit_s1h5.py -> findings_4bit.{json,md}.
+Tests: test_theory3_s1h5.py. Experiments: exp4bit_s1h5.py -> findings/findings_4bit.{json,md}.
 
 Theorem R v3 (tail_bound_rand_v3). Theorem R's identity regrouped by noise source,
     Z (o - o~) = K_c - (o~ - c) K_2 + V,   K_c = sum_T D_i (v_i - c),  K_2 = sum_T D_i,  V = sum_T w~_i e_i,
@@ -89,7 +89,7 @@ def second_moment(w: torch.Tensor, u: torch.Tensor, EZ: torch.Tensor, EZ2: torch
 
 # ------------------------------------------------------------------ Theorem R v3
 def _v3_core(s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix, delta, b_as, mom, ldebias, onerow,
-             budget_T=0.5):
+             budget_T=0.5, sure=False):
     keep_e = keep.expand_as(s)
     unread = ~keep_e
     n_t = unread.sum(-1)
@@ -119,6 +119,7 @@ def _v3_core(s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix, delta
     lwh = torch.log(wh)
     tm = torch.minimum(onerow_t(sig, dk), tt) if onerow else tt
     wb = torch.exp(lwh + ld + tm)                    # >= w_i inside every max (one-row lemma, or the truncation)
+    wsure = torch.exp(lwh + ld + tt)                 # >= w_i for every row on the truncation event (sums: part 7)
     # (a) V given the key coins
     L = math.log(1.0 / dk)
     s2 = (wh * wh * Dv.double().expand_as(w) ** 2 / 12.0 * unread).sum(-1)
@@ -129,22 +130,28 @@ def _v3_core(s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix, delta
     lo_1 = torch.where(unread, lo1, torch.full_like(lo1, float("inf"))).amin(-1).clamp(max=1e6)
     lo_2 = lo_1 * lo_1
 
-    def sb(xg, ag, p_):
+    def sb(xg, ag, p_, sure_g=None):
         """Maurer self-bound, rowwise: sum_i a_i from the observed sum_i w~_i^p xg_i, where E[w~_i^p xg_i] >= lo a_i and
-        E[(w~_i^p xg_i)^2] <= (wb_i^p ag_i m_i) a_i (ag_i an almost-sure per-row factor)."""
+        E[(w~_i^p xg_i)^2] <= (wb_i^p ag_i m_i) a_i (ag_i an almost-sure per-row factor). With `sure` (part 7, theory.md
+        §6c), also the sure sum sum_i wsure_i^p sure_g_i, valid on the truncation event already paid for (sure_g_i >= the
+        target's per-row factor almost surely); the smaller is used."""
         X = (wh ** p_ * xg * unread).sum(-1)
         mm = hi2 if p_ == 1 else hi4
-        return self_bound_rowwise(X, (wb ** p_ * ag * mm * unread).amax(-1), dk, lo_1 if p_ == 1 else lo_2)
-    mK = sb(kap * rb, kap * rb, 1)
+        a = self_bound_rowwise(X, (wb ** p_ * ag * mm * unread).amax(-1), dk, lo_1 if p_ == 1 else lo_2)
+        if sure and sure_g is not None:
+            a = torch.minimum(a, (wsure ** p_ * sure_g * unread).sum(-1))
+        return a
+    mK = sb(kap * rb, kap * rb, 1, kap * rb)
     # (c) sum_i w^2 var (rho^2 + n2) from |v^ - c|^2. For symmetric isotropic e (E e e^T = (n2/d) I, |e| <= nu):
     # E|v^ - c|^4 = rho^4 + 2 rho^2 n2 + 4 rho^2 n2 / d + E|e|^4 <= (rho^2 + n2)(rho^2 + nu^2) for d >= 2, so
     # E X_i^2 / a_i <= w^2 var hi4 (rho^2 + nu^2) <= wb^2 var hi4 (rb^2 + nu^2)
-    B2a = sb(var * rh * rh, var * (rb * rb + nmx * nmx), 2)
+    B2a = sb(var * rh * rh, var * (rb * rb + nmx * nmx), 2, var * rb * rb)
     # v2's second-moment alternative: sum w^2 var rho^2 <= max_i(w sqrt(var) rho) * sum_i w sqrt(var) rho
-    B2b = (wb * torch.sqrt(var) * rb * unread).amax(-1) * sb(torch.sqrt(var) * rb, torch.sqrt(var) * rb, 1)
+    B2b = (wb * torch.sqrt(var) * rb * unread).amax(-1) * sb(torch.sqrt(var) * rb, torch.sqrt(var) * rb, 1,
+                                                             torch.sqrt(var) * rb)
     rK = bennett_radius(torch.sqrt(torch.minimum(B2a, B2b)), (wb * rng * rb * unread).amax(-1).clamp_min(1e-300), dk)
-    mD = sb(kap, kap, 1)
-    rD = bennett_radius(torch.sqrt(sb(var, var, 2)), (wb * rng * unread).amax(-1).clamp_min(1e-300), dk)
+    mD = sb(kap, kap, 1, kap)
+    rD = bennett_radius(torch.sqrt(sb(var, var, 2, var)), (wb * rng * unread).amax(-1).clamp_min(1e-300), dk)
     den = M + (wh.sum(-1) - mD - rD).clamp_min(0.0)
     bound = (mK + rK + oc.double() * (mD + rD) + rV) / den
     return bound, dict(mean=mK / den, radius_key=rK / den, radius_weight=oc.double() * (mD + rD) / den,
@@ -152,21 +159,23 @@ def _v3_core(s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix, delta
 
 
 def tail_bound_rand_v3(s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix=K.NEG, delta: float = K.DELTA_T,
-                       b_as=None, mom=None, ldebias=None, onerow="auto", parts=False):
+                       b_as=None, mom=None, ldebias=None, onerow="auto", parts=False, sure=False):
     """Theorem R v3 (see the module docstring), GQA. Inputs as theory2_s1h5.tail_bound_rand_v2, plus Dv [.., C] the
     value rows' dither steps and dv their dimension; rho = |v^_i - c| (not widened). b_as and mom are required.
-    onerow: 'auto' (on when max unread sigma >= ONEROW_SIGMA, per head-step), True or False."""
+    onerow: 'auto' (on when max unread sigma >= ONEROW_SIGMA, per head-step), True or False.
+    sure: also bound every self-bounded sum surely on the truncation event and take the smaller (part 7; no new
+    event; default False keeps part 6's v3 unchanged)."""
     if mom is None or b_as is None:
         raise ValueError("tail_bound_rand_v3 needs the dither's moments (mom) and almost-sure bound (b_as)")
     args = (s, s_hat, sigma, keep, rho, nu_max, nu2, Dv, dv, oc, lse_fix, delta, b_as, mom, ldebias)
     if onerow == "auto":
-        b1, p1 = _v3_core(*args, True)
-        b0, p0 = _v3_core(*args, False)
+        b1, p1 = _v3_core(*args, True, sure=sure)
+        b0, p0 = _v3_core(*args, False, sure=sure)
         smax = sigma.double().expand_as(s).masked_fill(keep.expand_as(s), 0.0).amax(-1)
         use = smax >= ONEROW_SIGMA
         bound = torch.where(use, b1, b0)
         pr = {k_: torch.where(use, p1[k_], p0[k_]) for k_ in p1}
     else:
-        bound, pr = _v3_core(*args, bool(onerow))
+        bound, pr = _v3_core(*args, bool(onerow), sure=sure)
     bound = bound.to(s.dtype)
     return (bound, pr) if parts else bound

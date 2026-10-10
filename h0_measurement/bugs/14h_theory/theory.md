@@ -1,0 +1,600 @@
+# Certified two-tier KV reads: the theory (updated 2026-10-10, part 6)
+
+This file states what is proved about the two-tier KV design, under which assumptions, and how
+strong each result is in practice. Code: `cert_s1h5.py` (every bound), `rquant_s1h5.py` (the
+randomized tier), `theory2_s1h5.py` (Theorem R v2, Bennett, the MLA forms), `adapters_s1h5.py`
+(architectures), `adaptive_s1h5.py` and `oracle_s1h5.py` (experiments), all in
+`../14h_methodology_improve/`; part 6 in this folder: `theory3_s1h5.py` (Theorem R v3, Theorem M),
+`exp4bit_s1h5.py` (the 4-bit study, `findings_4bit.{json,md}`). Tests: `test_r14_stage1h_r5.py`,
+`test_adapters_s1h5.py`, `test_theory_s1h5.py`, and here `test_theory3_s1h5.py`. Run records: `plan.md`,
+amendments "R5 theory" parts 1–5.
+
+## Summary
+
+| Result | Holds for | Assumes | Useful on real models? |
+|---|---|---|---|
+| Lemma 1: eviction error = missed mass × value gap | every input | nothing | explains R1–R5 |
+| Lemma 2: a computable bound on the missed mass | every input | per-row key-error norms stored | yes (2–4× the oracle's budget at ε = 0.01) |
+| Theorem D: the controller stays within τ or reports | every input and model | as Lemma 2 | correct, but vacuous for the tail at 4 bits |
+| Lemmas 3–4: tail error, deterministic | every input | as Lemma 2, plus value-error norms | no: they carry e^b with b ≈ 8 nats |
+| Lemma 5: tail error, concentration | inputs that fit an error model | zero-mean, independent tier-1 errors | ≈ 15–60× tight, but real keys break the model |
+| **Theorem R** (v3): tail error, randomized tier | **every input and model** | read rows don't see tier 1's coins; seed independent of the input | with 6–8-bit tier-1 keys: 6–17× the best possible certificate (GPT-OSS at 6 bits: 39×) (§7); at 4 bits ≈ 50–160× on Llama, 12× on Gemma 3, ≈ 7,500× on GPT-OSS |
+| **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA adds a cross term) | as Theorem R | predicts the measured MSE within 2% on every layer tested, 8% for GPT-OSS at 4-bit keys (§10); explains why the design works and which bits a model needs |
+| **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
+
+**The claim that survives:** with a randomized (dithered) tier 1, the tail design's attention error
+at every head and step is within a bound computed at run time, with probability ≥ 1 − δ, for any model
+with softmax attention over cached rows and any input. This now includes free-running decode up to the
+first token that differs from the exact model's. A model changes only what the guarantee costs:
+the tier-1 precision it needs and how many rows must be read exactly.
+
+**Why the design works (Theorem M):** the tier's noise enters the output through the unread rows' share
+of Σ w_i²‖v_i − o‖², not through their share of the mass. Reading the few heavy rows exactly removes
+almost all of it:
+- on Llama-1B L1 the vote leaves 2.4% of the mass unread but 0.18% of that second moment, and the tail's MSE is
+  1.9% of a dense 4-bit tier's (predicted 1.86%, measured 1.87%);
+- where attention is flat the gain shrinks with it: on Gemma 3's global layer L5 the vote leaves 66% of the second
+  moment unread, and the tail's MSE is 66% of a dense tier's.
+The same formula therefore says when the design will work, on any model, from one FP pass.
+
+**Not covered:**
+- end-to-end quality (R6 measures it);
+- decode steps after the first differing token, except at a log-size cost (§11);
+- FP8-level certificates at 4-bit keys: the information is there (the oracle certifies 62% of Llama head-steps),
+  but no proof in this family gets within the needed 2–3× of the oracle (§12).
+
+## 1. Setting
+
+One softmax attention head at one step:
+- query q, rows i with keys k_i and values v_i, scores s_i = scaling·⟨q, k_i⟩ + β_i, where β_i is any
+  exactly known bias (sinks, ALiBi, masks), and weights w_i = e^{s_i};
+- **fixed rows** (protected window, question, generated tokens) are always exact: total weight W_F,
+  mean value o_F;
+- **tier 1** stores every context row approximately (k̂_i, v̂_i, scores ŝ_i, weights ŵ_i = e^{ŝ_i});
+  **tier 2** holds the exact rows;
+- a design reads a set S of rows exactly (from tier 2) and either evicts the rest, T, or reads T from
+  tier 1 (the **tail design**);
+- exact output o = (W_F o_F + Σ w_i v_i)/Z, with Z = W_F + Σ_i w_i; missed mass ε = Σ_T w_i / Z.
+
+Per-row tier-1 errors: δ_i = s_i − ŝ_i (score) and e_i = v_i − v̂_i (value), with ν_i = ‖e_i‖.
+
+## 2. Evicting, and why no advance selection can be certified
+
+**Lemma 1.** Evicting T gives o − o_S = ε(ō_T − ō_S), so ‖o − o_S‖ ≤ 2Vε, where V = max‖v_i‖.
+*Proof:* o = (1 − ε)ō_S + εō_T. ∎
+
+A set chosen before the answer's queries exist can't bound ε for queries it hasn't seen. Eviction
+works exactly when (i) a small set holds almost all of the answer-time attention and (ii) the question
+already points at it. R1–R4 match this:
+- single needles: near FP;
+- many values: the vote fails while the oracle is fine;
+- aggregation: even the oracle fails;
+- re-ranking: re-selection wins.
+
+## 3. A computable bound on the missed mass, and the controller
+
+**Lemma 2.** If |δ_i| ≤ b_i (Cauchy–Schwarz gives b_i = scaling·‖q‖·η_i with η_i = ‖k_i − k̂_i‖ stored
+per row), then
+
+  ε ≤ ε̄ = U/(M + U),  with U = Σ_T e^{ŝ_i + b_i} and M = W_F + Σ_S w_i.
+
+*Proof:* the true unread mass is at most U, and x/(M + x) increases in x. ∎
+
+**Theorem D (deterministic controller).** Start from any S. While the Lemma 1 bound (with ε̄ in place
+of ε) exceeds τ, read the unread row with the largest e^{ŝ_i + b_i}. The result is within τ of exact,
+or the controller reports its row cap.
+*Proof:*
+- the bound uses only computed quantities;
+- each read row moves its term from U to M, so the bound only falls;
+- with every row read, U = 0. ∎
+
+On R5's data the certified budget is 2–3.7× the oracle's at ε = 0.01, but loose at ε = 0.1.
+
+## 4. The tail design: deterministic bounds
+
+**Identity.** Let õ be the tail design's output and ṽ_i the value it reads on S (exact, or v̂_i). Then
+
+  Z(o − õ) = Σ_S w_i(v_i − ṽ_i) + Σ_T w_i e_i + Σ_T (w_i − ŵ_i)(v̂_i − õ).
+
+*Proof:* Zo and Ẑõ are the two weighted sums; subtract Zõ = Ẑõ + (Z − Ẑ)õ. ∎ (Checked to 2e-15.)
+
+**Lemma 4.** If |δ_i| ≤ b_i and ν_i ≤ ν̄_i, then
+
+  ‖o − õ‖ ≤ [Σ_S w_iν_i + Σ_T ŵ_i(e^{b_i}ν̄_i + (e^{b_i} − 1)‖v̂_i − õ‖)] / (W_F + Σ_S w_i + Σ_T ŵ_i e^{−b_i}),
+
+with the S term present only when S's values come from tier 1.
+*Proof:* the triangle inequality on the identity, with w_i ∈ [ŵ_i e^{−b_i}, ŵ_i e^{b_i}]. ∎
+
+Lemma 3, the earlier version with max b and max V, is weaker: Lemma 4 is 0.05× it at the median.
+
+**Why deterministic bounds cannot certify.** On real attention at 128K, b_i is about 8 nats (R5:
+median of the per-head maximum 8.1 on Llama, 8.0 on Qwen), so e^{b} ≈ 3,000. The deterministic bound
+is valid but useless. Any useful bound must use the fact that tier-1 errors cancel across rows.
+
+## 5. Lemma 5: concentration under an error model
+
+**Model M.** Given what is stored and the rows read:
+- rows' errors are independent;
+- E[e_i | δ_i] = 0;
+- δ_i = β_i + ξ_i, where |β_i| ≤ μ_i is a bias allowance and ξ_i is symmetric and sub-Gaussian with
+  proxy σ_i² (σ_i = b_i/√d for a random-direction key error).
+
+**Lemma 5.** Under M, with probability ≥ 1 − δ, ‖o − õ‖ ≤ (m + r)/D. Here:
+- m is a mean term in the moment bounds M1 = e^{μ}·min(e^{σ²/2}, cosh zσ);
+- r is Pinelis' Bernstein radius;
+- D is the denominator from truncating every ξ_i at zσ_i, with z = √(2 ln(4|T|/δ)).
+
+The proof: truncation, then the identity read as a sum of independent vectors, then Pinelis (1994,
+Thm 3.4). A coupled variant covers MLA, where one latent error drives both the key and the value
+error. Full statement and proof: `cert_s1h5.tail_bound_conc` and plan.md, part 3.
+
+**Why it isn't enough.** M is a statement about the data. Real tier-1 scores regress to the mean:
+- on Llama-3.2-1B, rows in the top decile of tier-1 score are 0.08–0.11 nats lower in truth and the
+  bottom decile 0.016–0.019 higher (σ ≈ 0.4);
+- the bias is coherent across rows;
+- with μ = 0, Lemma 5 failed on 12–18 of 16,384 head-steps in one row group of a CPU smoke;
+- a 0.5σ allowance fixed it, but only as a calibration, not a proof.
+
+## 6. The randomized tier and Theorem R (the main result)
+
+**Randomized tier 1** (`rquant_s1h5.dither_quantize`). Each row x (key or value, per KV head; or one
+block of an MLA latent) is stored as follows:
+1. y = Rx, with R a fixed rotation that only spreads outliers;
+2. step D = 2·max_j|y_j|/(2^bits − 1), stored per row (the same side information as today's norm);
+3. dither u_j ~ U(−D/2, D/2), regenerated from (seed, layer, head, row, channel) and never stored;
+4. code c_j = ⌊(y_j + u_j)/D⌋ (no clipping, by the choice of D);
+5. reconstruction ŷ_j = (c_j + ½)D − u_j.
+
+By Schuchman's theorem (subtractive dither, no overload), ŷ_j − y_j is uniform on ±D/2 and
+independent of y, *for every y*. Storage is unchanged, and the MSE is 1.03–1.15× the store's 4-bit
+Lloyd-Max. For any query q and row i, over the coins:
+- δ_i is symmetric and sub-Gaussian with proxy σ_i² = scaling²‖q‖²D_i²/12 (sinh(x)/x ≤ e^{x²/6}),
+  and |δ_i| ≤ scaling·(D_i/2)‖Rq‖₁;
+- E e^{−kδ_i} = ∏_j sinh(k a_ij)/(k a_ij), with a_ij = scaling·|(Rq)_j|D_i/2. Its log lies in
+  [k²A₂/6 − k⁴A₄/180, k²A₂/6], with A₂ = a²‖Rq‖₂² and A₄ = a⁴‖Rq‖₄⁴: two statistics per query and one
+  step per row;
+- the value error is zero-mean, independent of δ_i (separate dither), with E‖e_i‖² = d D_v²/12 and
+  ‖e_i‖ ≤ √d D_v/2;
+- rows are independent.
+
+**The unbiased tail.** E[ŵ_i] = w_i·E e^{−δ_i} > w_i: every tier-1 tail over-weights itself by about
+σ²/2. Dividing each unread row's tier-1 weight by E e^{−δ_i}(q) makes the tail's sums unbiased. In
+measurements this design is more accurate than the Lloyd-Max tail (§7).
+
+**Theorem R.** Assume:
+- (R1) the rows read exactly (the vote and any extra rows) are chosen without looking at tier 1's
+  coins, e.g. from exact prefill attention, from exact-key page metadata, or from a separate sketch;
+- (R2) the query does not depend on the coins of this layer's tier 1. In any prefill or teacher-forced pass this
+  holds by Lemma C (§11), given the coins of the layers below. In free-running decode it holds up to the first
+  token that differs from the exact model's (Theorem DD, §11).
+
+Then for **every cache content** (no assumption on keys, values or queries), with probability ≥ 1 − δ
+over the coins, the tail design (exact keys and values on S, tier-1 weights w̃_i = ŵ_i/debias_i on T,
+plain or unbiased) satisfies
+
+  ‖o − õ‖ ≤ [m_Y + r(B_Y, a_Y) + ‖õ − c‖·(m_D + r(B_D, a_D))] / D_Z,
+
+with every term computed at run time (`cert_s1h5.tail_bound_rand`).
+
+*Proof.*
+1. **Identity.** Let c be the exact output of the read and fixed rows; by (R1) it is coin-free. Let
+   M be their mass. Then Z(o − õ) = Σ_T Y_i − (õ − c)·Σ_T D_i, where Y_i = w_i(v_i − c) −
+   w̃_i(v̂_i − c) and D_i = w_i − w̃_i. Each depends only on row i's coins, so they are independent
+   across rows.
+2. **Truncation.** Every |δ_i| ≤ t_i = min(zσ_i, a.s. bound), z = √(2 ln(4|T|/δ)), fails with
+   probability ≤ δ/2. The truncated variables stay independent.
+3. **Moments.** With Z_i = w̃_i/w_i = e^{−δ_i}/debias_i, the exact moment interval, corrected for
+   truncation, gives:
+   - E Z_i ∈ [lo, hi], E Z_i² ≤ hi₂, E Z_i⁴ ≤ hi₄, and |Z_i − E Z_i| ≤ rng;
+   - from these: ‖E Y_i‖ ≤ w_iκ_iρ_i, |E D_i| ≤ w_iκ_i (κ = max(hi − 1, 1 − lo): zero up to
+     truncation for the unbiased tail), variances w_i²[(hi₂ − lo²)ρ_i² + hi₂E‖e_i‖²] and
+     w_i²(hi₂ − lo²), and ranges w_i[rng·ρ_i + e^{t}ν̄_i] and w_i·rng, where ρ_i = ‖v_i − c‖.
+4. **Self-bounding.** The w_i and ρ_i are unknown. On the truncation event, ρ_i ≤ ‖v̂_i − c‖ + ν̄_i,
+   and w_i ≤ w̃_i·debias_i·e^{t_i} (used only in maxima). Each unknown sum Σ w_i g_i or Σ w_i² g_i is
+   bounded from its observed tier-1 version. The tool is Maurer's lower-tail inequality for sums of
+   independent non-negative variables, P(E S − S ≥ x) ≤ exp(−x²/(2ΣE X_i²)), solved as a quadratic.
+5. **Concentration.** Pinelis' Bernstein inequality in Hilbert space applies to each sum: with
+   L = ln(2/δ'), r(B, a) = La/3 + √((La/3)² + 2LB²). The radius only grows in B and a, so substituting
+   upper bounds keeps the probability statement.
+6. **Denominator.** Z ≥ D_Z = M + max(0, Σ_T w̃_i − |Σ_T D_i|), and |Σ D| is already bounded by
+   step 5's events.
+
+Six events at δ/12 each and the truncation at δ/2 complete the proof. ∎
+
+**Tightening without new assumptions (v2, `theory2_s1h5.tail_bound_rand_v2`).**
+- The self-bounds weight the coins' moments row by row: Σ a_i²m_i ≤ max_i(a_i m_i)·Σ a_i.
+- The variance sum is the smaller of its fourth-moment self-bound and max_i(w_i√g_i)·Σ_i w_i√g_i,
+  which needs only second moments (one extra event; budget δ/14).
+- Both sums use the exact Bennett form of Pinelis' Theorem 3.4,
+  P ≤ 2exp(−(B²/a²)h(ra/B²)) with h(u) = (1 + u)ln(1 + u) − u, inverted numerically. Bernstein is its
+  relaxation; Bennett's radius is several times smaller when a single row's range dominates the
+  standard deviation, which is the heavy-row regime of a coarse tier.
+
+**Tightening further (v3, `theory3_s1h5.tail_bound_rand_v3`).** No new assumptions; three changes.
+1. *Regroup by noise source.* The identity in step 1 is
+   Z(o − õ) = K_c − (õ − c)K₂ + V, with K_c = Σ_T D_i(v_i − c) and K₂ = Σ_T D_i (key noise only) and
+   V = Σ_T w̃_i e_i (value noise). Given the key coins, the value rotation turns V into d independent coordinates
+   Σ_i w̃_i ε_ij. Each is sub-Gaussian with proxy s² = Σ_T w̃_i² D_{v,i}²/12, so E e^{λ‖V‖²} ≤ (1 − 2λs²)^{−d/2}, and
+   Laurent and Massart's χ² tail gives ‖V‖ ≤ s·√(d + 2√(dL) + 2L) with probability ≥ 1 − e^{−L}. Every input is
+   observed, so the values need no self-bound. The norm's dimension is used, which a dimension-free bound cannot do.
+2. *One-row maxima.* **Lemma (one row).** If a_i ≥ 0 are fixed and P(a_i > ā_i) ≤ δ₁ for each i, then
+   P(max_i a_i > max_i ā_i) ≤ δ₁. *Proof:* the argmax of the fixed a_i is a fixed row i*, and
+   {max a > max ā} ⊆ {a_{i*} > ā_{i*}}. ∎ Every maximum in the proof (Bennett's ranges, the self-bounds' maxima) is
+   a max over rows of an unknown fixed quantity w_i·c_i. So inside it, one row's deviation t₁ = σ√(2 ln(1/δ₁))
+   (≈ 3.6σ) replaces the union level t = zσ (z ≈ 4.8 for 1,500 rows at δ = 0.05). This is used when the largest
+   unread σ is ≥ 0.15, a switch that does not see the coins.
+3. *Variance proxy.* E‖v̂_i − c‖² = ρ_i² + E‖e_i‖². So Σ w̃_i²·var_i·‖v̂_i − c‖² self-bounds
+   Σ w_i²·var_i·(ρ_i² + E‖e_i‖²), which is at least the true variance, without the cross term of (‖v̂_i − c‖ + ν̄_i)².
+   Maurer's second moment needs E‖v̂_i − c‖⁴. For the symmetric, isotropic dither error it is
+   ρ⁴ + 2ρ²E‖e‖² + 4ρ²E‖e‖²/d + E‖e‖⁴ ≤ (ρ² + E‖e‖²)(ρ² + ν̄²) when d ≥ 2, so the per-row factor is ρ̄² + ν̄².
+
+Events: the truncation takes δ/2; eight events share the other δ/2: V, and for K_c and K₂ the mean and variance
+self-bounds and the Bennett radii, with v2's second-moment alternative for K_c. When change 2 is on, eight
+one-row events share it too.
+
+*Brute force* (`test_theory3_s1h5.py`): 19,200 head cases (random, spiky, 30× outlier and adversarially aligned
+data; 2-, 4- and 6-bit keys; plain and unbiased tails). There is no failure at any δ from 0.3 to 10⁻³, and v3 is
+never more than 5% above v2. Real layers: §7.
+
+**Proof details used by every version.**
+- *The Hilbert-space Bennett inequality.* Pinelis (1994), Thm 3.4 with D = 1, follows from
+  E cosh(λ‖x + d‖) ≤ cosh(λ‖x‖)(1 + E φ(λ‖d‖)) for zero-mean d, where φ(u) = e^u − 1 − u. This holds because
+  the Hessian of cosh(λ‖·‖) has operator norm ≤ λ²·cosh(λ‖y‖), and cosh(λ‖x + td‖) ≤ cosh(λ‖x‖)·e^{λt‖d‖}.
+  Induction over the rows and Markov's inequality then give P(‖Σd_i‖ ≥ r) ≤ 2 exp(−λr + Σ E φ(λ‖d_i‖)).
+  With ‖d_i‖ ≤ a, E φ(λ‖d_i‖) ≤ (E‖d_i‖²/a²)·φ(λa).
+- *The radius may take upper bounds.* Bennett's radius r(B, a) is increasing in B and in a. Both partial
+  derivatives of the exponent (B²/a²)·h(ra/B²) are ≤ 0, because ln(1 + u) ≤ u and (2 + u)·ln(1 + u) ≥ 2u.
+- *The seed.* The probability is over the dither for a fixed cache. The seed must therefore be drawn
+  independently of the input (per request in a deployment): an input chosen with the seed in view can defeat
+  any randomized guarantee.
+
+**MLA (coupled), in head space.** One latent draw makes both errors of a row. The concentration runs on
+each head's output vectors W_h·(latent):
+- the value error W_h·e has E‖W_h e‖² = ‖W_h‖_F²·D²/12 exactly (e = Rᵀε with ε uniform and
+  independent, so E[e eᵀ] = (D²/12)·I), and ‖W_h e‖ ≤ ‖W_h‖₂·√d·D/2;
+- the mean term gains ‖E[Z·W_h e]‖ ≤ √E(Z − 1)²·√E‖W_h e‖² (joint symmetry of (e, δ));
+- the variance term becomes (√var·ρ + √hi₂·ν̄)²;
+- ρ_i = ‖W_h(v_i − c)‖ is bracketed by the observed ‖W_h(v̂_i − c)‖ ± ‖W_h‖₂ν̄_i. Self-bounds that
+  allow this coin dependence (`coupled_self_bound1/2`) charge only a correction Σ w ν̄ (or Σ w²ν̄²).
+
+This replaces a latent-space bound multiplied by ‖W_h‖₂ with a coin-free ρ, which overstated the error
+by the ratio of W's top singular value to its average (§7).
+
+**Deterministic companion.** Lemma 4 with the dither's a.s. bounds (b_i = scaling·(D_i/2)‖Rq‖₁,
+ν_i ≤ √d D_v/2) holds always and needs no stored error norms.
+
+**A whole decode.** Run each of N head-steps at δ/N. Every constant grows like √ln N (z from about 3.9
+to about 6 for N = 10⁵).
+
+## 7. How strong it is in practice (CPU, 2026-10-09)
+
+**Validity.** Theorem R never failed:
+- brute force on random, spiky, 30×-outlier and adversarially aligned data, at δ from 0.3 to 1e-3:
+  3,200 head cases × 2 designs, plus 1,600 coupled;
+- all seven test models at 4-bit keys, 8 draws per layer: coverage 1.000 on every layer;
+- the r3b unit where Lemma 5 failed, at 4-, 6- and 8-bit keys: coverage 1.000, including that head.
+
+**Tightness is set by the score noise σ = scaling·‖q‖D/√12.** A rigorous bound must cover a row whose
+true weight is e^{zσ} times its estimate, and needs fourth moments e^{8σ²}. With 4-bit keys, real
+queries give σ ≈ 0.5–1.4 nats; each extra key bit halves σ.
+
+The r3b unit (Llama-3.2-1B, 4K, the probe on FP's queries, read sets from the Lloyd-Max store; Theorem R v1). Shares
+certified within FP8's error are at the vote's rows / with C/32 more rows read exactly / with C/8 more:
+
+| tier-1 key bits | bound / error | certified within FP8 | tail's relative error | traffic vs FP16 (vote / +C/32 / +C/8) |
+|---|---|---|---|---|
+| 4 | 1,500–3,200 | 0 / 0 / 0 | 0.0068 (Lloyd-Max tail 0.0121) | 0.34 / 0.37 / 0.44 |
+| 6 | 28–50 | 0.08 / 0.24 / 0.52 | 0.0024 | 0.40 / 0.42 / 0.48 |
+| 8 | 11.5–18 | 0.29 / 0.61 / 0.85 | 0.0018 | 0.45 / 0.47 / 0.53 |
+
+(Values stay at 4 bits; FP8's traffic is 0.50.)
+
+Across architectures (`findings/R5_adapters.md`, early layers, 1,600 tokens):
+
+| model | bound / error at 4 → 6 → 8 key bits | what limits it |
+|---|---|---|
+| Llama-1B (L1) | 2,826 → 59 → 21 | key noise |
+| GPT-OSS | 4.3 × 10⁶ → 275 → 36 | large ‖q‖‖k‖: key noise |
+| Gemma 3 (global) | 32 → 11 → 9 | 4-bit values (QK-norm keeps key noise small) |
+| Moonlight (MLA) | 929 → 188 → 236 | the coupled bound's coin-free distance |
+
+**MLA in head space** (Moonlight, DeepSeek-V2-Lite, Kimi-Linear; coverage 1 at every width). Median
+bound/error at 8 bits: 246 → 74, 166 → 55 and 260 → 80 (latent space with a coin-free ρ → head space).
+
+**How far from the best possible certificate?** For a fixed cache and query, no certificate at 1 − δ
+can be narrower than the (1 − δ)-quantile of the error over the coins: the *oracle width*, computable
+only from the exact data. 200 draws per head-step, δ = 0.05, unbiased tail, Theorem R v2 (coverage 1
+everywhere). Columns: v2 bound / oracle width (median), and the share of head-steps within FP8's error
+for v2 / for the oracle:
+
+| model (layer) | 4-bit keys | 6-bit | 8-bit |
+|---|---|---|---|
+| Llama-1B (L1) | 206 · 0 / 0.62 | 20 · 0.09 / 0.95 | 14 · 0.28 / 0.98 |
+| GPT-OSS (L1) | 42,500 · 0 / 0.08 | 60 · 0.01 / 0.39 | 19 · 0.03 / 0.87 |
+| Gemma 3 (L5) | 14 · 0 / 0 | 9 · 0 / 0 | 8 · 0 / 0 |
+
+Three readings:
+- **Llama at 4 bits:** the tier holds enough information to certify 62% of head-steps at FP8's
+  level, so the proof is the bottleneck. Its range term covers a single tail row whose true weight is
+  e^{t} times its estimate (t = zσ ≈ 2.4 nats).
+- **Gemma 3:** the 4-bit values are the limit. No certificate of any kind could reach FP8's level
+  without more value bits. Theorem M gives the reason (§10): this global layer's attention is flat, so the vote
+  leaves 77% of the mass and 66% of Σ w²‖v − o‖² unread, the tail is nearly a dense 4-bit store, and with QK-norm's
+  small σ the value term dominates.
+- **6–8 bits:** the remaining factor (8–20×) is the constants of a high-confidence, worst-case-over-rows
+  argument.
+
+**Theorem R v3 on the same setup** (`exp4bit_s1h5.py evaluate`, 2026-10-10). Bound / oracle width, median,
+v2 → v3. In brackets: the share of head-steps certified within FP8's error, v2 → v3. Coverage is 1 everywhere.
+
+| view (context rows) | 4-bit keys | 6-bit | 8-bit |
+|---|---|---|---|
+| Llama-1B L0 (1,552) | 80 → 52 (0 → 0) | 13.8 → 11.5 (0.002 → 0.004) | 10.8 → 8.5 (0.006 → 0.014) |
+| Llama-1B L1 (1,552) | 201 → 114.5 (0 → 0) | 20.2 → 17.3 (0.09 → 0.10) | 14.3 → 11.1 (0.28 → 0.37) |
+| Llama-1B L3 (1,552) | 217 → 124 (0 → 0) | 19.1 → 16.2 (0.12 → 0.16) | 13.3 → 10.5 (0.37 → 0.47) |
+| Llama-1B L1 (8,144) | 337 → 159 (0 → 0) | 18.5 → 14.9 (0.11 → 0.16) | 11.2 → 7.7 (0.31 → 0.46) |
+| GPT-OSS L1, sinks (1,552) | 26,057 → 7,485 (0 → 0) | 51.7 → 39.3 (0.014 → 0.014) | 18.3 → 14.6 (0.035 → 0.050) |
+| Gemma 3 L5, global (1,552) | 14.2 → 11.6 (0 → 0) | 9.2 → 6.9 (0 → 0) | 8.5 → 6.3 (0 → 0) |
+
+v3 gains 1.5–3.5× at 4-bit keys where the one-row maxima switch on (σ ≥ 0.15; Gemma 3, with σ ≈ 0.12, gains 1.2×)
+and 1.2–1.45× at 6–8 bits. The gain grows with the context (8,144 rows). It does not make 4-bit keys certifiable at
+FP8's level; §12 explains why.
+
+**The tail's error against FP8's** (Theorem M's measured RMS error / FP8's error, median; dense = a dithered tier
+with no exact rows):
+
+| view | tail, 4 / 6 / 8-bit keys | dense, 4-bit keys |
+|---|---|---|
+| Llama-1B L0 | 1.39 / 0.58 / 0.47 | 3.4 |
+| Llama-1B L1 | 0.52 / 0.16 / 0.11 | 3.4 |
+| Llama-1B L3 | 0.38 / 0.12 / 0.09 | 4.3 |
+| Llama-1B L1, 8K | 0.57 / 0.18 / 0.13 | 3.8 |
+| GPT-OSS L1 | 4.1 / 0.91 / 0.43 | 9.2 |
+| Gemma 3 L5 | 3.4 / 2.7 / 2.7 | 4.2 |
+
+**Adaptive queries (R2), measured** (`adaptive_s1h5.py`). Setup: full Llama-3.2-1B, 2,048 tokens, 4
+draws, and the design's output substituted at every answer position and layer, so every later query
+depends on the coins. Theorem R covered all 49,152 head-steps at 4 and 6 bits. The worst error/bound
+(0.051, 0.138) was identical to the oblivious pass on FP's queries.
+
+**The unbiased tail is more accurate than the Lloyd-Max tail in most layers.** Relative error:
+
+| case | unbiased dithered | Lloyd-Max |
+|---|---|---|
+| r3b unit, vote's rows | 0.0068 | 0.0121 |
+| Kimi (MLA) | 0.010 | 0.032 |
+| Llama L0 | 0.018 | 0.022 |
+| Moonlight L0 | 0.008 | 0.010 |
+
+On GPT-OSS it halves the plain dithered tail's error.
+
+**What the guarantee costs.** A read certified at FP8's level costs about FP8's traffic. The 4-bit
+design is at or below FP8's KL in most families (R5.3) but cannot be certified.
+
+## 8. The general approach this implies
+
+For any model with softmax attention over cached rows:
+1. **Find the rows.** Use the global softmax layers. Rows are per KV head (GQA), per token latent
+   (MLA, coupled), and sinks enter as exact fixed rows. Local windows and SSM/linear layers are left
+   alone (`adapters_s1h5.py`).
+2. **Store tier 1 randomized, sized by Theorem M.** Use dithered keys and values with per-row steps. On an
+   FP pass, Theorem M splits the tail's MSE into a key term Σ_T w²·Var Z·‖v − o‖² (Var Z ≈ σ²; each key bit halves σ)
+   and a value term Σ_T w²·E‖e‖² (each value bit divides it by 4). Choose bits per model so that the predicted
+   error sits below FP8's:
+   - Llama-1B: 4-bit keys and values already put the tail at 0.4–0.6× FP8's error;
+   - GPT-OSS: σ ≈ 0.9 at 4-bit keys, so it needs 6–8-bit keys;
+   - Gemma 3 (global layer L5): its attention is flat, so the vote leaves 66% of the second moment unread. Its
+     4-bit values then hold the tail at 2.7× FP8's error at any key width, and it needs more value bits or a
+     larger exact set.
+3. **Choose the exact rows without the coins.** Exact prefill attention (the question's vote computed on exact keys
+   before compression), exact-key page metadata, or a separate sketch qualify. A vote over the dithered tier
+   itself does not.
+4. **Read the tail unbiased:** divide tier-1 weights by E e^{−δ}, computable from two per-query
+   statistics.
+5. **Certify per call** with Theorem R v3 where it is affordable: 6–8-bit tier-1 keys, plus a few extra exact rows.
+   R5.4, with v1, certified 98–99% of Llama-8B head-steps at FP8's level at 128K with 6-bit keys and C/32
+   extra rows. Anchor τ to FP8's per-head error on that model. At 4-bit keys the certificate is valid but
+   loose (§12); use Theorem M to predict the error and R6 to measure it.
+6. **Draw the dither seed per request** (independent of the input). Certificates then hold through
+   free-running decode until the first token that differs from the exact model's (Theorem DD).
+7. **Measure end-to-end quality** with a confirmatory run (R6). No attention-level bound can stand in
+   for it: a size-τ change in one head can flip a near-tied token in any format, FP8 included.
+
+A model changes the cost (σ, concentration, value precision), never the validity.
+
+## 9. Open problems
+
+- **Adaptive decode (R2).** Closed up to the first token that differs from the exact model's (Theorem DD, §11).
+  Beyond it, the cost is k·(ln N + ln|V|) in each event's log-probability per allowed divergence.
+- **Tightness at 4 bits** (§12). Diagnosed:
+  - of v2's 201×, about 10× is the unknown weight of the heaviest unread rows (e^{zσ} inside Bennett's
+    range and the self-bounds' maxima), about 3× the self-bounded sums, and about 10× constants;
+  - the two remedies proposed for it (truncation budget by the vote's sketch; the heaviest rows in a
+    deterministic term) and v3's one-row maxima each recover 1.4–2×, and 2× together (201 → 98–114×).
+  The information is there (the oracle certifies 62% of head-steps at FP8's level). What is missing is a proof
+  that pays one row's deviation instead of a union over rows for the truncation, too (§12).
+- **Constants at 6–8 bits.** v3 is 6–17× the oracle (GPT-OSS at 6 bits: 39×). The rest:
+  - the dimension-free key radius, about 2.6× the true quantile in d = 64 at δ/32;
+  - the union of 16 events, about 1.4×;
+  - self-bounding, about 1.2–1.5×.
+  A Hanson–Wright-type bound that uses the key term's dimension, as the χ² bound does for values, would
+  address the first.
+- **Reads chosen from the dithered tier.** Consider the threshold rule "also read every row with w̃_i > θ", with
+  θ coin-free. Each unread summand still depends only on its own row's coins, so Theorem R's proof goes
+  through with Bennett's ranges capped by θ·e^{t}. It needs one more term, the selection bias
+  Σ_i w_i·|E[(1 − Z_i)·1{w_i Z_i > θ}]|, which on the truncation event is bounded by the rows observed within
+  e^{±2t} of θ. This would certify a controller whose extra reads look at the dithered tier. Not implemented.
+- **MLA in Theorem M:** the cross term E[(1 − Z_i)Z_i⟨u_i, e_i⟩] (§10).
+- **End-to-end:** R6.
+
+## 10. Theorem M: the second moment (why the design works)
+
+**The identity.** Let Z̃ = M + Σ_T w̃_i, the design's own normaliser: observed, and ≥ M. Then exactly
+
+  Z̃(o − õ) = N := Σ_T w_i(1 − Z_i)(v_i − o) + Σ_T w_i Z_i e_i,
+
+with Z_i = w̃_i/w_i. *Proof:* Z̃(o − õ) = M(o − c) + Σ_T w̃_i(o − v̂_i), and Σ_T w_i(v_i − o) = M(o − c) because
+Zo = Mc + Σ_T w_i v_i. Substitute v̂_i = v_i − e_i. ∎ (Checked to 10⁻¹³ on random and adversarial data.)
+
+**Theorem M.** Fix any cache, query and coin-free read set. Take a dithered tier 1 whose key and value draws are
+independent (GQA). Then exactly
+
+  E‖N‖² = Σ_T w_i²·[Var(Z_i)·‖v_i − o‖² + E(Z_i²)·E‖e_i‖²] + ‖Σ_T w_i(1 − E Z_i)(v_i − o)‖²,
+
+and hence
+- E‖o − õ‖² ≤ E‖N‖²/M², always;
+- E‖o − õ‖² = E‖N‖²/Z² to first order in the fluctuation of Σ_T w̃_i.
+
+The coin moments are exact: E Z^k = ∏_j sinh(k·a_j)/(k·a_j)·e^{−k·ldb}, with a_j = scaling·|(Rq)_j|·D_i/2, and
+E‖e_i‖² = d_v·D_{v,i}²/12. For the unbiased tail E Z_i = 1 up to the debias interval, so the last term vanishes.
+*Proof:* N's summands are independent across rows. E[Z_i e_i] = E Z_i·E e_i = 0, because the key and value draws are
+independent. Expand the square. ∎ (`theory3_s1h5.second_moment`; the Monte Carlo check is in `test_theory3_s1h5.py`.)
+
+**Evidence** (`exp4bit_s1h5.py evaluate`; oracle_s1h5's setup, 200 draws, medians over head-steps). The columns:
+- the unread mass and the unread share of Σ w_i²‖v_i − o‖² (the vote's 1/8 read exactly);
+- the tail's MSE over a dense dithered tier's at 4-bit keys, predicted / measured;
+- measured MSE / Theorem M's first-order prediction at 4 / 6 / 8-bit keys;
+- the eviction error (the unread rows dropped) over FP8's.
+
+| view | unread mass | unread share of Σw²‖v−o‖² | tail / dense MSE (4-bit) | measured / predicted MSE | eviction / FP8 |
+|---|---|---|---|---|---|
+| Llama-1B L0 | 0.240 | 0.198 | 0.220 / 0.222 | 0.996 / 1.000 / 1.003 | 18.4 |
+| Llama-1B L1 | 0.024 | 0.0018 | 0.0186 / 0.0187 | 0.991 / 0.994 / 0.999 | 3.35 |
+| Llama-1B L3 | 0.029 | 0.0009 | 0.0095 / 0.0090 | 0.981 / 1.003 / 0.999 | 2.53 |
+| Llama-1B L1, 8K | 0.049 | 0.0015 | 0.0223 / 0.0226 | 0.990 / 1.002 / 1.002 | 6.03 |
+| GPT-OSS L1 | 0.121 | 0.199 | 0.227 / 0.229 | 0.922 / 0.995 / 1.001 | 8.58 |
+| Gemma 3 L5 | 0.772 | 0.655 | 0.663 / 0.663 | 1.000 / 1.001 / 1.001 | 89.9 |
+
+The first-order form is off by 8% only where σ ≈ 1 (GPT-OSS, 4-bit keys); the M² bound holds there too.
+
+**What it explains.**
+1. *Why reading the heavy rows exactly works.* The tier's noise enters through Σ_T w_i², the unread rows' share
+   of the attention's second moment, not through their mass. On Llama-1B L1:
+   - the vote leaves 2.4% of the mass unread, but 0.18% of Σ w_i²‖v_i − o‖²;
+   - the formula predicts the tail's MSE at 1.86% of a dense dithered 4-bit tier's; measured, 1.87%.
+
+   Where attention is flat, the share is large and the gain small. On Gemma 3's global layer L5 the vote leaves 77%
+   of the mass and 66% of the second moment unread; the tail's MSE is 66% of a dense tier's, and evicting instead
+   costs 90× FP8's error. The share is the predictor of whether the two tiers help, and it comes from one FP pass.
+2. *Why the tail beats eviction.* Eviction's error is a first-order bias ε_T(ō_T − ō_S) (Lemma 1). The tail's is a
+   standard deviation, about σ·ε_T·(spread)/√n_eff, which averages over the unread rows: on Llama-1B L1, n_eff ≈ 124.
+   Measured, eviction is 3.35× FP8's error and the 4-bit tail 0.52×.
+3. *Which bits a model needs.* The key term scales with Var Z ≈ σ² and the value term with E‖e‖²; the formula splits
+   them per model (§8, step 2; the RMS / FP8 table in §7).
+4. *A design calculator.* From one FP pass, the formula predicts the tail's MSE for any read set and any key and
+   value bits, with no dither draws.
+
+**MLA.** One latent draw makes both errors of a row. By joint symmetry E[cosh(δ_i)e_i] = 0 but E[sinh(δ_i)e_i] ≠ 0,
+so E[Z_i e_i] ≠ 0. This adds a mean term w_i·E[Z_i e_i] and the cross term 2·w_i²·E[(1 − Z_i)Z_i⟨u_i, e_i⟩]. Both have
+closed forms in the latent's uniform dither; not implemented.
+
+**Limit.** Theorem M is a second moment over the coins for a fixed cache. It explains and predicts the design's
+average accuracy; it is not a high-probability certificate (Theorem R is).
+
+## 11. Free-running decode: Lemma C and Theorem DD
+
+**Lemma C (layer by layer).** Assume:
+- each layer's tier-1 dither is drawn independently, and independently of the input;
+- the context's exact keys and values are computed before compression;
+- each layer's read set depends only on the input, coin-free side information and lower layers' coins.
+
+Then in a pass over any fixed token sequence (prefill or teacher forcing), layer ℓ's queries, fixed rows and read
+sets depend only on the dithers of layers below ℓ. So Theorem R (any version) holds for every head-step of layer ℓ
+with probability ≥ 1 − δ given those dithers, hence unconditionally, and a union over layers, positions and heads
+covers the whole pass.
+*Proof:* layer ℓ's query and fixed rows at a position come from the residual stream after layer ℓ − 1. Layer ℓ's
+own dither reaches the stream only through layer ℓ's outputs, which feed the layers above ℓ. ∎
+
+**Theorem DD (decode up to divergence).** Let y* be the exact model's decode: greedy, or sampled with the same
+sampling randomness the design uses. It does not depend on the dithers. With probability ≥ 1 − δ_total over all
+dithers, every head-step of every layer is within its certificate at every decode step t ≤ τ, where τ is the first
+step whose token differs from y*_τ.
+*Proof:* until τ, the free-running computation receives exactly the tokens y*_{<t} and the same coins as a
+teacher-forced pass over the fixed sequence y*. So its head-steps up to τ are head-steps of that pass, which Lemma C
+covers with total failure ≤ δ_total. ∎
+
+**Beyond the first divergence.** Run the same argument over every sequence that differs from the exact model's
+choice at ≤ k steps. It covers every step before the (k + 1)-th divergence, at a cost of ln|P_k| ≤ k·(ln N + ln|V|)
+in each event's log-probability (N decode steps, |V| the vocabulary): about +17 per divergence at N = 128 and
+|V| = 128K. That is affordable at 8-bit keys. At 4 bits the k = 0 statement is the useful one.
+
+**What it changes.** R2 is no longer an assumption for decode. The guarantee covers every run that reproduces the
+exact model's tokens (the "lossless" regime R6 tests) and, in every other run, all steps up to and including the
+first differing token. This agrees with `adaptive_s1h5.py`, where the dependence changed nothing measurable.
+
+## 12. Why 4-bit keys are not certified at FP8's level, and what would do it
+
+Setup: oracle_s1h5's: Llama-3.2-1B L1, 1,552 context rows, the vote's 1/8 exact, 16 queries × 32 heads, δ = 0.05.
+Details: `findings_4bit.md`.
+
+**Where v2's 201× comes from.** Counterfactuals that use true quantities (not certificates):
+
+| v2 with … | bound / oracle |
+|---|---|
+| nothing changed | 201 |
+| the true weights inside every max (Bennett's ranges, the self-bounds' maxima) | 19.6 |
+| the true self-bounded sums | 71.6 |
+| both | 11.3 |
+| both, and the true distances ‖v_i − c‖ | 9.8 |
+
+The tail is not one dominant row. At the median head-step the heaviest unread row carries 3.9% of the unread mass,
+and the unread rows are worth about 124 equal rows. What costs 10× is that every row's weight is known only up to
+e^{zσ} ≈ 7.5 (z ≈ 4.8, σ ≈ 0.42). This enters Bennett's range twice (the unknown weight × the range of Z) and the
+self-bounds' maxima squared.
+
+**The proposed remedies, made rigorous** (`exp4bit_s1h5.py remedies`; bound / oracle, coverage 1):
+
+| certificate | Llama-1B L1 | Llama-1B L3 |
+|---|---|---|
+| v2 | 201 | 217 |
+| truncation budget to the vote's sketch-heavy rows (share 0.5 / 0.9) | 143 / 133 | 159 / 149 |
+| heaviest rows (true weight > κM) in a deterministic term, κ = 0.01 / 0.001 / a grid of 7 | 153 / 124 / 121 | 188 / 154 / 154 |
+| both (grid + budget 0.9) | 98 | 126 |
+| v3 (one-row maxima, regrouped identity, χ² values) | 114.5 | 124 |
+
+Each recovers 1.4–2×, and they do not compound beyond about 2× (a side run of v3 with the sketch budget gave 105× on L1).
+- The deterministic term pays e^{t} − 1 per heavy row with no cancellation between rows: alone it is 52× the oracle.
+- The budget lowers z only from 4.8 to about 3.3 for the favoured rows, because z grows like √(ln 1/p).
+
+**The exact law of Z does not rescue Bennett.** Z = e^{−δ} is lognormal-like, and its moment generating function
+exists only because |δ| is bounded almost surely (≈ 11σ for d = 64). Computed rigorously (`exp4bit_s1h5.py lawcheck`, true
+weights, the dominant key sum):
+- untruncated, the exact-law exponent explodes at the λ the radius needs, so every Chernoff-type argument must
+  truncate every unread row;
+- truncated, the exact law improves on Bennett only 1.3× (6.9 vs 9.2 × the true 95% quantile), and only with per-row
+  scales (99× with one common scale).
+
+An earlier Monte Carlo estimate (2.2×) was optimistic: it never sampled the far tail.
+
+**The ceiling.** The oracle itself is at 0.74× FP8's error at the median head-step. A certificate at 2× the oracle
+would certify 34% of head-steps at FP8's level; at 5×, 7%; at 10×, 2.7%. So FP8-level certification at 4-bit keys
+needs a near-oracle certificate. At 6–8-bit keys σ is 4–16× smaller, e^{zσ} ≈ 1, and the same proof is 6–17× the
+oracle. That certifies 37–47% of Llama-1B L1/L3 head-steps at FP8's level with 8-bit keys (1.6K–8K rows). Per R5.4 (v1,
+Llama-8B, 128K), it certified 70–79% with 8-bit keys and 98–99% with 6-bit keys plus C/32 extra exact rows.
+
+**What would do it.** The information is there: the oracle certifies 62%. A two-point argument says a row that hides
+a weight e^{x} above its estimate must be covered only when P(δ ≥ x) > δ, that is, x ≤ σ√(2 ln 1/δ). So the best
+certificate pays one row's deviation (z ≈ 2.4), not the union's (z ≈ 4.8). Two candidate proof families:
+- *Truncation at the level of the summands* (Fuk–Nagaev style). Truncate w_i|1 − Z_i|·‖v_i − c‖ at one level y.
+  Its failure Σ_i P(w_i|1 − Z_i|·ρ_i > y) automatically falls on the rows that can exceed y. With the homogenisation
+  P(·) ≤ (s_i/U)²·P(|1 − Z| > y/U), it is bounded by a self-bounded Σ w²ρ² and one-row maxima. This is the rigorous
+  form of "give the budget to the heavy rows", with no sketch needed.
+- *Confidence-set inversion.* Take the sup of the error over all pivots δ' in a coin-free set of probability ≥ 1 − δ,
+  with the true weights reconstructed as w̃·e^{δ'+ldb}. Theorem R is one such set (truncation box ∩ concentration
+  events). A set shaped by the error itself would approach the oracle, if its sup can be computed.
+
+Until then, the actionable answers are on the design side: 6–8-bit tier-1 keys, or a few extra exact rows, make the
+certificate useful (§8, step 5), and Theorem M explains and predicts the 4-bit design's accuracy.
+
+## References
+
+- L. Schuchman, "Dither signals and their effect on quantization noise," IEEE Trans. Commun.
+  Technology, 1964.
+- I. Pinelis, "Optimum bounds for the distributions of martingales in Banach spaces," Ann. Probab. 22
+  (1994), Thm 3.4.
+- A. Maurer, "A bound on the deviation probability for sums of non-negative random variables,"
+  J. Inequal. Pure Appl. Math. 4 (2003).
+- B. Laurent and P. Massart, "Adaptive estimation of a quadratic functional by model selection," Ann. Statist. 28
+  (2000), Lemma 1.
+- S. V. Nagaev, "Large deviations of sums of independent random variables," Ann. Probab. 7 (1979) (truncation at the
+  level of the summands, §12).

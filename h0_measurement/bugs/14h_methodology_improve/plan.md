@@ -951,3 +951,26 @@ Seconds per unit for the six arms (prefill included): Llama 49–135, Qwen 25–
 `size_confirm_r5.py --r53 <every R5.3 block>` with the design added to `DESIGNS` and replace the
 planning table with its output (mechanical, no judgment); (3) decide whether Qwen 128K joins
 (R4's Qwen); (4) fix the prompt range and job layout; (5) freeze the reader before any R6 output.
+
+**2026-10-09: R5.3 read.** `findings/R5_3.md` (tables: `R5_3_reader.md`, reader job 1062547). All
+seven blocks are valid: 22773130 on Rorqual, and 1062541–1062546 on Trillium.
+- Exact values on the selected rows help (Q1).
+- `tail4x_v4` at 1/8 (traffic 0.344) is the only tail arm at FP8's KL level in every family. It is
+  as close to FP as FP's own rerun.
+- The 3-bit tail fails rag, re-ranking and aggregation; 2-bit tails are 2–70× FP8's KL.
+- At equal traffic, a 4-bit tier beats a 2-bit tier with more exact rows.
+
+*R6's selection rule as drafted selects nothing.* It requires point estimates within
+1.25 × FP8 + 2e-4 in every family and upper bounds in ≥ 3/4 of them. `fp_noise` (FP rerun) scores
+10/11 and 9/11 on that test, the same as `tail4x_v4`, so the draft margin is tighter than FP itself
+meets on Qwen.
+
+*Proposed (not adopted; for the user's decision before R6 is frozen):*
+- the design is `tail4x_v4` at 1/8;
+- the primary margin is 1.5 × FP8 + 5e-4, under which `fp_noise` passes 11/11 (point) and 10/11
+  (upper bound);
+- a calibration rule: the confirmatory reader also runs the test on `fp_noise`, and a family where
+  FP itself fails is reported as not testable rather than failed.
+
+Sizes at that margin: about 280 units for Llama 128K and 190 for Qwen 32K, ≈ 8 + 3.5 GPU-h for six
+arms plus loads (`findings/R5_sizing.md`, now pairing within blocks only).

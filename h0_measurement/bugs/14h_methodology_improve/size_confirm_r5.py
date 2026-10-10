@@ -33,7 +33,9 @@ R5_BLOCKS = [("h5llama128_r1", 1059655), ("h5llama128_r1", 1059656), ("h5llama12
              ("h5llama128_r3a", 1059658), ("h5llama128_r3b", 1059659), ("h5llama128_hm", 1059660),
              ("h5qwen32_r2", 1059662), ("h5qwen32_r3a", 1059663), ("h5qwen32_r3a", 1059664),
              ("h5qwen32_r3b", 1059665)]               # R5's valid blocks (lbv2 1059661 failed V)
-R53_BLOCKS = [("h53llama128_r1", 22773130)]
+R53_BLOCKS = [("h53llama128_r1", 22773130), ("h53llama128_r3a", 1062541), ("h53llama128_r3b", 1062542),
+              ("h53llama128_hm", 1062543), ("h53qwen32_r2", 1062544), ("h53qwen32_r3a", 1062545),
+              ("h53qwen32_r3b", 1062546)]      # R5.3, every block (all valid: findings/R5_3_reader.md)
 DESIGNS = [("qread2t4kqT_v4", 0.125), ("tail4x_v4", 0.125), ("tail3x_v3", 0.125), ("tail2x_v2", 0.125),
            ("tail2x_v2", 0.25)]                       # R5's tail arm (= tail4_v4) and R5.3's candidates
 REFS = [("uniform+v4", 4.0), ("kivi4_v4", 4.0)]      # baselines, for the plan's secondary comparisons
@@ -55,8 +57,11 @@ def load(blocks):
             continue
         side = json.load(open(sp[0]))
         x = pd.read_parquet(os.path.join(d, side["parquet"]))
-        x = x.assign(model=side["model"], cell=tag.split("_")[1], family=x.task.map(R.FAMILY))
-        parts.append(x[["model", "cell", "family"] + U + ["arm", "B", "kl_span_tok", "a_span_nll_tok", "score"]])
+        # pairs are made within one block (one process: forward passes are not reproducible across processes;
+        # R5 and R5.3 share prompts, so the cell alone would pair a design with another run's FP8)
+        x = x.assign(model=side["model"], cell=f"{tag}_{job}", src="r53" if tag.startswith("h53") else "r5",
+                     family=x.task.map(R.FAMILY))
+        parts.append(x[["model", "cell", "src", "family"] + U + ["arm", "B", "kl_span_tok", "a_span_nll_tok", "score"]])
         six = x[x.arm.isin(SIX_ARMS)]
         t6 = six.assign(t=six.t_arm.fillna(0) + six.t_tf.fillna(0)).groupby(U).t.sum()
         pre = x.groupby(U).agg(p=("t_prefill", "first"), c=("t_precompute", "first"))
@@ -66,8 +71,11 @@ def load(blocks):
 
 
 def paired(rows, arm, B, rho):
-    """Per unit: y = KL_d - rho KL_FP8, dKL, accuracy change on FP-correct units, per model x family."""
+    """Per unit: y = KL_d - rho KL_FP8, dKL, accuracy change on FP-correct units, per model x family; each unit
+    paired with FP8 from its own block. R5.3's tail5 arms come from R5.3's blocks, every other arm from R5's
+    (R5.3 reruns R5's prompts, so using both would count those units twice)."""
     out = {}
+    rows = rows[rows.src == ("r53" if arm.startswith("tail") else "r5")]
     for (m, f), g in rows.groupby(["model", "family"]):
         a = g[(g.arm == arm) & np.isclose(g.B, B)].drop_duplicates(["cell"] + U).set_index(["cell"] + U)
         e = g[g.arm == "fp8kv"].drop_duplicates(["cell"] + U).set_index(["cell"] + U)
@@ -233,7 +241,7 @@ def _write(res, stem):
         if not gs:
             continue
         L += [f"## {arm}@{B:g} (margin {rho0} × FP8 + {k0})", "",
-              "| model | family | R5 units | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |",
+              "| model | family | units seen | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |",
               "|---|---|---|---|---|---|---|---|---|---|---|"]
         for g in gs:
             L.append(f"| {g['model']} | {g['family']} | {g['m']} | {g['kl_d']:.4f} | {g['kl_fp8']:.4f} | {g['mean_y']:+.4f} | "

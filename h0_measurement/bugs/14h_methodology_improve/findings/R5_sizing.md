@@ -1,6 +1,6 @@
 # R5 → the confirmatory campaign's size (draft input to plan.md amendment "R6 (draft)")
 
-`size_confirm_r5.py`; R5's valid blocks and R5.3's finished ones (h53llama128_r1_22773130). Claim per model × family: mean KL/token(design) < 1.25 × mean KL/token(FP8) + 0.0002 (one-sided α = 0.05, unit bootstrap upper bound, paired per unit); all families of a model must pass (intersection–union: no multiplicity correction, so each family is powered at 0.8^(1/K)).
+`size_confirm_r5.py`; R5's valid blocks and R5.3's finished ones (h53llama128_r1_22773130, h53llama128_r3a_1062541, h53llama128_r3b_1062542, h53llama128_hm_1062543, h53qwen32_r2_1062544, h53qwen32_r3a_1062545, h53qwen32_r3b_1062546). Claim per model × family: mean KL/token(design) < 1.25 × mean KL/token(FP8) + 0.0002 (one-sided α = 0.05, unit bootstrap upper bound, paired per unit); all families of a model must pass (intersection–union: no multiplicity correction, so each family is powered at 0.8^(1/K)).
 Units are prompt × task units of the R5 cells (R5 used 5–20 per group). n_sim draws units from R5's own per-unit differences, so a group with few or tied units gives a coarse answer; n_cons uses the SD at its 80% upper confidence limit and the mean at its 80% upper bound. ∞ = R5's mean already misses the margin (non-inferiority not expected to hold there).
 
 ## qread2t4kqT_v4@0.125 (margin 1.25 × FP8 + 0.0002)
@@ -26,41 +26,77 @@ Units are prompt × task units of the R5 cells (R5 used 5–20 per group). n_sim
 
 | model | family | R5 units | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |
 |---|---|---|---|---|---|---|---|---|---|---|
-| llama31-8b | multivalue | 3 | 0.0005 | 0.0019 | -0.0019 | 0.0008 | 0.969 | 5 | 15 | — |
-| llama31-8b | retrieval | 6 | 0.0001 | 0.0003 | -0.0003 | 0.0005 | 0.969 | 15 | 93 | 10 |
-| llama31-8b | tracking | 3 | 0.0004 | 0.0024 | -0.0026 | 0.0015 | 0.969 | 5 | 32 | — |
+| llama31-8b | aggregation | 8 | 0.0006 | 0.0006 | -0.0002 | 0.0007 | 0.969 | 41 | 409 | 40 |
+| llama31-8b | icl | 10 | 0.0003 | 0.0035 | -0.0041 | 0.0061 | 0.969 | 25 | 113 | 10 |
+| llama31-8b | multivalue | 8 | 0.0005 | 0.0044 | -0.0049 | 0.0044 | 0.969 | 9 | 31 | 10 |
+| llama31-8b | rag | 10 | 0.0012 | 0.0024 | -0.0018 | 0.0014 | 0.969 | 6 | 15 | 10 |
+| llama31-8b | rerank | 5 | 0.0098 | 0.0078 | +0.0000 | 0.0070 | 0.969 | 15686 | ∞ | ∞ |
+| llama31-8b | retrieval | 16 | 0.0001 | 0.0004 | -0.0005 | 0.0008 | 0.969 | 17 | 43 | 10 |
+| llama31-8b | tracking | 8 | 0.0004 | 0.0026 | -0.0028 | 0.0013 | 0.969 | 5 | 6 | 10 |
+| qwen3-30b-a3b-2507 | aggregation | 10 | 0.0021 | 0.0029 | -0.0015 | 0.0012 | 0.946 | 6 | 15 | 10 |
+| qwen3-30b-a3b-2507 | multivalue | 8 | 0.0008 | 0.0003 | +0.0004 | 0.0008 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | retrieval | 16 | 0.0000 | 0.0000 | -0.0000 | 0.0000 | 0.946 | 5 | 5 | 10 |
+| qwen3-30b-a3b-2507 | tracking | 8 | 0.0005 | 0.0016 | -0.0015 | 0.0020 | 0.946 | 16 | 73 | 10 |
 
-- **llama31-8b**: planned units 40 over 3 families (multivalue 10, retrieval 20, tracking 10); 6-arm GPU time ≈ 1.1 h + model loads; no R5.3 data yet for aggregation, icl, rag, rerank
+- **llama31-8b**: planned units ∞ over 7 families (aggregation 50, icl 30, multivalue 10, rag 10, rerank ∞, retrieval 20, tracking 10); 6-arm GPU time ≈ 3.5 h + model loads
+- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation 10, multivalue ∞, retrieval 10, tracking 20); 6-arm GPU time ≈ 0.4 h + model loads
 
 ## tail3x_v3@0.125 (margin 1.25 × FP8 + 0.0002)
 
 | model | family | R5 units | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |
 |---|---|---|---|---|---|---|---|---|---|---|
-| llama31-8b | multivalue | 3 | 0.0015 | 0.0019 | -0.0009 | 0.0019 | 0.969 | 37 | ∞ | — |
-| llama31-8b | retrieval | 6 | 0.0001 | 0.0003 | -0.0003 | 0.0006 | 0.969 | 20 | 147 | 10 |
-| llama31-8b | tracking | 3 | 0.0006 | 0.0024 | -0.0025 | 0.0015 | 0.969 | 5 | 37 | — |
+| llama31-8b | aggregation | 8 | 0.0020 | 0.0006 | +0.0012 | 0.0008 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | icl | 10 | 0.0021 | 0.0035 | -0.0023 | 0.0048 | 0.969 | 47 | 377 | 30 |
+| llama31-8b | multivalue | 8 | 0.0012 | 0.0044 | -0.0043 | 0.0045 | 0.969 | 13 | 49 | 10 |
+| llama31-8b | rag | 10 | 0.0057 | 0.0024 | +0.0027 | 0.0102 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | rerank | 5 | 0.0346 | 0.0078 | +0.0248 | 0.0449 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | retrieval | 16 | 0.0001 | 0.0004 | -0.0005 | 0.0008 | 0.969 | 18 | 47 | 10 |
+| llama31-8b | tracking | 8 | 0.0008 | 0.0026 | -0.0023 | 0.0013 | 0.969 | 5 | 8 | 10 |
+| qwen3-30b-a3b-2507 | aggregation | 10 | 0.0177 | 0.0029 | +0.0141 | 0.0167 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | multivalue | 8 | 0.0009 | 0.0003 | +0.0005 | 0.0020 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | retrieval | 16 | 0.0000 | 0.0000 | +0.0000 | 0.0001 | 0.946 | 5 | 5 | 10 |
+| qwen3-30b-a3b-2507 | tracking | 8 | 0.0029 | 0.0016 | +0.0009 | 0.0036 | 0.946 | ∞ | ∞ | ∞ |
 
-- **llama31-8b**: planned units 70 over 3 families (multivalue 40, retrieval 20, tracking 10); 6-arm GPU time ≈ 2.1 h + model loads; no R5.3 data yet for aggregation, icl, rag, rerank
+- **llama31-8b**: planned units ∞ over 7 families (aggregation ∞, icl 50, multivalue 20, rag ∞, rerank ∞, retrieval 20, tracking 10); 6-arm GPU time ≈ 2.1 h + model loads
+- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation ∞, multivalue ∞, retrieval 10, tracking ∞); 6-arm GPU time ≈ 0.1 h + model loads
 
 ## tail2x_v2@0.125 (margin 1.25 × FP8 + 0.0002)
 
 | model | family | R5 units | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |
 |---|---|---|---|---|---|---|---|---|---|---|
-| llama31-8b | multivalue | 3 | 0.0104 | 0.0019 | +0.0080 | 0.0048 | 0.969 | ∞ | ∞ | — |
-| llama31-8b | retrieval | 6 | 0.0001 | 0.0003 | -0.0002 | 0.0005 | 0.969 | 19 | 135 | 10 |
-| llama31-8b | tracking | 3 | 0.0028 | 0.0024 | -0.0002 | 0.0014 | 0.969 | 129 | ∞ | — |
+| llama31-8b | aggregation | 8 | 0.0158 | 0.0006 | +0.0151 | 0.0088 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | icl | 10 | 0.0189 | 0.0035 | +0.0146 | 0.0146 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | multivalue | 8 | 0.0112 | 0.0044 | +0.0057 | 0.0068 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | rag | 10 | 0.0453 | 0.0024 | +0.0423 | 0.0942 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | rerank | 5 | 0.1203 | 0.0078 | +0.1106 | 0.1585 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | retrieval | 16 | 0.0003 | 0.0004 | -0.0002 | 0.0009 | 0.969 | 60 | 316 | 60 |
+| llama31-8b | tracking | 8 | 0.0049 | 0.0026 | +0.0017 | 0.0021 | 0.969 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | aggregation | 10 | 0.2009 | 0.0029 | +0.1973 | 0.3040 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | multivalue | 8 | 0.0062 | 0.0003 | +0.0058 | 0.0095 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | retrieval | 16 | 0.0001 | 0.0000 | +0.0001 | 0.0001 | 0.946 | 17 | 44 | 20 |
+| qwen3-30b-a3b-2507 | tracking | 8 | 0.0284 | 0.0016 | +0.0264 | 0.0132 | 0.946 | ∞ | ∞ | ∞ |
 
-- **llama31-8b**: planned units ∞ over 3 families (multivalue ∞, retrieval 20, tracking 130); 6-arm GPU time ≈ 5.2 h + model loads; no R5.3 data yet for aggregation, icl, rag, rerank
+- **llama31-8b**: planned units ∞ over 7 families (aggregation ∞, icl ∞, multivalue ∞, rag ∞, rerank ∞, retrieval 60, tracking ∞); 6-arm GPU time ≈ 1.0 h + model loads
+- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation ∞, multivalue ∞, retrieval 20, tracking ∞); 6-arm GPU time ≈ 0.1 h + model loads
 
 ## tail2x_v2@0.25 (margin 1.25 × FP8 + 0.0002)
 
 | model | family | R5 units | KL/tok design | KL/tok FP8 | mean y | SD y | power/family | n normal | n cons | n sim |
 |---|---|---|---|---|---|---|---|---|---|---|
-| llama31-8b | multivalue | 3 | 0.0059 | 0.0019 | +0.0035 | 0.0032 | 0.969 | ∞ | ∞ | — |
-| llama31-8b | retrieval | 6 | 0.0001 | 0.0003 | -0.0002 | 0.0005 | 0.969 | 18 | 118 | 10 |
-| llama31-8b | tracking | 3 | 0.0018 | 0.0024 | -0.0013 | 0.0015 | 0.969 | 14 | 380 | — |
+| llama31-8b | aggregation | 8 | 0.0082 | 0.0006 | +0.0074 | 0.0040 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | icl | 10 | 0.0096 | 0.0035 | +0.0052 | 0.0068 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | multivalue | 8 | 0.0056 | 0.0044 | +0.0002 | 0.0051 | 0.969 | 170891 | ∞ | ∞ |
+| llama31-8b | rag | 10 | 0.0351 | 0.0024 | +0.0321 | 0.0866 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | rerank | 5 | 0.1066 | 0.0078 | +0.0968 | 0.1616 | 0.969 | ∞ | ∞ | ∞ |
+| llama31-8b | retrieval | 16 | 0.0001 | 0.0004 | -0.0004 | 0.0008 | 0.969 | 20 | 55 | 10 |
+| llama31-8b | tracking | 8 | 0.0025 | 0.0026 | -0.0007 | 0.0013 | 0.969 | 30 | 213 | 30 |
+| qwen3-30b-a3b-2507 | aggregation | 10 | 0.1093 | 0.0029 | +0.1057 | 0.1774 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | multivalue | 8 | 0.0081 | 0.0003 | +0.0077 | 0.0108 | 0.946 | ∞ | ∞ | ∞ |
+| qwen3-30b-a3b-2507 | retrieval | 16 | 0.0001 | 0.0000 | +0.0001 | 0.0001 | 0.946 | 5 | 8 | 10 |
+| qwen3-30b-a3b-2507 | tracking | 8 | 0.0107 | 0.0016 | +0.0087 | 0.0049 | 0.946 | ∞ | ∞ | ∞ |
 
-- **llama31-8b**: planned units ∞ over 3 families (multivalue ∞, retrieval 20, tracking 20); 6-arm GPU time ≈ 1.1 h + model loads; no R5.3 data yet for aggregation, icl, rag, rerank
+- **llama31-8b**: planned units ∞ over 7 families (aggregation ∞, icl ∞, multivalue ∞, rag ∞, rerank ∞, retrieval 20, tracking 30); 6-arm GPU time ≈ 1.5 h + model loads
+- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation ∞, multivalue ∞, retrieval 10, tracking ∞); 6-arm GPU time ≈ 0.1 h + model loads
 
 ## uniform+v4@4 (margin 1.25 × FP8 + 0.0002)
 
@@ -98,7 +134,7 @@ Units are prompt × task units of the R5 cells (R5 used 5–20 per group). n_sim
 | qwen3-30b-a3b-2507 | tracking | 20 | 0.0019 | 0.0013 | +0.0003 | 0.0019 | 0.946 | ∞ | ∞ | ∞ |
 
 - **llama31-8b**: planned units ∞ over 7 families (aggregation ∞, icl 60, multivalue ∞, rag ∞, rerank ∞, retrieval ∞, tracking ∞); 6-arm GPU time ≈ 0.8 h + model loads
-- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation 480, multivalue ∞, retrieval 10, tracking ∞); 6-arm GPU time ≈ 4.5 h + model loads
+- **qwen3-30b-a3b-2507**: planned units ∞ over 4 families (aggregation 480, multivalue ∞, retrieval 10, tracking ∞); 6-arm GPU time ≈ 4.3 h + model loads
 
 ## Sensitivity to the margin (normal approximation, point estimates; units per family)
 
@@ -115,18 +151,50 @@ Units are prompt × task units of the R5 cells (R5 used 5–20 per group). n_sim
 | qread2t4kqT_v4@0.125 | qwen3-30b-a3b-2507 | multivalue | 4544 | ∞ | 20 |
 | qread2t4kqT_v4@0.125 | qwen3-30b-a3b-2507 | retrieval | 5 | 5 | 5 |
 | qread2t4kqT_v4@0.125 | qwen3-30b-a3b-2507 | tracking | ∞ | ∞ | ∞ |
-| tail4x_v4@0.125 | llama31-8b | multivalue | 5 | 5 | 5 |
-| tail4x_v4@0.125 | llama31-8b | retrieval | 15 | 13 | 7 |
+| tail4x_v4@0.125 | llama31-8b | aggregation | 41 | 99 | 10 |
+| tail4x_v4@0.125 | llama31-8b | icl | 25 | 25 | 22 |
+| tail4x_v4@0.125 | llama31-8b | multivalue | 9 | 10 | 9 |
+| tail4x_v4@0.125 | llama31-8b | rag | 6 | 9 | 5 |
+| tail4x_v4@0.125 | llama31-8b | rerank | 15686 | ∞ | 96 |
+| tail4x_v4@0.125 | llama31-8b | retrieval | 17 | 16 | 10 |
 | tail4x_v4@0.125 | llama31-8b | tracking | 5 | 5 | 5 |
-| tail3x_v3@0.125 | llama31-8b | multivalue | 37 | 104 | 14 |
-| tail3x_v3@0.125 | llama31-8b | retrieval | 20 | 18 | 9 |
+| tail4x_v4@0.125 | qwen3-30b-a3b-2507 | aggregation | 6 | 8 | 5 |
+| tail4x_v4@0.125 | qwen3-30b-a3b-2507 | multivalue | ∞ | ∞ | 94 |
+| tail4x_v4@0.125 | qwen3-30b-a3b-2507 | retrieval | 5 | 5 | 5 |
+| tail4x_v4@0.125 | qwen3-30b-a3b-2507 | tracking | 16 | 17 | 12 |
+| tail3x_v3@0.125 | llama31-8b | aggregation | ∞ | ∞ | ∞ |
+| tail3x_v3@0.125 | llama31-8b | icl | 47 | 68 | 33 |
+| tail3x_v3@0.125 | llama31-8b | multivalue | 13 | 15 | 11 |
+| tail3x_v3@0.125 | llama31-8b | rag | ∞ | ∞ | ∞ |
+| tail3x_v3@0.125 | llama31-8b | rerank | ∞ | ∞ | ∞ |
+| tail3x_v3@0.125 | llama31-8b | retrieval | 18 | 17 | 10 |
 | tail3x_v3@0.125 | llama31-8b | tracking | 5 | 5 | 5 |
+| tail3x_v3@0.125 | qwen3-30b-a3b-2507 | aggregation | ∞ | ∞ | ∞ |
+| tail3x_v3@0.125 | qwen3-30b-a3b-2507 | multivalue | ∞ | ∞ | 5937 |
+| tail3x_v3@0.125 | qwen3-30b-a3b-2507 | retrieval | 5 | 5 | 5 |
+| tail3x_v3@0.125 | qwen3-30b-a3b-2507 | tracking | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | llama31-8b | aggregation | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | llama31-8b | icl | ∞ | ∞ | ∞ |
 | tail2x_v2@0.125 | llama31-8b | multivalue | ∞ | ∞ | ∞ |
-| tail2x_v2@0.125 | llama31-8b | retrieval | 19 | 17 | 8 |
-| tail2x_v2@0.125 | llama31-8b | tracking | 129 | ∞ | 19 |
-| tail2x_v2@0.25 | llama31-8b | multivalue | ∞ | ∞ | ∞ |
-| tail2x_v2@0.25 | llama31-8b | retrieval | 18 | 16 | 8 |
-| tail2x_v2@0.25 | llama31-8b | tracking | 14 | 27 | 7 |
+| tail2x_v2@0.125 | llama31-8b | rag | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | llama31-8b | rerank | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | llama31-8b | retrieval | 60 | 83 | 20 |
+| tail2x_v2@0.125 | llama31-8b | tracking | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | qwen3-30b-a3b-2507 | aggregation | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | qwen3-30b-a3b-2507 | multivalue | ∞ | ∞ | ∞ |
+| tail2x_v2@0.125 | qwen3-30b-a3b-2507 | retrieval | 17 | 17 | 5 |
+| tail2x_v2@0.125 | qwen3-30b-a3b-2507 | tracking | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | llama31-8b | aggregation | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | llama31-8b | icl | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | llama31-8b | multivalue | 170891 | ∞ | 205 |
+| tail2x_v2@0.25 | llama31-8b | rag | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | llama31-8b | rerank | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | llama31-8b | retrieval | 20 | 19 | 11 |
+| tail2x_v2@0.25 | llama31-8b | tracking | 30 | 333 | 9 |
+| tail2x_v2@0.25 | qwen3-30b-a3b-2507 | aggregation | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | qwen3-30b-a3b-2507 | multivalue | ∞ | ∞ | ∞ |
+| tail2x_v2@0.25 | qwen3-30b-a3b-2507 | retrieval | 5 | 5 | 5 |
+| tail2x_v2@0.25 | qwen3-30b-a3b-2507 | tracking | ∞ | ∞ | ∞ |
 | uniform+v4@4 | llama31-8b | aggregation | ∞ | ∞ | 100 |
 | uniform+v4@4 | llama31-8b | icl | ∞ | ∞ | 1283 |
 | uniform+v4@4 | llama31-8b | multivalue | ∞ | ∞ | ∞ |
@@ -167,14 +235,14 @@ Units are prompt × task units of the R5 cells (R5 used 5–20 per group). n_sim
 
 | model | family | s / unit |
 |---|---|---|
-| llama31-8b | aggregation | 132 |
-| llama31-8b | icl | 49 |
-| llama31-8b | multivalue | 125 |
-| llama31-8b | rag | 70 |
-| llama31-8b | rerank | 121 |
+| llama31-8b | aggregation | 128 |
+| llama31-8b | icl | 48 |
+| llama31-8b | multivalue | 129 |
+| llama31-8b | rag | 69 |
+| llama31-8b | rerank | 114 |
 | llama31-8b | retrieval | 62 |
-| llama31-8b | tracking | 135 |
-| qwen3-30b-a3b-2507 | aggregation | 33 |
-| qwen3-30b-a3b-2507 | multivalue | 93 |
+| llama31-8b | tracking | 141 |
+| qwen3-30b-a3b-2507 | aggregation | 32 |
+| qwen3-30b-a3b-2507 | multivalue | 91 |
 | qwen3-30b-a3b-2507 | retrieval | 25 |
-| qwen3-30b-a3b-2507 | tracking | 48 |
+| qwen3-30b-a3b-2507 | tracking | 47 |

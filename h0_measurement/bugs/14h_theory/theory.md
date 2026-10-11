@@ -1,4 +1,4 @@
-# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–7)
+# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8)
 
 This file states what is proved about the two-tier KV design, under which assumptions, and how
 strong each result is in practice. **Every R14 theory update goes in this folder** (since 2026-10-10; `CLAUDE.md`).
@@ -10,10 +10,11 @@ randomized tier). This folder:
 - `adapters_s1h5.py`: the architectures;
 - `adaptive_s1h5.py` and `oracle_s1h5.py`: the adaptive-query and oracle-width experiments;
 - part 6: `theory3_s1h5.py` (Theorem R v3, Theorem M) and `exp4bit_s1h5.py` (the 4-bit study);
-- part 7: `theory4_s1h5.py` (the sure-sum bound, the mirror split, the certified adaptive read).
+- part 7: `theory4_s1h5.py` (the sure-sum bound, the mirror split, the certified adaptive read);
+- part 8: `theory5_s1h5.py` (the tilted tail, the Hsu–Kakade–Zhang key sum and its proxies).
 
-Findings: `findings/` (`findings_4bit`, `findings_part7`, `R5_adapters`, `R5_theory_mla`). Tests here:
-`test_theory_s1h5.py`, `test_theory3_s1h5.py`, `test_theory4_s1h5.py`, `test_adapters_s1h5.py`; the run-time bounds'
+Findings: `findings/` (`findings_4bit`, `findings_part7`, `findings_part8`, `R5_adapters`, `R5_theory_mla`). Tests here:
+`test_theory_s1h5.py`, `test_theory3_s1h5.py`, `test_theory4_s1h5.py`, `test_theory5_s1h5.py`, `test_adapters_s1h5.py`; the run-time bounds'
 brute force is `../14h_methodology_improve/test_r14_stage1h_r5.py`. Run records: `../14h_methodology_improve/plan.md`,
 amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 
@@ -27,8 +28,9 @@ amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 | Lemmas 3–4: tail error, deterministic | every input | as Lemma 2, plus value-error norms | no: they carry e^b with b ≈ 8 nats |
 | Lemma 5: tail error, concentration | inputs that fit an error model | zero-mean, independent tier-1 errors | ≈ 15–60× tight, but real keys break the model |
 | **Theorem R** (v3): tail error, randomized tier | **every input and model** | read rows don't see tier 1's coins; seed independent of the input | with 6–8-bit tier-1 keys: 6–17× the best possible certificate (GPT-OSS at 6 bits: 39×) (§7); at 4 bits ≈ 50–160× on Llama, 12× on Gemma 3, ≈ 7,500× on GPT-OSS |
-| **Part 7: sure sums, the mirror split** (§6c–§6d) | every input; the split needs independent key and value dithers (GQA) | as Theorem R | the tightest certificates at 6–8 bits: Llama-1B 8-bit 5.6–5.7× the error (v3: 9.8–10.4×); 4-bit: v3 with sure sums is best (≈ 480–500×), still far from FP8 |
-| **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide: at 8-bit keys, FP8's per-head error at traffic 0.46–0.49 on Llama-1B L1–L3 (§7) |
+| **Part 7: sure sums, the mirror split** (§6c–§6d) | every input; the split needs independent key and value dithers (GQA) | as Theorem R | Llama-1B 8-bit 5.6–5.7× the error (v3: 9.8–10.4×); 6-bit about 18× |
+| **Part 8: the tilted tail, a Hsu–Kakade–Zhang key sum** (§6f–§6g) | every input; GQA (as the split) | as Theorem R | the tightest certificates at every width: Llama-1B 6-bit 6.7–7.3× the error (split 17–19×), 0.41–0.59 of head-steps certified at FP8's level (split 0.13–0.21); 8-bit 2.0–2.6× (0.89–0.95 certified on L1/L3); 4-bit 92–554×, still far from FP8 |
+| **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide. With part 8's bound and FP8's per-head error as an (oracle) target: traffic 0.456–0.460 at 8-bit keys (the oracle stop is 0.453) and 0.433–0.499 at 6-bit keys on Llama-1B L1/L3 at 1.6K–8K (FP8: 0.50) (§7) |
 | **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA adds a cross term) | as Theorem R | predicts the measured MSE within 2% on every layer tested, 8% for GPT-OSS at 4-bit keys (§10); explains why the design works and which bits a model needs |
 | **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
 
@@ -311,6 +313,108 @@ The coins may decide *how many* sets are read, but not *which* sets. The price i
 This certifies a controller that reads more only where the bound is loose. §9's open threshold rule ("read every row
 with w̃_i > θ") is the harder case where the sets themselves depend on the coins.
 
+**Part 8 (2026-10-10; `theory5_s1h5.py`, tests `test_theory5_s1h5.py`, findings `findings/findings_part8.md`).** Two
+changes to the split (§6d), each valid on its own. Together they take 6-bit keys from about 18× the error to about 7×
+(§7, part 8 table). Notation: Z_i = w̃_i/w_i = e^{−δ_i − ldb_i}; t_i the truncation level; Z̃_i = e^{−clip(δ_i, ±t_i) − ldb_i}
+(= Z_i on the truncation event); σ_i² = Var δ_i.
+
+**§6f. The tilted tail.** Every version so far bounds E[Z_i; |δ_i| > t_i] by Cauchy–Schwarz, √(E Z_i²·p_i) ≈ √p_i.
+At δ = 10⁻³ and |T| = 1,400 that is 6·10⁻⁴ per row. It enters every row's bias κ_i and adds 1.2·10⁻³ to Bennett's
+variance, which is more than σ² itself at 8-bit keys (σ² ≈ 6·10⁻⁴). A Chernoff bound on the tilted tail is of order
+p_i instead. For λ ≥ 0, 1{x > t} ≤ e^{λ(x − t)}; with x = −δ (proxy σ²) and λ = t/σ² − 1:
+
+  E[e^{−δ}; −δ > t] ≤ e^{t − t²/(2σ²)},  E[e^{−δ}; δ > t] ≤ e^{−t}·e^{−t²/(2σ²)}.
+
+Call their sum, times e^{−ldb}, τ_i. Then:
+- E[Z | |δ| ≤ t] ≥ E Z − τ;
+- Var(Z | |δ| ≤ t) ≤ E(Z − 1)²/P(|δ| ≤ t);
+- E Z̃ ∈ [E Z − τ, E Z + τ].
+
+That alone takes the split from 5.8× to 4.7× the error at 8-bit keys (Llama-1B L1).
+
+**§6g. The key sum by Hsu–Kakade–Zhang.** Given the value coins, K − E K̃ = −Σ_i w_i(Z̃_i − E Z̃_i)·u_i, with u_i = v̂_i − c
+fixed. This is a sum of independent scalars along fixed vectors, so HKZ (2012, Thm 1) applies once each Z̃_i − E Z̃_i
+has a sub-Gaussian proxy s_i²:
+
+  ‖K − E K̃‖² ≤ tr M + 2√(‖M‖_F²·x) + 2‖M‖_op·x  with probability ≥ 1 − e^{−x},  M = Σ_i w_i²s_i²·u_i u_iᵀ.
+
+The radius increases with every w_i in the Loewner order, so on the truncation event the sure weights w̄_i (§6c) may
+replace w_i. The true M is fixed given the value coins, so the HKZ event is about a fixed matrix. The weight sum
+Σ_T D_i is the scalar case: mean + √(2 ln(2/δ')·Σ w̄²s²). Against Bennett, HKZ has no range term (Bennett's range is
+w̄(e^t − 1)‖u‖, which dominates when one row carries the sum) and uses the key term's dimension. That is the
+"Hanson–Wright-type" step §9 asked for. Two proxies:
+
+*(P-LSI, closed form.)* s_i² = e^{−2ldb_i}·σ_i²·(1 + c_L(e^{t_i} − 1))², with c_L = √12/π. Proof:
+- write e^{−y} = 1 − y + r(y) with y = clip(δ);
+- clip(δ) is symmetric with |clip δ| ≤ |δ|, so E e^{λ clip δ} = E cosh(λ clip δ) ≤ E e^{λδ} ≤ e^{λ²σ²/2};
+- r(clip δ) is (e^t − 1)·scaling‖q‖-Lipschitz in the rotated key error, which is uniform on the cube of side D;
+- the uniform law on [0, 1] satisfies Ent(f²) ≤ (2/π²)E f′². This is the circle's sharp log-Sobolev inequality
+  (Weissler 1980; constant = spectral gap) carried over by even extension. It tensorizes to Ent ≤ 2(D²/π²)E|∇f|² on
+  the cube, and Herbst's argument then gives proxy (12/π²)σ²(e^t − 1)² for r;
+- square roots of proxies add (Hölder).
+
+It is tight as t → 0 (8-bit keys: 1.36σ²). It is loose when t is large: 3.3σ² at 6 bits, 129σ² at 4 bits.
+
+*(P-exact, numerically rigorous; `exact_key_proxy`.)* The law of δ_i is exact:
+- δ_i = Σ_j a_ij U_j, with U_j uniform on [−1, 1] and a_ij = scaling·|(Rq)_j|·D_i/2;
+- L(κ) = log E e^{κδ} = Σ_j log(sinh(κa_j)/(κa_j)) is known in closed form.
+
+λ < 0: one-sided Herbst. Since |∇Z̃| ≤ Z̃·scaling‖q‖, the log-Sobolev inequality gives
+Ent(e^{θZ̃}) ≤ (θ²/2)(12/π²)σ² E[Z̃²e^{θZ̃}]. For θ < 0, Z̃² and e^{θZ̃} move in opposite directions (Chebyshev), so
+this is ≤ (θ²/2)(12/π²)σ² E Z̃²·E e^{θZ̃}. Integrating Herbst's (H/θ)′ over [λ, 0] gives proxy (12/π²)σ²·E Z̃² ≈ 1.22σ²
+for every λ < 0, with no clip penalty.
+
+λ > 0: E e^{λZ̃} ≤ Σ_k (λ^k/k!)·E[Z^k; δ ≥ −t] + (e^{λe^{t−ldb}} + e^{λe^{−t−ldb}})·P(δ < −t). Each piece comes from L:
+- let κ* solve L′(κ*) = t (any κ ≥ 0 gives a valid bound);
+- for k ≤ κ*, E[e^{−kδ}; δ ≥ −t] ≤ e^{L(k)};
+- for k > κ*, E[e^{−kδ}; δ ≥ −t] ≤ e^{L(κ*) + (k − κ*)t}·min(1, 1/((k − κ*)√L″(κ*)));
+- P(δ < −t) ≤ e^{L(κ*) − κ*t}·min(1, 1/(κ*√L″(κ*))).
+
+The factors 1/(c√L″) hold because a tilted uniform sum is log-concave, so its density is at most 1/(its standard
+deviation) (Bobkov–Chistyakov). The series' tail uses Z ≤ e^{t − ldb} on δ ≥ −t. Then ψ(λ) = log E e^{λZ̃} − λE Z̃ is
+convex, and the supremum of 2ψ/λ² comes in three ranges:
+- on a grid of λσ in [10⁻², 20], below chords between grid points;
+- below the grid, ψ ≤ (λ²/2)·Var Z̃·e^{λ₁(Zmax − E Z̃)};
+- above it, ψ ≤ λ(Zmax − E Z̃).
+
+Every step is an inequality, so the result is a valid proxy for every row; floating point is the only approximation.
+Against the optimum sup_λ 2ψ/λ² computed by convolution (64 channels, z = 5.6):
+- σ = 0.1 (6-bit): 1.68σ² against 1.57σ² (P-LSI 3.32σ²);
+- σ = 0.42 (4-bit): 14.0σ² against 13.3σ² (P-LSI 129σ²);
+- σ = 0.025 (8-bit): 1.22σ², where the λ < 0 side binds, against 1.08σ² (P-LSI 1.36σ²).
+
+The optimum sits at λσ ≈ 4: the clipped edge, a rare event that a few hundred Monte Carlo draws never sample. The
+1.25σ² estimated earlier from 300 draws was optimistic, just as §12's earlier Monte Carlo estimate was. P-exact is
+computed for each head-step's 16 largest contributors to tr M; every other row keeps P-LSI. Any per-row choice is
+valid, since both proxies bound the same fixed quantity.
+
+**The bound** (`tail_bound_rand_split_hkz`): Z‖o − õ‖ ≤ K-term + V-term + |Σ D|-term·‖õ − c‖, divided by
+M + (Σ w̃ − |Σ D|-term)₊. The pieces:
+- the K-term: Σ w̄κ̃‖u‖ + the HKZ radius;
+- the V-term: as in §6d;
+- the |Σ D|-term: Σ w̄κ̃ + the scalar sub-Gaussian radius;
+- κ̃ = the clipped law's bias, max(E Z + τ − 1, 1 − E Z + τ).
+
+Events: the truncation at δ/2, then V, K and Σ D at δ/6 each. With Bennett as a second form for K and Σ D, each sum
+takes the smaller form, at δ/10 per event. That pays only at 4-bit keys on GPT-OSS, where P-exact is not computed
+(its series would need > 6,000 terms).
+
+**The colleague's remedies, with P-exact** (Llama-1B L1, 6-bit keys, one draw):
+- *Truncation budget to the vote's sketch-heavy rows* (remedy 1; `prep(heavy=, share=)`): the heavy rows get `share`
+  of δ/2 and the rest 1 − share. With 16 rows at share 0.5, z falls from 5.6 to 4.7 on those rows, and the bound from
+  6.9× to 6.5× the error. z grows like √(ln 1/p), so moving the budget buys little.
+- *The heaviest rows in a deterministic term* (remedy 2; `det_heavy=`): |w_i − w̃_i| ≤ w̃_i·max(e^{ldb+t} − 1,
+  1 − e^{ldb−t}) on the truncation event, taken out of the HKZ sum. This makes the bound worse: 8.4× with one row,
+  11.5× with four. It adds e^t − 1 per row linearly, while HKZ adds them in quadrature with near-exact proxies.
+
+The diagnosis behind both (the unknown weight of a few heavy rows costs most) is right. The gain came instead from the
+proxy (P-exact) and the range-free HKZ form.
+
+**What is left at 6 bits** (Llama-1B L1, from non-rigorous substitutions): the sure weights w̄ ≥ w cost about 1.75×
+(e^t with t ≈ 0.56), on K and on V. P-exact is within 1.07× of the optimal proxy. A self-bound on M (lower tail of
+Σ w̃²…) does not help: the median head-step's heaviest unread row carries 21% of M's trace, and a self-bound wins only
+below about 1%.
+
 **Proof details used by every version.**
 - *The Hilbert-space Bennett inequality.* Pinelis (1994), Thm 3.4 with D = 1, follows from
   E cosh(λ‖x + d‖) ≤ cosh(λ‖x‖)(1 + E φ(λ‖d‖)) for zero-mean d, where φ(u) = e^u − 1 − u. This holds because
@@ -465,6 +569,31 @@ The certified adaptive read at 8-bit keys (split form) reads 14–18% of rows ex
 An oracle stop would read 12.5–13%. Gemma 3 at FP8's error and Granite-4.0-H at 1% cannot be met by any read set:
 their 4-bit values are the limit.
 
+**Part 8 on real weights** (`findings/findings_part8.md`; same setup, 3 draws; median bound / error · share certified
+within FP8; "part 8" = the tilted tail, HKZ with P-exact on each head-step's 16 largest contributors, and remedy 1):
+
+| view | key bits | split (part 7) | part 8 |
+|---|---|---|---|
+| Llama-1B L1 (1.6K / 8K) | 6 | 18.0 · 0.13 / 19.3 · 0.15 | 6.75 · 0.47 / 7.34 · 0.41 |
+| Llama-1B L3 | 6 | 17.4 · 0.21 | 6.72 · 0.59 |
+| Llama-1B L0 | 6 | 10.3 · 0 | 4.60 · 0.08 |
+| Gemma 3 L5 (global) | 6 | 4.04 · 0 | 2.05 · 0 |
+| GPT-OSS L1 | 6 | 77.1 · 0.02 | 32.4 · 0.05 |
+| Llama-1B L1 (1.6K / 8K) | 8 | 5.77 · 0.66 / 5.30 · 0.70 | 2.57 · 0.89 / 2.59 · 0.90 |
+| Llama-1B L3 | 8 | 5.64 · 0.75 | 2.51 · 0.95 |
+| Llama-1B L1 (1.6K / 8K) | 4 | 522 / 875 | 287 / 554 |
+
+Coverage is 1.000 everywhere. At 6 bits, the range-free HKZ form gives about 1.9×, P-exact about 1.3× more, and
+remedy 1 about 5%. GPT-OSS at 4 bits stays ≥ 10⁵× the error with every form (σ ≈ 0.9).
+
+The certified adaptive read with part 8's bound (FP8's per-head error as the target; δ = 10⁻³; rows read exactly
+(traffic)):
+- **6-bit keys:** 0.244 (0.480) on L1 and 0.271 (0.499) on L3, with a finer 15-set coin-free schedule, and 0.175 (0.433)
+  on L1 at 8K. That is at or below FP8's 0.50. Part 7 needed 0.432 (0.609), 0.449 (0.621) and 0.279 (0.505). The oracle
+  stop is 0.125 (0.399).
+- **8-bit keys:** 0.129–0.135 (0.456–0.460), against the oracle stop's 0.125 (0.453).
+- **L0** stays far above: 0.605 (0.728) at 6 bits and 0.241 (0.526) at 8.
+
 ## 8. The general approach this implies
 
 For any model with softmax attention over cached rows:
@@ -507,14 +636,11 @@ A model changes the cost (σ, concentration, value precision), never the validit
     deterministic term) and v3's one-row maxima each recover 1.4–2×, and 2× together (201 → 98–114×).
   The information is there (the oracle certifies 62% of head-steps at FP8's level). What is missing is a proof
   that pays one row's deviation instead of a union over rows for the truncation, too (§12).
-- **Constants at 6–8 bits.** Part 7's split brings 8-bit keys to 5.6–5.7× the *error* on Llama-1B (v3 9.8–10.4×), and
-  6-bit to about 18×, where the key part dominates. For v3 (part 6), measured against the oracle: 6–17× (GPT-OSS at
-  6 bits: 39×). The rest:
-  - the dimension-free key radius, about 2.6× the true quantile in d = 64 at δ/32;
-  - the union of 16 events, about 1.4×;
-  - self-bounding, about 1.2–1.5×.
-  A Hanson–Wright-type bound that uses the key term's dimension, as the χ² bound does for values, would
-  address the first.
+- **Constants at 6–8 bits.** Part 8 (§6f–§6g) is the Hanson–Wright-type step this item asked for: the key sum by
+  Hsu–Kakade–Zhang with a near-exact proxy. It brings 6-bit keys from about 18× the error to 6.7–7.3× on Llama-1B, and
+  8-bit keys from 5.6–5.8× to 2.0–2.6×. What is left at 6 bits is mainly the sure weights w̄ ≥ w, worth e^t ≈ 1.75
+  (t ≈ 0.56) on both the key and value sums. Self-bounds do not help, because one unread row carries 21% of the sum at the
+  median head-step. Paying one row's deviation instead of the union's (the two families below) would also address it.
 - **Reads chosen from the dithered tier.** Consider the threshold rule "also read every row with w̃_i > θ", with
   θ coin-free. (A controller whose read *sets* are coin-free and whose *stopping* depends on the coins is already
   covered: the certified adaptive read, §6e.) Each unread summand still depends only on its own row's coins, so Theorem R's proof goes
@@ -663,6 +789,12 @@ weights, the dominant key sum):
 
 An earlier Monte Carlo estimate (2.2×) was optimistic: it never sampled the far tail.
 
+**In a sub-Gaussian form, the exact law does help** (part 8, §6g). Bennett needs a range, and the range of a lognormal-like
+Z is what costs. HKZ needs only a sub-Gaussian proxy. The exact law's proxy at 4-bit-like noise is 14.0σ², against
+129σ² from the log-Sobolev Lipschitz bound and 13.3σ² for the optimum. With it, the key sum costs 287–359× the error on
+Llama-1B L1/L3 (1.6K, δ = 10⁻³), against 484–505× for v3 + sure sums. That is a real gain, but far from the 2–3× of the
+oracle needed for FP8-level certificates, so the conclusion below stands.
+
 **The ceiling.** The oracle itself is at 0.74× FP8's error at the median head-step. A certificate at 2× the oracle
 would certify 34% of head-steps at FP8's level; at 5×, 7%; at 10×, 2.7%. So FP8-level certification at 4-bit keys
 needs a near-oracle certificate. At 6–8-bit keys σ is 4–16× smaller, e^{zσ} ≈ 1, and the same proof is 6–17× the
@@ -699,3 +831,9 @@ certificate useful (§8, step 5), and Theorem M explains and predicts the 4-bit 
   Electron. Commun. Probab. 17 (2012), Thm 1.
 - O. Bousquet, "A Bennett concentration inequality and its application to suprema of empirical processes,"
   C. R. Acad. Sci. Paris 334 (2002).
+- F. B. Weissler, "Logarithmic Sobolev inequalities and hypercontractive estimates on the circle," J. Funct. Anal. 37
+  (1980) (the circle's sharp log-Sobolev constant; §6g's P-LSI and its λ < 0 side).
+- M. Ledoux, "Concentration of measure and logarithmic Sobolev inequalities," Séminaire de Probabilités XXXIII,
+  LNM 1709 (1999) (Herbst's argument, §6g).
+- S. G. Bobkov and G. P. Chistyakov, "On concentration functions of random variables," J. Theoret. Probab. 28 (2015)
+  (a log-concave density is at most 1/its standard deviation; §6g's P-exact).

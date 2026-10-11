@@ -79,14 +79,16 @@ where B_δ is computed at run time from the query, the exactly read rows, the ti
 - **Identity:** Z(o − õ) = Σ_T D_i (v_i − c) − (õ − c) Σ_T D_i + Σ_T w̃_i e_i, with D_i = w_i − w̃_i. Each sum has
   independent summands (P1).
 - **Truncation:** truncate every score error at a union level.
-- **Concentration:** the value sum has an isotropic, observed-weight form and gets a χ² tail (P3). The key sums get
-  Bennett's inequality in Hilbert space, with the unknown true weights bounded either by self-bounds or by sums that
-  hold surely on the truncation event.
+- **Concentration:** the value sum has an isotropic form and gets a χ² tail (P3). The key sum, given the value coins,
+  is a sum of independent scalars along observed vectors. It gets the Hsu–Kakade–Zhang quadratic-form bound, with a
+  sub-Gaussian proxy for each row's weight ratio computed from the dither's exact law (P2). The unknown true weights
+  are bounded by sums that hold surely on the truncation event. Bennett's inequality in Hilbert space is the simpler
+  alternative.
 - **Maxima:** every maximum over rows is attained at a fixed row, so one row's deviation suffices inside it.
 - **Union:** a union bound over the finitely many events.
 
-[Full proof: `theory.md` §6. State the v1 form as the simple version and the tightest valid forms as instantiations:
-the mirror split at 6–8-bit keys, v3 with sure sums at 4-bit keys.]
+[Full proof: `theory.md` §6. State the v1 form as the simple version, and part 8 (§6f–§6g: the split with a tilted tail
+and the HKZ key sum) as the tightest valid form at every width.]
 
 **Corollary (layers and decoding).** Suppose each layer's dither is drawn independently. Then Theorem R holds for every
 head-step of every layer of a teacher-forced pass, since a layer's queries depend only on the layers below. It also
@@ -103,9 +105,10 @@ free-running.]
 | | value now | source | to come |
 |---|---|---|---|
 | validity | 0 misses in 31,080,448 head-step checks (Llama-3.1-8B 128K, Qwen3-30B-A3B 32K; 6- and 8-bit keys; v1); no failure in brute force on adversarial data at every δ | `findings/R5_4.md` §1; `test_theory*.py` | R6's probe (v1, v2; 6-bit; 7 blocks) [1] |
-| tightness, the design's width (6-bit keys), the vote's rows | bound / error 37–38 (Llama), 41–58 (Qwen) with v1 | R5.4 | the split and v3 at 128K [3, 4] |
-| share of head-steps certified within FP8's per-head error | 0.44–0.52 (Llama), 0.38–0.41 (Qwen), v1, 6-bit; 0.98–0.99 (Llama) with C/32 more exact rows | R5.4 | [3, 4] |
-| CPU at 8-bit keys, the split | 5.6–5.7× the error; 0.66–0.75 certified within FP8 (Llama-1B) | `findings/findings_part7.md` | — |
+| tightness, the design's width (6-bit keys), the vote's rows | bound / error 37–38 (Llama), 41–58 (Qwen) with v1 | R5.4 | part 8 at 128K [3] |
+| share of head-steps certified within FP8's per-head error | 0.44–0.52 (Llama), 0.38–0.41 (Qwen), v1, 6-bit; 0.98–0.99 (Llama) with C/32 more exact rows | R5.4 | part 8 at 128K [3] |
+| CPU, part 8, 6-bit keys | 6.7–7.3× the error, 0.41–0.59 certified within FP8 (Llama-1B L1/L3, 1.6K–8K; v1-era forms 17–19× and 0.13–0.21) | `findings/findings_part8.md` | — |
+| CPU, part 8, 8-bit keys | 2.0–2.6× the error, 0.89–0.95 certified within FP8 (Llama-1B L1/L3) | same | — |
 
 [Table T1 in the paper: coverage, bound/error and certified share per model × key width × read set. It is filled from
 the R7 probe (step 3); CPU numbers go to the appendix.]
@@ -144,7 +147,7 @@ of M. Every quantity is exact: (P2) gives the moments and (P3) the value term.
 | accuracy on real layers | measured/predicted MSE 0.98–1.00 (GPT-OSS at 4-bit keys: 0.92) on Llama-1B L0/L1/L3, GPT-OSS, Gemma 3, at 1.6K and 8K | `findings/findings_4bit.md` §5 | at 128K on the paper's models [3] |
 | mechanism | Llama-1B L1: 2.4% of the mass but 0.18% of the second moment unread; tail/dense MSE predicted 0.0186, measured 0.0187 | same | the unread share against each family's KL in R6 [3] |
 | failure case | Gemma 3 global layer: 66% of the second moment unread; tail/dense MSE 0.66 | same | — |
-| link to the reported metric | — | — | E[KL] ≈ ½ Σ_h c_h·MSE_h against R6's KL per family [6] |
+| link to the reported metric | — | — | E[KL] ≈ ½ Σ_h c_h·MSE_h against R6's KL per family [7] |
 
 [Figure F-M: the unread second-moment share per family (x) against KL per token (y), for the tail and dense arms.
 It shows the theory predicting which tasks are hard. Needs step 3's columns on R6's units.]
@@ -157,8 +160,13 @@ output is within τ, whatever the stopping rule.
 
 *Proof idea:* a union bound over the m sets; the coins choose how many sets are read, never which.
 
-*Evidence:* at 8-bit keys, FP8's per-head error is met at traffic 0.46–0.49 (Llama-1B L1–L3, CPU). At 6-bit keys it
-takes 0.55–0.62 [4]. The target used so far, FP8's per-head error, is an oracle; a run-time τ is step 7. GPU: [3].
+*Evidence* (CPU, Llama-1B, part 8's bound):
+- at 8-bit keys, FP8's per-head error is met at traffic 0.456–0.460 on L1/L3, against the oracle stop's 0.453;
+- at 6-bit keys it is met at 0.480 (L1) and 0.499 (L3) with a 15-set schedule, and 0.433 on L1 at 8K, against
+  FP8's 0.50;
+- the first layer (flat attention) needs 0.73 at 6 bits.
+
+The target used so far, FP8's per-head error, is an oracle; a run-time τ is step 6. GPU: [3].
 
 ### 4.7 Limits
 

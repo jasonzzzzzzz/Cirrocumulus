@@ -52,13 +52,15 @@ The design under test is `dtail6ux_v4`@1/8: 6-bit keys, 4-bit values, the unbias
 | T6 | **Certified adaptive read** (§6e): a coin-free nested schedule, a union bound at δ/m, stop at the first set whose bound meets the target. With part 8's bound: FP8-level per-head error at traffic 0.433–0.499 with 6-bit keys (Llama-1B L1/L3 at 1.6K–8K, a 15-set schedule; part 7: 0.50–0.62) and 0.456–0.460 with 8-bit keys (the oracle stop: 0.453) | as T2, plus a coin-free schedule (sketch order: met). The target used so far, FP8's per-head error, is an oracle, not computable at run time | PROVED; brute force; CPU-ONLY evidence | rows read; traffic against 0.5 | at 6 bits it is at FP8's traffic, not clearly below it; L0 (flat attention) needs 0.73. A run-time τ [6]; GPU check [3] |
 | T7 | **The 4-bit limit** (§12): with 4-bit keys no proof in this family reaches FP8's level (best: ≈ 100× the oracle at δ = 0.05), although the information is there (the oracle certifies 62%). The 4-bit design's accuracy is explained by T4, not certified | — | CPU (`findings/findings_4bit.md`) | — | state as a limitation; research [9] |
 | T8 | **Generality across architectures**: for any softmax attention over a per-layer cache of rows, Theorems R and M hold for every input, given a subtractive-dithered tier, read sets chosen without its coins, and a dither per layer. That covers MHA, MQA, GQA, MLA, local:global, sinks, biases, gates, and the softmax layers of recurrent hybrids. Theorem M predicts the error of every key width, value width and read set from one FP pass, so bits are chosen per layer (Corollary M-B) and checked per call by Theorem R | as T2; excluded until extended: a sparse-attention selector that reads the dithered tier (R1), cross-layer KV sharing (R2: a later layer's query depends on the same coins), non-softmax or differential attention, recurrent states | CPU: 21 models; part 8 / certified read coverage 1.000; Theorem M 0.990–1.003 (GQA) and 0.98–1.01 (MLA); off-diagonal (k, v) within 2% where k ≥ 5 (`findings/findings_architectures.md`, `findings_bits.md`). `MODEL_FAMILY.md` collects it by family: which bits each kind of layer and model needs, and which attention mechanisms the theorems cover | bound / error; tail / FP8 per layer; allocation traffic | CPU-ONLY, ≤ 1.6K tokens; the per-layer choice depends on the input (calibrate on several; the run-time certificate covers the rest); no single uniform configuration (not even 6/6) reaches FP8's per-head error on every model: 6/6 misses 29 of 313 layers (`MODEL_FAMILY.md` §3) |
+| T9 | **The nested coin-free store** (§13; Lemma N, Theorem N). Keys are a deterministic 4-bit Lloyd-Max base plus an r-bit residual, quantized with subtractive dither inside the base cell. Given the base, the residual error is uniform on ±D_j/2, independent across coordinates and rows, and independent of the data. So Theorems R (every form) and M hold with per-coordinate steps. The vote reads only the base, so R1 holds by construction | as T2; the question pass reads the tier's dithered values, so R1 holds layer by layer via per-layer dithers (Lemma C) | PROVED; simulation (moments of a uniform to 10⁻⁴); brute force, 0 failures for every form; 13 real layers: Theorem M measured / predicted 0.994–1.004, coverage 1.000, the vote reads the same attention mass as R6's within 0.011 (`findings/findings_nested.md`) | tail RMS / FP8; KL per token | CPU-ONLY. Costs about 0.1–0.3 bit of key precision: tail RMS 1.00–1.22× uniform 6/4's; part 8 1.05–1.5× looser; KL 1.14× (median). 4+3 matches uniform 7-bit. R7b [rank 5] |
+| T10 | **The KL bridge** (§14; Proposition KL). To second order, with per-layer independent dithers, E KL per token = ½ Σ_l (c_l^K M_l^K + c_l^V M_l^V): M from Theorem M, c measured once per layer with the design's own key or value errors. **Corollary WF:** at the KL-optimal widths every (layer, part) component contributes the same KL (reverse water-filling). **Run-time τ** for the certified read from a KL budget | per-layer independent dithers; unbiased tail; teacher-forced (Lemma C) | Llama-3.2-1B, CPU, 8 units: the structured bridge predicts every tail configuration's KL with median ratio 1.00–1.34 (p10–p90 within 0.6–2.6), erring high; the isotropic bridge fails (0.06–6.1); value errors cost 0.46× the KL of key errors per unit MSE; water-filling (inputs weighted equally) gives 16% lower held-out KL than uniform 6/4 at 0.398. The certified read with the KL-budget τ meets its budget end to end within 15%, and cuts the 6/4 design's KL 3.7× at +0.0004 traffic and 14× at +0.003 on held-out inputs. Qwen3-1.7B: the bridge holds with keys ≥ 5 bits (0.73–0.96) and fails at 4-bit keys (first-order limit, σ ≈ 2) (`findings/findings_klbridge.md`) | KL per token; predicted / measured; traffic | CPU-ONLY, 1–2B models at 1.6K; R7b measures the sensitivities and the certified read at the paper's scale |
 
 ## 4. Systems claims
 
 | id | claim | evidence | status | gap |
 |---|---|---|---|---|
 | S1 | **Traffic** per decode step: 0.398 (design), 0.344 (4-bit keys), against FP8's 0.50 | analytic model `s1h5_lib.traffic_frac`; excludes the question-time vote ("one 4-bit pass per question, not amortized") | analytic | The tail design has **no measured time**. The packed low-bit decode was compute-bound and slower than FlashAttention on FP16 rows (Stage 1e/1f, `../14_kernel_tpot/report.md`), and every Stage 1g timing is of the old evicting system. Traffic is not time; the paper must say so, or a kernel must exist |
-| S2 | **GPU memory.** Tier 1 at 6/4 bits is 0.31 of FP16 K+V. A coin-free vote store adds 0.125 (4-bit keys only) to 0.25 (4/4, as R6 allocates it). The exact rows fetched for an active question add 0.125. That gives about 0.56–0.69 during a question, against FP8's 0.50, and 0.44–0.56 for a stored context | accounting from R6's arms; no reported metric includes the vote store | MISSING as a reported metric | Claim traffic, not memory; or remove the vote store (vote on exact keys at the question's prefill, or prove Theorem R for a vote over the dithered tier) [5] |
+| S2 | **GPU memory.** With the nested coin-free store (T9) there is one store for the vote and the tail: keys at 4 + 2 bits (a deterministic Lloyd-Max base the vote reads, plus a dithered residual) and 4-bit dithered values. That is 0.31 of FP16 K+V at rest, and about 0.44 during a question with the exact 1/8 fetched, against FP8's 0.50. R6's design (separate 4/4 vote store) is 0.56–0.69 during a question | the store's accounting (`findings/findings_nested.md` §5); CPU: same traffic as 6/4, KL 1.14× uniform 6/4's (median, Llama-1B, 8 units), 1.5–18× below FP8 | CPU-ONLY for the nested store; R6 itself supports traffic only | an end-to-end arm at the paper's scale (R7b) [RESEARCH_PLAN rank 5]; the vote's question pass with dithered values is untested |
 | S3 | **Host memory** holds the exact tier (FP16 K+V, 1.0) | design | stated | the paper's cost table must show it |
 
 ## 5. Theory against protocol: the checks this ledger ran
@@ -67,7 +69,7 @@ The design under test is `dtail6ux_v4`@1/8: 6-bit keys, 4-bit values, the unbias
 |---|---|---|
 | R6's KL is teacher-forced over FP's answer span: queries depend on the coins of lower layers only | ✓ Lemma C covers it | state it in the theory section |
 | R6's accuracy is free-running | ✓ Theorem DD, up to the first token that differs from FP's | state the scope; after a divergence the per-call guarantee needs the log-cost extension |
-| The vote never sees the dither (R1) | ✓ in R6 (Lloyd-Max 4/4 store); ✗ in a deployment with one tier | step 5; until then, the paper states R1 as a deployment requirement and counts the store's memory |
+| The vote never sees the dither (R1) | ✓ in R6 (Lloyd-Max 4/4 store); ✓ by construction in a single nested store (T9: the vote reads the deterministic base); ✗ in a single uniform dithered store | the paper's deployment is the nested store; R7b checks it end to end |
 | The seed is independent of the input | ✓ fresh prompts, fixed seed | state "seed drawn per request" as a deployment requirement |
 | Dither variability is in the CIs | ✗ one seed for all units and arms | step 3's seed panel; state it in the methods |
 | Theorem R's δ: per call (10⁻³ in the probe) or per decode | per call | a whole-decode statement runs each of N calls at δ/N (z grows from ≈ 3.9 to ≈ 6 at N = 10⁵); the paper states the per-call form and the N-call corollary |
@@ -78,7 +80,8 @@ The design under test is `dtail6ux_v4`@1/8: 6-bit keys, 4-bit values, the unbias
 ## 6. Not claimed
 
 - End-to-end quality from attention-level bounds. A size-τ change in one head can flip a near-tied token in any format,
-  FP8 included; R6 measures end-to-end quality directly.
+  FP8 included; R6 measures end-to-end quality directly. The KL bridge (T10) is a calibrated second-order predictor,
+  not a bound.
 - Speed, until a kernel for the tail design exists (S1).
 - FP8-level certificates at 4-bit keys (T7).
 - That one configuration reaches FP8's per-head error on every architecture (T8). 6/4 fails flat layers; 6/6 fails
@@ -93,13 +96,19 @@ The October 4 report warned that two papers under review must not present the sa
   ranked for it: the question-time contract and reuse, the sequence proxy, the 3-bit key confusions, the likelihood
   metric, scoring order as a verdict-mover, and total bytes with 4-bit values. It must not present the two-tier design
   as a contribution.
-- **Design paper**: the tail design (C1–C7), the theory (T1–T7) and the systems accounting (S1–S3). It cites the
+- **Design paper**: the tail design (C1–C7), the theory (T1–T10) and the systems accounting (S1–S3). It cites the
   understanding paper for the question-time contract and the likelihood metric.
 
 ## 8. Decisions for the user
 
-1. Submit R6's Qwen 128K half (C1, C2).
-2. Is the certified adaptive read (T6) a contribution? Step 4 (done) brought it to about FP8's traffic at R6's key
-   width on CPU. A run-time target (step 6) and the GPU check (step 3) remain.
-3. Is "beats Quest" (C5) still a gate? If so, a matched-traffic run is needed; nothing in the ranking provides it.
-4. Memory (S2): claim traffic only, or close step 5 first?
+Decided by the user on 2026-10-11 (`RESEARCH_PLAN.md` §6):
+- R6's Qwen 128K half: done.
+- **Venue:** ML venues. Measured time (S1) becomes a stated limitation, not a gate.
+- **Memory:** claim memory and traffic, through the nested store (S2, T9).
+- **Quest:** a gate if it makes sense, alongside other SOTA baselines. It is the matched-traffic comparator for a
+  design that reads a subset exactly (C5). The other SOTA baselines are listed in `RESEARCH_PLAN.md` §6.
+- **R7:** run in new folders, split into R7a and R7b, with Qwen 128K in R7a's probe.
+
+Still open:
+- Is the certified adaptive read (T6) a contribution? With T10's τ it is deployable. On CPU it cuts the design's KL
+  3.7–14× for +0.0004–0.003 traffic, which makes it a strong candidate.

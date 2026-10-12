@@ -63,6 +63,19 @@ The tail divides each tier-1 weight by E e^{−δ_i}. This makes the tail's sums
 it every low-bit tail over-weights itself by about σ²/2.
 [Evidence for that bias: `findings/R5_4.md` §2; exploratory.]
 
+**One store for the vote and the tail** (theory.md §13; 2026-10-11).
+- **The store.** Keys are stored as a deterministic 4-bit Lloyd-Max base, which the vote reads, plus a 2-bit residual,
+  quantized with subtractive dither inside the base's cell.
+- **Lemma N.** Given the base, the residual error is uniform on ±D_j/2, independent across coordinates and rows, and
+  independent of the data.
+- **Consequences.**
+  - (P1)–(P3) hold with per-coordinate steps, and so does every result below.
+  - The vote is coin-free by construction, so no second store is needed.
+  - Memory is 0.31 of FP16 K+V at rest and about 0.44 during a question, against FP8's 0.50.
+  - The cost is about 0.1–0.3 bit of key precision.
+- [Evidence: `findings/findings_nested.md`. Brute force; 13 real layers; end-to-end KL 1.14× uniform 6/4's (CPU). The
+  paper's scale is R7b.]
+
 ### 4.4 The certificate
 
 **Theorem R.** Assume:
@@ -170,7 +183,32 @@ output is within τ, whatever the stopping rule.
   FP8's 0.50;
 - the first layer (flat attention) needs 0.73 at 6 bits.
 
-The target used so far, FP8's per-head error, is an oracle; a run-time τ is step 6. GPU: [3].
+**A run-time target** (theory.md §14). FP8's per-head error is an oracle. Proposition KL (§4.8) gives a computable
+target instead: split a KL budget B over the (layer, head) components, τ_l² = 2B/(L·H·c_l).
+- If every head's error is certified within τ_l, the predicted KL is at most B.
+- On CPU this rule needs the least traffic of any rule tried, the oracle included.
+- End to end it cuts the KL several-fold below the vote-only design at +0.0001–0.0005 traffic. The extra rows go only
+  where the certificate flags a large error in a sensitive head.
+- [Evidence: `findings/findings_klbridge.md` §4. GPU: R7a/R7b.]
+
+### 4.8 From per-head error to KL per token
+
+**Proposition KL.** Assume the unbiased tail and an independent dither per layer. To second order,
+E KL per token = ½·Σ_l (c_l^K M_l^K + c_l^V M_l^V), where:
+- M is Theorem M's key and value terms;
+- c is the layer's sensitivity to its own key-error and value-error shapes, measured once per layer.
+
+**Corollary WF.** At the traffic-minimal widths for a KL budget, every (layer, part) component contributes the same KL
+(reverse water-filling).
+
+*Evidence* (CPU):
+- Llama-3.2-1B, 8 units:
+  - the bridge predicts every tail configuration's KL within a median 1.00–1.34×;
+  - key errors cost about 2× the KL of value errors per unit MSE;
+  - water-filling with inputs weighted equally lowers held-out KL by 16% at equal traffic.
+- Qwen3-1.7B: the same holds with keys of 5 bits or more. At 4-bit keys the first-order form fails (σ ≈ 2).
+
+[`findings/findings_klbridge.md`. Sensitivities at 128K: R7b's probe.]
 
 ### 4.7 Limits
 

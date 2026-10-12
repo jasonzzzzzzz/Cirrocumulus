@@ -49,8 +49,30 @@
     traffic (0.453).
 - **Theorem DD** carries the guarantee through free-running decode up to the first token that differs from the exact
   model's.
+- **One store for the vote and the tail** (theory.md §13, `findings/findings_nested.md`; CPU, 2026-10-11):
+  - Lemma N: keys become a deterministic 4-bit Lloyd-Max base, which the vote reads, plus a 2-bit dithered residual.
+    So R1 holds by construction, and Theorems R and M hold with per-coordinate steps (proved; brute force; 13 real
+    layers with coverage 1.000 and Theorem M at 0.994–1.004);
+  - it costs about 0.1–0.3 bit of key precision;
+  - end to end (Llama-1B) its KL is 1.14× uniform 6/4's and 1.5–18× below FP8's;
+  - memory is 0.31 at rest and about 0.44 during a question, against FP8's 0.50. This is the route to the memory
+    claim the user chose.
+- **The KL bridge** (theory.md §14, `findings/findings_klbridge.md`; Llama-1B, CPU, 8 units):
+  - E KL ≈ ½ Σ_l (c_l^K M_l^K + c_l^V M_l^V), from Theorem M and per-layer sensitivities measured with the design's
+    own errors. It predicts every tail configuration's KL within a median 1.00–1.34×. Isotropic noise doesn't
+    transfer;
+  - per unit MSE, key errors cost about 2× the KL of value errors;
+  - water-filling (Corollary WF), with inputs weighted equally, gives 16% lower held-out KL than uniform 6/4 at the
+    same traffic. The raw-average version does not transfer;
+  - run-time τ for the certified read: a KL budget split by sensitivity, τ_l² = 2B/(L·H·c_l). It is the cheapest
+    rule at every KL level. End to end it meets its budget within 15% and cuts the 6/4 design's KL 3.7× at +0.0004
+    traffic and 14× at +0.003 (held out);
+  - Qwen3-1.7B: the bridge holds with keys of ≥ 5 bits; at 4-bit keys it hits Theorem M's first-order limit.
 
 ## Next steps, ranked by importance to the design paper
+
+**Re-ranked after R6 (2026-10-11), pending the user's approval: `RESEARCH_PLAN.md`.** The table below is the pre-R6
+ranking; its steps 1, 2, 4 and 8 are done.
 
 The paper these results feed is the design paper proposed in `../../../weekly_reports/Oct4.md` §6. Its claims are in
 `CLAIMS_LEDGER.md` and its theory section is sketched in `paper_theory_section.md`; `latex/main.tex` is still the

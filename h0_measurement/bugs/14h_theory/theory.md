@@ -1,4 +1,4 @@
-# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8)
+# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8; §13–§14 2026-10-11)
 
 This file states what is proved about the two-tier KV design, under which assumptions, and how
 strong each result is in practice. **Every R14 theory update goes in this folder** (since 2026-10-10; `CLAUDE.md`).
@@ -35,6 +35,8 @@ amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 | **Part 8: the tilted tail, a Hsu–Kakade–Zhang key sum** (§6f–§6g) | every input; GQA (as the split) | as Theorem R | the tightest certificates at every width: Llama-1B 6-bit 6.7–7.3× the error (split 17–19×), 0.41–0.59 of head-steps certified at FP8's level (split 0.13–0.21); 8-bit 2.0–2.6× (0.89–0.95 certified on L1/L3); 4-bit 92–554×, still far from FP8 |
 | **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide. With part 8's bound and FP8's per-head error as an (oracle) target: traffic 0.456–0.460 at 8-bit keys (the oracle stop is 0.453) and 0.433–0.499 at 6-bit keys on Llama-1B L1/L3 at 1.6K–8K (FP8: 0.50) (§7) |
 | **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA in its coupled form, §10) | as Theorem R | predicts the measured MSE within 1% at 6–8-bit keys on every layer tested (Llama, Gemma 3, GPT-OSS, Qwen3); its first-order reading overpredicts where σ ≈ 2 (4-bit keys in two Qwen layers) (§10). It explains why the design works and maps which layers need which bits (`layermap_s1h5.py`) |
+| **Lemma N, Theorem N**: one store for the vote and the tail (§13) | every input; GQA | the vote reads only the deterministic base | Theorems R and M hold with per-coordinate steps; R1 by construction; memory 0.31 at rest, about 0.44 during a question (FP8: 0.50); about 0.1–0.3 bit of key precision (end-to-end KL 1.14× uniform 6/4's on CPU) |
+| **Proposition KL, Corollary WF, run-time τ** (§14) | second order; per-layer independent dithers | sensitivities measured once per layer | predicts every tail configuration's KL within a median 1.00–1.34× (Llama-1B; Qwen3-1.7B with keys ≥ 5 bits); key errors cost 2× value errors; the KL-budget τ makes the certified read deployable, cutting KL 3.7–14× for +0.0004–0.003 traffic |
 | **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
 
 **The claim that survives:** with a randomized (dithered) tier 1, the tail design's attention error
@@ -943,6 +945,201 @@ certificate pays one row's deviation (z ≈ 2.4), not the union's (z ≈ 4.8). T
 
 Until then, the actionable answers are on the design side: 6–8-bit tier-1 keys, or a few extra exact rows, make the
 certificate useful (§8, step 5), and Theorem M explains and predicts the 4-bit design's accuracy.
+
+## 13. One store for the vote and the tail: the nested coin-free store (2026-10-11)
+
+**Why.** Theorem R needs the rows read exactly to be chosen without tier 1's coins (R1).
+- R6 met R1 with a separate Lloyd-Max 4/4 store for the vote. That store is 0.25 of FP16 K+V, and no reported memory
+  number counts it (`CLAIMS_LEDGER.md` S2).
+- So R6 supports a traffic claim but not a memory claim.
+
+**The store** (`nested_s1h5.py`). Take a key row x of one KV head and the tier's rotation R:
+- γ = ‖x‖ and y = (x/γ)Rᵀ, a unit vector;
+- **base:** m_j, the 4-bit Lloyd-Max index of y_j (the N(0, 1/d) codebook, with midpoint thresholds). Its norm-corrected
+  reconstruction is exactly `quant.quantize_keys(x, 4, R)`, the vote's sketch;
+- **cell:** [lo_j, hi_j], the decision interval of m_j. The outer cells are closed at ±M, where M = max_j |y_j| is stored
+  per row;
+- **residual:** an r-bit subtractive-dithered uniform quantizer on the cell. It has L = 2^r levels lo_j + iD_j, with
+  D_j = (hi_j − lo_j)/(L − 1), and reconstructs ŷ_j = lo_j + D_j·round((y_j − lo_j + u_j)/D_j) − u_j, with
+  u_j ~ U(−D_j/2, D_j/2) drawn from the seed;
+- **the tail** reads x̂ = γ·ŷR: keys at 4 + r bits, unbiased. Values stay the 4-bit dithered tier.
+
+**Lemma N.** Fix the cache. Given the base indices, the errors ŷ_j − y_j are independent across coordinates and rows.
+Each is uniform on [−D_j/2, D_j/2] and independent of the data.
+
+*Proof.*
+- y_j + u_j lies in [lo_j − D_j/2, hi_j + D_j/2]. That is the L-level quantizer's range without overload, so
+  Q(y_j + u_j) − (y_j + u_j) is uniform on one step and independent of y_j (subtractive dither; Schuchman 1964).
+- D_j depends only on the stored base index and M, not on the coins.
+- The coins are independent across coordinates and rows. ∎
+
+**Theorem N.** For the nested tier, Theorem R in every form (v1, v2, v3, the split, part 8) and Theorem M hold with the
+per-coordinate key steps step_ij = γ_i·D_ij in place of the per-row step.
+
+*Proof.* The key error is e_i = γ_i(ŷ_i − y_i)R. So the score error is δ_i = scaling·Σ_j (Rq)_j ε_ij, with the ε_ij
+independent and uniform on ±step_ij/2. Every proof uses the key steps only through three quantities:
+- (i) the exact moments E e^{−kδ_i} = ∏_j sinhc(k·a_ij), with a_ij = scaling·|(Rq)_j|·step_ij/2. These feed Theorem M,
+  part 8's exact-law proxy, and the coin-moment bounds with A2 = Σ_j a_ij² and A4 = Σ_j a_ij⁴;
+- (ii) the sub-Gaussian proxy σ_i² = scaling²·Σ_j (Rq)_j²·step_ij²/12. A uniform is strictly sub-Gaussian, so each
+  summand's proxy is its variance;
+- (iii) the almost-sure bound |δ_i| ≤ scaling·Σ_j |(Rq)_j|·step_ij/2.
+
+Each holds term by term for unequal steps. Each is computable at read time from the stored indices, γ and M. The value
+side is unchanged. ∎
+
+**R1 by construction.**
+- The vote, the threshold read rule (§9) and the certified read's sketch order read only the base. The base is a
+  deterministic function of the cache, so every read set is coin-free.
+- The vote may also run the question through the store, as R6's question pass reads keys and values. It then reads the
+  base keys and the tier's dithered values. Layer l's read set depends on the coins of lower layers only, which are
+  independent of layer l's coins (the per-layer dithers of Lemma C). So R1 holds layer by layer.
+
+**Evidence** (`findings/findings_nested.md`):
+- **Lemma N by simulation** (400 draws): the error's moments are a uniform's to 10⁻⁴, it never exceeds D/2, and it is
+  uncorrelated with y.
+- **Brute force** (`test_nested_s1h5.py`):
+  - with one step per row, the per-coordinate code reproduces the per-row code to 6·10⁻¹⁶;
+  - E Z, E Z² and Theorem M are within 4.5 s.e. of Monte Carlo;
+  - every Theorem R form has no failure at any δ, on adversarial instances with bases of 2–4 bits and residuals of 2–3
+    bits.
+- **13 real layers** (R6's two models among them):
+  - Theorem M's measured / predicted is 0.994–1.004;
+  - coverage is 1.000 for every form;
+  - the base's vote reads the same attention mass as R6's sketch, within 0.011.
+- **End to end** (Llama-3.2-1B, CPU, 8 units): KL per token of nested 4+2 is a median 1.14× uniform 6/4's (0.62–1.84),
+  at the same traffic. FP8's is 1.5–18× higher (median 4.9×). Nested 4+3 halves uniform 6/4's KL.
+
+**Cost and gain.**
+- **Precision:** about 0.1–0.3 bit of key precision. Nested 4+2 raises the tail's RMS error by 0–22% over uniform 6-bit
+  keys, at the same traffic. Nested 4+3 matches uniform 7-bit keys. Part 8's certificate is 1.05–1.5× looser.
+- **Memory:** one store, 0.31 of FP16 K+V at rest, and about 0.44 during a question with the exact 1/8 fetched, against
+  FP8's 0.50. The 0.25 vote store disappears.
+- **Traffic:** unchanged, 0.398 at f = 1/8.
+
+## 14. From per-head error to KL per token: the bridge, water-filling, run-time targets (2026-10-11)
+
+**Why.** Theorems R and M bound and predict each attention call's error, but the paper's metric is KL per answer token.
+The bridge connects the two, and it does three jobs:
+- it predicts end-to-end KL from Theorem M;
+- it gives the bit allocation an end-to-end objective;
+- it gives the certified read a target it can compute at run time.
+
+**Proposition KL (second order).**
+
+*Setting:*
+- a teacher-forced pass, the unbiased tail, and an independent dither per layer and per KV head;
+- z is the logits at an answer position, p = softmax(z), and F = diag(p) − ppᵀ;
+- layer l's attention-output errors (all heads and answer positions) split as e_l = e_l^K + e_l^V, the parts due to its
+  key and its value dither. Their mean squared sizes are M_l^K and M_l^V, Theorem M's key and value terms.
+
+*Statement.* To second order in the errors,
+
+  E KL(p ‖ p̃) = ½·Σ_l (c_l^K·M_l^K + c_l^V·M_l^V),  with c = E[eᵀJ_lᵀFJ_l e] / E‖e‖² for each part,
+
+where J_l maps layer l's attention outputs to the logits.
+
+The sensitivities depend on each error's shape, not its size. To first order in the coins:
+- e_l^K = Σ_T w_i(1 − Z_i)(v_i − o)/Z, with 1 − Z_i linear in the key coins;
+- e_l^V = Σ_T w̃_i e_i/Z, with e_i the value coins.
+
+So each part's covariance is a fixed matrix times its size: the width scales the step, and the read set fixes the rows.
+
+*Proof.*
+- KL(p‖p̃) = ½ΔzᵀFΔz + O(‖Δz‖³) (the softmax family's Fisher metric), and Δz = Σ_l J_l e_l + O(‖e‖²).
+- Different layers' coins are independent, and each e_l has mean zero to first order (the unbiased tail). So the cross
+  terms between layers vanish in expectation.
+- Within a layer, the key and value coins are independent and each part has mean zero, so their cross term vanishes too.
+- The two remaining terms are the quadratic forms above. ∎
+
+*What it buys.* The KL of any configuration can be predicted from one FP pass plus 2L calibration runs. This covers any
+key or value width, read set, uniform or nested store, or per-layer mix.
+- Theorem M gives M_l^K and M_l^V.
+- Each calibration run dithers one part of one layer alone and gives c = 2·KL / realized MSE.
+
+The sensitivities must be measured with the design's own error shapes. They then absorb how the errors correlate across
+answer positions (the same coins at every step) and across a KV group's query heads. Isotropic Gaussian noise misses
+both.
+
+**Evidence** (`findings/findings_klbridge.md`; Llama-3.2-1B on CPU, `e2e_s1h5.py`). There are 8 units: 4 texts × 2
+windows, each with 1,536 context rows, a 32-token question and a 32-token answer.
+- **KL is quadratic in the error.** Isotropic noise at 3× the size gives 8.3–11.8× the KL (9 if exactly quadratic),
+  in every layer and unit.
+- **The key and value parts add.** Keys-only plus values-only gives 0.93–1.49× the full design's KL (median 1.06).
+- **Key errors cost about twice as much KL as value errors of the same size.**
+  - c_l^V / c_l^K has a median of 0.46 (p10–p90 0.14–0.96) over layers and units.
+  - At 6/4 the keys carry 32% of Theorem M's MSE but 57% of the KL.
+  - A likely reason, not tested here: a key error moves the weights, so its output error lies along the value
+    differences v_i − o that the model uses. The rotated value error is isotropic, so only part of it falls in the
+    directions the logits are sensitive to.
+  - So the KL-optimal split is about ½·log₂(1/0.46) ≈ 0.56 bit further toward keys than Corollary M-B's MSE-based
+    split.
+- **Layers nearly add.** At 6/4 the single-layer KLs sum to 0.82–1.64× (median 1.17) the all-layer KL.
+- **The structured bridge** (no draws of the configuration it predicts) gives predicted / measured with a median of
+  1.00–1.34 for every tail configuration from 4/4 to 8/8, the nested store, keys-only and values-only. Its p10–p90 is
+  within about 0.6–2.6, and it errs on the safe side.
+- **The isotropic bridge does not transfer across inputs:** its medians are 0.45–1.23 and its p10–p90 0.06–6.
+- **FP8's deterministic errors** are 0.2–1.6× as harmful per unit MSE as the tail's (worst on the code input). The
+  bridge's sensitivities are for dithered errors.
+
+**Corollary WF (reverse water-filling).**
+
+*Statement.* Let each part's MSE scale as M_l^K(k) = a_l·c(k) and M_l^V(v) = b_l·c(v) (Corollary M-B), with c(x) ≈ 4^(−x).
+Minimize traffic, which is affine in Σ_l (k_l + v_l), subject to E KL ≤ B, in the continuous relaxation. Then every
+unclipped (layer, part) component contributes the same KL θ:
+- k_l* = ½·log₂(c_l^K·a_l/(2θ)) and v_l* = ½·log₂(c_l^V·b_l/(2θ));
+- θ is set by the budget.
+
+*Proof.* The Lagrangian derivative in k_l is 1 − λ·ln4·½c_l^K a_l 4^(−k_l). It vanishes when each component's KL is
+1/(λ ln 4). ∎
+
+This is rate-distortion's reverse water-filling, here for attention caches. On the grid, the per-layer Lagrangian choice
+argmin_(k,v) traffic + λ·KL_l solves it.
+
+*Evidence* (Llama-3.2-1B, calibrated on window 0, tested on window 1):
+- **The surface depends on the input,** because the per-layer sensitivities move with the text.
+- **The raw KL average does not transfer.** It is dominated by the hardest inputs. In sample it matches uniform 6/4's KL
+  at 0.383 traffic, but held out it is 1.6× uniform 6/4's KL.
+- **With every input weighted equally** (each unit's surface divided by its own uniform-6/4 KL), it does transfer:
+  - held out, 16% lower KL than uniform 6/4 at the same traffic (0.398); 18% was predicted;
+  - at 0.371, equal to uniform 5/4 on mean KL and 11% better in geometric mean.
+- **The FP8-target allocation** (per-head p90 against FP8's error, `findings/findings_bits.md`) is 1.7–1.8× worse than
+  uniform at equal traffic.
+- **Conclusion:** per-layer allocation gains are real but modest on this key-heavy model, at most about 20% KL at equal
+  traffic. They need calibration on the deployment's input mix, with inputs weighted equally.
+
+**Where the bridge breaks: 4-bit keys on noisy layers.** Qwen3-1.7B (`findings/findings_klbridge.md` §5):
+- With keys of ≥ 5 bits the structured bridge holds, at a median ratio of 0.73–0.96. Qwen's layers compound: the
+  all-layer KL is about 1.6× the sum of the single-layer KLs (0.55–0.90× the other way round). So the bridge errs low
+  here, where on Llama it erred high.
+- At 4-bit keys it overpredicts by about 10⁶.
+  - Where σ ≈ 2, a few rows' E Z² is astronomically large.
+  - Theorem M's first-order form divides by the exact normalizer instead of the design's random one.
+  - The design's own normalization keeps the actual error bounded.
+- There the bridge needs the realized MSE (which works, 0.76) or a second-order Theorem M. This is §10's first-order
+  limit, seen end to end.
+
+**Run-time targets for the certified read (τ).** The certified read's target so far, FP8's per-head error, is an oracle:
+it needs the exact rows. Proposition KL turns a KL budget B into per-head targets computable at run time:
+
+  τ_l² = 2B / (L·H·c_l), so that ½·Σ_l c_l·Σ_h τ_l² = B.
+
+If every head's error is certified within τ_l, the predicted KL on that input is at most B. This holds to second order,
+with probability ≥ 1 − δ per call.
+
+*Evidence* (Llama-3.2-1B, held-out units, part 8's bound, 6-bit keys). Each rule's parameter was swept.
+- **The KL-budget rule** reaches every predicted-KL level at the least traffic. It beats a per-layer quantile of FP8's
+  error, a relative target ρ‖õ‖ and the oracle itself.
+- **The oracle is the wrong currency.** Heads differ in how much their error moves the logits. The certificate is also
+  about 8× the error, so the old target buys far more accuracy than needed: traffic 0.475 for a predicted KL of 10⁻⁶.
+- **Large reductions cost almost no traffic.** Against the vote alone (predicted KL 2.1·10⁻⁴ at 0.398), the KL-budget
+  rule cuts the predicted KL 7× at 0.399 and 20× at 0.402. It reads extra rows only where the certificate flags a large
+  error in a sensitive head.
+- **End to end** (the certified read inside the forward pass, 4 held-out inputs): it meets its budget within 15%.
+  - Budget 3·10⁻⁵: measured 3.2·10⁻⁵ against 2.9·10⁻⁵ predicted.
+  - Budget 10⁻⁵: measured 9.2·10⁻⁶ against 7.9·10⁻⁶ predicted.
+  - It cuts the 6/4 design's KL 3.7× at +0.0004 traffic and 14× at +0.003, against FP8's KL of about 4·10⁻⁴.
+  - The certified read thus becomes a deployable contribution: a certified, query-aware patch to the vote.
+
 
 ## References
 

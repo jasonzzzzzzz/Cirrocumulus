@@ -248,19 +248,31 @@ def exact_rows(prx, score, tt, ldb, ez_lo, ez2_hi, qr, step, scaling, rows=16, t
     (score, e.g. w_bar^2 prx |u|^2; any choice is valid: both proxies bound the same deterministic quantity) among rows
     whose clip level exceeds t_min (below it the log-Sobolev proxy is within ~25% of the exact one) and whose series
     needs at most k_cap terms (~e 20 e^{t - ldb} / sigma; very noisy rows, e.g. 2-bit keys, keep the log-Sobolev one).
-    prx, score, tt, ldb, ez_lo, ez2_hi [G, .., C]; qr [G, .., d] the rotated query; step [G, C] the key steps."""
-    G, C = step.shape
+    prx, score, tt, ldb, ez_lo, ez2_hi [G, .., C]; qr [G, .., d] the rotated query; step [G, C] the key steps, or
+    [G, C, d] per-coordinate steps (the nested store, nested_s1h5: a_j = scaling |qr_j| step_j / 2)."""
+    G, C = step.shape[:2]
     R = min(rows, C)
-    sig_r = (scaling / math.sqrt(12.0)) * qr.double().norm(dim=-1, keepdim=True) * step.double().view(
-        G, *([1] * (prx.dim() - 2)), C)
+    pc = step.dim() == 3
+    if pc:
+        q2 = qr.double() ** 2
+        sig_r = (scaling / math.sqrt(12.0)) * torch.einsum("gkd,gcd->gkc", q2.reshape(G, -1, q2.shape[-1]),
+                                                             step.double() ** 2).sqrt().view(prx.shape)
+    else:
+        sig_r = (scaling / math.sqrt(12.0)) * qr.double().norm(dim=-1, keepdim=True) * step.double().view(
+            G, *([1] * (prx.dim() - 2)), C)
     kest = math.e * 20.0 * torch.exp(tt - ldb) / sig_r.clamp_min(1e-300)
     val, idx = score.masked_fill((tt < t_min) | (kest > k_cap), -1.0).topk(R, -1)
     ok = val > 0
     if not bool(ok.any()):
         return prx
     g_ = lambda x_: x_.gather(-1, idx)[ok]                                          # noqa: E731
-    D = step.double().view(G, *([1] * (prx.dim() - 2)), C).expand_as(prx)
-    a = (scaling / 2.0) * qr.double().abs().unsqueeze(-2).expand(*idx.shape, qr.shape[-1])[ok] * g_(D).unsqueeze(-1)
+    qa = qr.double().abs().unsqueeze(-2).expand(*idx.shape, qr.shape[-1])[ok]
+    if pc:
+        gi = torch.arange(G).view(G, *([1] * (idx.dim() - 1))).expand_as(idx)[ok]
+        a = (scaling / 2.0) * qa * step.double()[gi, idx[ok]]
+    else:
+        D = step.double().view(G, *([1] * (prx.dim() - 2)), C).expand_as(prx)
+        a = (scaling / 2.0) * qa * g_(D).unsqueeze(-1)
     order = torch.argsort(g_(kest))                                              # batches of similar series length
     ex = torch.empty(a.shape[0], dtype=torch.float64)
     tt_, ldb_, lo_, e2_ = g_(tt), g_(ldb), g_(ez_lo), g_(ez2_hi)

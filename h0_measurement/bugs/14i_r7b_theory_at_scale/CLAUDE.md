@@ -41,6 +41,7 @@ while any R7a job has output, and every job re-checks the code pin.
 | `fixtures/` | frozen reference outputs of `../14h_theory`'s part 8 / Theorem M, with provenance (`fixtures/README.md`) |
 | `findings/` | `explore_r7.md` (+ `explore/`, `explore_r7_table.md`, `explore_r7.json`), `predictions_from_r6.json`, `R7a_code.sha256`; after the run `R7a_reader.*`, `R7a_gate.json` |
 | `.views/` | captured q/K/V views (exploration only) |
+| `r7b/` | **R7b** (the single store, `../14h_theory/RESEARCH_PLAN.md` §4, §8): its theory, port, tests and CPU exploration, in a subfolder with its own `CLAUDE.md`. Not part of R7a: `run_r7.code_manifest` hashes this folder's top-level `*.py`, so R7b adds no file here |
 
 ## Commands
 ```bash

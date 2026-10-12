@@ -1,0 +1,63 @@
+start Mon 12 Oct 2026 11:04:54 AM EDT tri0007
+kilt_nq: 111 items; the first 41 are R6's
+kilt_hotpotqa: 111 items; the first 41 are R6's
+msmarco_rerank_psg: 41 items; the first 41 are R6's
+icl_trec_coarse: 111 items; the first 41 are R6's
+icl_banking77: 111 items; the first 41 are R6's
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (133756 > 131072). Running this sequence through the model will result in indexing errors
+helmet llama31-8b kilt_nq: 111 items, tokens 107711-131052, cut 8
+helmet llama31-8b kilt_hotpotqa: 111 items, tokens 95394-131052, cut 9
+helmet llama31-8b msmarco_rerank_psg: 41 items, tokens 70435-96880, cut 0
+helmet llama31-8b icl_trec_coarse: 111 items, tokens 105809-106385, cut 0
+helmet llama31-8b icl_banking77: 111 items, tokens 107207-109069, cut 0
+helmet qwen3-30b-a3b-2507 kilt_nq: 111 items, tokens 110924-131052, cut 31
+helmet qwen3-30b-a3b-2507 kilt_hotpotqa: 111 items, tokens 100768-131052, cut 33
+helmet qwen3-30b-a3b-2507 msmarco_rerank_psg: 41 items, tokens 74983-103971, cut 0
+helmet qwen3-30b-a3b-2507 icl_trec_coarse: 111 items, tokens 106747-107302, cut 0
+helmet qwen3-30b-a3b-2507 icl_banking77: 111 items, tokens 112421-114288, cut 0
+HM_SHA256_R7B = {
+    "../../h0_measurement/bugs/14i_r7_theory_at_scale/r7b/data/helmet_items/kilt_nq.jsonl": "3935cff6e2928cdb234ebf50e417713f840f70bd657184c6209e6c2c64286c3f",
+    "../../h0_measurement/bugs/14i_r7_theory_at_scale/r7b/data/helmet_items/kilt_hotpotqa.jsonl": "8bcbcc744aa04f1666784d903caceecf7b1b6adb0da78652b1a44855110cec03",
+    "../../h0_measurement/bugs/14i_r7_theory_at_scale/r7b/data/helmet_items/msmarco_rerank_psg.jsonl": "fbb52a1334421298accc1e2eb4adf361592a713ff81b2865d06254234001f777",
+}
+MANIFEST_SHA256 = "82d22c12d492f2f96e2f21e19511bab9da9701eaaa8ed4ee58dd52573fd1e60d"
+DONE Mon 12 Oct 2026 11:15:02 AM EDT
+
+scontrol show job 2543842
+JobId=2543842 JobName=r7b-manifest
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=12216785 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:10:11 TimeLimit=01:00:00 TimeMin=N/A
+   SubmitTime=2026-10-12T11:04:51 EligibleTime=2026-10-12T11:04:51
+   AccrueTime=2026-10-12T11:04:51
+   StartTime=2026-10-12T11:04:52 EndTime=2026-10-12T11:15:03 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-10-12T11:04:52 Scheduler=Main
+   Partition=debug AllocNode:Sid=tri-login06:2148346
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=tri0007
+   BatchHost=tri0007
+   NumNodes=1 NumCPUs=192 NumTasks=1 CPUs/Task=192 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=192,mem=767000M,node=1,billing=192
+   AllocTRES=cpu=192,mem=767000M,node=1,billing=192
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=192 MinMemoryNode=767000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/r14_chk/r7b_manifest/build.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env build.slurm --export=NONE --get-user-env build.slurm
+   WorkDir=/scratch/jczhao20/r14_chk/r7b_manifest
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env build.slurm
+   StdErr=
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/r14_chk/r7b_manifest/build_2543842.out
+   TresPerTask=cpu=192
+
+sacct -j 2543842
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+2543842      r7b-manif+ def-enrig+   00:10:11                         00:00:00   00:00:00      0:0 
+2543842.bat+      batch def-enrig+   00:10:11                         00:00:00   00:00:00      0:0 
+2543842.ext+     extern def-enrig+   00:10:11                         00:00:00   00:00:00      0:0 
+

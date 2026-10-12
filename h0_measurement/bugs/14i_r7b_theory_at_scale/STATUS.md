@@ -95,6 +95,11 @@ either way; R7a uses 16.
 uses, is unchanged: the fixtures were generated from that version (sha 28a6ae9d) and parity holds to 5·10⁻¹⁴. R7b's
 nested-store arm will need the per-coordinate form ported.
 
+## R7b (2026-10-12): in `r7b/`, not here
+R7b's theory, the per-coordinate port (done: `r7b/cert_r7b.py`, `r7b/store_r7b.py`), its tests and its CPU exploration
+live in `r7b/` (read `r7b/STATUS.md`). R7a's 119 pinned files and this folder's top-level `*.py` are unchanged (the pin
+verifies), so R7a's code manifests stay identical across its blocks.
+
 ## Next
 1. Watch the chain: pilots → gate → blocks → reader (`plan.md` §10).
 2. After the run: `read_r7a.py --r7a $(script_r7a.sh --list-r7a) --r6-json <R6's final reader JSON>`. Then

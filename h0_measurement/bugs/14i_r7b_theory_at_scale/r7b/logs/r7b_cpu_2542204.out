@@ -1,0 +1,48 @@
+host=tri0219 job=2542204 L=32768 models=llama8b,qwen30b stages=capture,analyze,bias par=16 parts=9
+ALL R7B TESTS PASSED
+capture llama8b: 115 s; llama8b at 32768: 32 layers; load 6 s, forward 92 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14i_r7_theory_at_scale/r7b/.views
+capture qwen30b: 180 s; qwen30b at 32768: 48 layers; load 52 s, forward 118 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14i_r7_theory_at_scale/r7b/.views
+analyze: 922 s; 95 results
+bias: 45 parts
+summary written
+depth written
+done
+
+scontrol show job 2542204
+JobId=2542204 JobName=r7b_cpu
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=2260962 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:21:42 TimeLimit=03:00:00 TimeMin=N/A
+   SubmitTime=2026-10-12T01:16:20 EligibleTime=2026-10-12T01:16:20
+   AccrueTime=2026-10-12T01:16:20
+   StartTime=2026-10-12T05:06:31 EndTime=2026-10-12T05:28:13 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-10-12T05:06:31 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=tri-login06:4053007
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=tri0219
+   BatchHost=tri0219
+   NumNodes=1 NumCPUs=192 NumTasks=1 CPUs/Task=192 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=192,mem=767000M,node=1,billing=192
+   AllocTRES=cpu=192,mem=767000M,node=1,billing=192
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=192 MinMemoryNode=767000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14i_r7_theory_at_scale/r7b/submit_r7b_cpu.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env --time=03:00:00 h0_measurement/bugs/14i_r7_theory_at_scale/r7b/submit_r7b_cpu.slurm R7B_L=32768 --export=NONE --get-user-env --time=03:00:00 h0_measurement/bugs/14i_r7_theory_at_scale/r7b/submit_r7b_cpu.slurm R7B_L=32768
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env --time=03:00:00 h0_measurement/bugs/14i_r7_theory_at_scale/r7b/submit_r7b_cpu.slurm R7B_L=32768
+   StdErr=
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14i_r7_theory_at_scale/r7b/logs/r7b_cpu_2542204.out
+   TresPerTask=cpu=192
+
+sacct -j 2542204
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+2542204         r7b_cpu def-enrig+   00:21:42                         00:00:00   00:00:00      0:0 
+2542204.bat+      batch def-enrig+   00:21:42                         00:00:00   00:00:00      0:0 
+2542204.ext+     extern def-enrig+   00:21:42                         00:00:00   00:00:00      0:0 
+

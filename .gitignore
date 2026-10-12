@@ -14,4 +14,4 @@ __pycache__/
 ./latex/main.blg
 ./latex/main.fls
 .views/
-./h0_measurement/bugs/14i_r7_theory_at_scale/.views
+./h0_measurement/bugs/14i_r7_theory_at_scale/.views/

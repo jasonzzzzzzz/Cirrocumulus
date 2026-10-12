@@ -1,0 +1,1524 @@
+{
+ "setup": {
+  "L": "1,600 tokens (8,192 for two Qwen3-1.7B views)",
+  "delta": 0.001,
+  "read": "the vote's 1/8 (Lloyd-Max 4-bit sketch), 16 measured queries per head",
+  "values": "4-bit dithered",
+  "draws_compare": 3,
+  "draws_certread": 2,
+  "theorem_m_draws": 200
+ },
+ "compare": {
+  "view_qwen3_1p7b_L0_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 3493965395086.5806,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 91099283305451.94,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 91099283305451.94,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 187232504467884.84,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 1253.7765896230856,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 3040.219109865619,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 920.3422881857094,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 900.0995611860047,
+     "fp8": 0.0
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 22.494318421283165,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 13.77929072874475,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 9.712954751460076,
+     "fp8": 0.005208333333333333
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 9.444669794357036,
+     "fp8": 0.0078125
+    }
+   }
+  },
+  "view_qwen3_1p7b_L13_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 303.5336164413555,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 492.20539800493043,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 206.3005493432424,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 188.60555021974517,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 15.22917306106491,
+     "fp8": 0.3020833333333333
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 7.960935150658838,
+     "fp8": 0.4869791666666667
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 6.447896946801922,
+     "fp8": 0.5625
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 6.1163730871719375,
+     "fp8": 0.5846354166666666
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 4.9446008472884975,
+     "fp8": 0.6875
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2.2767487136551097,
+     "fp8": 0.8697916666666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2.2766536942950957,
+     "fp8": 0.8697916666666666
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2.2428635890712556,
+     "fp8": 0.87109375
+    }
+   }
+  },
+  "view_qwen3_1p7b_L13_8192": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 493.54873111656406,
+     "fp8": 0.0026041666666666665
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 875.6719001470534,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 340.42292956409,
+     "fp8": 0.006510416666666667
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 297.7415411678407,
+     "fp8": 0.009114583333333334
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 16.35778564284058,
+     "fp8": 0.5013020833333334
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 8.773665351036543,
+     "fp8": 0.65234375
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 7.023439744248756,
+     "fp8": 0.7018229166666666
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 6.5157663412849445,
+     "fp8": 0.71875
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 4.4790989289135075,
+     "fp8": 0.8098958333333334
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2.293823113099751,
+     "fp8": 0.8984375
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2.2881244243419565,
+     "fp8": 0.8984375
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2.24266988232331,
+     "fp8": 0.8984375
+    }
+   }
+  },
+  "view_qwen3_1p7b_L1_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 621110.2873284566,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 4830557.0948940255,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 4830519.5703826845,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 5220030.600027296,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 91.60810477998866,
+     "fp8": 0.02734375
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 103.17189079903312,
+     "fp8": 0.037760416666666664
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 64.27603251888917,
+     "fp8": 0.046875
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 62.51484696342609,
+     "fp8": 0.046875
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 10.616590747860593,
+     "fp8": 0.08203125
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 5.498237645137287,
+     "fp8": 0.13932291666666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 4.899610421310854,
+     "fp8": 0.15625
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 4.855986244996688,
+     "fp8": 0.15625
+    }
+   }
+  },
+  "view_qwen3_1p7b_L1_8192": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 1207554.944561701,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 10949217.17134326,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 10949216.966684137,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 13604080.710158458,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 81.30317073963398,
+     "fp8": 0.0026041666666666665
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 92.23757447797692,
+     "fp8": 0.015625
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 63.7735766559371,
+     "fp8": 0.016927083333333332
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 61.36663176828455,
+     "fp8": 0.016927083333333332
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 9.997113238027508,
+     "fp8": 0.18359375
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 5.278313711296543,
+     "fp8": 0.4114583333333333
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 4.71557211521708,
+     "fp8": 0.42578125
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 4.6292269954114085,
+     "fp8": 0.4296875
+    }
+   }
+  },
+  "view_qwen3_1p7b_L26_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 94.93404489191443,
+     "fp8": 0.01171875
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 99.25975737223126,
+     "fp8": 0.018229166666666668
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 50.09598138151392,
+     "fp8": 0.037760416666666664
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 44.37957029366641,
+     "fp8": 0.040364583333333336
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 10.039039606067995,
+     "fp8": 0.6080729166666666
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 4.681830200581733,
+     "fp8": 0.81640625
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 4.1380593031388075,
+     "fp8": 0.8489583333333334
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 4.005790489607738,
+     "fp8": 0.8619791666666666
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 4.118744106148377,
+     "fp8": 0.890625
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 1.8678389675265972,
+     "fp8": 0.9817708333333334
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 1.8678389675265972,
+     "fp8": 0.9817708333333334
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 1.8549856395429358,
+     "fp8": 0.98828125
+    }
+   }
+  },
+  "view_qwen3_1p7b_L3_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 564552.6999401427,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 4725579.142356954,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 4725552.539043152,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 5632183.273678351,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 64.35805035907184,
+     "fp8": 0.10416666666666667
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 59.86600952022018,
+     "fp8": 0.17578125
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 33.26168406072318,
+     "fp8": 0.22265625
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 31.2009013674146,
+     "fp8": 0.22265625
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 9.022585230786186,
+     "fp8": 0.5989583333333334
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 4.343721581104147,
+     "fp8": 0.8072916666666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 3.863892988404048,
+     "fp8": 0.83203125
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 3.7756574942226,
+     "fp8": 0.83984375
+    }
+   }
+  },
+  "view_qwen3_30b_L0_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 3579.6751466151095,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 12338.457570633786,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 5227.549176384312,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 5204.813025165581,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 25.366195218157184,
+     "fp8": 0.00390625
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 17.99841620897229,
+     "fp8": 0.004557291666666667
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 13.999478858467235,
+     "fp8": 0.013671875
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 13.434256882552999,
+     "fp8": 0.015625
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 5.939534172676349,
+     "fp8": 0.1640625
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2.9971910087985285,
+     "fp8": 0.3365885416666667
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2.919242203292883,
+     "fp8": 0.3430989583333333
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2.8938217483327606,
+     "fp8": 0.3450520833333333
+    }
+   }
+  },
+  "view_qwen3_30b_L12_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 6626.430006148915,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 24352.718686913024,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 8323.480567243265,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 9596.768297389359,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 33.03628903642109,
+     "fp8": 0.24348958333333334
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 21.53675374500607,
+     "fp8": 0.3639322916666667
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 14.285531192284978,
+     "fp8": 0.4322916666666667
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 13.10767128899343,
+     "fp8": 0.4446614583333333
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 7.249381910060033,
+     "fp8": 0.69921875
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 3.2535214021829035,
+     "fp8": 0.8756510416666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 3.06567691611612,
+     "fp8": 0.8841145833333334
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 3.019387534796762,
+     "fp8": 0.8854166666666666
+    }
+   }
+  },
+  "view_qwen3_30b_L1_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 2428.599700965839,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 6940.34942616248,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2392.211078902416,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2374.219215368464,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 25.161971795512613,
+     "fp8": 0.00390625
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 15.661412473450278,
+     "fp8": 0.013020833333333334
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 11.653068721218164,
+     "fp8": 0.024088541666666668
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 11.101067242050215,
+     "fp8": 0.026692708333333332
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 6.373896672808686,
+     "fp8": 0.06510416666666667
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2.9542844223923246,
+     "fp8": 0.14322916666666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2.858293676931428,
+     "fp8": 0.14518229166666666
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2.850862130599976,
+     "fp8": 0.14453125
+    }
+   }
+  },
+  "view_qwen3_30b_L24_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 325.5025407278651,
+     "fp8": 0.0013020833333333333
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 564.1191153168365,
+     "fp8": 0.0006510416666666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 253.15487970274407,
+     "fp8": 0.007161458333333333
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 214.49808962893394,
+     "fp8": 0.008463541666666666
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 15.330507465958618,
+     "fp8": 0.66015625
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 8.024470516499505,
+     "fp8": 0.8483072916666666
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 6.497219713557592,
+     "fp8": 0.8697916666666666
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 6.152268877063741,
+     "fp8": 0.8795572916666666
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 4.9587219946633425,
+     "fp8": 0.912109375
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2.2717962197757777,
+     "fp8": 0.9622395833333334
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2.271160375772801,
+     "fp8": 0.9622395833333334
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 2.2421328562974536,
+     "fp8": 0.962890625
+    }
+   }
+  },
+  "view_qwen3_30b_L3_1600": {
+   "4bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 115650268424.0022,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 2263364689733.926,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 2263364689733.926,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 3418268188939.754,
+     "fp8": 0.0
+    }
+   },
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 876.9563895793214,
+     "fp8": 0.0
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 1907.9217555629023,
+     "fp8": 0.0
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 782.215919456777,
+     "fp8": 0.0
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 771.0660368919058,
+     "fp8": 0.0
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "ratio": 22.588721711337453,
+     "fp8": 0.2578125
+    },
+    "hkz": {
+     "cover": 1.0,
+     "ratio": 13.542364987239777,
+     "fp8": 0.4817708333333333
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "ratio": 9.98173726793833,
+     "fp8": 0.5735677083333334
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "ratio": 9.713032094779376,
+     "fp8": 0.5794270833333334
+    }
+   }
+  }
+ },
+ "certread": {
+  "view_qwen3_1p7b_L0_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.96875,
+     "read_oracle": 0.5626082272873711,
+     "traffic_rule": 0.978515625,
+     "traffic_oracle": 0.6992931562600677
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.9541015625,
+     "read_oracle": 0.5626082272873711,
+     "traffic_rule": 0.96844482421875,
+     "traffic_oracle": 0.6992931562600677
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.9541015625,
+     "read_oracle": 0.5626082272873711,
+     "traffic_rule": 0.96844482421875,
+     "traffic_oracle": 0.6992931562600677
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.8935496536726804,
+     "read_oracle": 0.22809530041881443,
+     "traffic_rule": 0.9334685335454252,
+     "traffic_oracle": 0.5175595627617591
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.8355800982603091,
+     "read_oracle": 0.22809530041881443,
+     "traffic_rule": 0.8972375614126932,
+     "traffic_oracle": 0.5175595627617591
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.8365566607603091,
+     "read_oracle": 0.22809530041881443,
+     "traffic_rule": 0.8978479129751932,
+     "traffic_oracle": 0.5175595627617591
+    }
+   }
+  },
+  "view_qwen3_1p7b_L13_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.20126500080541238,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.45086968805372096,
+     "traffic_oracle": 0.39853094041961984
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.1616613643685567,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.4236421880033827,
+     "traffic_oracle": 0.39853094041961984
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.1610824742268041,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.4232442010309278,
+     "traffic_oracle": 0.39853094041961984
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.1386668411726804,
+     "read_oracle": 0.1250453044458763,
+     "traffic_rule": 0.4616667757329253,
+     "traffic_oracle": 0.4531533152786727
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.1272299855025773,
+     "read_oracle": 0.1250453044458763,
+     "traffic_rule": 0.45451874093911077,
+     "traffic_oracle": 0.4531533152786727
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.12715447809278352,
+     "read_oracle": 0.1250453044458763,
+     "traffic_rule": 0.4544715488079897,
+     "traffic_oracle": 0.4531533152786727
+    }
+   }
+  },
+  "view_qwen3_1p7b_L1_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.9892578125,
+     "read_oracle": 0.28147652222938147,
+     "traffic_rule": 0.99261474609375,
+     "traffic_oracle": 0.5060151090326998
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.9580078125,
+     "read_oracle": 0.28147652222938147,
+     "traffic_rule": 0.97113037109375,
+     "traffic_oracle": 0.5060151090326998
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.9580078125,
+     "read_oracle": 0.28147652222938147,
+     "traffic_rule": 0.97113037109375,
+     "traffic_oracle": 0.5060151090326998
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.7080027786726804,
+     "read_oracle": 0.14544488965850516,
+     "traffic_rule": 0.8175017366704252,
+     "traffic_oracle": 0.46590305603656573
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.46352488724226804,
+     "read_oracle": 0.14544488965850516,
+     "traffic_rule": 0.6647030545264175,
+     "traffic_oracle": 0.46590305603656573
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.46352488724226804,
+     "read_oracle": 0.14544488965850516,
+     "traffic_rule": 0.6647030545264175,
+     "traffic_oracle": 0.46590305603656573
+    }
+   }
+  },
+  "view_qwen3_1p7b_L26_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.1807043331185567,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.4367342290190077,
+     "traffic_oracle": 0.3984375
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.13157921230670103,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.40296070846085696,
+     "traffic_oracle": 0.3984375
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.1311689553801546,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.4026786568238563,
+     "traffic_oracle": 0.3984375
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.12884584407216493,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.4555286525451031,
+     "traffic_oracle": 0.453125
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.12518121778350516,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.45323826111469073,
+     "traffic_oracle": 0.453125
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.12518121778350516,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.45323826111469073,
+     "traffic_oracle": 0.453125
+    }
+   }
+  },
+  "view_qwen3_1p7b_L3_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.6215165914948453,
+     "read_oracle": 0.12595642719072164,
+     "traffic_rule": 0.7397926566527061,
+     "traffic_oracle": 0.39909504369362114
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.4775013087951031,
+     "read_oracle": 0.12595642719072164,
+     "traffic_rule": 0.6407821497966334,
+     "traffic_oracle": 0.39909504369362114
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.4813446359536082,
+     "read_oracle": 0.12595642719072164,
+     "traffic_rule": 0.6434244372181057,
+     "traffic_oracle": 0.39909504369362114
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.17394641994201027,
+     "read_oracle": 0.12525672519329895,
+     "traffic_rule": 0.4837165124637564,
+     "traffic_oracle": 0.4532854532458118
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.131090931056701,
+     "read_oracle": 0.12525672519329895,
+     "traffic_rule": 0.4569318319104381,
+     "traffic_oracle": 0.4532854532458118
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.13104562661082475,
+     "read_oracle": 0.12525672519329895,
+     "traffic_rule": 0.4569035166317655,
+     "traffic_oracle": 0.4532854532458118
+    }
+   }
+  },
+  "view_qwen3_30b_L0_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.2898880476804123,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5117980327802835
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.2898880476804123,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5117980327802835
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.2898880476804123,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5117980327802835
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.9296875,
+     "read_oracle": 0.18919639980670103,
+     "traffic_rule": 0.9560546875,
+     "traffic_oracle": 0.4932477498791882
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.599609375,
+     "read_oracle": 0.18919639980670103,
+     "traffic_rule": 0.749755859375,
+     "traffic_oracle": 0.4932477498791882
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.599609375,
+     "read_oracle": 0.18919639980670103,
+     "traffic_rule": 0.749755859375,
+     "traffic_oracle": 0.4932477498791882
+    }
+   }
+  },
+  "view_qwen3_30b_L12_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.7263108086340205,
+     "read_oracle": 0.1295606475515464,
+     "traffic_rule": 0.8118386809358891,
+     "traffic_oracle": 0.4015729451916881
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.5618153994845361,
+     "read_oracle": 0.1295606475515464,
+     "traffic_rule": 0.6987480871456185,
+     "traffic_oracle": 0.4015729451916881
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.5560768363402062,
+     "read_oracle": 0.1295606475515464,
+     "traffic_rule": 0.6948028249838918,
+     "traffic_oracle": 0.4015729451916881
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.24146262886597936,
+     "read_oracle": 0.1254832474226804,
+     "traffic_rule": 0.5259141430412371,
+     "traffic_oracle": 0.4534270296391753
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.15318439916237114,
+     "read_oracle": 0.1254832474226804,
+     "traffic_rule": 0.47074024947648196,
+     "traffic_oracle": 0.4534270296391753
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.15232864851804123,
+     "read_oracle": 0.1254832474226804,
+     "traffic_rule": 0.47020540532377575,
+     "traffic_oracle": 0.4534270296391753
+    }
+   }
+  },
+  "view_qwen3_30b_L1_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.3501479945231959,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5532267462346971
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.994140625,
+     "read_oracle": 0.3501479945231959,
+     "traffic_rule": 0.9959716796875,
+     "traffic_oracle": 0.5532267462346971
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.994140625,
+     "read_oracle": 0.3501479945231959,
+     "traffic_rule": 0.9959716796875,
+     "traffic_oracle": 0.5532267462346971
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.80859375,
+     "read_oracle": 0.23217521746134018,
+     "traffic_rule": 0.88037109375,
+     "traffic_oracle": 0.5201095109133376
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.5537109375,
+     "read_oracle": 0.23217521746134018,
+     "traffic_rule": 0.7210693359375,
+     "traffic_oracle": 0.5201095109133376
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.5537109375,
+     "read_oracle": 0.23217521746134018,
+     "traffic_rule": 0.7210693359375,
+     "traffic_oracle": 0.5201095109133376
+    }
+   }
+  },
+  "view_qwen3_30b_L24_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.18431358730670103,
+     "read_oracle": 0.12554365335051548,
+     "traffic_rule": 0.43921559127335696,
+     "traffic_oracle": 0.3988112616784794
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.13840508215206185,
+     "read_oracle": 0.12554365335051548,
+     "traffic_rule": 0.40765349397954254,
+     "traffic_oracle": 0.3988112616784794
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.13822386436855671,
+     "read_oracle": 0.12554365335051548,
+     "traffic_rule": 0.4075289067533827,
+     "traffic_oracle": 0.3988112616784794
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.13206749355670103,
+     "read_oracle": 0.12536243556701032,
+     "traffic_rule": 0.4575421834729382,
+     "traffic_oracle": 0.45335152222938147
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.1264195393041237,
+     "read_oracle": 0.12536243556701032,
+     "traffic_rule": 0.4540122120650773,
+     "traffic_oracle": 0.45335152222938147
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.12635913337628868,
+     "read_oracle": 0.12536243556701032,
+     "traffic_rule": 0.4539744583601804,
+     "traffic_oracle": 0.45335152222938147
+    }
+   }
+  },
+  "view_qwen3_30b_L3_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.29429768041237114,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5148296552835052
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.29429768041237114,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5148296552835052
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 1.0,
+     "read_oracle": 0.29429768041237114,
+     "traffic_rule": 1.0,
+     "traffic_oracle": 0.5148296552835052
+    }
+   },
+   "8bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.8701171875,
+     "read_oracle": 0.1468115737757732,
+     "traffic_rule": 0.9188232421875,
+     "traffic_oracle": 0.46675723360985827
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.6506272148840206,
+     "read_oracle": 0.1468115737757732,
+     "traffic_rule": 0.7816420093025129,
+     "traffic_oracle": 0.46675723360985827
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.651598743556701,
+     "read_oracle": 0.1468115737757732,
+     "traffic_rule": 0.7822492147229381,
+     "traffic_oracle": 0.46675723360985827
+    }
+   }
+  }
+ },
+ "certread_fine": {
+  "view_qwen3_1p7b_L0_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.9645970924613402,
+     "read_oracle": 0.5203089763208764,
+     "traffic_rule": 0.9756605010671714,
+     "traffic_oracle": 0.6702124212206024
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.9493395618556701,
+     "read_oracle": 0.5203089763208764,
+     "traffic_rule": 0.9651709487757733,
+     "traffic_oracle": 0.6702124212206024
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.9498278431056701,
+     "read_oracle": 0.5203089763208764,
+     "traffic_rule": 0.9655066421351483,
+     "traffic_oracle": 0.6702124212206024
+    }
+   }
+  },
+  "view_qwen3_1p7b_L13_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.19053791478737114,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.44349481641631766,
+     "traffic_oracle": 0.39853094041961984
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.15663257087628865,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.4201848924774484,
+     "traffic_oracle": 0.39853094041961984
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.15618707715850513,
+     "read_oracle": 0.12513591333762886,
+     "traffic_rule": 0.4198786155464723,
+     "traffic_oracle": 0.39853094041961984
+    }
+   }
+  },
+  "view_qwen3_1p7b_L1_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.98876953125,
+     "read_oracle": 0.2431313426224227,
+     "traffic_rule": 0.992279052734375,
+     "traffic_oracle": 0.4796527980529156
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.9588610462306701,
+     "read_oracle": 0.2431313426224227,
+     "traffic_rule": 0.9717169692835858,
+     "traffic_oracle": 0.4796527980529156
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.9608141712306701,
+     "read_oracle": 0.2431313426224227,
+     "traffic_rule": 0.9730597427210858,
+     "traffic_oracle": 0.4796527980529156
+    }
+   }
+  },
+  "view_qwen3_1p7b_L26_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.17369221166237114,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.43191339551788016,
+     "traffic_oracle": 0.3984375
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.1316572366301546,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.4030143501832313,
+     "traffic_oracle": 0.3984375
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.13139799452319584,
+     "read_oracle": 0.125,
+     "traffic_rule": 0.40283612123469714,
+     "traffic_oracle": 0.3984375
+    }
+   }
+  },
+  "view_qwen3_1p7b_L3_1600": {
+   "6bit": {
+    "split": {
+     "cover": 1.0,
+     "read_rule": 0.5928892155283505,
+     "read_oracle": 0.12577269249355671,
+     "traffic_rule": 0.7201113356757409,
+     "traffic_oracle": 0.3989687260893202
+    },
+    "hkz+exact": {
+     "cover": 1.0,
+     "read_rule": 0.4658530323775773,
+     "read_oracle": 0.12577269249355671,
+     "traffic_rule": 0.6327739597595844,
+     "traffic_oracle": 0.3989687260893202
+    },
+    "hkz+exact+r1": {
+     "cover": 1.0,
+     "read_rule": 0.47043381523840205,
+     "read_oracle": 0.12577269249355671,
+     "traffic_rule": 0.6359232479764014,
+     "traffic_oracle": 0.3989687260893202
+    }
+   }
+  }
+ },
+ "adapters": {
+  "qwen3_1p7b": [
+   {
+    "layer": 0,
+    "G": 8,
+    "r": 2,
+    "dk": 128,
+    "recon": 9.826688097365313e-07,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 1,
+    "G": 8,
+    "r": 2,
+    "dk": 128,
+    "recon": 1.6098190405407251e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 2,
+    "G": 8,
+    "r": 2,
+    "dk": 128,
+    "recon": 1.4236414534103486e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 3,
+    "G": 8,
+    "r": 2,
+    "dk": 128,
+    "recon": 3.354410221909961e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   }
+  ],
+  "qwen3_30b": [
+   {
+    "layer": 0,
+    "G": 4,
+    "r": 8,
+    "dk": 128,
+    "recon": 8.449789975555255e-07,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 1,
+    "G": 4,
+    "r": 8,
+    "dk": 128,
+    "recon": 1.3581746124941419e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 2,
+    "G": 4,
+    "r": 8,
+    "dk": 128,
+    "recon": 1.6431972221931947e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   },
+   {
+    "layer": 3,
+    "G": 4,
+    "r": 8,
+    "dk": 128,
+    "recon": 2.78383719291189e-06,
+    "lemma2_ok": 1.0,
+    "l4_tailx_ok": 1.0,
+    "theorem_R_v1_cover_min": 1.0
+   }
+  ]
+ }
+}

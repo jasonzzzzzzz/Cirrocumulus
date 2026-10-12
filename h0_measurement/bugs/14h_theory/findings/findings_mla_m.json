@@ -1,0 +1,192 @@
+{
+ "moonlight_L1": {
+  "model": "moonlight",
+  "layer": 1,
+  "C": 1552,
+  "heads": 16,
+  "bits": {
+   "4": {
+    "measured_over_predicted": 0.9930273835630766,
+    "p10_p90": [
+     0.9472175437143161,
+     1.0203199234174125
+    ],
+    "measured_over_predicted_without_cross_term": 0.9929924516472698,
+    "cross_term_share": 0.00016105841054191183,
+    "seconds": 3.3
+   },
+   "6": {
+    "measured_over_predicted": 1.003727761614835,
+    "p10_p90": [
+     0.9620618165663624,
+     1.0351066682848469
+    ],
+    "measured_over_predicted_without_cross_term": 1.0040778728995499,
+    "cross_term_share": 0.00014909467221416658,
+    "seconds": 2.6
+   },
+   "8": {
+    "measured_over_predicted": 0.9830924216359318,
+    "p10_p90": [
+     0.9446607839031957,
+     1.0123503968298597
+    ],
+    "measured_over_predicted_without_cross_term": 0.9836351522841409,
+    "cross_term_share": 0.000147658619287661,
+    "seconds": 2.6
+   }
+  }
+ },
+ "moonlight_L13": {
+  "model": "moonlight",
+  "layer": 13,
+  "C": 1552,
+  "heads": 16,
+  "bits": {
+   "4": {
+    "measured_over_predicted": 0.992451754474345,
+    "p10_p90": [
+     0.9617043019509703,
+     1.0180157997096626
+    ],
+    "measured_over_predicted_without_cross_term": 0.9931971217625918,
+    "cross_term_share": 0.0005570359066088769,
+    "seconds": 3.1
+   },
+   "6": {
+    "measured_over_predicted": 1.0023638129201766,
+    "p10_p90": [
+     0.9757480005489344,
+     1.0285305825769728
+    ],
+    "measured_over_predicted_without_cross_term": 1.0031162124608273,
+    "cross_term_share": 0.0005168254934597412,
+    "seconds": 2.9
+   },
+   "8": {
+    "measured_over_predicted": 1.0027647789526506,
+    "p10_p90": [
+     0.9759707928086827,
+     1.0351069686473386
+    ],
+    "measured_over_predicted_without_cross_term": 1.0027754125447697,
+    "cross_term_share": 0.0005146377538599749,
+    "seconds": 2.7
+   }
+  }
+ },
+ "dsv2lite_L1": {
+  "model": "dsv2lite",
+  "layer": 1,
+  "C": 1552,
+  "heads": 16,
+  "bits": {
+   "4": {
+    "measured_over_predicted": 0.9798973533255909,
+    "p10_p90": [
+     0.913415284830033,
+     1.0719946222302847
+    ],
+    "measured_over_predicted_without_cross_term": 0.9802680014106326,
+    "cross_term_share": 0.00017852842803459064,
+    "seconds": 2.8
+   },
+   "6": {
+    "measured_over_predicted": 1.0105384366563848,
+    "p10_p90": [
+     0.9686817215180181,
+     1.0742190571060668
+    ],
+    "measured_over_predicted_without_cross_term": 1.0108347416503294,
+    "cross_term_share": 0.00013681340894334198,
+    "seconds": 2.8
+   },
+   "8": {
+    "measured_over_predicted": 0.9836933917456405,
+    "p10_p90": [
+     0.941502415528459,
+     1.0414200784332777
+    ],
+    "measured_over_predicted_without_cross_term": 0.9840492798045332,
+    "cross_term_share": 0.00013393527187695965,
+    "seconds": 3.0
+   }
+  }
+ },
+ "dsv2lite_L13": {
+  "model": "dsv2lite",
+  "layer": 13,
+  "C": 1552,
+  "heads": 16,
+  "bits": {
+   "4": {
+    "measured_over_predicted": 0.9870806778066894,
+    "p10_p90": [
+     0.8883848156783418,
+     1.0815427928561694
+    ],
+    "measured_over_predicted_without_cross_term": 0.987007304954645,
+    "cross_term_share": 0.00020924569933432048,
+    "seconds": 2.3
+   },
+   "6": {
+    "measured_over_predicted": 0.9962057282747978,
+    "p10_p90": [
+     0.9529950979841478,
+     1.0411479880901524
+    ],
+    "measured_over_predicted_without_cross_term": 0.9962317304284981,
+    "cross_term_share": 0.00014418399621974966,
+    "seconds": 2.6
+   },
+   "8": {
+    "measured_over_predicted": 1.0029408528590105,
+    "p10_p90": [
+     0.9574598065469149,
+     1.0445433761583673
+    ],
+    "measured_over_predicted_without_cross_term": 1.0030315623289792,
+    "cross_term_share": 0.00014143163496266637,
+    "seconds": 2.3
+   }
+  }
+ },
+ "kimilinear_L3": {
+  "model": "kimilinear",
+  "layer": 3,
+  "C": 1552,
+  "heads": 32,
+  "bits": {
+   "4": {
+    "measured_over_predicted": 1.0030918099374821,
+    "p10_p90": [
+     0.987493869704744,
+     1.0202822652200016
+    ],
+    "measured_over_predicted_without_cross_term": 1.003791246186109,
+    "cross_term_share": 0.0004677512394787362,
+    "seconds": 3.7
+   },
+   "6": {
+    "measured_over_predicted": 1.0069718164250858,
+    "p10_p90": [
+     0.9927693061538917,
+     1.02079797890278
+    ],
+    "measured_over_predicted_without_cross_term": 1.007757270427707,
+    "cross_term_share": 0.00046628779004783826,
+    "seconds": 3.5
+   },
+   "8": {
+    "measured_over_predicted": 1.0031365015716474,
+    "p10_p90": [
+     0.9889710238657089,
+     1.018866016923401
+    ],
+    "measured_over_predicted_without_cross_term": 1.0039422604725377,
+    "cross_term_share": 0.0004662050934856095,
+    "seconds": 3.4
+   }
+  }
+ }
+}

@@ -1,0 +1,134 @@
+{
+ "model": "granite",
+ "repo": "ibm-granite/granite-4.0-h-tiny",
+ "L": 1600,
+ "value_bits": 4,
+ "t_forward": 117.8,
+ "t_total": 119.7,
+ "layers": {
+  "5": {
+   "unread_mass": 0.8127667561822729,
+   "unread_second_moment_share": 0.6618466871893833,
+   "fp8_err_median": 0.00034176610273751237,
+   "bits": {
+    "4": {
+     "sigma_median": 0.004572743779817807,
+     "tail_rms_over_fp8": 3.569358804710909,
+     "tail_above_fp8": 0.9427083333333334,
+     "dense_rms_over_fp8": 4.4659060611673755,
+     "dense_above_fp8": 1.0,
+     "tail_key_share": 0.003342489420367926
+    },
+    "6": {
+     "sigma_median": 0.00108874851900424,
+     "tail_rms_over_fp8": 3.561385120001015,
+     "tail_above_fp8": 0.9427083333333334,
+     "dense_rms_over_fp8": 4.429279295612481,
+     "dense_above_fp8": 1.0,
+     "tail_key_share": 0.00019008373605549974
+    },
+    "8": {
+     "sigma_median": 0.0002689849282245769,
+     "tail_rms_over_fp8": 3.5609692928485535,
+     "tail_above_fp8": 0.9427083333333334,
+     "dense_rms_over_fp8": 4.428451337961071,
+     "dense_above_fp8": 1.0,
+     "tail_key_share": 1.1602795487064326e-05
+    }
+   }
+  },
+  "15": {
+   "unread_mass": 0.16820042112827793,
+   "unread_second_moment_share": 0.017768661730275345,
+   "fp8_err_median": 0.0868426801947568,
+   "bits": {
+    "4": {
+     "sigma_median": 0.2654236725997773,
+     "tail_rms_over_fp8": 0.5384119173138501,
+     "tail_above_fp8": 0.1875,
+     "dense_rms_over_fp8": 3.443134606303798,
+     "dense_above_fp8": 0.9947916666666666,
+     "tail_key_share": 0.8360174475661472
+    },
+    "6": {
+     "sigma_median": 0.0631961125237565,
+     "tail_rms_over_fp8": 0.25380400127848957,
+     "tail_above_fp8": 0.041666666666666664,
+     "dense_rms_over_fp8": 1.5503582982700532,
+     "dense_above_fp8": 0.796875,
+     "tail_key_share": 0.22925261696242005
+    },
+    "8": {
+     "sigma_median": 0.015613157211751605,
+     "tail_rms_over_fp8": 0.2275567581309978,
+     "tail_above_fp8": 0.036458333333333336,
+     "dense_rms_over_fp8": 1.4156296868810756,
+     "dense_above_fp8": 0.734375,
+     "tail_key_share": 0.01785626904351654
+    }
+   }
+  },
+  "25": {
+   "unread_mass": 0.05074181194767962,
+   "unread_second_moment_share": 0.006152248696549672,
+   "fp8_err_median": 0.09961227324270766,
+   "bits": {
+    "4": {
+     "sigma_median": 0.30776023449329426,
+     "tail_rms_over_fp8": 0.4285589590543023,
+     "tail_above_fp8": 0.21354166666666666,
+     "dense_rms_over_fp8": 3.8199844898226143,
+     "dense_above_fp8": 1.0,
+     "tail_key_share": 0.8723623129472009
+    },
+    "6": {
+     "sigma_median": 0.0732762463079272,
+     "tail_rms_over_fp8": 0.17291990768487672,
+     "tail_above_fp8": 0.057291666666666664,
+     "dense_rms_over_fp8": 2.3273367595566516,
+     "dense_above_fp8": 0.890625,
+     "tail_key_share": 0.2872375931151113
+    },
+    "8": {
+     "sigma_median": 0.018103543205487897,
+     "tail_rms_over_fp8": 0.1486444602183675,
+     "tail_above_fp8": 0.036458333333333336,
+     "dense_rms_over_fp8": 2.1830691818684866,
+     "dense_above_fp8": 0.84375,
+     "tail_key_share": 0.02405967633657439
+    }
+   }
+  },
+  "35": {
+   "unread_mass": 0.10777363943896426,
+   "unread_second_moment_share": 0.033697239959261806,
+   "fp8_err_median": 0.15936339739831587,
+   "bits": {
+    "4": {
+     "sigma_median": 0.33260026431733375,
+     "tail_rms_over_fp8": 0.8361396828935606,
+     "tail_above_fp8": 0.4114583333333333,
+     "dense_rms_over_fp8": 3.8115186749491015,
+     "dense_above_fp8": 0.9895833333333334,
+     "tail_key_share": 0.8949119152628909
+    },
+    "6": {
+     "sigma_median": 0.07919053912317471,
+     "tail_rms_over_fp8": 0.3181344536805226,
+     "tail_above_fp8": 0.026041666666666668,
+     "dense_rms_over_fp8": 1.8581224747622052,
+     "dense_above_fp8": 0.8541666666666666,
+     "tail_key_share": 0.3373032482976642
+    },
+    "8": {
+     "sigma_median": 0.0195647214304314,
+     "tail_rms_over_fp8": 0.2756690738474917,
+     "tail_above_fp8": 0.020833333333333332,
+     "dense_rms_over_fp8": 1.6362201906840692,
+     "dense_above_fp8": 0.765625,
+     "tail_key_share": 0.030210271206755464
+    }
+   }
+  }
+ }
+}

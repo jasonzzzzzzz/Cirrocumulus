@@ -62,9 +62,15 @@ def onerow_t(sigma: torch.Tensor, delta1: float) -> torch.Tensor:
 
 
 def _log_sinhc(x: torch.Tensor) -> torch.Tensor:
-    """log(sinh(x) / x), stable for every x."""
-    x = x.abs().clamp_min(1e-12)
-    return x + torch.log1p(-torch.exp(-2.0 * x)) - math.log(2.0) - torch.log(x)
+    """log(sinh(x) / x), stable for every x. Below |x| = 0.1 the closed form loses digits to cancellation in
+    1 - e^{-2x}, all of them near |x| = 1e-12, where near-zero scores (Granite-4.2 L4/L6) put every coordinate; the
+    series x^2/6 - x^4/180 + x^6/2835 - x^8/37800 + x^10/467775 is used there (relative error < 1e-15)."""
+    x = x.abs()
+    sm = x < 0.1
+    xs = torch.where(sm, torch.ones_like(x), x)
+    x2 = x * x
+    ser = x2 * (1.0 / 6.0 - x2 * (1.0 / 180.0 - x2 * (1.0 / 2835.0 - x2 * (1.0 / 37800.0 - x2 / 467775.0))))
+    return torch.where(sm, ser, xs + torch.log1p(-torch.exp(-2.0 * xs)) - math.log(2.0) - torch.log(xs))
 
 
 def exact_coin_moments(q_rot: torch.Tensor, step: torch.Tensor, scaling: float, ldb: torch.Tensor, ks=(1, 2)) -> dict:

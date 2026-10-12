@@ -28,13 +28,16 @@ How the two folders connect:
 | `theory3_s1h5.py` | part 6: Theorem R v3 (by noise source, one-row maxima, χ² values; `sure=True` adds part 7's sure sums), Theorem M (the exact second moment) |
 | `theory4_s1h5.py` | part 7: `tail_bound_rand_sure`, `tail_bound_rand_split` (GQA), `schedule` and `certified_read`; CPU harnesses `compare` and `certread` |
 | `theory5_s1h5.py` | part 8: the split with the tilted tail and a Hsu–Kakade–Zhang key sum (`tail_bound_rand_split_hkz`); the key proxies (`key_proxy`: log-Sobolev, closed form; `exact_key_proxy`: exact law); per-row truncation (`prep`); a generic `certified_read`; CPU harnesses `compare` and `certread` on cached views (`TH_CACHE`) |
-| `adapters_s1h5.py` | the certificate's view of each architecture's global softmax layers (GQA, GPT-OSS sinks, Gemma 3 global, Granite-4.0-H attention, MLA for DeepSeek-V2/V3, Moonlight, Kimi-Linear); loads the six test models truncated, on CPU |
+| `adapters_s1h5.py` | the certificate's view of each architecture's global softmax layers (GQA, GPT-OSS sinks, Gemma 3 global, Granite-4.0-H attention, MLA for DeepSeek-V2/V3, Moonlight, Kimi-Linear); loads the test models on CPU, truncated or to any depth (`_load(key, k)`): the six architectures plus Qwen3-1.7B, R6's two models (`llama8b`, `qwen3_30b`) and 11 more (Llama-3.3-70B, Mistral 7B and Small 3.2, Granite-4.2, Qwen1.5 and Qwen1.5-MoE, GLM-4.5-Air, MiniMax-M2, Qwen3.5/3.8, Gemma 4); multimodal checkpoints load their text model, block-FP8 dequantizes, a Mistral tekken BPE in pure Python |
+| `layermap_s1h5.py` | Theorem M's per-layer map of a model from one FP pass: σ, the tail's predicted error against FP8's at 4/6/8-bit keys, the unread shares (`findings/layermap_<model>.json`); `--grid`: every (key, value) width in {4, 5, 6, 8}² and read fraction in {1/8, 1/4} (Corollary M-B; `findings/findings_bits.*`). `H0_TEXT=<file>` switches the input text |
+| `mla_m_s1h5.py` | Theorem M for MLA (coupled key and value errors, exact), with its Monte Carlo check (`findings/findings_mla_m.json`) |
 | `oracle_s1h5.py`, `adaptive_s1h5.py` | the oracle width (the best any certificate could do); Theorem R under adaptive (design-substituted) queries |
 | `exp4bit_s1h5.py` | part 6's 4-bit study (`capture`, `diagnose`, `remedies`, `lawcheck`, `evaluate`; views cached in `.views/`) |
 | `test_theory_s1h5.py`, `test_theory3_s1h5.py`, `test_theory4_s1h5.py`, `test_theory5_s1h5.py`, `test_adapters_s1h5.py` | brute-force and real-weight checks for parts 5, 6, 7, 8 and the adapters (part 8's also check the proxies against exact laws by quadrature) |
-| `findings/` | `findings_4bit`, `findings_part7`, `findings_part8`, `R5_adapters`, `R5_theory_mla`; `archive/` holds superseded write-ups |
+| `findings/` | `findings_4bit`, `findings_part7`, `findings_part8`, `findings_qwen`, `findings_architectures`, `findings_mla_m`, `findings_bits`, `layermap_*`, `R5_adapters`, `R5_theory_mla`; `archive/` holds superseded write-ups |
 | `ISOLATION_PLAN.md` | how this folder was separated from `../14h_methodology_improve/` (executed 2026-10-10) |
-| `CLAIMS_LEDGER.md` | the design paper's claims (empirical C1–C7, theory T1–T7, systems S1–S3): evidence, status, theory-against-protocol checks, which paper owns what |
+| `CLAIMS_LEDGER.md` | the design paper's claims (empirical C1–C7, theory T1–T8, systems S1–S3): evidence, status, theory-against-protocol checks, which paper owns what |
+| `MODEL_FAMILY.md` | self-contained: which key and value bits each kind of layer and model needs (families by flatness and key/value split, from Theorem M's grid on 18 models), which attention mechanisms the theorems cover, and the scoped generality claim (T8) |
 | `paper_theory_section.md` | the design paper's theory section as a skeleton: statements in paper form, proof routes, evidence slots |
 
 ## Commands

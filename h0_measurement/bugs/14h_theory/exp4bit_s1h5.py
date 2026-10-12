@@ -6,7 +6,7 @@ queries vote (a Lloyd-Max 4-bit sketch, rotation seed 7, coin-free) for C/8 rows
 tier 1 is dithered (keys at kb bits, values at 4), the tail is unbiased; delta = 0.05 per head-step; the oracle width is
 the 95% quantile of the error over 200 draws; bounds are the median over 10 draws.
 
-    python exp4bit_s1h5.py capture llama1b 1 [L]       # -> .views/view_llama1b_L1_<L>.pt (GPT-OSS sinks kept)
+    python exp4bit_s1h5.py capture llama1b 1[,3,..] [L]  # -> .views/view_llama1b_L<l>_<L>.pt (GPT-OSS sinks kept)
     python exp4bit_s1h5.py diagnose VIEW                 # v2's slack: counterfactuals with true quantities
     python exp4bit_s1h5.py remedies VIEW                 # sketch budget, peeling, both; v3; v3 + budget (4-bit keys)
     python exp4bit_s1h5.py lawcheck VIEW                 # exact-law (truncated) Pinelis radius vs Bennett, true weights
@@ -44,18 +44,23 @@ E_ = lambda x: torch.exp(x.clamp(max=700.0))  # noqa: E731
 
 # ------------------------------------------------------------------ the setup
 def capture(key, layer, L=1600):
+    """Cache the view of one layer (or a list of layers, one forward pass) at the last 48 positions of L tokens."""
     os.makedirs(CACHE, exist_ok=True)
+    layers = [layer] if isinstance(layer, int) else list(layer)
     ids = A._ids(key, L)
-    m = A._load(key).eval()
-    with A.capture(m, [layer]) as rec:
+    m = A._load(key, k=max(A.MODELS[key][1] or 0, max(layers) + 1)).eval()
+    with A.capture(m, layers) as rec:
         with torch.no_grad():
             m(ids, use_cache=False)
     del m
     pos = torch.arange(L - 48, L)
-    v = A.view_of(layer, rec[layer], pos)
-    path = os.path.join(CACHE, f"view_{key}_L{layer}_{L}.pt")
-    torch.save(dict(family=v.family, q=v.q, K=v.K, V=v.V, pos=pos, scaling=v.scaling, sink=v.sink, L=L), path)
-    return path
+    paths = []
+    for li in layers:
+        v = A.view_of(li, rec[li], pos)
+        path = os.path.join(CACHE, f"view_{key}_L{li}_{L}.pt")
+        torch.save(dict(family=v.family, q=v.q, K=v.K, V=v.V, pos=pos, scaling=v.scaling, sink=v.sink, L=L), path)
+        paths.append(path)
+    return paths[0] if isinstance(layer, int) else paths
 
 
 def load_setup(path, nv=32, frac=8):
@@ -381,7 +386,8 @@ def main():
     cmd, args = sys.argv[1], sys.argv[2:]
     t0 = time.time()
     if cmd == "capture":
-        print(capture(args[0], int(args[1]), int(args[2]) if len(args) > 2 else 1600))
+        lay = [int(x) for x in args[1].split(",")]
+        print(capture(args[0], lay[0] if len(lay) == 1 else lay, int(args[2]) if len(args) > 2 else 1600))
         return
     path = args[0] if os.path.exists(args[0]) else os.path.join(CACHE, args[0])
     res = dict(diagnose=diagnose, remedies=remedies, lawcheck=lawcheck)[cmd](path) if cmd != "evaluate" \

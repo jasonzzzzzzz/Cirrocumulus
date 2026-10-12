@@ -120,6 +120,21 @@ def test_identities():
           worst1 < 1e-9 and worst2 < 1e-9, f"(max relative residuals {worst1:.1e}, {worst2:.1e})")
 
 
+def test_log_sinhc():
+    print("\n[theory3] log(sinh(x) / x) against a 100-digit reference, x from 1e-14 to 100")
+    from decimal import Decimal, getcontext
+    getcontext().prec = 100
+    xs = [10.0 ** (k / 4.0) for k in range(-56, 9)]
+    got = K3._log_sinhc(torch.tensor(xs, dtype=DT)).tolist()
+    worst = 0.0
+    for x, g in zip(xs, got):
+        X = Decimal(x)
+        ref = float(((X.exp() - (-X).exp()) / (2 * X)).ln())
+        worst = max(worst, abs(g - ref) / ref)
+    check("relative error < 1e-12 at every x (Theorem M's key term needs it where scores are near zero)",
+          worst < 1e-12, f"(max {worst:.1e})")
+
+
 def test_second_moment():
     print("\n[theory3] Theorem M: the exact second moment against Monte Carlo (dithered tier, 4-bit keys and values)")
     import rquant_s1h5 as RQ
@@ -283,6 +298,7 @@ if __name__ == "__main__":
     test_identities()
     test_chi2()
     test_onerow()
+    test_log_sinhc()
     test_second_moment()
     test_v3_validity()
     if not FAST:

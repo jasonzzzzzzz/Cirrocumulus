@@ -418,6 +418,20 @@ def report_layers(rec: dict, L: int, n_meas: int = 16, n_vote: int = 32, **kw) -
 # ------------------------------------------------------------ real models
 MODELS = {   # key: (repo, layers to load (None = the Kimi MLA layer alone), family label)
     "llama1b": ("meta-llama/Llama-3.2-1B-Instruct", 4, "GQA (reference)"),
+    "qwen3_1p7b": ("Qwen/Qwen3-1.7B", 4, "GQA, QK-norm (Qwen3: R6's Qwen family's attention)"),
+    "qwen3_30b": ("Qwen/Qwen3-30B-A3B-Instruct-2507", 4, "GQA, QK-norm, MoE (R6's Qwen model)"),
+    "llama8b": ("meta-llama/Llama-3.1-8B-Instruct", 4, "GQA (R6's Llama model)"),
+    "llama70b": ("meta-llama/Llama-3.3-70B-Instruct", 4, "GQA, 8 query heads per KV head (Llama 3.3 70B)"),
+    "mistral7b": ("mistralai/Mistral-7B-Instruct-v0.3", 4, "GQA (Mistral)"),
+    "mistralsmall": ("mistralai/Mistral-Small-3.2-24B-Instruct-2506", 4, "GQA (Mistral 3; the text model of a VLM)"),
+    "granite42": ("ibm-granite/granite-4.2-30b", 4, "GQA, attention multiplier 1/128 (Granite 4.2, dense)"),
+    "qwen15": ("Qwen/Qwen1.5-0.5B-Chat", 4, "MHA, QKV bias (Qwen1.5)"),
+    "qwen15moe": ("Qwen/Qwen1.5-MoE-A2.7B-Chat", 4, "MHA, QKV bias, MoE (Qwen1.5-MoE)"),
+    "glm45air": ("zai-org/GLM-4.5-Air", 4, "GQA 96:8, partial RoPE, QKV bias, MoE (GLM-4.5-Air)"),
+    "minimaxm2": ("MiniMaxAI/MiniMax-M2", 4, "GQA 48:8, per-layer QK-norm, MoE, FP8 weights (MiniMax-M2)"),
+    "qwen35": ("Qwen/Qwen3.5-27B", 8, "hybrid Gated DeltaNet : gated full attention, 3 : 1, head dim 256 (Qwen3.5)"),
+    "qwen38": ("Qwen/Qwen3.8-27B", 8, "as Qwen3.5, partial RoPE 0.25, swish output gate (Qwen3.8)"),
+    "gemma4": ("google/gemma-4-31B-it", 12, "local (1,024) : global 5 : 1; global head dim 512, keys = values (Gemma 4)"),
     "gptoss": ("openai/gpt-oss-20b", 2, "GQA, sinks, banded (128) / full alternating"),
     "dsv2lite": ("deepseek-ai/DeepSeek-V2-Lite-Chat", 2, "MLA (latent 512 + rope 64, yarn)"),
     "moonlight": ("moonshotai/Moonlight-16B-A3B-Instruct", 2, "MLA (DeepSeek-V3)"),
@@ -469,7 +483,26 @@ class TikTokenBPE:
         return ids
 
 
+class TekkenBPE(TikTokenBPE):
+    """Mistral's tekken.json BPE (tiktoken-style ranks, its own pattern; ids = rank + the special tokens before them), in
+    pure Python like TikTokenBPE: the shared venv has neither sentencepiece nor mistral_common."""
+
+    def __init__(self, path):
+        import regex
+        tk = json.load(open(path, encoding="utf-8"))
+        cfg = tk["config"]
+        self.offset = cfg["default_num_special_tokens"]
+        n_keep = cfg["default_vocab_size"] - self.offset
+        self.ranks = {base64.b64decode(v["token_bytes"]): v["rank"] for v in tk["vocab"] if v["rank"] < n_keep}
+        self.pat = regex.compile(cfg["pattern"], flags=regex.V1)
+
+    def encode(self, text):
+        return [i + self.offset for i in super().encode(text)]
+
+
 def _text(n_chars=40000):
+    if os.environ.get("H0_TEXT"):                         # any plain-text file (input-variation checks)
+        return open(os.environ["H0_TEXT"], encoding="utf-8").read()[:max(n_chars, 200000)]
     corpus = os.environ.get("H0_CORPUS") or os.path.join(ROOT, ".h0_corpus/pg19")
     f = sorted(glob.glob(os.path.join(corpus, "pg19_*.txt")))[0]
     return open(f, encoding="utf-8").read()[20000:20000 + n_chars]
@@ -480,6 +513,8 @@ def _ids(key, L):
     snap = _snap(repo)
     if os.path.exists(os.path.join(snap, "tiktoken.model")):
         ids = TikTokenBPE(os.path.join(snap, "tiktoken.model")).encode(_text())
+    elif os.path.exists(os.path.join(snap, "tekken.json")) and not os.path.exists(os.path.join(snap, "tokenizer.json")):
+        ids = TekkenBPE(os.path.join(snap, "tekken.json")).encode(_text())
     else:
         from transformers import AutoTokenizer
         ids = AutoTokenizer.from_pretrained(repo).encode(_text(), add_special_tokens=False)
@@ -487,10 +522,11 @@ def _ids(key, L):
     return torch.tensor(ids[:L]).unsqueeze(0)
 
 
-def _load(key):
-    """A truncated model (the first k layers) in float32 on CPU, eager attention."""
+def _load(key, k=None):
+    """A truncated model (the first k layers; default MODELS[key]'s) in float32 on CPU, eager attention."""
     from transformers import AutoConfig, AutoModelForCausalLM
-    repo, k, _ = MODELS[key]
+    repo, k0, _ = MODELS[key]
+    k = k0 if k is None else k
     cfg = AutoConfig.from_pretrained(repo)
     kw = {}
     if cfg.model_type == "gemma3":                                    # the text model of the multimodal checkpoint
@@ -498,13 +534,46 @@ def _load(key):
         tc = cfg.text_config
         tc.num_hidden_layers, tc.layer_types = k, tc.layer_types[:k]
         return Gemma3ForCausalLM.from_pretrained(repo, config=tc, dtype=torch.float32, attn_implementation="eager")
+    tc = getattr(cfg, "text_config", None)
+    if tc is not None:                                 # a multimodal checkpoint: its text model, truncated, whole class
+        from transformers import AutoModelForImageTextToText
+        tc.num_hidden_layers = k
+        if getattr(tc, "layer_types", None):
+            tc.layer_types = tc.layer_types[:k]
+        m, info = AutoModelForImageTextToText.from_pretrained(repo, config=cfg, dtype=torch.float32,
+                                                              attn_implementation="eager", output_loading_info=True)
+        return _check_loaded(m, info, key)
     cfg.num_hidden_layers = k
     if getattr(cfg, "layer_types", None):
         cfg.layer_types = cfg.layer_types[:k]
     if cfg.model_type == "gpt_oss":
         from transformers import Mxfp4Config
         kw["quantization_config"] = Mxfp4Config(dequantize=True)
-    return AutoModelForCausalLM.from_pretrained(repo, config=cfg, dtype=torch.float32, attn_implementation="eager", **kw)
+    qc = getattr(cfg, "quantization_config", None)
+    qd = qc if isinstance(qc, dict) else (qc.to_dict() if qc is not None else {})
+    if qd.get("quant_method") == "fp8":                 # block-FP8 checkpoints (MiniMax-M2): dequantize on CPU
+        from transformers import FineGrainedFP8Config
+        from transformers.integrations import finegrained_fp8 as f8
+
+        class _Overrides(dict):                         # transformers 5.16 looks the experts kernel up here and gets
+            def get(self, k_, d_=None):                 # None for every kernel but one; nothing to override on CPU
+                return super().get(k_, {} if d_ is None else d_)
+        if not isinstance(f8.FP8Experts._impl_tp_layer_overrides, _Overrides):
+            f8.FP8Experts._impl_tp_layer_overrides = _Overrides(f8.FP8Experts._impl_tp_layer_overrides)
+        kw["quantization_config"] = FineGrainedFP8Config(dequantize=True, weight_block_size=qd.get("weight_block_size"),
+                                                         modules_to_not_convert=qd.get("modules_to_not_convert"))
+    m, info = AutoModelForCausalLM.from_pretrained(repo, config=cfg, dtype=torch.float32, attn_implementation="eager",
+                                                   output_loading_info=True, **kw)
+    return _check_loaded(m, info, key)
+
+
+def _check_loaded(m, info, key):
+    """Refuse a model whose attention weights did not load (a silent random init would pass every other check)."""
+    miss = [x for x in (info.get("missing_keys") or []) if any(s in x for s in ("attn", "attention", "q_proj", "k_proj",
+                                                                               "v_proj", "o_proj", "qkv"))]
+    if miss:
+        raise RuntimeError(f"{key}: attention weights missing after load: {sorted(miss)[:8]} ...")
+    return m
 
 
 def _kimi_mla(ids):
@@ -554,11 +623,11 @@ def run_model(key, L=1600, rand_seeds=8, rand_key_bits=None, **kw) -> dict:
         layers, n_layers, cfg_layers = [li], None, None
     else:
         model = _load(key).eval()
-        layers = global_layers(model.config)
+        layers = global_layers(getattr(model.config, "text_config", model.config))
         with capture(model, layers) as rec:
             with torch.no_grad():
                 model(ids, use_cache=False)
-        n_layers = model.config.num_hidden_layers
+        n_layers = getattr(model.config, "text_config", model.config).num_hidden_layers
         del model
     t1 = time.time()
     res = report_layers(rec, L, rand_seeds=rand_seeds, rand_key_bits=rand_key_bits, **kw)

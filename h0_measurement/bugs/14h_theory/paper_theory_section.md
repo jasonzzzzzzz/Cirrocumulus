@@ -144,10 +144,14 @@ of M. Every quantity is exact: (P2) gives the moments and (P3) the value term.
 | | value now | source | to come |
 |---|---|---|---|
 | exactness | Monte Carlo within 4.5 s.e.; the identity to 10⁻¹³ | `test_theory3_s1h5.py` | — |
-| accuracy on real layers | measured/predicted MSE 0.98–1.00 (GPT-OSS at 4-bit keys: 0.92) on Llama-1B L0/L1/L3, GPT-OSS, Gemma 3, at 1.6K and 8K | `findings/findings_4bit.md` §5 | at 128K on the paper's models [3] |
+| accuracy on real layers | measured/predicted MSE 0.98–1.00 at 6–8-bit keys on Llama-1B, GPT-OSS, Gemma 3, Qwen3-1.7B and R6's Qwen3-30B-A3B, at 1.6K and 8K; at 4-bit keys 0.91–1.00 where σ ≤ 1.1 | `findings/findings_4bit.md` §5, `findings/findings_qwen.md` | at 128K on the paper's models [3] |
+| per-layer map of R6's design | 6-bit tail at or below FP8's per-head error in 32/32 Llama-3.1-8B layers and 47/48 Qwen3-30B-A3B layers (L1: 1.25×), 1.6K tokens | `findings/layermap_*.json` | at 32K/128K [3]; against R6's per-family KL [7] |
 | mechanism | Llama-1B L1: 2.4% of the mass but 0.18% of the second moment unread; tail/dense MSE predicted 0.0186, measured 0.0187 | same | the unread share against each family's KL in R6 [3] |
 | failure case | Gemma 3 global layer: 66% of the second moment unread; tail/dense MSE 0.66 | same | — |
 | link to the reported metric | — | — | E[KL] ≈ ½ Σ_h c_h·MSE_h against R6's KL per family [7] |
+
+[Figure F-L: per layer, the tail's predicted error over FP8's for R6's two models at 4/6/8-bit keys (the layer maps).
+It shows Llama's uniform layers against Qwen's few noisy, flat ones.]
 
 [Figure F-M: the unread second-moment share per family (x) against KL per token (y), for the tail and dense arms.
 It shows the theory predicting which tasks are hard. Needs step 3's columns on R6's units.]
@@ -178,8 +182,13 @@ The target used so far, FP8's per-head error, is an oracle; a run-time τ is ste
 - **Deployment requirements.** The read set must not see the dither, and the seed is drawn per request. A vote over the
   dithered tier itself breaks the first; a vote on exact keys at the question's prefill or a separate sketch meets it,
   and its cost belongs in the memory accounting (`CLAIMS_LEDGER.md` S2, step 5).
+- **The design point is per model.** On 21 models the theorems hold everywhere. But where attention is flat (Gemma 3
+  and 4, Granite-4.2, MiniMax-M2's first layers, Qwen3.5/3.8's global layers), 4-bit values keep the tail above FP8's
+  per-head error. Theorem M's per-layer map, from one FP pass, picks 6-bit values there, at 8/4's traffic
+  (`findings/findings_architectures.md`). Layers with noisy scores (all of GPT-OSS's full layers) need 8-bit keys
+  instead, so the bits are chosen per layer (`MODEL_FAMILY.md`).
 - **Architectures.** Theorem R covers latent attention (MLA) in a coupled form (`theory.md` §6). Theorem M's MLA form
-  has an extra cross term that we do not evaluate [8].
+  has an extra coupling term. It is exact and measured at ≤ 0.1% of the error on three MLA models (`theory.md` §10).
 
 ---
 

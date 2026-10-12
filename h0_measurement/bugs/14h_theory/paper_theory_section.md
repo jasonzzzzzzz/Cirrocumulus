@@ -179,17 +179,24 @@ output is within τ, whatever the stopping rule.
 
 *Evidence* (CPU, Llama-1B, part 8's bound):
 - at 8-bit keys, FP8's per-head error is met at traffic 0.456–0.460 on L1/L3, against the oracle stop's 0.453;
-- at 6-bit keys it is met at 0.480 (L1) and 0.499 (L3) with a 15-set schedule, and 0.433 on L1 at 8K, against
+- at 6-bit keys it is met at 0.480 (L1) and 0.499 (L3) with a 16-set schedule, and 0.433 on L1 at 8K, against
   FP8's 0.50;
 - the first layer (flat attention) needs 0.73 at 6 bits.
 
 **A run-time target** (theory.md §14). FP8's per-head error is an oracle. Proposition KL (§4.8) gives a computable
 target instead: split a KL budget B over the (layer, head) components, τ_l² = 2B/(L·H·c_l).
 - If every head's error is certified within τ_l, the predicted KL is at most B.
-- On CPU this rule needs the least traffic of any rule tried, the oracle included.
-- End to end it cuts the KL several-fold below the vote-only design at +0.0001–0.0005 traffic. The extra rows go only
-  where the certificate flags a large error in a sensitive head.
-- [Evidence: `findings/findings_klbridge.md` §4. GPU: R7a/R7b.]
+- **Shape.** Held out, its per-layer shape beats targets built on FP8's per-head error by 1.2–1.8×. It beats one flat τ
+  by 1.35–1.4× on a model whose sensitivities fall steeply with depth (Qwen3-1.7B), and ties it on Llama-1B.
+- **End to end,** with the single store and its own vote, it cuts the KL 5.6× at +0.001 traffic and 25× at +0.007
+  (Llama-1B). The extra rows go only where the certificate flags a large error in a sensitive head.
+- **Level.** B bounds the predicted KL, but the KL a given B reaches varies about 10× across input families. So the
+  paper reports a KL–traffic frontier at fixed B, not a per-input KL guarantee.
+- **Where the score noise is large**, the certificate is vacuous and the read falls back to exact rows. Part 8's slack
+  grows like e^{14σ_w}, the union's deviation paid twice (theory.md §12).
+  - 8-bit keys in those layers restore it at small cost.
+  - At 32K, Qwen3-30B-A3B has 14 such layers (+0.016 traffic at the vote) and Llama-3.1-8B none.
+- [Evidence: `findings/findings_klbridge.md` §4, §6. GPU: R7a/R7b's E1.]
 
 ### 4.8 From per-head error to KL per token
 

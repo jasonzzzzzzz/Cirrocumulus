@@ -119,6 +119,7 @@ class Unit:
             pv = torch.softmax(torch.einsum("grnd,gcd->grnc", qv, Kb) * vw["sc"], -1).sum((1, 2))
             for f in fracs:
                 self.keep[f][li] = K.topk_keep(pv, self.C // f)                           # [Hkv, C]
+        self.keep_cur = self.keep
 
     def _crop(self):
         extra = self.cache.get_seq_length() - self.A0
@@ -148,6 +149,9 @@ class Unit:
             elif self.mode == "fp_view":
                 self.views[li] = dict(q=query[0].detach().to(DT), k=key[0].detach().to(DT), v=value[0].detach().to(DT),
                                       sc=float(scaling), sinks=getattr(module, "sinks", None))
+            elif self.mode == "store_q":
+                o = self._store_q(li, query[0], key[0], value[0], float(scaling))
+                return o.unsqueeze(0).to(query.dtype), None
             elif self.mode == "arm" and self.arm.get(li) is not None:
                 o = self._layer(li, self.arm[li], query[0], key[0], value[0], float(scaling),
                                 getattr(module, "sinks", None))
@@ -210,14 +214,14 @@ class Unit:
             o = o_ex + cfg[1] * torch.randn(o_ex.shape, generator=g, dtype=DT)
         elif kind == "exact":
             o = o_ex
-        elif kind == "cert":
+        elif kind in ("cert", "certn"):
             o = self._cert(li, cfg, qa, Kc, Vc, s, lf, of, sc, v.shape[-1])
         else:
             Kh, stk, Vh, stv = self._tier(li, cfg, Kc, Vc)
             if kind == "dense":
                 keep = torch.zeros(Hkv, n, C, dtype=torch.bool)
             else:
-                keep = self.keep[cfg[-1]][li].unsqueeze(1).expand(Hkv, n, C)
+                keep = self.keep_cur[cfg[-1]][li].unsqueeze(1).expand(Hkv, n, C)
             if stk is not None:
                 sh = torch.einsum("grnd,gcd->grnc", qa, Kh) * sc
                 ldb = RQ.debias_log(N.coin_moments_pc(qa @ self.Rk.T, stk, sc))
@@ -241,20 +245,23 @@ class Unit:
         kb, vb, taus = cfg[1], cfg[2], cfg[3]
         G, r, n, C = s.shape
         d = Kc.shape[-1]
-        Kh, st = RQ.dither_quantize(Kc, kb, self.Rk, 1000003 * self.seed + 2 * li)
-        stk = st.unsqueeze(-1).expand(G, C, d)
+        if cfg[0] == "certn":                               # the single store: 4-bit base + kb-bit dithered residual
+            nz = N.nested_quantize(Kc, 4, kb, self.Rk, 1000003 * self.seed + 2 * li)
+            Kh, stk = nz["Xh"], nz["step"]
+        else:
+            Kh, st = RQ.dither_quantize(Kc, kb, self.Rk, 1000003 * self.seed + 2 * li)
+            stk = st.unsqueeze(-1).expand(G, C, d)
         Vh, stv = RQ.dither_quantize(Vc, vb, self.Rv, 1000003 * self.seed + 2 * li + 1)
         qr = qa @ self.Rk.T
         mom = N.coin_moments_pc(qr, stk, sc)
         ldb = RQ.debias_log(mom)
         shd = torch.einsum("grnd,gcd->grnc", qa, Kh) * sc - ldb
         sl = torch.einsum("grnd,gcd->grnc", qa, Q.quantize_keys(Kc.float(), 4, self.Rk.float()).to(DT)) * sc
-        vote = self.keep[8][li]
+        vote = self.keep_cur[8][li]
         pri = (sl - torch.logsumexp(sl, -1, keepdim=True)).amax(1).masked_fill(vote.unsqueeze(1), NEG)
         sets = T4.schedule(vote, pri, K5.FINE)
-        S = dict(s=s, lf=lf, dv=dv, sc=sc, sl=sl)
-        D = dict(shd=shd, sig=N.score_sigma_pc(qr, stk, sc), bas=N.score_bound_pc(qr, stk, sc), mom=mom, ldb=ldb,
-                 Vh=Vh, n2=RQ.value_moments(stv.view(G, 1, 1, C), dv)[0], qr=qr, stk=stk)
+        sig, bas = N.score_sigma_pc(qr, stk, sc), N.score_bound_pc(qr, stk, sc)
+        n2 = RQ.value_moments(stv.view(G, 1, 1, C), dv)[0]
         tau = float(taus[str(li)] if str(li) in taus else taus[li])                     # JSON keys are strings
         m = len(sets)
         J = torch.full((G, n), m, dtype=torch.long)
@@ -262,19 +269,77 @@ class Unit:
             pend = J == m
             if not bool(pend.any()):
                 break
-            km = ke.unsqueeze(1)
-            c = A._attend(s.masked_fill(~km, NEG), Vc, lf, of)
-            oT = A._mix(s, shd, Vc, Vh, ke, lf, of)
+            cols = pend.any(0).nonzero().flatten()                  # only the positions some KV head still waits on
+            x = lambda t: t[:, :, cols]                                                    # noqa: E731
+            S = dict(s=x(s), lf=x(lf), dv=dv, sc=sc, sl=x(sl))
+            D = dict(shd=x(shd), sig=x(sig), bas=x(bas), mom={k_: x(v_) for k_, v_ in mom.items()}, ldb=x(ldb), Vh=Vh,
+                     n2=n2, qr=x(qr), stk=stk)
+            ke_ = ke[:, cols]
+            km = ke_.unsqueeze(1)
+            c = A._attend(S["s"].masked_fill(~km, NEG), Vc, S["lf"], x(of))
+            oT = A._mix(S["s"], D["shd"], Vc, Vh, ke_, S["lf"], x(of))
             bd = K5._bound("hkz+exact", S, D, km, c, oT, delta / m, ex_rows=ex_rows)
-            J = torch.where(pend & (bd <= tau).all(1), torch.full_like(J, j), J)
+            Jc = J[:, cols]
+            J[:, cols] = torch.where(pend[:, cols] & (bd <= tau).all(1), torch.full_like(Jc, j), Jc)
         allk = torch.stack(sets + [torch.ones_like(sets[0])])                          # [m + 1, G, n, C]
         keep = allk.gather(0, J.view(1, G, n, 1).expand(1, G, n, C)).squeeze(0)
         self.rows[li] = float(keep.double().mean())
         return A._mix(s, shd, Vc, Vh, keep, lf, of)
 
+    def store_vote(self, values: str = "dither", seed: int = 0, fracs=(8, 4)) -> dict:
+        """R6's question-time vote (run_s1h5.vote_sets; s1d_lib.rows_scores, SnapKV's rule) over a 4-bit store of the
+        context. The question runs over the store: its context keys are the 4-bit Lloyd-Max base (quant.quantize_keys,
+        the tier's rotation: R6's vote-store quantizer and the single store's base). Its context values are "lm" (R6's
+        store: quant.quantize_keys on the values), "dither" (the single store: the tier's 4-bit dithered values, this
+        seed's coins, the same stream as _tier's) or "exact". At each layer every question row's softmax covers the
+        store's context keys and the question rows before it; the context part, summed over the question's rows and the
+        KV group, scores the rows; the top C/frac per KV head are read. Returns {frac: {layer: keep [Hkv, C]}}."""
+        import copy
+        cache = copy.deepcopy(self.cache)
+        extra = cache.get_seq_length() - self.C
+        if extra > 0:
+            cache.crop(-extra)
+        self.sv = dict(values=values, seed=seed, scores={})
+        self.mode = "store_q"
+        try:
+            with torch.no_grad(), self._patched():
+                self.m(self.ids[:, self.C:self.A0], past_key_values=cache, use_cache=True)
+        finally:
+            self.mode = None
+        return {f: {li: K.topk_keep(sc_, self.C // f) for li, sc_ in self.sv["scores"].items()} for f in fracs}
+
+    def _store_q(self, li, q, k, v, sc):
+        """One layer of the question pass over the store (store_vote): records the vote's scores, returns the output."""
+        from sievelib import quant as Q
+        H, n, d = q.shape
+        Hkv = k.shape[0]
+        r, C = H // Hkv, self.C
+        Kc, Vc = k[:, :C].to(DT), v[:, :C].to(DT)
+        Kb = Q.quantize_keys(Kc.float(), 4, self.Rk.float()).to(DT)
+        if self.sv["values"] == "lm":
+            Vs = Q.quantize_keys(Vc.float(), 4, self.Rv.float()).to(DT)
+        elif self.sv["values"] == "dither":
+            Vs, _ = RQ.dither_quantize(Vc, 4, self.Rv, 1000003 * self.sv["seed"] + 2 * li + 1)
+        else:
+            Vs = Vc
+        qa = q.to(DT).reshape(Hkv, r, n, d)
+        kq, vq = k[:, C:].to(DT), v[:, C:].to(DT)
+        s_q = torch.einsum("grnd,gfd->grnf", qa, kq) * sc
+        pos = torch.arange(C, C + n)
+        jq = torch.arange(C, C + kq.shape[1])
+        s_q = s_q.masked_fill(jq.view(1, 1, 1, -1) > pos.view(1, 1, -1, 1), NEG)
+        p = torch.softmax(torch.cat([torch.einsum("grnd,gcd->grnc", qa, Kb) * sc, s_q], -1), -1)
+        self.sv["scores"][li] = p[..., :C].sum((1, 2))
+        o = torch.einsum("grnc,gcd->grnd", p[..., :C], Vs) + torch.einsum("grnf,gfd->grnd", p[..., C:], vq)
+        return o.permute(2, 0, 1, 3).reshape(n, H, -1)
+
     # -------------------------------------------------------------- an arm
-    def run(self, arm: dict, seed: int = 0) -> dict:
-        """arm: {layer: config}; returns KL(FP || arm) per answer position and its mean, plus the per-layer records."""
+    def run(self, arm: dict, seed: int = 0, vote: str = "exact") -> dict:
+        """arm: {layer: config}; returns KL(FP || arm) per answer position and its mean, plus the per-layer records.
+        vote: "exact" (the question's exact queries over the base sketch, the default), or R6's question pass over a store
+        whose values are "lm" (R6's 4-bit Lloyd-Max store) or "dither" (the single store's dithered values, this seed's
+        coins); see store_vote."""
+        self.keep_cur = self.keep if vote == "exact" else self.store_vote(vote, seed)
         self.mode, self.arm, self.seed, self.rec, self.rows = "arm", arm, seed, {}, {}
         try:
             with torch.no_grad(), self._patched():
@@ -282,6 +347,7 @@ class Unit:
         finally:
             self._crop()
             self.mode = None
+            self.keep_cur = self.keep
         lp = torch.log_softmax(lo[0].double(), -1)
         kl = (self.lp_fp.exp() * (self.lp_fp - lp)).sum(-1)
         return dict(kl=kl.tolist(), kl_mean=float(kl.mean()), layers={li: r_ for li, r_ in self.rec.items()},
@@ -385,6 +451,51 @@ def plan_sens(U: Unit, pred: dict, layers=None, seed=0) -> dict:
     return out
 
 
+def plan_vote(U: Unit, seeds=(0, 1)) -> dict:
+    """The vote's question pass over the single store (theory.md §13; RESEARCH_PLAN.md §8 input 1). It compares three
+    votes:
+    - R6's store pass with Lloyd-Max values ("lm");
+    - the single store's pass with the tier's dithered values ("dither", per seed);
+    - the exact-query vote ("exact").
+    Per layer, for each vote's 1/8 read set: the rows in common with the exact vote, the share of the answer queries'
+    exact attention mass it reads, and the unread share of sum w^2 |v - o|^2 (median over head-steps), which sets the
+    tail's error (Theorem M). End to end: KL per token of the single store (4+2/4) and of uniform 6/4 under each vote."""
+    votes = {"exact": U.keep, "lm": U.store_vote("lm", 0)}
+    for sd in seeds:
+        votes[f"dither{sd}"] = U.store_vote("dither", sd)
+    layers = {}
+    for li, vw in U.views.items():
+        q, k, v, sc = vw["q"], vw["k"], vw["v"], vw["sc"]
+        H, n, d = q.shape
+        Hkv, C = k.shape[0], U.C
+        r = H // Hkv
+        Kc, Vc = k[:, :C], v[:, :C]
+        qa = q.reshape(Hkv, r, n, d)
+        lf, of = U._fixed(qa, k, v, sc, vw["sinks"])
+        s = torch.einsum("grnd,gcd->grnc", qa, Kc) * sc
+        o = A._attend(s, Vc, lf, of)
+        w = torch.exp(s - torch.logaddexp(torch.logsumexp(s, -1), lf).unsqueeze(-1))
+        u2 = ((Vc.unsqueeze(1).unsqueeze(1) - o.unsqueeze(-2)) ** 2).sum(-1)
+        sm = (w * w * u2).sum(-1)
+        ex = votes["exact"][8][li]
+        rec = {}
+        for nm, kp in votes.items():
+            km = kp[8][li]
+            kmv = km.view(Hkv, 1, 1, C)
+            rec[nm] = dict(mass=float((w * kmv).sum(-1).mean()),
+                           unread_sm=float(((w * w * u2 * ~kmv).sum(-1) / sm.clamp_min(1e-300)).median()),
+                           common_with_exact=float((ex & km).sum() / ex.sum()))
+        d0 = votes[f"dither{seeds[0]}"][8][li]
+        rec["common_lm_dither0"] = float((votes["lm"][8][li] & d0).sum() / votes["lm"][8][li].sum())
+        layers[li] = rec
+    kl = {}
+    for armnm, cfg in (("nested 4+2/4", ("nested", 2, 4, 8)), ("tail 6/4", ("tail", 6, 4, 8))):
+        for vote in ("exact", "lm", "dither"):
+            kl[f"{armnm} | {vote}"] = [U.run(uniform(cfg, U.n_layers), sd, vote=vote)["kl_mean"] for sd in seeds]
+            print(f"  {armnm}, vote {vote}: KL/token {sum(kl[f'{armnm} | {vote}']) / len(seeds):.6f}", flush=True)
+    return dict(layers=layers, kl=kl)
+
+
 def plan_tau(U: Unit, layers=None, kb=6, vb=4, every=4, delta=1e-3, seed=0, ex_rows=8) -> dict:
     """The certified read's raw material per layer, for any target rule (klbridge_s1h5.tau applies the rules). It uses
     the fine schedule: theory5_s1h5.FINE's nested coin-free sets, built from the vote and the base sketch's priority.
@@ -460,6 +571,8 @@ def main():
         pred = U.predict(kbits=(4,), vbits=(4,), nested=())
         lay = [int(x) for x in opts["--layers"].split(",")] if "--layers" in opts else None
         res["sens"] = plan_sens(U, pred, lay)
+    if plan == "vote":
+        res["vote"] = plan_vote(U, tuple(int(x) for x in opts.get("--seeds", "0,1").split(",")))
     if plan == "tau":
         lay = [int(x) for x in opts["--layers"].split(",")] if "--layers" in opts else None
         res["tau"] = plan_tau(U, lay)
@@ -470,7 +583,7 @@ def main():
             arm = {int(li): (tuple(c) if c is not None else None) for li, c in arm.items()}
             arm = {li: (c[:3] + (c[3],) if c and c[0] == "cert" else c) for li, c in arm.items()}
             seeds = [int(x) for x in opts.get("--seeds", "0,1").split(",")]
-            res["arms"][nm] = [U.run(arm, sd) for sd in seeds]
+            res["arms"][nm] = [U.run(arm, sd, vote=opts.get("--vote", "exact")) for sd in seeds]
             print(f"  {nm}: KL/token {sum(r['kl_mean'] for r in res['arms'][nm]) / len(seeds):.6f}", flush=True)
     res["seconds"] = round(time.time() - t0, 1)
     json.dump(res, open(opts["--out"], "w"))

@@ -386,6 +386,254 @@ def tau_frontier(model, d=DIR, calib=(0,), test=(1,), kb=6, vb=4) -> dict:
     return dict(front={r: [list(x) for x in f] for r, f in front.items()}, best=best, vote=list(vote), c_l=c_l)
 
 
+# ------------------------------------------------------------------ calibrating tau (RESEARCH_PLAN.md §8, input 3)
+def _tau_tensors(model, d=DIR):
+    """Per unit and layer, the tau material as tensors: bmax [m, G, n] (part 8's bound, max over the group's query
+    heads), err2 and size [m + 1, G, n] (the squared error summed over the group's heads, and the rows read; the exact
+    read last), e8 (FP8's per-head errors), H."""
+    import torch
+    out = {}
+    for key, lays in _tau_units(model, d).items():
+        u = {}
+        for li, lay in lays.items():
+            G, r, n = lay["shape"]
+            f = lambda nm, *s: torch.tensor([x[nm] for x in lay["sets"]], dtype=torch.float64).view(-1, *s)  # noqa: E731
+            u[li] = dict(bmax=f("bound", G, r, n).amax(2),
+                         err2=torch.cat([(f("err", G, r, n) ** 2).sum(2), torch.zeros(1, G, n, dtype=torch.float64)]),
+                         size=torch.cat([f("size", G, n), torch.ones(1, G, n, dtype=torch.float64)]),
+                         e8=torch.tensor(lay["e8"], dtype=torch.float64), H=G * r)
+        out[key] = u
+    return out
+
+
+def _read(lay, tau):
+    """One layer's certified read at a scalar target tau (as _apply): (rows read, err2 summed over heads, mean over
+    positions)."""
+    import torch
+    ok = lay["bmax"] <= tau
+    J = torch.where(ok.any(0), ok.double().argmax(0), torch.full(ok.shape[1:], ok.shape[0]))
+    rows = float(lay["size"].gather(0, J.unsqueeze(0)).mean())
+    return rows, float(lay["err2"].gather(0, J.unsqueeze(0)).sum(1).mean())
+
+
+def calib_study(model, d=DIR, levels=(3e-5, 1e-5), qs=(0.9, 0.95, 0.99, 1.0), max_subsets=40, seed=0) -> dict:
+    """How to calibrate the certified read's run-time target (theory.md §14; RESEARCH_PLAN.md §8, input 3), offline
+    from the e2e runs: the per-layer sensitivities (`sens`) and the certified-read material (`tau`) of every unit.
+
+    Each unit's KL under a target is predicted with its own sensitivities, 1/2 sum_l c_l err2_l (the bridge, within
+    about 15% of the measured KL for the certified read), and is the ground truth here. A protocol uses calibration
+    units, never the held-out one:
+    - klb: tau_l^2 = 2B / (L H c_l), with c_l pooled (mean, or max) over the calibration units, and B set so that the
+      calibration units' mean predicted KL meets the target level;
+    - fp8q: tau_l = the q-quantile of the calibration units' FP8 per-head errors in layer l, q fixed (no sensitivities).
+    Calibration sets: the held-out unit itself (own, the oracle), the same text's other window (same family), every
+    unit of the other texts (leave the family out), and k random units of the others (k = 1, ..., all).
+    Per protocol and held-out unit: the predicted KL over the level (or, for fp8q, the predicted KL) and the extra rows
+    read beyond the vote's 1/8. Also the sensitivities' variability: per layer, the spread of log c_l over units, and
+    the share of its variance between texts."""
+    import itertools
+    import random
+    units = load(model, d)
+    T = _tau_tensors(model, d)
+    keys = sorted(k for k in T if k in units and "sens" in units[k])
+    C = {k: {li: v["tail"] for li, v in sens(units[k]).items()} for k in keys}
+    L = len(C[keys[0]])
+    H = T[keys[0]][0]["H"]
+
+    def pred(k, taus):
+        rows, kl = 0.0, 0.0
+        for li in range(L):
+            rw, e2 = _read(T[k][li], taus[li])
+            rows += rw / L
+            kl += 0.5 * C[k][li] * e2
+        return kl, rows - 1.0 / FRAC
+
+    def klb_taus(c, B):
+        return [math.sqrt(2.0 * B / (L * H * c[li])) for li in range(L)]
+
+    def fit_B(cal, c, level):
+        lo, hi = -14.0, 4.0                                                # log10 B
+        for _ in range(40):
+            mid = (lo + hi) / 2
+            if st.mean(pred(k, klb_taus(c, 10 ** mid))[0] for k in cal) > level:
+                hi = mid
+            else:
+                lo = mid
+        return 10 ** lo
+
+    def pool(cal, how):
+        f = st.mean if how == "mean" else max
+        return [f(C[k][li] for k in cal) for li in range(L)]
+
+    def fp8_taus(cal, q):
+        out = []
+        for li in range(L):
+            v = sorted(float(x) for k in cal for x in T[k][li]["e8"])
+            out.append(v[min(len(v) - 1, int(q * len(v)))])
+        return out
+
+    rng = random.Random(seed)
+    sets = {}
+    for h in keys:
+        others = [k for k in keys if k != h]
+        s = {"own": [h], "same text": [k for k in others if k[0] == h[0]],
+             "other texts": [k for k in others if k[0] != h[0]]}
+        for kk in range(1, len(others) + 1):
+            combos = list(itertools.combinations(others, kk))
+            rng.shuffle(combos)
+            for i, cmb in enumerate(combos[:max_subsets]):
+                s[f"k={kk}#{i}"] = list(cmb)
+        sets[h] = s
+    res = dict(klb={}, fp8q={}, units=[f"{k[0]}_w{k[1]}" for k in keys], L=L, H=H)
+    for level in levels:
+        rec = {}
+        for h in keys:
+            for nm, cal in sets[h].items():
+                if not cal:
+                    continue
+                for how in (("mean", "max") if not nm.startswith("k=") else ("mean",)):
+                    c = pool(cal, how)
+                    B = fit_B(cal, c, level)
+                    kl, extra = pred(h, klb_taus(c, B))
+                    rec.setdefault(f"{nm.split('#')[0]} {how}", []).append(
+                        dict(unit=f"{h[0]}_w{h[1]}", ratio=kl / level, extra=extra, B=B))
+        res["klb"][f"{level:g}"] = rec
+        print(f"klb, level {level:g}: held-out predicted KL / level, median (10-90%), and extra rows read (median)")
+        for nm, v in sorted(rec.items(), key=lambda x: (len(x[0]), x[0])):
+            r_ = sorted(x["ratio"] for x in v)
+            e_ = sorted(x["extra"] for x in v)
+            print(f"  {nm:18s} {st.median(r_):6.2f} ({r_[int(0.1 * len(r_))]:.2f}-{r_[min(len(r_) - 1, int(0.9 * len(r_)))]:.2f})"
+                  f"  mean-of-KL/level {st.mean(r_):5.2f}  extra rows {100 * st.median(e_):.2f}%  n={len(v)}", flush=True)
+    for q in qs:
+        rec = {}
+        for h in keys:
+            for nm, cal in sets[h].items():
+                if not cal:
+                    continue
+                kl, extra = pred(h, fp8_taus(cal, q))
+                rec.setdefault(nm.split("#")[0], []).append(dict(unit=f"{h[0]}_w{h[1]}", kl=kl, extra=extra))
+        res["fp8q"][f"{q:g}"] = rec
+        print(f"fp8q, q = {q:g}: held-out predicted KL, median (10-90%), and extra rows read (median)")
+        for nm, v in sorted(rec.items(), key=lambda x: (len(x[0]), x[0])):
+            r_ = sorted(x["kl"] for x in v)
+            e_ = sorted(x["extra"] for x in v)
+            print(f"  {nm:18s} {st.median(r_):.2e} ({r_[int(0.1 * len(r_))]:.2e}-{r_[min(len(r_) - 1, int(0.9 * len(r_)))]:.2e})"
+                  f"  extra rows {100 * st.median(e_):.2f}%  n={len(v)}", flush=True)
+    # the sensitivities' variability
+    lc = {li: [math.log(C[k][li]) for k in keys] for li in range(L)}
+    texts = sorted({k[0] for k in keys})
+    var = {}
+    for li in range(L):
+        tot = st.pvariance(lc[li])
+        tm = {t: st.mean(math.log(C[k][li]) for k in keys if k[0] == t) for t in texts}
+        between = st.pvariance([tm[k[0]] for k in keys])
+        var[li] = dict(sd_log=math.sqrt(tot), between_share=between / tot if tot > 0 else 0.0,
+                       ratio_max_min=max(C[k][li] for k in keys) / min(C[k][li] for k in keys))
+    res["c_var"] = var
+    sds = sorted(v["sd_log"] for v in var.values())
+    print(f"c_l across units: sd of log c_l median {st.median(sds):.2f} (max {sds[-1]:.2f}); between-text share of its "
+          f"variance median {st.median(v['between_share'] for v in var.values()):.2f}")
+    return res
+
+
+def calib_frontier(model, d=DIR, at=(2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2)) -> dict:
+    """Held-out frontiers of the target rules: the mean over held-out units of the extra rows read (beyond the vote's
+    1/8) against the mean predicted KL, each unit's KL from its own sensitivities. The shape across layers comes from
+    calibration units: the other texts (leave the family out) or the same text's other window; one global knob sweeps
+    the frontier. Rules:
+    - klb: tau_l = sqrt(2B / (L H c_l)), c_l the calibration mean, B swept;
+    - fp8q: the q-quantile of the calibration units' FP8 per-head errors in layer l, q swept;
+    - fp8s: m times the median of those errors (FP8's layer shape), m swept;
+    - flat: one tau for every layer, swept (no calibration);
+    - own: klb with the held-out unit's own c_l (the best shape a sensitivity table could give).
+    Reports each rule's mean KL at the given extra-row levels (log-linear interpolation along the frontier)."""
+    units = load(model, d)
+    T = _tau_tensors(model, d)
+    keys = sorted(k for k in T if k in units and "sens" in units[k])
+    C = {k: {li: v["tail"] for li, v in sens(units[k]).items()} for k in keys}
+    L = len(C[keys[0]])
+    H = T[keys[0]][0]["H"]
+
+    def pred(k, taus):
+        rows, kl = 0.0, 0.0
+        for li in range(L):
+            rw, e2 = _read(T[k][li], taus[li])
+            rows += rw / L
+            kl += 0.5 * C[k][li] * e2
+        return kl, rows - 1.0 / FRAC
+
+    def cal_sets(h):
+        return {"other texts": [k for k in keys if k[0] != h[0]], "same text": [k for k in keys if k[0] == h[0] and k != h]}
+
+    def taus(rule, h, cal, p):
+        if rule == "flat":
+            return [p] * L
+        if rule == "own":
+            return [math.sqrt(2.0 * p / (L * H * C[h][li])) for li in range(L)]
+        if rule == "klb":
+            return [math.sqrt(2.0 * p / (L * H * st.mean(C[k][li] for k in cal))) for li in range(L)]
+        out = []
+        for li in range(L):
+            v = sorted(float(x) for k in cal for x in T[k][li]["e8"])
+            out.append(v[min(len(v) - 1, int(p * len(v)))] if rule == "fp8q" else p * v[len(v) // 2])
+        return out
+    grids = dict(klb=[10 ** (e / 8) for e in range(-48, 17)], own=[10 ** (e / 8) for e in range(-48, 17)],
+                 fp8q=[i / 100 for i in range(50, 101)], fp8s=[10 ** (e / 16) for e in range(-16, 41)],
+                 flat=[10 ** (e / 16) for e in range(-56, 9)])
+    res = {}
+    for proto in ("other texts", "same text"):
+        fr = {}
+        for rule, g in grids.items():
+            pts = []
+            for p in g:
+                kl, ex = zip(*(pred(h, taus(rule, h, cal_sets(h)[proto], p)) for h in keys))
+                pts.append((st.mean(ex), st.mean(kl), p))
+            fr[rule] = sorted(pts)
+        interp = {}
+        for rule, pts in fr.items():
+            row = {}
+            for a in at:
+                lo = max((x for x in pts if x[0] <= a), default=None, key=lambda x: x[0])
+                hi = min((x for x in pts if x[0] >= a), default=None, key=lambda x: x[0])
+                if lo is None or hi is None:
+                    row[f"{a:g}"] = None
+                elif hi[0] - lo[0] < 1e-15:
+                    row[f"{a:g}"] = min(lo[1], hi[1])
+                else:
+                    t_ = (a - lo[0]) / (hi[0] - lo[0])
+                    row[f"{a:g}"] = math.exp((1 - t_) * math.log(lo[1]) + t_ * math.log(hi[1]))
+            interp[rule] = row
+        res[proto] = dict(front={r: [list(x) for x in v] for r, v in fr.items()}, at=interp)
+        print(f"calibration on {proto}: mean held-out predicted KL at mean extra rows read")
+        print("  rule  " + "".join(f"{100 * a:>10.2f}%" for a in at))
+        for rule, row in interp.items():
+            print(f"  {rule:5s} " + "".join(f"{v:>11.2e}" if v is not None else f"{'-':>11s}" for v in row.values()))
+    vote = [pred(h, [math.inf] * L)[0] for h in keys]
+    res["vote_kl_mean"] = st.mean(vote)
+    print(f"vote only: mean predicted KL {st.mean(vote):.2e}")
+    return res
+
+
+def c_variability(model, d=DIR) -> dict:
+    """The sensitivities' variability alone (models without certified-read material): per layer, the sd of log c_l over
+    units, the share of its variance between texts, and max / min."""
+    units = load(model, d)
+    keys = sorted(k for k in units if "sens" in units[k])
+    C = {k: {li: v["tail"] for li, v in sens(units[k]).items()} for k in keys}
+    texts = sorted({k[0] for k in keys})
+    out = {}
+    for li in C[keys[0]]:
+        lc = [math.log(C[k][li]) for k in keys]
+        tot = st.pvariance(lc)
+        tm = {t: st.mean(math.log(C[k][li]) for k in keys if k[0] == t) for t in texts}
+        out[li] = dict(sd_log=math.sqrt(tot), between_share=st.pvariance([tm[k[0]] for k in keys]) / tot if tot > 0 else 0.0,
+                       ratio_max_min=max(C[k][li] for k in keys) / min(C[k][li] for k in keys))
+    sds = sorted(v["sd_log"] for v in out.values())
+    print(f"{model}: {len(keys)} units; sd of log c_l median {st.median(sds):.2f} (max {sds[-1]:.2f}); between-text share "
+          f"median {st.median(v['between_share'] for v in out.values()):.2f}")
+    return dict(units=[f"{k[0]}_w{k[1]}" for k in keys], layers=out)
+
+
 def main():
     argv = sys.argv[1:]
     cmd = argv[0]
@@ -402,6 +650,13 @@ def main():
         res = tau_frontier(model, d)
     elif cmd == "tau":
         res = tau(model, d, target=opts.get("--target", "oracle"))
+    elif cmd == "calib":
+        res = calib_study(model, d)
+    elif cmd == "calibfront":
+        at = tuple(float(x) for x in opts["--at"].split(",")) if "--at" in opts else (2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2)
+        res = calib_frontier(model, d, at)
+    elif cmd == "cvar":
+        res = c_variability(model, d)
     elif cmd == "alloc":
         res = allocations(model, tuple(int(x) for x in opts.get("--calib", "0").split(",")), d, opts.get("--norm") == "1")
         print(json.dumps(res["summary"], indent=1)[:3000])

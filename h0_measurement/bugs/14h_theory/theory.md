@@ -1,4 +1,4 @@
-# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8; §13–§14 2026-10-11)
+# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8; §13–§14 2026-10-11, CPU checks 2026-10-12)
 
 This file states what is proved about the two-tier KV design, under which assumptions, and how
 strong each result is in practice. **Every R14 theory update goes in this folder** (since 2026-10-10; `CLAUDE.md`).
@@ -35,8 +35,8 @@ amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 | **Part 8: the tilted tail, a Hsu–Kakade–Zhang key sum** (§6f–§6g) | every input; GQA (as the split) | as Theorem R | the tightest certificates at every width: Llama-1B 6-bit 6.7–7.3× the error (split 17–19×), 0.41–0.59 of head-steps certified at FP8's level (split 0.13–0.21); 8-bit 2.0–2.6× (0.89–0.95 certified on L1/L3); 4-bit 92–554×, still far from FP8 |
 | **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide. With part 8's bound and FP8's per-head error as an (oracle) target: traffic 0.456–0.460 at 8-bit keys (the oracle stop is 0.453) and 0.433–0.499 at 6-bit keys on Llama-1B L1/L3 at 1.6K–8K (FP8: 0.50) (§7) |
 | **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA in its coupled form, §10) | as Theorem R | predicts the measured MSE within 1% at 6–8-bit keys on every layer tested (Llama, Gemma 3, GPT-OSS, Qwen3); its first-order reading overpredicts where σ ≈ 2 (4-bit keys in two Qwen layers) (§10). It explains why the design works and maps which layers need which bits (`layermap_s1h5.py`) |
-| **Lemma N, Theorem N**: one store for the vote and the tail (§13) | every input; GQA | the vote reads only the deterministic base | Theorems R and M hold with per-coordinate steps; R1 by construction; memory 0.31 at rest, about 0.44 during a question (FP8: 0.50); about 0.1–0.3 bit of key precision (end-to-end KL 1.14× uniform 6/4's on CPU) |
-| **Proposition KL, Corollary WF, run-time τ** (§14) | second order; per-layer independent dithers | sensitivities measured once per layer | predicts every tail configuration's KL within a median 1.00–1.34× (Llama-1B; Qwen3-1.7B with keys ≥ 5 bits); key errors cost 2× value errors; the KL-budget τ makes the certified read deployable, cutting KL 3.7–14× for +0.0004–0.003 traffic |
+| **Lemma N, Theorem N**: one store for the vote and the tail (§13) | every input; GQA | the vote reads only the deterministic base | Theorems R and M hold with per-coordinate steps; R1 by construction; memory 0.31 at rest, about 0.44 during a question (FP8: 0.50); about 0.1–0.3 bit of key precision. On CPU (8 seeds, each design with its own vote) end-to-end KL is 1.27× R6's design on Llama-1B and 1.12× on Qwen3-1.7B, in geometric mean; the vote's question pass with dithered values is neutral |
+| **Proposition KL, Corollary WF, run-time τ** (§14) | second order; per-layer independent dithers | sensitivities measured once per layer | predicts every tail configuration's KL within a median 1.00–1.34× (Llama-1B; Qwen3-1.7B with keys ≥ 5 bits); key errors cost 2× value errors; the KL-budget τ makes the certified read deployable, cutting KL 3.7–14× for +0.0004–0.003 traffic. With the single store: 5.6–25× on Llama-1B; on Qwen3-1.7B only with 8-bit keys in its noisy layers. The level needs per-family calibration; the sensitivities can be pooled |
 | **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
 
 **The claim that survives:** with a randomized (dithered) tier 1, the tail design's attention error
@@ -593,7 +593,7 @@ remedy 1 about 5%. GPT-OSS at 4 bits stays ≥ 10⁵× the error with every form
 
 The certified adaptive read with part 8's bound (FP8's per-head error as the target; δ = 10⁻³; rows read exactly
 (traffic)):
-- **6-bit keys:** 0.244 (0.480) on L1 and 0.271 (0.499) on L3, with a finer 15-set coin-free schedule, and 0.175 (0.433)
+- **6-bit keys:** 0.244 (0.480) on L1 and 0.271 (0.499) on L3, with a finer 16-set coin-free schedule, and 0.175 (0.433)
   on L1 at 8K. That is at or below FP8's 0.50. Part 7 needed 0.432 (0.609), 0.449 (0.621) and 0.279 (0.505). The oracle
   stop is 0.125 (0.399).
 - **8-bit keys:** 0.129–0.135 (0.456–0.460), against the oracle stop's 0.125 (0.453).
@@ -946,6 +946,21 @@ certificate pays one row's deviation (z ≈ 2.4), not the union's (z ≈ 4.8). T
 Until then, the actionable answers are on the design side: 6–8-bit tier-1 keys, or a few extra exact rows, make the
 certificate useful (§8, step 5), and Theorem M explains and predicts the 4-bit design's accuracy.
 
+**At scale, the slack is exponential in the score noise** (2026-10-12, `findings/findings_nested.md` §7; part 8 on
+every layer of Llama-3.1-8B and Qwen3-30B-A3B at 32K, uniform 6- and 8-bit keys, 160 cases):
+
+  ln(bound / error) = 0.51 + 13.9·σ_w   (R² = 0.987),
+
+where σ_w is the attention-weighted score noise of the unread rows.
+- This matches the diagnosis above: the union's deviation z = √(2 ln(C·m/δ)) ≈ 6.3 (C = 32K rows, m = 16 sets,
+  δ = 10⁻³), paid twice, e^{2zσ} = e^{12.7σ}.
+- Two consequences:
+  - the slack grows only like e^{c·σ·√ln C} with context;
+  - one extra key bit, which halves σ, removes most of it wherever σ_w ≳ 0.15.
+- Qwen3-30B-A3B has 14 such layers at 32K (bound 20–1,960× the error with 6-bit keys). With 8-bit keys every one is
+  within 8.6×.
+- A certificate that pays one row's deviation instead of the union's (above) would halve the exponent.
+
 ## 13. One store for the vote and the tail: the nested coin-free store (2026-10-11)
 
 **Why.** Theorem R needs the rows read exactly to be chosen without tier 1's coins (R1).
@@ -992,7 +1007,8 @@ side is unchanged. ∎
   deterministic function of the cache, so every read set is coin-free.
 - The vote may also run the question through the store, as R6's question pass reads keys and values. It then reads the
   base keys and the tier's dithered values. Layer l's read set depends on the coins of lower layers only, which are
-  independent of layer l's coins (the per-layer dithers of Lemma C). So R1 holds layer by layer.
+  independent of layer l's coins (the per-layer dithers of Lemma C). So R1 holds layer by layer. On CPU the dithered
+  values leave the vote unchanged (evidence below).
 
 **Evidence** (`findings/findings_nested.md`):
 - **Lemma N by simulation** (400 draws): the error's moments are a uniform's to 10⁻⁴, it never exceeds D/2, and it is
@@ -1007,7 +1023,17 @@ side is unchanged. ∎
   - coverage is 1.000 for every form;
   - the base's vote reads the same attention mass as R6's sketch, within 0.011.
 - **End to end** (Llama-3.2-1B, CPU, 8 units): KL per token of nested 4+2 is a median 1.14× uniform 6/4's (0.62–1.84),
-  at the same traffic. FP8's is 1.5–18× higher (median 4.9×). Nested 4+3 halves uniform 6/4's KL.
+  at the same traffic, from 2 seeds. FP8's is 1.5–18× higher (median 4.9×). Nested 4+3 halves uniform 6/4's KL.
+- **The vote's question pass over the single store** (2026-10-12, `findings_nested.md` §6; Llama-3.2-1B, 8 units, and
+  Qwen3-1.7B, 4 units; 8 seeds each):
+  - dithered values in R6's question pass leave the vote unchanged: 98.7–98.9% of its rows are the Lloyd-Max store's,
+    it reads the same attention mass within 0.002 per layer, and the KL ratio is 0.99–1.01;
+  - the single store with its own vote, against R6's design with its own: 1.27× in geometric mean on Llama-1B (1.15×
+    on mean KL) and 1.12× on Qwen3-1.7B (0.91× on mean KL), at the same traffic.
+- **Part 8 at 32K on R7b's models** (`findings_nested.md` §7; every layer, coverage 1.000):
+  - Llama-3.1-8B: 3.6–7.6× the error in every layer with the single store;
+  - Qwen3-30B-A3B: 14 of 48 layers above 20× (up to 1,960× in L3). The 4+4 store brings every layer within 8.6×
+    (§12, the slack law).
 
 **Cost and gain.**
 - **Precision:** about 0.1–0.3 bit of key precision. Nested 4+2 raises the tail's RMS error by 0–22% over uniform 6-bit
@@ -1139,6 +1165,35 @@ with probability ≥ 1 − δ per call.
   - Budget 10⁻⁵: measured 9.2·10⁻⁶ against 7.9·10⁻⁶ predicted.
   - It cuts the 6/4 design's KL 3.7× at +0.0004 traffic and 14× at +0.003, against FP8's KL of about 4·10⁻⁴.
   - The certified read thus becomes a deployable contribution: a certified, query-aware patch to the vote.
+
+*Refinement* (2026-10-12, `findings/findings_klbridge.md` §6). Llama-3.2-1B and Qwen3-1.7B, held out. Offline, each
+unit's KL is predicted with its own sensitivities; the key comparisons were also run end to end.
+- **A target rule is a shape across layers times one global level.** The ranking above used the calibration units'
+  c_l both to build the rule and to score it, which favors the KL budget.
+- **Shape.**
+  - On Llama-1B, one flat τ for every layer does as well as the KL budget, offline and end to end (0.91–1.06× its KL at
+    the same traffic).
+  - On Qwen3-1.7B, whose sensitivities fall by up to 3,300× with depth, the KL budget beats flat by 1.35–1.4× end to end.
+    Flat spends rows in late layers that barely move the logits.
+  - Each input's own c_l would be only 10–25% better than calibrated ones, and c_l pooled across families loses at most
+    10% to per-family c_l.
+  - Shapes built on FP8's per-head error are 1.2–1.8× worse than the KL budget.
+  - So the KL budget is the rule, and its sensitivities can be pooled.
+- **Level.** The KL a given B reaches varies about 10× across input families and about ±2× within one. B bounds the
+  predicted KL, and inputs differ in how far below τ their errors fall. A KL target therefore needs B calibrated per
+  family, on at least 8–10 prompts; reporting a frontier at fixed B needs no calibration.
+- **The deployed combination** (the single store, its own question-pass vote, and this certified read) on Llama-1B:
+  - 5.6× and 25× below the single store's KL, at +0.001 and +0.007 traffic;
+  - equal to or below the uniform tier's certified read at the same B.
+- **Where the certificate is vacuous, the read costs traffic.**
+  - In Qwen3-1.7B's noisy layers (σ ≥ 0.25 at 6-bit keys), part 8 exceeds the error by more than 10³, and the read
+    falls back to exact rows (89% of layer 0's). The certified read then costs +0.046–0.082 traffic.
+  - 8-bit keys in those 7 layers fix it: +0.001–0.009 over that store, for 2.9–5.3× lower KL.
+  - This extends Corollary M-B: a noisy layer needs more key bits for its certificate even where the tail's MSE is
+    acceptable.
+  - At 32K, Qwen3-30B-A3B has 14 such layers of 48, and Llama-3.1-8B none. The slack grows like e^{14σ_w} (§12).
+- **The FP8-quantile rule holds up end to end on Llama-1B.** It equals the KL budget at its cheapest point, and has
+  1.33× its KL at 1.5% extra rows.
 
 
 ## References

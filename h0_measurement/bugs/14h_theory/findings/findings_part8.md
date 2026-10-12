@@ -122,8 +122,8 @@ were tried, and neither helps:
 
 Setup: part 7's schedule. The vote is read first, then 0, 1/256, …, 1/2 more rows in the sketch's order, then
 everything; each set is bound at δ/9 (δ = 10⁻³). The target is FP8's own per-head error, an oracle target. "Fine" is a
-15-set coin-free schedule (`theory5_s1h5.FINE`: steps of 1/64 between 1/32 and 1/8, then 5/32, 3/16, 1/4, 3/8, 1/2),
-each set at δ/15. Traffic = (1 − f)(k + 4)/32 + f, with f the share of rows read exactly. The oracle stop is the first
+16-set coin-free schedule (`theory5_s1h5.FINE`: steps of 1/64 between 1/32 and 1/8, then 5/32, 3/16, 1/4, 3/8, 1/2),
+each set at δ/16. Traffic = (1 − f)(k + 4)/32 + f, with f the share of rows read exactly. The oracle stop is the first
 set whose true error meets the target, a lower limit for any certificate. Coverage is 1.0000 in every cell.
 
 | view | key bits | split (part 7) | part 8 (HKZ + P-exact) | part 8, fine schedule | oracle stop |

@@ -278,6 +278,41 @@ def cover(view: str, res_bits: int = 2, draws: int = 3, delta: float = 1e-3) -> 
     return out
 
 
+def depth(path: str, draws: int = 2, delta: float = 1e-3) -> dict:
+    """Part 8 (hkz+exact) on any GQA view file, e.g. R7b's long-context captures (q [G, r, 48, d], K, V, pos, scaling, L):
+    for uniform 6/4 and 8/4 and nested 4+2/4 and 4+4/4, on the vote's read set (`exp4bit_s1h5.load_setup`), the
+    coverage, the median bound / error, the share of head-steps certified within FP8's error, and the score noise over the
+    unread rows: the attention-weighted mean of sigma and its maximum, each the median over head-steps."""
+    import exp4bit_s1h5 as X
+    import theory5_s1h5 as K5
+    S = X.load_setup(path)
+    km = S["km"]
+    w = torch.softmax(torch.cat([S["s"], S["lf"].unsqueeze(-1)], -1), -1)[..., :-1] * (~km)
+    out = {}
+    for nm, cfg in (("uniform 6/4", dict(kind="uniform", kb=6)), ("nested 4+2/4", dict(kind="nested", res_bits=2)),
+                    ("uniform 8/4", dict(kind="uniform", kb=8)), ("nested 4+4/4", dict(kind="nested", res_bits=4))):
+        cov, ratio, cert, sw, smax = [], [], [], [], []
+        for sd in range(draws):
+            D = draw(S, sd, **cfg)
+            b = K5._bound("hkz+exact", S, D, km, S["c"], D["oT"], delta)
+            e = D["err"]
+            cov.append(float((e <= b * (1 + 1e-9) + 1e-15).double().mean()))
+            ratio += (b / e.clamp_min(1e-30)).flatten().tolist()
+            cert.append(float((b <= S["e8"]).double().mean()))
+            sw.append(float(((w * D["sig"]).sum(-1) / w.sum(-1).clamp_min(1e-300)).median()))
+            smax.append(float(D["sig"].masked_fill(km, 0.0).amax(-1).median()))
+            del D
+        out[nm] = dict(coverage=min(cov), ratio_med=sorted(ratio)[len(ratio) // 2],
+                       ratio_p90=sorted(ratio)[int(0.9 * len(ratio))], certified_within_fp8=sum(cert) / len(cert),
+                       sigma_w_med=sum(sw) / len(sw), sigma_max_med=sum(smax) / len(smax))
+        o = out[nm]
+        print(f"{os.path.basename(path)} {nm}: cover {o['coverage']:.3f}, bound/error {o['ratio_med']:.1f} "
+              f"(p90 {o['ratio_p90']:.1f}), certified {o['certified_within_fp8']:.2f}, sigma weighted {o['sigma_w_med']:.3f}, "
+              f"max {o['sigma_max_med']:.2f}", flush=True)
+    out["C"] = S["C"]
+    return out
+
+
 def vote(view: str) -> dict:
     """The nested base's vote (the tier's rotation) against R6's sketch (Lloyd-Max 4-bit keys, rotation 7), both from the
     vote queries' exact scores: the share of the exact attention mass of the vote positions that both read sets cover."""
@@ -327,6 +362,8 @@ def main():
         res = {v: cover(v, int(opts.get("--res", 2)), int(opts.get("--draws", 3))) for v in views}
     elif cmd == "vote":
         res = {v: vote(v) for v in views}
+    elif cmd == "depth":                                             # views are paths here
+        res = {os.path.basename(v): depth(v, int(opts.get("--draws", 2))) for v in views}
     else:
         raise SystemExit(__doc__)
     if "--out" in opts:

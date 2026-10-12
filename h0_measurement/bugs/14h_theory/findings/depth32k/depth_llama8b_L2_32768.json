@@ -1,0 +1,37 @@
+{
+ "r7bview_llama8b_L2_32768.pt": {
+  "uniform 6/4": {
+   "coverage": 1.0,
+   "ratio_med": 6.24049638846366,
+   "ratio_p90": 9.474731036690537,
+   "certified_within_fp8": 0.8974609375,
+   "sigma_w_med": 0.08732056585339576,
+   "sigma_max_med": 0.16349009720735733
+  },
+  "nested 4+2/4": {
+   "coverage": 1.0,
+   "ratio_med": 7.649776511623259,
+   "ratio_p90": 12.12228103295025,
+   "certified_within_fp8": 0.8779296875,
+   "sigma_w_med": 0.10621754020058258,
+   "sigma_max_med": 0.23599742740770505
+  },
+  "uniform 8/4": {
+   "coverage": 1.0,
+   "ratio_med": 2.18659267265406,
+   "ratio_p90": 2.6947898409476996,
+   "certified_within_fp8": 0.9609375,
+   "sigma_w_med": 0.02157331626966248,
+   "sigma_max_med": 0.04039167107475888
+  },
+  "nested 4+4/4": {
+   "coverage": 1.0,
+   "ratio_med": 2.1636409219971897,
+   "ratio_p90": 2.6746673000883368,
+   "certified_within_fp8": 0.962890625,
+   "sigma_w_med": 0.021243508040116512,
+   "sigma_max_med": 0.04719948548154098
+  },
+  "C": 32720
+ }
+}

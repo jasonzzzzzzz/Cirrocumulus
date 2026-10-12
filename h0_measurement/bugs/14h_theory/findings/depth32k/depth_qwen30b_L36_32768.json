@@ -1,0 +1,37 @@
+{
+ "r7bview_qwen30b_L36_32768.pt": {
+  "uniform 6/4": {
+   "coverage": 1.0,
+   "ratio_med": 7.284534851909677,
+   "ratio_p90": 12.272192612555653,
+   "certified_within_fp8": 0.853515625,
+   "sigma_w_med": 0.10064311418670162,
+   "sigma_max_med": 0.16606641791605783
+  },
+  "nested 4+2/4": {
+   "coverage": 1.0,
+   "ratio_med": 9.661216859155134,
+   "ratio_p90": 17.592932314000418,
+   "certified_within_fp8": 0.78515625,
+   "sigma_w_med": 0.12386027368812422,
+   "sigma_max_med": 0.19608585886570395
+  },
+  "uniform 8/4": {
+   "coverage": 1.0,
+   "ratio_med": 2.2780399985314324,
+   "ratio_p90": 2.8647619072908816,
+   "certified_within_fp8": 0.9873046875,
+   "sigma_w_med": 0.024864769387302754,
+   "sigma_max_med": 0.04102817383808488
+  },
+  "nested 4+4/4": {
+   "coverage": 1.0,
+   "ratio_med": 2.2927339383341074,
+   "ratio_p90": 2.895430104378696,
+   "certified_within_fp8": 0.986328125,
+   "sigma_w_med": 0.024772054737624845,
+   "sigma_max_med": 0.039217171773140796
+  },
+  "C": 32720
+ }
+}

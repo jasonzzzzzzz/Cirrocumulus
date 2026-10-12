@@ -1,8 +1,15 @@
 # 14h_theory status (rewritten, not appended)
 
-**Updated 2026-10-10, night.** `theory.md` covers parts 1–8. The folder is isolated from `../14h_methodology_improve/`
-(`ISOLATION_PLAN.md`, executed). Every test here passes: the five `--fast` suites, including part 8's
-`test_theory5_s1h5.py`. Cached views for the CPU harnesses are in `.views/`.
+**Updated 2026-10-12.** `theory.md` covers parts 1–8 and §13–§14. The four CPU checks that R7b's freeze depended on
+are done (`RESEARCH_PLAN.md` §8):
+- the single store's vote is neutral;
+- the deployed combination works, with 8-bit keys in noisy layers;
+- the KL-budget τ is E1's rule, at two fixed levels;
+- the FP8 quantile is the fallback.
+
+The folder is isolated from `../14h_methodology_improve/` (`ISOLATION_PLAN.md`, executed). Every test here passes: the
+six `--fast` suites. Cached views for the CPU harnesses are in `.views/`. Long CPU runs can go to a Trillium CPU node
+(the user's OK, 2026-10-12): this time, 68 harness runs took 15 minutes on one node.
 
 ## What holds
 - **Theorem R** (v1, v2, v3, the sure sums, the split, part 8): valid for every input. 0 misses in 31 million GPU
@@ -18,7 +25,7 @@
 
   The 4-bit figure beats v3 + sure sums' ≈ 480–500×, but is still far from FP8's level.
 - **Certified adaptive read** (part 8's bound, FP8's per-head error as an oracle target):
-  - 6-bit keys, R6's width: traffic 0.480 (L1), 0.499 (L3) and 0.433 (L1 at 8K), with a 15-set schedule, against FP8's 0.50;
+  - 6-bit keys, R6's width: traffic 0.480 (L1), 0.499 (L3) and 0.433 (L1 at 8K), with a 16-set schedule, against FP8's 0.50;
   - 8-bit keys: 0.456–0.460, against the oracle stop's 0.453;
   - L0 (flat attention) still needs 0.73 at 6 bits.
 - **Theorem M** predicts the tail's MSE within 1% at 6–8-bit keys on every layer tested, Qwen3 included. Its
@@ -54,7 +61,10 @@
     So R1 holds by construction, and Theorems R and M hold with per-coordinate steps (proved; brute force; 13 real
     layers with coverage 1.000 and Theorem M at 0.994–1.004);
   - it costs about 0.1–0.3 bit of key precision;
-  - end to end (Llama-1B) its KL is 1.14× uniform 6/4's and 1.5–18× below FP8's;
+  - end to end, each design with its own vote (8 seeds): 1.27× R6's design on Llama-1B and 1.12× on Qwen3-1.7B in
+    geometric mean, or 1.15× and 0.91× on mean KL. FP8's KL is 1.3–81× higher;
+  - its vote's question pass reads the tier's dithered values, and that is neutral: 98.7–98.9% of rows are in common
+    with R6's Lloyd-Max-store vote, and the KL is 0.99–1.01× (`findings/findings_nested.md` §6, 2026-10-12);
   - memory is 0.31 at rest and about 0.44 during a question, against FP8's 0.50. This is the route to the memory
     claim the user chose.
 - **The KL bridge** (theory.md §14, `findings/findings_klbridge.md`; Llama-1B, CPU, 8 units):
@@ -64,12 +74,35 @@
   - per unit MSE, key errors cost about 2× the KL of value errors;
   - water-filling (Corollary WF), with inputs weighted equally, gives 16% lower held-out KL than uniform 6/4 at the
     same traffic. The raw-average version does not transfer;
-  - run-time τ for the certified read: a KL budget split by sensitivity, τ_l² = 2B/(L·H·c_l). It is the cheapest
-    rule at every KL level. End to end it meets its budget within 15% and cuts the 6/4 design's KL 3.7× at +0.0004
-    traffic and 14× at +0.003 (held out);
+  - run-time τ for the certified read: a KL budget split by sensitivity, τ_l² = 2B/(L·H·c_l). End to end it meets its
+    budget within 15% and cuts the 6/4 design's KL 3.7× at +0.0004 traffic and 14× at +0.003 (held out);
+  - 2026-10-12 (`findings/findings_klbridge.md` §6):
+    - with the single store and its own vote: 5.6× and 25× below that store's KL at +0.001 and +0.007 (Llama-1B);
+    - on Qwen3-1.7B the noisy layers (σ ≥ 0.25 at 6-bit keys) make part 8 vacuous, and the read costs +0.046–0.082.
+      With 8-bit keys there: 2.9× and 5.3× lower KL at +0.001 and +0.009;
+    - the KL budget's shape ties a flat τ on Llama-1B and beats it 1.35–1.4× on Qwen. Sensitivities pool across
+      families, but the level that meets a KL target needs per-family calibration;
+    - the FP8 quantile holds up end to end: 1.0–1.33× the KL budget's KL;
   - Qwen3-1.7B: the bridge holds with keys of ≥ 5 bits; at 4-bit keys it hits Theorem M's first-order limit.
 
 ## Next steps, ranked by importance to the design paper
+
+**R7b's run side is built (2026-10-12)**, as a DRAFT with nothing submitted, in `../14i_r7_theory_at_scale/r7b/`
+(`plan_r7b.md`; `RESEARCH_PLAN.md` §8 lists the files). It runs the single store, confirmatory under R6's rules (D7),
+with gates and exploratory arms. Its CPU driver smokes pass. R7a is frozen and its gate passed (08:52). Its blocks were
+then cancelled from the user's account at 09:23, before starting, and are not queued (sacct on trig).
+- The four CPU inputs to R7b's freeze are done (`RESEARCH_PLAN.md` §8).
+- Open for the user at the freeze: `../14i_r7_theory_at_scale/r7b/plan_r7b.md` §8. It covers:
+  - sizes and re-ranking;
+  - the dense 7/6 gate;
+  - E1's scope and rule, and 8-bit keys in Qwen3-30B-A3B's 14 loose layers (`findings/findings_nested.md` §7);
+  - TurboQuant's product variant;
+  - the GPU budget.
+- **The current order, dependencies and ranking of every next step** (R6's final read, R7a, R7b, G0–G5, the paper):
+  `RESEARCH_PLAN.md` §7 (2026-10-12, afternoon).
+- **Beyond GQA:** `ARCHITECTURES_PLAN.md` (2026-10-12) is the plan for extending R7a and R7b to every architecture.
+  It covers what each mechanism needs, the per-model inputs, stages G0–G5 (G0, the 32K map of the 21 models, runs on
+  CPU now), and the claim each stage supports.
 
 **Re-ranked after R6 (2026-10-11), pending the user's approval: `RESEARCH_PLAN.md`.** The table below is the pre-R6
 ranking; its steps 1, 2, 4 and 8 are done.
@@ -98,8 +131,11 @@ Step 4 is done. It moved two things:
 - R6's probe reports Theorem R v1 and v2 only; theory.md's tight forms (part 8, v3, the split) are CPU-only [3];
 - Theorem M is validated on CPU only (1B models and three architectures' layers, ≤ 8K) [3];
 - R6 uses one dither seed for every unit and arm, so dither variability is not in its confidence intervals [3];
-- the certified read's target (FP8's per-head error) is an oracle, not available at run time [6];
-- the vote's coin-free store is in no memory number, and a vote over the dithered tier breaks R1 [5];
+- the certified read's target (FP8's per-head error) is an oracle, not available at run time [6]. Closed on CPU by the
+  KL-budget τ (`findings/findings_klbridge.md` §4, §6); R7b's E1 tests it at scale;
+- the vote's coin-free store is in no memory number, and a vote over the dithered tier breaks R1 [5]. Closed on CPU by
+  the single store (theory.md §13; the vote's pass with dithered values is neutral). R7b's primary arm tests it
+  confirmatorily;
 - the threshold read rule (read sets chosen from the dithered tier itself, §9) is unproven [5].
 
 **Guardrails.** R6's frozen files (`../14h_methodology_improve/plan.md`, "R6 frozen") may not change until its reader has

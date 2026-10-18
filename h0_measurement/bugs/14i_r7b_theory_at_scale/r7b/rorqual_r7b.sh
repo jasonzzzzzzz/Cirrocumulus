@@ -1,24 +1,31 @@
 #!/usr/bin/env bash
-# R7b on Rorqual (plan_r7b.md §9): submit everything R7b still needs, on Rorqual alone. Run it on a Rorqual login node.
+# R7b on Rorqual (plan_r7b.md §9): submit what R7b still needs, on Rorqual, and nothing that has already run.
+# Run it on a Rorqual login node.
 #   qwen128   Qwen 128K's whole half, by stage (script_r7b.sh): pilot (and its gate) -> core; calib1 -> calib2 -> explore;
-#             --extra adds its optional accuracy blocks
-#   rest      the blocks still pending on Trillium on 2026-10-17, resubmitted here:
-#               - Llama 128K core: its six HELMET blocks l-hma..l-hmf. Its other 12 core blocks finished on Trillium
-#                 (1083801-03);
-#               - Qwen 32K core: all 21 blocks;
-#               - the exploratory blocks of both groups (lx-r1, lx-agg, lx-hm, qx-r1, qx-agg), after their calibration
-#                 runs here: calib1 -> calib2 (whose jobs first run calib_r7b.py stage1) -> explore (whose jobs first run
-#                 stage2 --strict).
-#             No pilot runs: both groups' pilots passed their gates on Trillium (1083794, 1083795; the walls hold a
-#             pilot up to 2.4-3.2x R6's times).
-# Trillium's jobs are not touched. If a block finishes on both clusters, the reader keeps one copy: a unit in two valid
-# blocks is read from the first, sorted by tag and job, which is Trillium's (7-digit job ids before Rorqual's 8-digit
-# ones), and the other is reported as a duplicate. Cancel whichever copy you no longer want.
+#             --extra adds its optional accuracy blocks. None of it has run anywhere.
+#   rest      exactly the 32 blocks still pending on Trillium on 2026-10-17 (TRILLIUM_JOBS below), resubmitted here:
+#               - Llama 128K core l-hma..l-hmf (its other 12 core blocks finished on Trillium, 1083801-03);
+#               - Qwen 32K core, all 21 blocks;
+#               - the exploratory blocks lx-r1, lx-agg, lx-hm, qx-r1, qx-agg.
+#             Never submitted here, because they finished on Trillium: the two pilots (1083794-95; their gates passed)
+#             and the six calibration blocks (1083796, 1083797, 1083799, 1083813-15). The exploratory blocks read those
+#             calibration outputs: copy CALIB_INPUTS below from Trillium. Each exploratory job then adds calibration
+#             stage 2 from them (calib_r7b.py stage2 --strict), as Trillium's would. A group whose inputs are missing gets
+#             no exploratory job, and the script says what to copy.
+# NO DUPLICATES. A block is submitted only if it is
+#   - in the list above;
+#   - not finished here (results/; Trillium's results copied here count too);
+#   - not queued or running here (Rorqual's ledger findings/R7b_jobs_rorqual.tsv, against squeue; a failed squeue stops
+#     the script).
+# Rorqual cannot see Trillium's queue. Before submitting 'rest', check it on trig-login01 (squeue --me): any of
+# TRILLIUM_JOBS that has started there should be left out here with --skip-trillium JOB[,JOB...]. The script asks
+# you to confirm (--yes skips the question). If a block still finishes on both clusters, the reader keeps one copy: a unit
+# in two valid blocks is read from the first by tag and job, which is Trillium's, and the other is reported as a duplicate.
 #
-#   bash rorqual_r7b.sh check                  pin, frozen code, venv, models, corpus, queue estimates; submits nothing
-#   bash rorqual_r7b.sh submit [all|qwen128|rest] [--extra] [--dry]
-#                                              default all. Rerunning submits only blocks neither finished nor queued here
-#   bash rorqual_r7b.sh status                 every R7b block this script submits: done / queued (job, state) / missing
+#   bash rorqual_r7b.sh check                  pin, frozen code, venv, models, corpus, calibration inputs, queue estimates
+#   bash rorqual_r7b.sh submit [all|qwen128|rest] [--extra] [--skip-trillium JOB,...] [--yes] [--dry]
+#                                              default all; reruns submit only blocks neither finished nor queued here
+#   bash rorqual_r7b.sh status [--skip-trillium JOB,...]   every block this script would submit: done / queued / missing
 #   bash rorqual_r7b.sh results [--dry]        the paths to copy to wherever the readers run (findings/R7b_rorqual_results.txt)
 #   bash rorqual_r7b.sh cancel-orphans [--dry] cancel R7b jobs that wait on a failed gate or calibration step
 # Needs the project here with R7b's code as pinned (findings/R7b_code.sha256): every job verifies it. A .sh on purpose:
@@ -32,6 +39,7 @@
 # only where one is missing. Jobs then run through the pinned path, so their pin check and code manifests are those of
 # Trillium's blocks. The R7b code uses abspath, never realpath, so the paths it builds keep the pinned folder names.
 set -euo pipefail
+shopt -s inherit_errexit                       # set -e inside $( ... ) too: a failed squeue must never pass as an empty queue
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF="$SELF_DIR/$(basename "${BASH_SOURCE[0]}")"
@@ -48,19 +56,34 @@ W=$DIR/submit_r7b.slurm
 PY=.venv/bin/python
 CODE_SHA=$DIR/findings/R7b_code.sha256
 MODE="${1:-}"; shift || true
-TARGET=all; EXTRA=0; DRY=0
-for a in "$@"; do
-  case "$a" in
-    all|qwen128|rest) TARGET=$a ;; --extra) EXTRA=1 ;; --dry) DRY=1 ;;
-    *) echo "ERROR: unknown option $a" >&2; exit 2 ;;
+TARGET=all; EXTRA=0; DRY=0; YES=0; SKIP_TJ=""
+while (( $# )); do
+  case "$1" in
+    all|qwen128|rest) TARGET=$1 ;; --extra) EXTRA=1 ;; --dry) DRY=1 ;; --yes) YES=1 ;;
+    --skip-trillium) SKIP_TJ="${2:?--skip-trillium needs JOB[,JOB...]}"; shift ;;
+    *) echo "ERROR: unknown option $1" >&2; exit 2 ;;
   esac
+  shift
 done
+[[ -z "$SKIP_TJ" || "$SKIP_TJ" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "ERROR: --skip-trillium takes job ids, comma-separated" >&2; exit 2; }
 R7B_MEM="${R7B_MEM:-96G}"; [[ "$R7B_MEM" =~ ^([0-9]+)G$ ]] || { echo "ERROR: R7B_MEM is like 96G" >&2; exit 2; }
 MEM_G=${BASH_REMATCH[1]}
 CLUSTER_NAME=$(scontrol show config 2>/dev/null | awk '/^ClusterName/{print $3}' || true)
-# the blocks still pending on Trillium on 2026-10-17 (the rest of Llama 128K and Qwen 32K)
-REST_GROUPS="llama128 qwen32"
-REST_CORE_LLAMA="l-hma l-hmb l-hmc l-hmd l-hme l-hmf"
+# Trillium's R7b jobs still pending on 2026-10-17 and their blocks (findings/R7b_jobs_trillium.tsv): the 'rest'
+TRILLIUM_JOBS="1083804=l-hma,l-hmb,l-hmc,l-hmd 1083805=l-hme,l-hmf 1083807=q-mva,q-mvb,q-mvc,q-mvd \
+1083808=q-mve,q-mvf,q-mvg,q-mvh 1083809=q-mvi,q-mvj,q-r3aa,q-r3ab 1083810=q-r3ac,q-r3ad,q-r1a,q-r1b \
+1083811=q-r1c,q-r1d,q-agga,q-aggb 1083812=q-aggc 1083817=lx-r1 1083818=lx-agg 1083819=lx-hm 1083820=qx-r1 1083821=qx-agg"
+# what the exploratory blocks read from Trillium's finished calibration (copy these here, under the same paths)
+CALIB_INPUTS="h0_measurement/results/r14r7b_r7bc2llama128_1083813/s1h_evaluate_llama31-8b_131072.json
+h0_measurement/results/r14r7b_r7bc2llama128_1083813/s1h_evaluate_llama31-8b_131072.parquet
+h0_measurement/results/r14r7b_r7bc2llama128_hm_1083814/s1h_evaluate_llama31-8b_131072.json
+h0_measurement/results/r14r7b_r7bc2llama128_hm_1083814/s1h_evaluate_llama31-8b_131072.parquet
+h0_measurement/results/r14r7b_r7bc2qwen32_1083815/s1h_evaluate_qwen3-30b-a3b-2507_32768.json
+h0_measurement/results/r14r7b_r7bc2qwen32_1083815/s1h_evaluate_qwen3-30b-a3b-2507_32768.parquet
+$DIR/data/tau_llama128.json
+$DIR/data/alloc_llama128.json
+$DIR/data/tau_qwen32.json
+$DIR/data/alloc_qwen32.json"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -120,14 +143,26 @@ pyq() {   # pyq ARGS... <<'EOF' code EOF: python with R7b's modules on the path 
   $PY - "$@" <<PYEOF
 import sys
 sys.path.insert(0, "$DIR"); sys.path.append("$DIR/.."); sys.path.append("h0_measurement/bugs/14h_methodology_improve")
-import glob, os, lib_r7b as LB, jobs_r7b as JB
-REST_CORE = {"llama128": "$REST_CORE_LLAMA".split(), "qwen32": None}       # None: every block of the group
+import glob, json, os, lib_r7b as LB, jobs_r7b as JB
+TJ = {j: ns.split(",") for j, ns in (x.split("=") for x in """$TRILLIUM_JOBS""".split())}
+SKIP = set("$SKIP_TJ".split(",")) - {""}
+if SKIP - set(TJ):
+    sys.exit(f"ERROR: --skip-trillium {sorted(SKIP - set(TJ))}: not among Trillium's pending R7b jobs ({' '.join(TJ)})")
+TJ_OF = {n: j for j, ns in TJ.items() for n in ns}
+REST = {n for j, ns in TJ.items() if j not in SKIP for n in ns}
+CALIB_INPUTS = """$CALIB_INPUTS""".split()
 def rest_blocks(stage, group):
-    """The blocks of a stage this script submits for the rest of Llama 128K and Qwen 32K."""
-    bl = JB.blocks(stage, [group])
-    if stage == "core" and REST_CORE[group] is not None:
-        bl = [b for b in bl if b["name"] in REST_CORE[group]]
-    return bl
+    """The blocks of a stage this script submits for Llama 128K and Qwen 32K: Trillium's pending ones, minus skipped."""
+    return [b for b in JB.blocks(stage, [group]) if b["name"] in REST]
+def calib_missing(group):
+    """What the group's exploratory blocks need from Trillium's finished calibration and is not here."""
+    need = [p for p in CALIB_INPUTS if group in p and not os.path.exists(p)]
+    need += [b["name"] for b in JB.blocks("calib2", [group]) if not JB.finished(b)
+             and not any(f"r14r7b_{b['tag']}_" in p for p in need)]
+    t = LB.data_path("tau", group)
+    if os.path.exists(t) and json.load(open(t)).get("stage", 0) < 1:
+        need.append(f"{os.path.basename(t)} has no calibration stage 1")
+    return need
 $code
 PYEOF
 }
@@ -149,11 +184,21 @@ run_tests() {   # the fast suites, once per pin on this cluster (script_r7b.sh's
   echo "$sha" > $mark
 }
 
+squeue_file() {   # this cluster's queue. A failed read would hide queued blocks and resubmit them, so it stops instead
+  local f; f=$(mktemp)
+  if ! squeue --me -h -o "%i %j %T" > "$f" 2>/dev/null; then
+    if (( DRY )); then echo "WARN: squeue failed; this dry run assumes nothing is queued" >&2; echo "$f"; return 0; fi
+    /bin/rm -f "$f"; echo "ERROR: squeue failed, so the queued blocks are unknown: nothing submitted (retry)" >&2; return 1
+  fi
+  echo "$f"
+}
+
 check() {
   local bad=0 line
   setup_paths
   ok() { echo "  ok    $*"; }
   no() { echo "  FAIL  $*"; bad=1; }
+  hm() { echo "  WARN  $*"; }
   echo "R7b on Rorqual: checks (submits nothing)"
   on_rorqual && ok "cluster: rorqual" || no "cluster is '${CLUSTER_NAME:-unknown}', not rorqual (R7B_CLUSTER=rorqual overrides)"
   [[ -x $PY ]] && ok "venv: $PY" || no "no $PY (the project's .venv)"
@@ -162,7 +207,7 @@ check() {
   grep -q '^AMEND_R7B = "R7b" ' $DIR/lib_r7b.py 2>/dev/null && ok "frozen: AMEND_R7B = R7b" || no "lib_r7b.AMEND_R7B is not R7b"
   [[ -d .h0_corpus/pg19 ]] && ok "corpus: .h0_corpus/pg19 (each job verifies it)" || no "no .h0_corpus/pg19 (RULER's haystacks)"
   while IFS= read -r line; do
-    case "$line" in ok\ *) ok "${line#ok }" ;; *) no "${line#FAIL }" ;; esac
+    case "$line" in ok\ *) ok "${line#ok }" ;; WARN\ *) hm "${line#WARN }" ;; *) no "${line#FAIL }" ;; esac
   done < <(pyq <<'EOF' 2>&1
 import yaml
 cfg = yaml.safe_load(open("h0_measurement/models.yaml"))
@@ -172,6 +217,10 @@ for g in ("llama128", "qwen32", "qwen128"):
     d = os.path.join(".hf_cache", "hub", "models--" + mid.replace("/", "--"))
     n = sum(f.endswith(".safetensors") for _r, _d, fs in os.walk(d) for f in fs) if os.path.isdir(d) else 0
     print(f"{'ok' if n else 'FAIL'} model for {g}: {mid} ({n} safetensors files in {d})")
+for g in ("llama128", "qwen32"):
+    miss = calib_missing(g)
+    print(f"ok {g}: Trillium's calibration outputs are here (its exploratory blocks can run)" if not miss
+          else f"WARN {g}: its exploratory blocks need Trillium's calibration outputs, missing: {', '.join(miss)}")
 EOF
 )
   echo "queue (sbatch --test-only; submits nothing):"
@@ -181,9 +230,9 @@ EOF
 }
 
 SUBMITTED=()
-NEW_IDS=""
-submit_lines() {   # submit_lines PLAN: sbatch each JOB line with its BLK lines; sets NEW_IDS (colon-separated)
-  local plan=$1 line cur="" blk=() new=()
+REFUSED=()
+submit_lines() {   # submit_lines PLAN: sbatch each JOB line, recording its BLK lines in Rorqual's ledger
+  local plan=$1 line cur="" blk=()
   flush() {
     [[ -n "$cur" ]] || return 0
     local _t k name gpn wall deps nb args id opts
@@ -199,10 +248,10 @@ submit_lines() {   # submit_lines PLAN: sbatch each JOB line with its BLK lines;
       id=$(sbatch --parsable "${opts[@]}" $W ${args//$'\t'/ } </dev/null) \
         || die "sbatch failed (submitted so far: ${SUBMITTED[*]:-none})"
       id="${id%%;*}"; [[ "$id" =~ ^[0-9]+$ ]] || die "no job id from sbatch: $id"
-      printf '%s\n' "${blk[@]}" | $PY $DIR/jobs_r7b.py ledger --cluster rorqual --job "$id"
+      printf '%s\n' "${blk[@]}" | $PY $DIR/jobs_r7b.py ledger --cluster rorqual --job "$id" \
+        || die "job $id was submitted but is not in Rorqual's ledger: add it there or scancel $id, before any rerun"
       SUBMITTED+=("$id")
     fi
-    new+=("$id")
     echo "  $name: $id ($gpn GPU(s), $wall, $nb block(s)$([[ "$deps" == - ]] || echo ", after ${deps//:/, }"))"
     cur=""; blk=()
   }
@@ -211,49 +260,62 @@ submit_lines() {   # submit_lines PLAN: sbatch each JOB line with its BLK lines;
       JOB$'\t'*) flush; cur="$line" ;;
       BLK$'\t'*) blk+=("$line") ;;
       NOTE$'\t'*) echo "  ${line#NOTE$'\t'}" ;;
+      REFUSE$'\t'*) echo "  NOT SUBMITTED: ${line#REFUSE$'\t'}"; REFUSED+=("${line#REFUSE$'\t'}") ;;
     esac
   done <<< "$plan"
   flush
-  NEW_IDS=$(IFS=:; echo "${new[*]}")
 }
 
-plan_rest() {   # plan_rest STAGE GROUP DEPS -> NOTE / QUEUED / JOB / BLK lines for the rest's blocks of that stage
-  local sq; sq=$(mktemp); squeue --me -h -o "%i %j %T" > "$sq" 2>/dev/null || true
-  pyq "$1" "$2" "$3" "$sq" <<'EOF'
-stage, group, deps, sq = sys.argv[1], sys.argv[2], [d for d in sys.argv[3].split(":") if d], sys.argv[4]
+plan_rest() {   # plan_rest STAGE GROUP -> NOTE / REFUSE / JOB / BLK lines for the rest's blocks of that stage
+  local sq; sq=$(squeue_file) || return 1
+  pyq "$1" "$2" "$sq" <<'EOF' || { rm -f "$sq"; return 1; }
+stage, group, sq = sys.argv[1], sys.argv[2], sys.argv[3]
 led, queued = JB.ledger(), JB.queued_ids(sq)
-todo, waits = [], set()
-for b in rest_blocks(stage, group):
+blocks = rest_blocks(stage, group)
+for j in sorted(SKIP):
+    for n in TJ[j]:
+        if any(b["name"] == n for b in JB.blocks(stage, [group])):
+            print(f"NOTE\t{n}: left to Trillium (its job {j}; --skip-trillium)")
+miss = calib_missing(group) if stage == "explore" and blocks else []
+if miss:
+    print(f"REFUSE\t{group}'s exploratory blocks ({', '.join(b['name'] for b in blocks)}): copy Trillium's calibration "
+          f"outputs here first ({', '.join(miss)}); then rerun 'submit rest'")
+    blocks = []
+todo = []
+for b in blocks:
     s, x = JB.state(b, "rorqual", led, queued)
     if s == "done":
         print(f"NOTE\t{b['name']}: finished here as {x}, not resubmitted")
     elif s == "queued":
         print(f"NOTE\t{b['name']}: queued here as job {x}, not resubmitted")
-        waits.add(x)
     else:
         todo.append(b)
-for x in sorted(waits):
-    print(f"QUEUED\t{x}")
 if todo:
-    for line in JB.job_lines(stage, group, JB.pack(todo, "rorqual", 1), "rorqual", deps, 1, pack_gpus=1):
+    for line in JB.job_lines(stage, group, JB.pack(todo, "rorqual", 1), "rorqual", [], 1, pack_gpus=1):
         print(line)
 EOF
   rm -f "$sq"
 }
 
+confirm_trillium() {   # Rorqual cannot see Trillium's queue: the user checks it
+  (( DRY || YES )) && return 0
+  local tj; tj=$(tr ' ' '\n' <<< "$TRILLIUM_JOBS" | cut -d= -f1 | grep -vxF -f <(tr ',' '\n' <<< "${SKIP_TJ:-none}") | paste -sd' ' -)
+  echo "'rest' resubmits the blocks of these Trillium jobs, which must all still be PENDING on Trillium:"
+  echo "  $tj"
+  echo "Check on trig-login01 (squeue --me). Any that has started or finished: rerun with --skip-trillium JOB[,JOB...]."
+  [[ -t 0 ]] || die "no terminal to confirm on: check Trillium's queue, then rerun with --yes"
+  local a; read -r -p "Are all of them still pending on Trillium? [y/N] " a
+  [[ "$a" =~ ^[yY]$ ]] || die "nothing submitted for 'rest'"
+}
+
 submit_rest() {
-  local g st plan prev queued
-  for g in $REST_GROUPS; do
-    echo "== $g core"
-    plan=$(plan_rest core $g "")
-    submit_lines "$plan"
-    prev=""                                     # calib1 -> calib2 -> explore, each waiting on the previous one here
-    for st in calib1 calib2 explore; do
+  local g st plan
+  confirm_trillium
+  for g in llama128 qwen32; do
+    for st in core explore; do
       echo "== $g $st"
-      plan=$(plan_rest $st $g "$prev")
-      queued=$(awk -F'\t' '$1 == "QUEUED" {print $2}' <<< "$plan" | paste -sd: -)
+      plan=$(plan_rest $st $g) || die "could not plan $g $st (see above): nothing more is submitted"
       submit_lines "$plan"
-      prev=$(echo "$NEW_IDS:$queued" | sed 's/^:*//; s/:*$//; s/::*/:/g')
     done
   done
 }
@@ -265,17 +327,17 @@ submit_qwen128() {
     echo "== qwen128 $st"
     if (( DRY )); then r7b "$st" --dry || failed+=("$st"); else r7b "$st" || failed+=("$st"); fi
   done
-  (( ${#failed[@]} == 0 )) || echo "WARNING: Qwen 128K stages not (fully) submitted: ${failed[*]}"
+  (( ${#failed[@]} == 0 )) || { echo "  NOT SUBMITTED: Qwen 128K stages ${failed[*]} (see above)"; REFUSED+=("qwen128 ${failed[*]}"); }
 }
 
 status() {
   on_rorqual || die "status runs on Rorqual"
   setup_paths
-  local sq; sq=$(mktemp); squeue --me -h -o "%i %T" > "$sq" 2>/dev/null || true
+  local sq; sq=$(squeue_file)
   pyq "$sq" <<'EOF'
-now = {l.split()[0]: l.split()[1] for l in open(sys.argv[1]) if l.strip()}
+now = {l.split()[0]: l.split()[2] for l in open(sys.argv[1]) if len(l.split()) >= 3}
 led = [r for r in JB.ledger() if r["cluster"] == "rorqual"]
-rows = [(g, st, b) for g in ("llama128", "qwen32") for st in ("core", "calib1", "calib2", "explore") for b in rest_blocks(st, g)]
+rows = [(g, st, b) for g in ("llama128", "qwen32") for st in ("core", "explore") for b in rest_blocks(st, g)]
 rows += [(g, st, b) for g in ("qwen128",) for st in JB.STAGES for b in JB.blocks(st, [g])]
 tot = {}
 for g, st, b in rows:
@@ -289,10 +351,14 @@ for g, st, b in rows:
         s = "not submitted" if not mine else "ended without a result"
     tot.setdefault((g, st), []).append(s)
     if s != "done":
-        print(f"  {g:9s} {st:8s} {b['name']:8s} {s}{f' (job {mine[-1]})' if mine else ''}")
+        tj = f", Trillium {TJ_OF[b['name']]}" if b["name"] in TJ_OF else ""
+        print(f"  {g:9s} {st:8s} {b['name']:8s} {s}{f' (job {mine[-1]})' if mine else ''}{tj}")
 print("summary:")
 for (g, st), v in tot.items():
     print(f"  {g:9s} {st:8s} " + ", ".join(f"{v.count(k)} {k}" for k in dict.fromkeys(v)))
+for g in ("llama128", "qwen32"):
+    miss = calib_missing(g)
+    print(f"  {g:9s} calibration inputs from Trillium: {'here' if not miss else 'missing ' + ', '.join(miss)}")
 EOF
   rm -f "$sq"
 }
@@ -326,11 +392,12 @@ case "$MODE" in
   submit)
     verify
     (( DRY )) || run_tests
-    [[ "$TARGET" == rest ]] || submit_qwen128
     [[ "$TARGET" == qwen128 ]] || submit_rest
-    echo "submitted on rorqual$( (( DRY )) && echo " (dry run: nothing)"): ${SUBMITTED[*]:-no new jobs}" ;;
+    [[ "$TARGET" == rest ]] || submit_qwen128
+    echo "submitted on rorqual$( (( DRY )) && echo " (dry run: nothing)"): ${SUBMITTED[*]:-no new jobs}"
+    if (( ${#REFUSED[@]} )); then printf 'NOT SUBMITTED:\n'; printf '  %s\n' "${REFUSED[@]}"; exit 1; fi ;;
   status) status ;;
   results) results ;;
   cancel-orphans) on_rorqual || die "cancel-orphans runs on Rorqual"; setup_paths; r7b --cancel-orphans $( (( DRY )) && echo --dry) ;;
-  *) sed -n 2,33p "$SELF" >&2; exit 2 ;;
+  *) sed -n 2,40p "$SELF" >&2; exit 2 ;;
 esac

@@ -23,12 +23,26 @@
 #   bash rorqual_r7b.sh cancel-orphans [--dry] cancel R7b jobs that wait on a failed gate or calibration step
 # Needs the project here with R7b's code as pinned (findings/R7b_code.sha256): every job verifies it. A .sh on purpose:
 # run_r7b.code_manifest hashes r7b/*.py, so a new .py here would change later blocks' manifests.
+#
+# PATHS. R7b's pinned code, its worker and the code manifest every block records all name the folder
+# h0_measurement/bugs/14i_r7_theory_at_scale/r7b. On Rorqual the R7b files may live elsewhere, e.g. in
+# h0_measurement/bugs/14i_r7b_theory_at_scale/ (or its r7b/ subfolder). Every mode first finds them (this script's own
+# folder, or those places) and makes the pinned path resolve to them with a symlink, created only if the path is
+# missing, and printed. It does the same for R7a's three modules that R7b imports (cert_r7.py, tier_r7.py, r7_lib.py),
+# only where one is missing. Jobs then run through the pinned path, so their pin check and code manifests are those of
+# Trillium's blocks. The R7b code uses abspath, never realpath, so the paths it builds keep the pinned folder names.
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="$SELF_DIR/$(basename "${BASH_SOURCE[0]}")"
+PROJECT_ROOT=$SELF_DIR                         # the first ancestor with h0_measurement/ and sievelib/
+while [[ "$PROJECT_ROOT" != / && ! ( -d "$PROJECT_ROOT/h0_measurement" && -d "$PROJECT_ROOT/sievelib" ) ]]; do
+  PROJECT_ROOT=$(dirname "$PROJECT_ROOT")
+done
+[[ "$PROJECT_ROOT" != / ]] || { echo "ERROR: no project root (a folder with h0_measurement/ and sievelib/) above $SELF_DIR" >&2; exit 2; }
 cd "$PROJECT_ROOT"
-DIR=h0_measurement/bugs/14i_r7_theory_at_scale/r7b
+R7C=h0_measurement/bugs/14i_r7_theory_at_scale       # the pinned paths
+DIR=$R7C/r7b
 S=$DIR/script_r7b.sh
 W=$DIR/submit_r7b.slurm
 PY=.venv/bin/python
@@ -49,6 +63,56 @@ REST_GROUPS="llama128 qwen32"
 REST_CORE_LLAMA="l-hma l-hmb l-hmc l-hmd l-hme l-hmf"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+
+relpath() { $PY -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$1" "$2"; }
+extra_py() {   # extra_py FOLDER: its top-level *.py that R7b's pin does not list (each would join every block's code manifest)
+  comm -13 <(awk -v d="$DIR/" 'index($2, d) == 1 && substr($2, length(d) + 1) ~ /^[^\/]+\.py$/ {print substr($2, length(d) + 1)}' \
+               "$1/findings/R7b_code.sha256" | sort) \
+           <(cd "$1" && ls -1 -- *.py 2>/dev/null | sort) | tr '\n' ' '
+}
+
+setup_paths() {   # make the pinned paths resolve to R7b's files here (see PATHS above); idempotent
+  local found="" c alt=h0_measurement/bugs/14i_r7b_theory_at_scale f src
+  [[ -x $PY ]] || die "no $PY (the project's .venv) under $PROJECT_ROOT"
+  for c in "$DIR" "$SELF_DIR" "$alt/r7b" "$alt"; do
+    if [[ -f "$c/lib_r7b.py" && -f "$c/submit_r7b.slurm" && -f "$c/findings/R7b_code.sha256" ]]; then found=$c; break; fi
+  done
+  [[ -n "$found" ]] || die "cannot find R7b's files (lib_r7b.py, submit_r7b.slurm, findings/R7b_code.sha256) in $DIR, $SELF_DIR, $alt/r7b or $alt"
+  found=${found#"$PROJECT_ROOT"/}                # relative to the project root, as the pinned paths are
+  local ex e b
+  if [[ -e "$DIR" || -L "$DIR" ]]; then
+    [[ -f "$DIR/lib_r7b.py" ]] || die "$DIR exists but holds no R7b code; move it aside, then rerun"
+    [[ "$DIR" -ef "$found" ]] || [[ "$found" == "$DIR" ]] \
+      || echo "NOTE: using $DIR; the other R7b copy at $found is not used"
+    ex=$(extra_py "$DIR")
+    [[ -z "${ex// }" ]] || die "$DIR holds .py files R7b does not pin: $ex. Each would join every block's code manifest (and could shadow R7a's modules): move them out of $DIR"
+  else
+    mkdir -p "$R7C"
+    ex=$(extra_py "$found")
+    if [[ -z "${ex// }" ]]; then
+      ln -s "$(relpath "$found" "$R7C")" "$DIR"
+      echo "linked $DIR -> $(readlink "$DIR") (R7b's pinned path)"
+    else                                  # a folder of links to R7b's own files only
+      mkdir "$DIR"
+      for e in "$found"/* "$found"/.[!.]*; do
+        [[ -e "$e" ]] || continue
+        b=$(basename "$e")
+        [[ "$b" == __pycache__ || " $ex " == *" $b "* ]] && continue
+        ln -s "$(relpath "$e" "$DIR")" "$DIR/$b"
+      done
+      echo "made $DIR: links to R7b's files in $found, leaving out $ex(not R7b's: in R7b's folder they would join every"
+      echo "  block's code manifest and shadow R7a's modules)"
+    fi
+  fi
+  for f in cert_r7.py tier_r7.py r7_lib.py; do           # R7a's modules that R7b imports from the pinned parent folder
+    [[ -f "$R7C/$f" ]] && continue
+    src=""
+    for c in "$(dirname "$found")" "$found" "$alt"; do [[ -f "$c/$f" && ! "$c/$f" -ef "$R7C/$f" ]] && { src=$c/$f; break; }; done
+    [[ -n "$src" ]] || die "R7a's $f is neither in $R7C nor next to R7b's files: copy it to $R7C/"
+    ln -s "$(relpath "$src" "$R7C")" "$R7C/$f"
+    echo "linked $R7C/$f -> $(readlink "$R7C/$f")"
+  done
+}
 on_rorqual() { [[ "${R7B_CLUSTER:-$CLUSTER_NAME}" == rorqual ]]; }
 r7b() { R7B_CLUSTER=rorqual bash $S "$@"; }
 pyq() {   # pyq ARGS... <<'EOF' code EOF: python with R7b's modules on the path (ARGS in sys.argv[1:])
@@ -69,6 +133,7 @@ PYEOF
 }
 
 verify() {
+  setup_paths
   on_rorqual || die "run this on Rorqual (scontrol's cluster is '${CLUSTER_NAME:-unknown}'; R7B_CLUSTER=rorqual overrides)"
   [[ -f $CODE_SHA ]] || die "no $CODE_SHA: R7b's code is not here as pinned"
   sha256sum --quiet -c $CODE_SHA || die "these files differ from R7b's pin ($CODE_SHA)"
@@ -86,6 +151,7 @@ run_tests() {   # the fast suites, once per pin on this cluster (script_r7b.sh's
 
 check() {
   local bad=0 line
+  setup_paths
   ok() { echo "  ok    $*"; }
   no() { echo "  FAIL  $*"; bad=1; }
   echo "R7b on Rorqual: checks (submits nothing)"
@@ -204,6 +270,7 @@ submit_qwen128() {
 
 status() {
   on_rorqual || die "status runs on Rorqual"
+  setup_paths
   local sq; sq=$(mktemp); squeue --me -h -o "%i %T" > "$sq" 2>/dev/null || true
   pyq "$sq" <<'EOF'
 now = {l.split()[0]: l.split()[1] for l in open(sys.argv[1]) if l.strip()}
@@ -232,6 +299,7 @@ EOF
 
 results() {
   on_rorqual || die "results runs on Rorqual"
+  setup_paths
   local out=$DIR/findings/R7b_rorqual_results.txt
   pyq <<'EOF' | awk 'NF' | sort -u > $out.tmp
 out = []
@@ -263,6 +331,6 @@ case "$MODE" in
     echo "submitted on rorqual$( (( DRY )) && echo " (dry run: nothing)"): ${SUBMITTED[*]:-no new jobs}" ;;
   status) status ;;
   results) results ;;
-  cancel-orphans) on_rorqual || die "cancel-orphans runs on Rorqual"; r7b --cancel-orphans $( (( DRY )) && echo --dry) ;;
-  *) sed -n 2,25p "$SELF" >&2; exit 2 ;;
+  cancel-orphans) on_rorqual || die "cancel-orphans runs on Rorqual"; setup_paths; r7b --cancel-orphans $( (( DRY )) && echo --dry) ;;
+  *) sed -n 2,33p "$SELF" >&2; exit 2 ;;
 esac

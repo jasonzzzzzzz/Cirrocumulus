@@ -1,0 +1,2 @@
+(waited 440 s for 6 x 8 GB of memory)
+g0view_llama70b_table_32768_L3.pt: unread 2nd-moment share 0.0005; tail / FP8 (median) store 4+2/4 0.12, 4+2/6 0.08, 4+4/4 0.09; part 8 at 4+2 6.7x; (358.8 + 135.7 s)

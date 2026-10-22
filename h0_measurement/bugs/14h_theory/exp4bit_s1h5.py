@@ -6,7 +6,7 @@ queries vote (a Lloyd-Max 4-bit sketch, rotation seed 7, coin-free) for C/8 rows
 tier 1 is dithered (keys at kb bits, values at 4), the tail is unbiased; delta = 0.05 per head-step; the oracle width is
 the 95% quantile of the error over 200 draws; bounds are the median over 10 draws.
 
-    python exp4bit_s1h5.py capture llama1b 1[,3,..] [L]  # -> .views/view_llama1b_L<l>_<L>.pt (GPT-OSS sinks kept)
+    python exp4bit_s1h5.py capture llama1b 1[,3,..] [L]  # -> ../14_logs/14h_theory/views/view_llama1b_L<l>_<L>.pt (GPT-OSS sinks kept)
     python exp4bit_s1h5.py diagnose VIEW                 # v2's slack: counterfactuals with true quantities
     python exp4bit_s1h5.py remedies VIEW                 # sketch budget, peeling, both; v3; v3 + budget (4-bit keys)
     python exp4bit_s1h5.py lawcheck VIEW                 # exact-law (truncated) Pinelis radius vs Bennett, true weights
@@ -38,7 +38,8 @@ from sievelib import quant as Q  # noqa: E402
 
 DT = torch.float64
 DELTA = 0.05
-CACHE = os.environ.get("TH_CACHE", os.path.join(HERE, ".views"))
+# The views moved from .views/ here to ../14_logs/14h_theory/views/ on 2026-10-22 (14_logs/README.md); TH_CACHE overrides.
+CACHE = os.environ.get("TH_CACHE", os.path.normpath(os.path.join(HERE, "..", "14_logs", "14h_theory", "views")))
 E_ = lambda x: torch.exp(x.clamp(max=700.0))  # noqa: E731
 
 
@@ -65,7 +66,7 @@ def capture(key, layer, L=1600):
 
 def load_setup(path, nv=32, frac=8):
     d0 = torch.load(path)
-    if d0["family"] != "gqa":
+    if d0.get("family", "gqa") != "gqa":                  # R7b's captured views carry no family: they are GQA
         raise SystemExit("GQA views only")
     q, Kx, Vx = d0["q"].to(DT), d0["K"].to(DT), d0["V"].to(DT)
     pos, sc, L = d0["pos"], d0["scaling"], d0["L"]

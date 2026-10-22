@@ -1,0 +1,2 @@
+(waited 1510 s for 5 x 8 GB of memory)
+g0view_gemma4_table_32768_L35.pt: unread 2nd-moment share 0.0756; tail / FP8 (median) store 4+2/4 0.22, 4+2/6 0.08, 4+4/4 0.21; part 8 at 4+2 3.4x; (1182.6 + 347.4 s)

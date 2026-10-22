@@ -1,0 +1,82 @@
+{
+ "3": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "7": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "11": {
+  "calibrated": "store:3/6/8",
+  "traffic": 0.48046875,
+  "loose_4p2": false
+ },
+ "15": {
+  "calibrated": "store:3/6/8",
+  "traffic": 0.48046875,
+  "loose_4p2": false
+ },
+ "19": {
+  "calibrated": "store:2/6/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "23": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "27": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "31": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "35": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "39": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "43": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "47": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "51": {
+  "calibrated": "store:3/6/8",
+  "traffic": 0.48046875,
+  "loose_4p2": false
+ },
+ "55": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "59": {
+  "calibrated": "store:2/6/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ },
+ "63": {
+  "calibrated": "store:2/6/8",
+  "traffic": 0.453125,
+  "loose_4p2": false
+ }
+}

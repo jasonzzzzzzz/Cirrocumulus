@@ -457,11 +457,20 @@ budget at the same traffic: τ = 0.1625 with B = 0.0316, and τ = 0.0294 with B 
   instead of 0.413–0.421 on Qwen3-1.7B (§6.2).
 - For R7b, at 32K: Qwen3-30B-A3B's 14 loose layers (+0.016 traffic); Llama-3.1-8B has none (`findings_nested.md` §7).
   Recheck at 128K.
+  - **Rechecked with R7a's GPU probe (2026-10-22, `../../14i_r7_theory_at_scale/findings/R7a.md`):** uniform 6-bit keys, every layer, layers whose median
+    part 8 / error exceeds 14 (about 20× at 4+2; `../ARCHITECTURES_PLAN.md` §2):
+    - Llama-3.1-8B at 128K: none;
+    - Qwen3-30B-A3B at 32K: 12 layers, L1, 3, 5, 7, 8, 9, 12, 16, 20, 28, 32 and 40;
+    - Qwen3-30B-A3B at 128K: 13 layers, the same plus L19.
+  - R7b's 14-layer list (`r7b/lib_r7b.LOOSE_DEFAULT`) contains all of them. Its extra layers are L0 at both lengths and
+    L19 at 32K, so R7b's 8-bit layers cover every loose layer, with a small margin.
 - This makes E1's store differ from the primary arm's in those layers. The alternative is the primary store, with the
   fallback reported.
 
 **Stop rule:** per (KV head, step), every query head of the group must meet τ, because the group shares the rows read.
-R7a's port should be checked for the same rule.
+R7a's port should be checked for the same rule. *Checked (2026-10-22):* `cert_r7.certified_read` accepts a set only
+where the bound meets the target at every query head of the KV head (`.all` over the heads), and R7a's reader tests the
+guarantee per query head (`theory.md` §6e). No query head missed in R7a's 1.55 M checks.
 
 **Expected, from CPU:**
 - Llama-1B: 5.6× and 25× below the single store's KL, at +0.001 and +0.007 traffic;

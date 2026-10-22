@@ -1,5 +1,7 @@
 # The theorems on Qwen: Qwen3-1.7B and R6's Qwen3-30B-A3B (CPU, 2026-10-10)
 
+> **Correction (2026-10-12):** every Gemma-3-12B result before that date came from a randomly initialized model (a loader bug; `MODEL_FAMILY.md`'s correction note). Gemma 3 is not flat at 1,600 tokens: L5 leaves 7.6% of the second moment unread, not 66%.
+
 Every result so far was CPU-validated on Llama-3.2-1B (plus single layers of Gemma 3 and GPT-OSS). This checks them on
 Qwen3, the family of R6's second model. Qwen3's attention differs from Llama's in having QK-norm (an RMSNorm with
 learned scales on q and k).

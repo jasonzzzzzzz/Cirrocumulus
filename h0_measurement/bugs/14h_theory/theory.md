@@ -1,4 +1,4 @@
-# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8; §13–§14 2026-10-11, CPU checks 2026-10-12)
+# Certified two-tier KV reads: the theory (updated 2026-10-10, parts 6–8; §13–§14 2026-10-11, CPU checks 2026-10-12; R7a's GPU numbers and §6e's per-head correction 2026-10-22)
 
 This file states what is proved about the two-tier KV design, under which assumptions, and how
 strong each result is in practice. **Every R14 theory update goes in this folder** (since 2026-10-10; `CLAUDE.md`).
@@ -21,6 +21,13 @@ Findings: `findings/` (`findings_4bit`, `findings_part7`, `findings_part8`, `fin
 brute force is `../14h_methodology_improve/test_r14_stage1h_r5.py`. Run records: `../14h_methodology_improve/plan.md`,
 amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 
+> **Correction (2026-10-12): every Gemma-3-12B number in this file before that date came from a randomly initialized model.**
+> `adapters_s1h5._load` built `Gemma3ForCausalLM` from the multimodal checkpoint. transformers 5.16 does not map that checkpoint's `language_model.*` keys onto it, so every text weight was freshly initialized, and that branch skipped the missing-weight check. Random weights give flat attention.
+> - Gemma 3's "flat, value-leaning" class (family E), its 6/6 choice, L5 as the flat-attention example (66% of the second moment unread) and R8's Gemma 3 predictions all describe the random model.
+> - With the checkpoint's weights, L5 at 1,600 tokens has 7.6% of the second moment unread (between, not flat; unread mass 0.20, against 0.77) and a key share of 0.86 at 6/6 (key-leaning, against 0.37). Uniform 6/4 meets FP8's error at the median head-step (0.37×), not at p90 (1.36×).
+> - The theorems' checks on those views (coverage, Theorem M's accuracy) remain valid statements about those inputs, but they are not evidence about Gemma 3. Rows marked † below are the random model's; the explanatory examples now use Granite-4.2 L1 (a real flat layer) and Gemma 3's real numbers.
+> - Fixed: the loader uses the multimodal class and refuses any missing weight; `g0map_s1h5.provenance` compares loaded weights with the checkpoint's. No other model was affected: the 18 GQA/MHA models and the two MLA models load with no missing weight. G0 (`findings/findings_g0.md`) recomputes Gemma 3 at 1,600 tokens and at 32K.
+
 ## Summary
 
 | Result | Holds for | Assumes | Useful on real models? |
@@ -32,9 +39,9 @@ amendments "R5 theory" parts 1–6 (that folder's part 6 is this file's part 7).
 | Lemma 5: tail error, concentration | inputs that fit an error model | zero-mean, independent tier-1 errors | ≈ 15–60× tight, but real keys break the model |
 | **Theorem R** (v3): tail error, randomized tier | **every input and model** | read rows don't see tier 1's coins; seed independent of the input | with 6–8-bit tier-1 keys: 6–17× the best possible certificate (GPT-OSS at 6 bits: 39×) (§7); at 4 bits ≈ 50–160× on Llama, 12× on Gemma 3, ≈ 7,500× on GPT-OSS |
 | **Part 7: sure sums, the mirror split** (§6c–§6d) | every input; the split needs independent key and value dithers (GQA) | as Theorem R | Llama-1B 8-bit 5.6–5.7× the error (v3: 9.8–10.4×); 6-bit about 18× |
-| **Part 8: the tilted tail, a Hsu–Kakade–Zhang key sum** (§6f–§6g) | every input; GQA (as the split) | as Theorem R | the tightest certificates at every width: Llama-1B 6-bit 6.7–7.3× the error (split 17–19×), 0.41–0.59 of head-steps certified at FP8's level (split 0.13–0.21); 8-bit 2.0–2.6× (0.89–0.95 certified on L1/L3); 4-bit 92–554×, still far from FP8 |
-| **Certified adaptive read** (§6e, corollary) | every input | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide. With part 8's bound and FP8's per-head error as an (oracle) target: traffic 0.456–0.460 at 8-bit keys (the oracle stop is 0.453) and 0.433–0.499 at 6-bit keys on Llama-1B L1/L3 at 1.6K–8K (FP8: 0.50) (§7) |
-| **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA in its coupled form, §10) | as Theorem R | predicts the measured MSE within 1% at 6–8-bit keys on every layer tested (Llama, Gemma 3, GPT-OSS, Qwen3); its first-order reading overpredicts where σ ≈ 2 (4-bit keys in two Qwen layers) (§10). It explains why the design works and maps which layers need which bits (`layermap_s1h5.py`) |
+| **Part 8: the tilted tail, a Hsu–Kakade–Zhang key sum** (§6f–§6g) | every input; GQA (as the split) | as Theorem R | the tightest certificates at every width: Llama-1B 6-bit 6.7–7.3× the error (split 17–19×), 0.41–0.59 of head-steps certified at FP8's level (split 0.13–0.21); 8-bit 2.0–2.6× (0.89–0.95 certified on L1/L3); 4-bit 92–554×, still far from FP8. **At the paper's scale** (R7a, GPU): 6-bit 5.6× on Llama-3.1-8B at 128K and 7.2–8.0× on Qwen3-30B-A3B at 32K/128K, certifying 0.92 / 0.72 / 0.68 of head-steps; no miss in 37.8 M checks (§7) |
+| **Certified adaptive read** (§6e, corollary) | every input; the guarantee is per query head | a coin-free nested schedule of read sets | the guarantee at any target, at a cost the coins decide. With part 8's bound and FP8's per-head error as an (oracle) target: traffic 0.456–0.460 at 8-bit keys (the oracle stop is 0.453) and 0.433–0.499 at 6-bit keys on Llama-1B L1/L3 at 1.6K–8K (FP8: 0.50) (§7). **At the paper's scale** (R7a): 6-bit traffic 0.399 on Llama-3.1-8B at 128K (the oracle's 0.399), 0.474 / 0.423 on Qwen3-30B-A3B at 32K / 128K; no query head missed in 774,656 checks |
+| **Theorem M**: the tail's mean squared error, exactly | **every input and model** (GQA; MLA in its coupled form, §10) | as Theorem R | predicts the measured MSE within 1% at 6–8-bit keys on every layer tested (Llama, Gemma 3, GPT-OSS, Qwen3); its first-order reading overpredicts where σ ≈ 2 (4-bit keys in two Qwen layers) (§10). At the paper's scale (R7a, 3.78 M head-steps): exact, 1.000 ± 0.001 at 6–8-bit keys; the unread share ranks Llama's task families by measured KL (Spearman 0.857). It explains why the design works and maps which layers need which bits (`layermap_s1h5.py`) |
 | **Lemma N, Theorem N**: one store for the vote and the tail (§13) | every input; GQA | the vote reads only the deterministic base | Theorems R and M hold with per-coordinate steps; R1 by construction; memory 0.31 at rest, about 0.44 during a question (FP8: 0.50); about 0.1–0.3 bit of key precision. On CPU (8 seeds, each design with its own vote) end-to-end KL is 1.27× R6's design on Llama-1B and 1.12× on Qwen3-1.7B, in geometric mean; the vote's question pass with dithered values is neutral |
 | **Proposition KL, Corollary WF, run-time τ** (§14) | second order; per-layer independent dithers | sensitivities measured once per layer | predicts every tail configuration's KL within a median 1.00–1.34× (Llama-1B; Qwen3-1.7B with keys ≥ 5 bits); key errors cost 2× value errors; the KL-budget τ makes the certified read deployable, cutting KL 3.7–14× for +0.0004–0.003 traffic. With the single store: 5.6–25× on Llama-1B; on Qwen3-1.7B only with 8-bit keys in its noisy layers. The level needs per-family calibration; the sensitivities can be pooled |
 | **Theorem DD**: free-running decode | every input | per-layer independent dithers | Theorem R holds at every decode step up to the first token that differs from the exact model's (§11) |
@@ -50,8 +57,8 @@ of Σ w_i²‖v_i − o‖², not through their share of the mass. Reading the f
 almost all of it:
 - on Llama-1B L1 the vote leaves 2.4% of the mass unread but 0.18% of that second moment, and the tail's MSE is
   1.9% of a dense 4-bit tier's (predicted 1.86%, measured 1.87%);
-- where attention is flat the gain shrinks with it: on Gemma 3's global layer L5 the vote leaves 66% of the second
-  moment unread, and the tail's MSE is 66% of a dense tier's.
+- where attention is flat the gain shrinks with it: on Granite-4.2's L1 (attention multiplier 1/128) the vote leaves
+  80% of the second moment unread, and the tail's MSE is 79% of a dense tier's.
 The same formula therefore says when the design will work, on any model, from one FP pass.
 
 **Not covered:**
@@ -292,7 +299,7 @@ Events: the truncation at δ/2; V, K and Σ D at δ/6 each.
 
 **Which grouping is tighter depends on σ.**
 - At 6–8-bit keys (e^{2t} ≈ 1.1–1.3) the split's observed vectors win: Llama-1B 8-bit 5.6–5.7× the error, against
-  v3 + sure sums 6.5–6.6× and v3 9.8–10.4×; Gemma 3 L5 2.8× against 3.2× and 3.7×.
+  v3 + sure sums 6.5–6.6× and v3 9.8–10.4×; Gemma 3 L5† 2.8× against 3.2× and 3.7×.
 - At 4 bits (e^{2t} ≫ 1) part 6's observed weights win: v3 + sure sums 484–505×, split 516–547×.
 
 Both need independent key and value dithers, so MLA keeps the coupled form.
@@ -309,10 +316,15 @@ at confidence δ/m (S_m is exact and needs no bound). Read sets in order and sto
 
   J = min{ j : B_j ≤ τ_j for every query head of the KV head },
 
-where τ_j may depend on anything observed (e.g. ε·‖õ(S_j)‖). Return õ(S_J). Then, with probability ≥ 1 − δ,
-‖o − õ(S_J)‖ ≤ τ_J at every query head:
-- by the union bound, every B_j holds at once with probability ≥ 1 − δ;
-- on that event the chosen one holds, whatever the stopping rule.
+where τ_j may depend on anything observed (e.g. ε·‖õ(S_j)‖). Return õ(S_J). Then **at each query head h**, with
+probability ≥ 1 − δ, ‖o_h − õ_h(S_J)‖ ≤ τ_J:
+- each B_j bounds one query head's output at confidence δ/m, so by the union bound over the m sets, every B_j of head h
+  holds at once with probability ≥ 1 − δ;
+- on that event the chosen one holds, whatever the stopping rule, because J meets the target at every head.
+
+For all r query heads of a KV head at once the same argument gives only ≥ 1 − rδ. A joint statement at 1 − δ needs
+δ/(m·r) in each bound. (Corrected 2026-10-22: this said "at every query head" with probability ≥ 1 − δ.
+R7a, `../14i_r7_theory_at_scale/theory_r7.md` §2.6, found the gap and tested the per-head form at scale.)
 
 The coins may decide *how many* sets are read, but not *which* sets. The price is δ/m inside each bound (a ln m term).
 This certifies a controller that reads more only where the bound is loose. §9's open threshold rule ("read every row
@@ -479,7 +491,7 @@ Across architectures (`findings/R5_adapters.md`, early layers, 1,600 tokens):
 |---|---|---|
 | Llama-1B (L1) | 2,826 → 59 → 21 | key noise |
 | GPT-OSS | 4.3 × 10⁶ → 275 → 36 | large ‖q‖‖k‖: key noise |
-| Gemma 3 (global) | 32 → 11 → 9 | 4-bit values (QK-norm keeps key noise small) |
+| Gemma 3† (global) | 32 → 11 → 9 | 4-bit values (QK-norm keeps key noise small) |
 | Moonlight (MLA) | 929 → 188 → 236 | the coupled bound's coin-free distance |
 
 **MLA in head space** (Moonlight, DeepSeek-V2-Lite, Kimi-Linear; coverage 1 at every width). Median
@@ -495,16 +507,18 @@ for v2 / for the oracle:
 |---|---|---|---|
 | Llama-1B (L1) | 206 · 0 / 0.62 | 20 · 0.09 / 0.95 | 14 · 0.28 / 0.98 |
 | GPT-OSS (L1) | 42,500 · 0 / 0.08 | 60 · 0.01 / 0.39 | 19 · 0.03 / 0.87 |
-| Gemma 3 (L5) | 14 · 0 / 0 | 9 · 0 / 0 | 8 · 0 / 0 |
+| Gemma 3† (L5) | 14 · 0 / 0 | 9 · 0 / 0 | 8 · 0 / 0 |
 
 Three readings:
 - **Llama at 4 bits:** the tier holds enough information to certify 62% of head-steps at FP8's
   level, so the proof is the bottleneck. Its range term covers a single tail row whose true weight is
   e^{t} times its estimate (t = zσ ≈ 2.4 nats).
-- **Gemma 3:** the 4-bit values are the limit. No certificate of any kind could reach FP8's level
-  without more value bits. Theorem M gives the reason (§10): this global layer's attention is flat, so the vote
-  leaves 77% of the mass and 66% of Σ w²‖v − o‖² unread, the tail is nearly a dense 4-bit store, and with QK-norm's
-  small σ the value term dominates.
+- **Gemma 3†:** on that random model's flat layer the 4-bit values were the limit, and no certificate of any kind
+  could reach FP8's level without more value bits. The real L5 at 1,600 tokens leaves 7.6% of Σ w²‖v − o‖² unread,
+  and its tail sits at 0.91× FP8's error with 4-bit keys and 0.37× with 6-bit keys
+  (`findings/g0/evaluate_gemma3_L5_1600_real.json`). A real flat layer, Granite-4.2's L1 (85% of the mass and 80% of
+  the second moment unread), shows the reading: its tail is 1.77× FP8's error at every key width, because the
+  4-bit values are the limit (`findings/g0/evaluate_granite42_L1_1600.json`).
 - **6–8 bits:** the remaining factor (8–20×) is the constants of a high-confidence, worst-case-over-rows
   argument.
 
@@ -518,9 +532,9 @@ v2 → v3. In brackets: the share of head-steps certified within FP8's error, v2
 | Llama-1B L3 (1,552) | 217 → 124 (0 → 0) | 19.1 → 16.2 (0.12 → 0.16) | 13.3 → 10.5 (0.37 → 0.47) |
 | Llama-1B L1 (8,144) | 337 → 159 (0 → 0) | 18.5 → 14.9 (0.11 → 0.16) | 11.2 → 7.7 (0.31 → 0.46) |
 | GPT-OSS L1, sinks (1,552) | 26,057 → 7,485 (0 → 0) | 51.7 → 39.3 (0.014 → 0.014) | 18.3 → 14.6 (0.035 → 0.050) |
-| Gemma 3 L5, global (1,552) | 14.2 → 11.6 (0 → 0) | 9.2 → 6.9 (0 → 0) | 8.5 → 6.3 (0 → 0) |
+| Gemma 3† L5, global (1,552) | 14.2 → 11.6 (0 → 0) | 9.2 → 6.9 (0 → 0) | 8.5 → 6.3 (0 → 0) |
 
-v3 gains 1.5–3.5× at 4-bit keys where the one-row maxima switch on (σ ≥ 0.15; Gemma 3, with σ ≈ 0.12, gains 1.2×)
+v3 gains 1.5–3.5× at 4-bit keys where the one-row maxima switch on (σ ≥ 0.15; Gemma 3†, with σ ≈ 0.12, gains 1.2×)
 and 1.2–1.45× at 6–8 bits. The gain grows with the context (8,144 rows). It does not make 4-bit keys certifiable at
 FP8's level; §12 explains why.
 
@@ -534,7 +548,7 @@ with no exact rows):
 | Llama-1B L3 | 0.38 / 0.12 / 0.09 | 4.3 |
 | Llama-1B L1, 8K | 0.57 / 0.18 / 0.13 | 3.8 |
 | GPT-OSS L1 | 4.1 / 0.91 / 0.43 | 9.2 |
-| Gemma 3 L5 | 3.4 / 2.7 / 2.7 | 4.2 |
+| Gemma 3† L5 | 3.4 / 2.7 / 2.7 | 4.2 |
 
 **Adaptive queries (R2), measured** (`adaptive_s1h5.py`). Setup: full Llama-3.2-1B, 2,048 tokens, 4
 draws, and the design's output substituted at every answer position and layer, so every later query
@@ -563,15 +577,15 @@ share certified within FP8):
 | Llama-1B L1, 6 | 41.7 · 0.04 | 33.0 · 0.06 | 21.6 · 0.10 | 18.3 · 0.13 |
 | Llama-1B L1, 8 | 19.3 · 0.24 | 10.4 · 0.43 | 6.6 · 0.61 | 5.7 · 0.66 |
 | Llama-1B L3, 8 | 18.2 · 0.32 | 9.8 · 0.56 | 6.5 · 0.69 | 5.6 · 0.75 |
-| Gemma 3 L5, 8 | 9.0 · 0 | 3.7 · 0 | 3.2 · 0 | 2.8 · 0 |
+| Gemma 3† L5, 8 | 9.0 · 0 | 3.7 · 0 | 3.2 · 0 | 2.8 · 0 |
 
 At 4 bits: Llama-1B L1 1,054 / 637 / 484 / 516, nothing certified.
 
 The certified adaptive read at 8-bit keys (split form) reads 14–18% of rows exactly at traffic 0.46–0.49 (FP8: 0.50) on:
 - Llama-1B L1–L3, with FP8's per-head error as the target (an oracle target);
-- Gemma 3 L5, with 1% of the output's norm as the target.
+- Gemma 3† L5, with 1% of the output's norm as the target.
 
-An oracle stop would read 12.5–13%. Gemma 3 at FP8's error and Granite-4.0-H at 1% cannot be met by any read set:
+An oracle stop would read 12.5–13%. Gemma 3† at FP8's error and Granite-4.0-H at 1% cannot be met by any read set:
 their 4-bit values are the limit.
 
 **Part 8 on real weights** (`findings/findings_part8.md`; same setup, 3 draws; median bound / error · share certified
@@ -582,7 +596,7 @@ within FP8; "part 8" = the tilted tail, HKZ with P-exact on each head-step's 16 
 | Llama-1B L1 (1.6K / 8K) | 6 | 18.0 · 0.13 / 19.3 · 0.15 | 6.75 · 0.47 / 7.34 · 0.41 |
 | Llama-1B L3 | 6 | 17.4 · 0.21 | 6.72 · 0.59 |
 | Llama-1B L0 | 6 | 10.3 · 0 | 4.60 · 0.08 |
-| Gemma 3 L5 (global) | 6 | 4.04 · 0 | 2.05 · 0 |
+| Gemma 3† L5 (global) | 6 | 4.04 · 0 | 2.05 · 0 |
 | GPT-OSS L1 | 6 | 77.1 · 0.02 | 32.4 · 0.05 |
 | Llama-1B L1 (1.6K / 8K) | 8 | 5.77 · 0.66 / 5.30 · 0.70 | 2.57 · 0.89 / 2.59 · 0.90 |
 | Llama-1B L3 | 8 | 5.64 · 0.75 | 2.51 · 0.95 |
@@ -625,11 +639,31 @@ on three more models.
 - **The certified read sits at the oracle** in concentrated layers on six architectures: traffic 0.400–0.441 at 6
   bits, against 0.398.
 - **What varies is the design's own error.** In flat-attention models the vote leaves 12–64% of Σ w²‖v − o‖² unread,
-  and 4-bit values hold the tail above FP8's per-head error at any key width. These are Gemma 3 and 4, Granite-4.2
+  and 4-bit values hold the tail above FP8's per-head error at any key width. These are Gemma 4, Granite-4.2
   (attention multiplier 1/128), MiniMax-M2's first layers, and Qwen3.5/3.8's global layers.
 - **Theorem M's map names the fix:** 6-bit values. They bring the tail's median below FP8's error in every mapped
   layer, at traffic 0.453, the same as 8/4. (Two Granite-4.2 exceptions first reported here were a rounding artifact,
   §10b.) At the stricter p90 target 6/6 is not universal (§10b, `MODEL_FAMILY.md`).
+
+**At the paper's scale** (R7a, GPU, 2026-10-22; `../14i_r7_theory_at_scale/findings/R7a.md`).
+- **Setup.** R6's models and lengths:
+  - Llama-3.1-8B at 128K (75 units);
+  - Qwen3-30B-A3B at 32K (50 units) and at 128K (30 units);
+  - RULER and HELMET tasks, every layer and head;
+  - 3.78 M head-steps in all, at 4/6/8-bit keys, on FP's pass, with δ = 10⁻³.
+- **Coverage.** Part 8 and v2 missed in none of 37.8 M checks each.
+- **Part 8's tightness.** At 6-bit keys, part 8 is 5.6× the error on Llama and 7.2× / 8.0× on Qwen at 32K / 128K
+  (median). It certifies FP8-level per-head error on 0.92 / 0.72 / 0.68 of head-steps, and is 0.21–0.22 of v2's bound.
+  At 8 bits it is 2.0–2.4× the error and certifies 0.99 / 0.93 / 0.91.
+  - v2 is 25.5× the error at 128K on Llama-3.1-8B, against 27× at 1.6K and 24.6× at 16K on the CPU: flat in context.
+  - The weakest layers are Llama's L30, L8 and L1, and Qwen's flat L3, L1, L0, L2 and L16.
+- **The certified read** (FP8's per-head error as the oracle target, the 16-set fine schedule) met its target at all
+  774,656 query-head checks at 6 bits. It reads:
+  - 0.126 of rows on Llama (traffic 0.399, the oracle's 0.399);
+  - 0.235 on Qwen 32K (0.474);
+  - 0.161 on Qwen 128K (0.423).
+
+  Qwen's extra rows are its flat early layers.
 
 ## 8. The general approach this implies
 
@@ -643,13 +677,13 @@ For any model with softmax attention over cached rows:
    error sits below FP8's:
    - Llama-1B: 4-bit keys and values already put the tail at 0.4–0.6× FP8's error;
    - GPT-OSS: σ ≈ 0.9 at 4-bit keys, so it needs 6–8-bit keys;
-   - Gemma 3 (global layer L5): its attention is flat, so the vote leaves 66% of the second moment unread. Its
-     4-bit values then hold the tail at 2.7× FP8's error at any key width, and it needs more value bits or a
-     larger exact set.
+   - Granite-4.2 (L1, attention multiplier 1/128): its attention is flat, so the vote leaves 80% of the second moment
+     unread. Its 4-bit values then hold the tail at 1.77× FP8's error at any key width, and it needs more value bits
+     or a larger exact set. (Gemma 3's L5 stood here; that was a random-weight model.)
    - Qwen3: the score noise varies by layer, and a few layers need more key bits. `layermap_s1h5.py` computes the
      map for every layer from one FP pass. On R6's Qwen3-30B-A3B, 6-bit keys keep the tail at or below FP8's
      per-head error in 47 of 48 layers; 8-bit keys in the first four layers would cost about +0.005 traffic.
-   - Flat attention (Gemma 3 and 4, Granite-4.2, MiniMax-M2's first layers, Qwen3.5/3.8's global layers): the value
+   - Flat attention (Gemma 4, Granite-4.2, MiniMax-M2's first layers, Qwen3.5/3.8's global layers): the value
      term is 85–98% of the tail's error. Use 6-bit values, not 8-bit keys; 6/6 costs the same traffic as 8/4
      (0.453) (`findings/findings_architectures.md` §3).
 3. **Choose the exact rows without the coins.** Exact prefill attention (the question's vote computed on exact keys
@@ -730,7 +764,8 @@ independent. Expand the square. ∎ (`theory3_s1h5.second_moment`; the Monte Car
 | Llama-1B L3 | 0.029 | 0.0009 | 0.0095 / 0.0090 | 0.981 / 1.003 / 0.999 | 2.53 |
 | Llama-1B L1, 8K | 0.049 | 0.0015 | 0.0223 / 0.0226 | 0.990 / 1.002 / 1.002 | 6.03 |
 | GPT-OSS L1 | 0.121 | 0.199 | 0.227 / 0.229 | 0.922 / 0.995 / 1.001 | 8.58 |
-| Gemma 3 L5 | 0.772 | 0.655 | 0.663 / 0.663 | 1.000 / 1.001 / 1.001 | 89.9 |
+| Gemma 3 L5 (real weights; corrected 2026-10-12) | 0.203 | 0.076 | 0.077 / 0.074 | 0.994 / 0.999 / 1.002 | 6.9 |
+| Granite-4.2 L1 (attention multiplier 1/128) | 0.853 | 0.798 | 0.787 / 0.790 | 1.003 / 1.003 / 1.003 | 408 |
 | Qwen3-1.7B L0 | 0.144 | 0.471 | 0.449 / 0.484 | 0.199 / 0.990 / 0.998 | 22.1 |
 | Qwen3-1.7B L1 | 0.188 | 0.238 | 0.238 / 0.246 | 0.914 / 0.998 / 0.997 | 22.1 |
 | Qwen3-1.7B L13 | 0.052 | 0.0031 | 0.0027 / 0.0030 | 0.991 / 0.999 / 0.998 | 4.16 |
@@ -741,10 +776,20 @@ independent. Expand the square. ∎ (`theory3_s1h5.second_moment`; the Monte Car
 
 (More Qwen views: `findings/findings_qwen.md`.)
 
-The first-order form is within 1% at 6–8-bit keys on every view, Llama, Gemma 3, GPT-OSS and Qwen3 alike. At 4-bit
+The first-order form is within 1% at 6–8-bit keys on every view, Llama, Gemma 3, Granite-4.2, GPT-OSS and Qwen3 alike. At 4-bit
 keys it is off by 8–9% where σ ≈ 1 (GPT-OSS; Qwen3-1.7B L1). Where σ ≈ 2 (Qwen3-1.7B L0, R6's Qwen L3) it overpredicts
 the error 3–5×: the random normaliser Z̃ then moves too far for Z to stand in for it. The M² bound and the tail-to-dense
 ratio still hold there (0.449 predicted, 0.484 measured).
+
+**At the paper's scale** (R7a, GPU, 2026-10-22; `../14i_r7_theory_at_scale/findings/R7a.md`). The test is the identity
+Z̃(o − õ) = N: the mean of (Z̃/Z)²‖o − õ‖² estimates E‖N‖²/Z² = m_pred without bias. On 3.78 M head-steps
+(Llama-3.1-8B at 128K, Qwen3-30B-A3B at 32K and 128K), measured / predicted is 1.000 at 6 and 8-bit keys in every
+group, with 95% intervals within ±0.001; the first-order reading is 1.000 there too.
+- At 4 bits Llama is 1.000.
+- On Qwen at 4 bits the ratio is 0.994 (32K) and 0.990 (128K). The ratio is heavy-tailed there (maximum ≈ 2,000 against a
+  mean of 1), and 2 draws per head-step fall short of its expectation.
+- **The unread share orders the families.** Across Llama's seven task families it ranks them as R6's measured KL does
+  (Spearman 0.857, permutation p = 0.012), and it does so on Qwen too.
 
 **What it explains.**
 1. *Why reading the heavy rows exactly works.* The tier's noise enters through Σ_T w_i², the unread rows' share
@@ -752,9 +797,10 @@ ratio still hold there (0.449 predicted, 0.484 measured).
    - the vote leaves 2.4% of the mass unread, but 0.18% of Σ w_i²‖v_i − o‖²;
    - the formula predicts the tail's MSE at 1.86% of a dense dithered 4-bit tier's; measured, 1.87%.
 
-   Where attention is flat, the share is large and the gain small. On Gemma 3's global layer L5 the vote leaves 77%
-   of the mass and 66% of the second moment unread; the tail's MSE is 66% of a dense tier's, and evicting instead
-   costs 90× FP8's error. The share is the predictor of whether the two tiers help, and it comes from one FP pass.
+   Where attention is flat, the share is large and the gain small. On Granite-4.2's L1 the vote leaves 85% of the
+   mass and 80% of the second moment unread; the tail's MSE is 79% of a dense tier's, and evicting instead costs 408×
+   FP8's error. (Gemma 3's L5 stood here; that was a random-weight model. With its real weights, the share is 7.6%,
+   the tail 7.6% of a dense tier, and eviction 6.9× FP8's error.) The share is the predictor of whether the two tiers help, and it comes from one FP pass.
 2. *Why the tail beats eviction.* Eviction's error is a first-order bias ε_T(ō_T − ō_S) (Lemma 1). The tail's is a
    standard deviation, about σ·ε_T·(spread)/√n_eff, which averages over the unread rows: on Llama-1B L1, n_eff ≈ 124.
    Measured, eviction is 3.35× FP8's error and the 4-bit tail 0.52×.
@@ -804,7 +850,7 @@ Every term is exact: the step D(b) = 2‖R x‖_∞/(2^b − 1) fixes both momen
 known per layer and head without sampling.
 
 Measured over predicted on seven views at 5/5, 4/6, 6/6, 8/6, 4/8 and 6/8 (200 draws): 0.98–1.005 wherever k ≥ 5.
-The views are Llama-1B L1, Gemma 3 L5, GPT-OSS L1, Granite-4.2 L1, Qwen3-1.7B L1, MiniMax-M2 L1 and R6's Qwen L1. At
+The views are Llama-1B L1, Gemma 3 L5†, GPT-OSS L1, Granite-4.2 L1, Qwen3-1.7B L1, MiniMax-M2 L1 and R6's Qwen L1. At
 4-bit keys on high-σ layers (GPT-OSS L1, Qwen3-1.7B L1) the median is 0.92: the formula overpredicts, which is
 conservative. Near-zero scores (Granite-4.2 L4/L6, |s| ≈ 10⁻⁹) need the moments' series form: the closed form of
 log(sinh x/x) loses every digit at x ≈ 10⁻¹² (fixed 2026-10-11 in `theory3_s1h5._log_sinhc`). With it, measured
@@ -836,12 +882,12 @@ error). The families of layers and models it implies are in `MODEL_FAMILY.md`.
 - **Per-layer allocation:**
   - 0.35–0.39 traffic on models whose layers are mostly concentrated (Llama 1B/8B/70B, Mistral, Qwen1.5, Qwen3, GLM).
     That is mostly 4/4 or 5/4, with 6/4–8/5 in a few layers, and below uniform 6/4's 0.398, which misses 0–8 layers;
-  - 0.43–0.47 on flat ones (Gemma 3/4, Qwen3.5/3.8, Granite-4.2, MiniMax-M2);
+  - 0.43–0.47 on flat ones (Gemma 4, Qwen3.5/3.8, Granite-4.2, MiniMax-M2), and 0.42 on Gemma 3 (between, key-heavy);
   - 0.46 on GPT-OSS, whose noisy scores need 8/4.
-- **Uniform 6/6 is not universal:** it fails 29 of 313 layers, all 12 GPT-OSS full layers among them. 21 have noisy
+- **Uniform 6/6 is not universal:** it fails 31 of 313 layers, all 12 GPT-OSS full layers among them. 23 have noisy
   scores and need 8-bit keys; 4 have near-constant scores and need 8-bit values; in 4 flat ones both terms are large.
 - **The split** k* − v* runs from +2.7 (GPT-OSS) to −2.3 (Granite-4.2, where several layers' key term is ≈ 0).
-  Gemma 3 is −0.6, Gemma 4 +0.3, and R6's models +1.4 to +1.8.
+  Gemma 3 is +1.8 (the −0.6 reported first was the random model's), Gemma 4 +0.3, and R6's models +1.4 to +1.8.
 - **The choice depends on the input.** On the code input, PG-19's allocation misses in 0–10 layers per model (3–10 on
   four of six). The per-layer maximum over four inputs costs 0.39–0.48, below FP8's 0.50.
 
@@ -1041,6 +1087,63 @@ side is unchanged. ∎
 - **Memory:** one store, 0.31 of FP16 K+V at rest, and about 0.44 during a question with the exact 1/8 fetched, against
   FP8's 0.50. The 0.25 vote store disappears.
 - **Traffic:** unchanged, 0.398 at f = 1/8.
+
+## 13b. One store for a latent cache (MLA) (2026-10-12, G0c; `g0mla_s1h5.py`)
+
+**Setting.** MLA caches one row per token, the latent x_i = [c_i, k^R_i] (blocks 0 and 1; DeepSeek-V2-Lite: d_c = 512,
+d_R = 64). Head h scores scaling·⟨q'_h, x_i⟩ with the absorbed query q'_h = [W_UK,hᵀ q^nope_h, q^R_h], and reads the
+value W_UV,h c_i. One store therefore serves both the keys and the values. Each block b is stored in §13's nested
+form with its own rotation R_b (the rope block may instead stay exact, or use the uniform tier).
+
+**Lemma N_lat.** Fix the cache. Given every block's base indices, the residual errors ε_bij are independent across
+blocks, coordinates and rows. Each is uniform on ±D_bij/2, with D_bij = γ_bi·Dn_bij, and independent of the data.
+
+*Proof.* Lemma N, block by block. Its proof uses nothing about how the row is read. ∎
+
+**Consequences.**
+- *Scores.* Head h's score error is δ_hi = Σ_b ⟨β_hb, ε_bi⟩, with β_hb = scaling·R_b q'_hb. Theorem N's three per-row
+  quantities therefore hold summed over the blocks: the exact moments multiply, and σ² and the almost-sure bound add.
+- *Values.* Head h's value error is A_h ε_0i, with A_h = W_UV,h R_0ᵀ. It shares ε_0 with δ: the coupled case of §10's
+  MLA form.
+- *The coupled certificate.* (e, δ) is jointly symmetric under ε → −ε. That is the one property
+  `cert_s1h5.tail_bound_rand_coupled` (head space, §6 "MLA") uses beyond its per-row inputs, and those inputs have
+  per-coordinate forms:
+  - E‖W_h e‖² = Σ_j ‖A_{:j}‖²·D_0j²/12;
+  - ‖W_h e‖ ≤ min(‖W_h‖₂·(Σ_j D_0j²)^{1/2}/2, Σ_j ‖A_{:j}‖·D_0j/2).
+- *R1.* The vote reads scaling·⟨q'_h, base(x_i)⟩, which is coin-free. In the question pass, layer l's dithered latent
+  reaches only higher layers, whose votes read other coins (Lemma C's filtration), as for GQA.
+
+**Theorem M_lat.** For the latent store and any coin-free read set,
+
+  E‖N_h‖² = Σ_i (E‖Y_i‖² − ‖E Y_i‖²) + ‖Σ_i E Y_i‖²,
+
+with Y_i = w_i[(1 − Z_i)u_i − Z_i A_h ε_0i] and u_i = W_h(c_i − ō). The moments are §10's MLA moments at per-coordinate
+half-widths a_ij = D_0ij/2:
+- E Z_i = e^{−ldb_i}·∏_{b,j} sinhc(a_bij β_bj);
+- m1_ij = a_ij L(a_ij β_j) and m2_ij = a_ij L(2a_ij β_j);
+- v2_ij = a_ij² T(2a_ij β_j) − m2_ij².
+
+*Proof.* §10's MLA proof, coordinate by coordinate: each coordinate's tilted moments are closed forms in its own
+half-width. ∎
+
+`g0mla_s1h5.theorem_m_mla` evaluates it by blocks of rows, without [head-step, row, d] tensors. A latent width's tilted
+moments are computed once for every rope option and read set.
+
+**Evidence** (`test_g0mla_s1h5.py`):
+- with one step per row, it equals `mla_m_s1h5.second_moment_mla` to 4·10⁻¹¹;
+- against 200 draws of the nested latent store (synthetic, 4+1 to 4+3, rope same, 8-bit or exact), measured over
+  predicted is 0.983–1.003;
+- the coupled certificate covers every draw;
+- DeepSeek-V2-Lite (real weights, 600 tokens, L1): the latent read through `expand_kv` reproduces the module's keys and
+  values exactly; the view reconstructs the layer's output to 8·10⁻⁷; the coupling term is 3·10⁻⁴ of the error.
+- At 32K: G0c (`findings/findings_g0.md`).
+
+**Accounting.** Traffic is (1 − f)(d_c·b_c + d_R·b_R)/(16(d_c + d_R)) + f, against the FP16 latent row. There is no
+separate value width. A 4+2 latent with a 4+2 rope block costs 0.453 at f = 1/8, as GQA's 6/6 does. GQA's 4+2/4
+traffic (0.398) corresponds to a 4+1 latent.
+
+**Open.** Part 8 (§12) has no coupled form. The coupled certificate is v1-type: 60–130× the error on DeepSeek-V2-Lite
+at 600 tokens, against part 8's 3–8× for GQA. A coupled split (key part and value part sharing ε_0) is G5's MLA item.
 
 ## 14. From per-head error to KL per token: the bridge, water-filling, run-time targets (2026-10-11)
 

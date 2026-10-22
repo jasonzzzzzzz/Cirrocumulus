@@ -1,0 +1,1 @@
+g0view_qwen15_news_32768_L20.pt: unread 2nd-moment share 0.0004; tail / FP8 (median) store 4+2/4 0.03, 4+2/6 0.03, 4+4/4 0.02; part 8 at 4+2 12.8x; (130.6 + 64.9 s)

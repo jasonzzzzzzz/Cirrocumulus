@@ -1,0 +1,49 @@
+host=tri0491 job=2544293 models=llama8b,qwen3_30b,llama1b,mistral7b,qwen15,qwen3_1p7b stages=capture,analyze L=32768 par=24 threads=8 draws=2
+ALL PASS (10 s)
+capture llama8b: 535 s; llama8b: load 6 s, total 530 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/llama8b
+capture qwen3_30b: 715 s; qwen3_30b: load 54 s, total 706 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/qwen3_30b
+capture llama1b: 215 s; llama1b: load 3 s, total 206 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/llama1b
+capture mistral7b: 537 s; mistral7b: load 7 s, total 530 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/mistral7b
+capture qwen15: 145 s; qwen15: load 2 s, total 137 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/qwen15
+capture qwen3_1p7b: 239 s; qwen3_1p7b: load 2 s, total 230 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/qwen3_1p7b
+analyze: 19212 s; 2333 results in findings/g0
+done
+
+scontrol show job 2544293
+JobId=2544293 JobName=g0b1
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=2127904 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=06:00:21 TimeLimit=1-00:00:00 TimeMin=N/A
+   SubmitTime=2026-10-12T13:55:55 EligibleTime=2026-10-12T13:55:55
+   AccrueTime=2026-10-12T13:55:55
+   StartTime=2026-10-12T13:56:10 EndTime=2026-10-12T19:56:31 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-10-12T13:56:10 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=tri-login06:2997597
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=tri0491
+   BatchHost=tri0491
+   NumNodes=1 NumCPUs=192 NumTasks=1 CPUs/Task=192 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=192,mem=767000M,node=1,billing=192
+   AllocTRES=cpu=192,mem=767000M,node=1,billing=192
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=192 MinMemoryNode=767000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env --job-name=g0b1 --time=24:00:00 h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=llama8b,qwen3_30b,llama1b,mistral7b,qwen15,qwen3_1p7b G0_STAGES=capture,analyze --export=NONE --get-user-env --job-name=g0b1 --time=24:00:00 h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=llama8b,qwen3_30b,llama1b,mistral7b,qwen15,qwen3_1p7b G0_STAGES=capture,analyze
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env --job-name=g0b1 --time=24:00:00 h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=llama8b,qwen3_30b,llama1b,mistral7b,qwen15,qwen3_1p7b G0_STAGES=capture,analyze
+   StdErr=
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/logs/g0_2544293.out
+   TresPerTask=cpu=192
+
+sacct -j 2544293
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+2544293            g0b1 def-enrig+   06:00:21                         00:00:00   00:00:00      0:0 
+2544293.bat+      batch def-enrig+   06:00:21                         00:00:00   00:00:00      0:0 
+2544293.ext+     extern def-enrig+   06:00:21                         00:00:00   00:00:00      0:0 
+

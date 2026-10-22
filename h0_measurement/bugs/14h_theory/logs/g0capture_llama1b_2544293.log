@@ -1,0 +1,10 @@
+Loading weights:   0%|          | 0/146 [00:00<?, ?it/s]Loading weights:   1%|          | 1/146 [00:00<00:47,  3.04it/s]Loading weights:  15%|█▌        | 22/146 [00:00<00:02, 42.76it/s]Loading weights:  27%|██▋       | 40/146 [00:00<00:01, 66.41it/s]Loading weights:  34%|███▎      | 49/146 [00:00<00:01, 68.45it/s]Loading weights:  45%|████▌     | 66/146 [00:01<00:01, 79.44it/s]Loading weights:  58%|█████▊    | 85/146 [00:01<00:00, 99.79it/s]Loading weights:  70%|██████▉   | 102/146 [00:01<00:00, 102.46it/s]Loading weights:  89%|████████▉ | 130/146 [00:01<00:00, 101.04it/s]Loading weights:  97%|█████████▋| 141/146 [00:01<00:00, 76.86it/s] Loading weights: 100%|██████████| 146/146 [00:01<00:00, 77.68it/s]
+llama1b pg19_32768: forward 31 s, 16 views
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (138678 > 131072). Running this sequence through the model will result in indexing errors
+llama1b code_32768: forward 31 s, 16 views
+llama1b table_32768: forward 32 s, 16 views
+llama1b agent_32768: forward 47 s, 16 views
+llama1b news_32768: forward 52 s, 16 views
+llama1b pg19_1600: forward 2 s, 16 views
+llama1b pg19raw_1600: forward 2 s, 16 views
+llama1b: load 3 s, total 206 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/llama1b

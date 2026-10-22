@@ -83,8 +83,19 @@ def global_layers(cfg) -> list:
 
 
 def _attn_modules(model) -> dict:
-    return {m.layer_idx: m for m in model.modules()
-            if "Attention" in type(m).__name__ and hasattr(m, "scaling") and getattr(m, "layer_idx", None) is not None}
+    """{layer_idx: attention module} of the text decoder (a multimodal checkpoint's vision tower can reuse the same
+    layer indices: Gemma 4's does). Refuses two modules with one index."""
+    try:
+        dec = model.get_decoder()
+    except Exception:                                                  # noqa: BLE001
+        dec = model
+    mods = {}
+    for m in dec.modules():
+        if "Attention" in type(m).__name__ and hasattr(m, "scaling") and getattr(m, "layer_idx", None) is not None:
+            if m.layer_idx in mods and mods[m.layer_idx] is not m:
+                raise RuntimeError(f"two attention modules with layer_idx {m.layer_idx}")
+            mods[m.layer_idx] = m
+    return mods
 
 
 @contextlib.contextmanager
@@ -529,11 +540,9 @@ def _load(key, k=None):
     k = k0 if k is None else k
     cfg = AutoConfig.from_pretrained(repo)
     kw = {}
-    if cfg.model_type == "gemma3":                                    # the text model of the multimodal checkpoint
-        from transformers import Gemma3ForCausalLM
-        tc = cfg.text_config
-        tc.num_hidden_layers, tc.layer_types = k, tc.layer_types[:k]
-        return Gemma3ForCausalLM.from_pretrained(repo, config=tc, dtype=torch.float32, attn_implementation="eager")
+    # Gemma 3 goes through the multimodal class below. Gemma3ForCausalLM.from_pretrained on this checkpoint (as here
+    # until 2026-10-12) does not map its language_model.* keys in transformers 5.16: every text weight was randomly
+    # initialized, and every Gemma 3 result before 2026-10-12 came from that random model (findings/findings_g0.md).
     tc = getattr(cfg, "text_config", None)
     if tc is not None:                                 # a multimodal checkpoint: its text model, truncated, whole class
         from transformers import AutoModelForImageTextToText
@@ -568,11 +577,11 @@ def _load(key, k=None):
 
 
 def _check_loaded(m, info, key):
-    """Refuse a model whose attention weights did not load (a silent random init would pass every other check)."""
-    miss = [x for x in (info.get("missing_keys") or []) if any(s in x for s in ("attn", "attention", "q_proj", "k_proj",
-                                                                               "v_proj", "o_proj", "qkv"))]
+    """Refuse a model any of whose weights did not load: a silent random init passes every self-consistency check
+    (Gemma 3 did, until 2026-10-12). Before then only attention weights were checked."""
+    miss = sorted(info.get("missing_keys") or [])
     if miss:
-        raise RuntimeError(f"{key}: attention weights missing after load: {sorted(miss)[:8]} ...")
+        raise RuntimeError(f"{key}: weights missing after load (randomly initialized): {miss[:8]} ... ({len(miss)})")
     return m
 
 

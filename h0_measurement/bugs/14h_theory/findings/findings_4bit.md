@@ -1,5 +1,12 @@
 # Theorem R at 4-bit keys: where the gap comes from, what closes it, what explains the design (2026-10-10)
 
+> **Correction (2026-10-12): every Gemma-3-12B number in this file before that date came from a randomly initialized model.**
+> `adapters_s1h5._load` built `Gemma3ForCausalLM` from the multimodal checkpoint. transformers 5.16 does not map that checkpoint's `language_model.*` keys onto it, so every text weight was freshly initialized, and that branch skipped the missing-weight check. Random weights give flat attention.
+> - Gemma 3's "flat, value-leaning" class (family E), its 6/6 choice, L5 as the flat-attention example (66% of the second moment unread) and R8's Gemma 3 predictions all describe the random model.
+> - With the checkpoint's weights, L5 at 1,600 tokens has 7.6% of the second moment unread (between, not flat; unread mass 0.20, against 0.77) and a key share of 0.86 at 6/6 (key-leaning, against 0.37). Uniform 6/4 meets FP8's error at the median head-step (0.37×), not at p90 (1.36×).
+> - The theorems' checks on those views (coverage, Theorem M's accuracy) remain valid statements about those inputs, but they are not evidence about Gemma 3.
+> - Fixed: the loader uses the multimodal class and refuses any missing weight; `g0map_s1h5.provenance` compares loaded weights with the checkpoint's. No other model was affected: the 18 GQA/MHA models and the two MLA models load with no missing weight. G0 (`findings/findings_g0.md`) recomputes Gemma 3 at 1,600 tokens and at 32K.
+
 CPU only, real weights. Code: `../exp4bit_s1h5.py` (numbers in `findings_4bit.json`, next to this file), `../theory3_s1h5.py`
 (Theorem R v3, Theorem M), tests `../test_theory3_s1h5.py` (all pass, `--fast` and full). Theory: `../theory.md` §6 (v3),
 §10 (Theorem M), §11 (decode), §12 (this study, in short).
@@ -148,4 +155,4 @@ OMP_NUM_THREADS=8 .venv/bin/python -u $P remedies view_llama1b_L1_1600.pt
 OMP_NUM_THREADS=8 .venv/bin/python -u $P lawcheck view_llama1b_L1_1600.pt
 OMP_NUM_THREADS=8 .venv/bin/python -u $P evaluate view_llama1b_L1_1600.pt llama1b_L1
 ```
-Views are cached in `.views/` (or `$TH_CACHE`); each command takes seconds to a few minutes on 8 threads.
+Views are cached in `.views/` (or `$TH_CACHE`; moved to `../../14_logs/14h_theory/views/` on 2026-10-22, the default since); each command takes seconds to a few minutes on 8 threads.

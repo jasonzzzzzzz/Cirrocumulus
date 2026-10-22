@@ -1,0 +1,2 @@
+(waited 80 s for 3 x 8 GB of memory)
+g0view_qwen35_agent_32768_L59.pt: unread 2nd-moment share 0.0408; tail / FP8 (median) store 4+2/4 0.45, 4+2/6 0.18, 4+4/4 0.41; part 8 at 4+2 4.1x; (619.8 + 130.8 s)

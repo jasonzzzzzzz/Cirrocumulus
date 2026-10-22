@@ -1,5 +1,9 @@
 # Generalizing R7a and R7b to every model architecture (plan, 2026-10-12)
 
+> **R7a is complete (2026-10-22):** all eight predictions MET on Llama-3.1-8B at 128K and Qwen3-30B-A3B at 32K and
+> 128K (`../14i_r7_theory_at_scale/findings/R7a.md`). Its port (`cert_r7`, `tier_r7`) is the reference for the
+> stages below. Copy it into new modules rather than editing it: R7b imports it and pins it until R7b's final read.
+
 R7a measures the theory at the paper's scale: part 8's certificate, the certified read and Theorem M. R7b tests the
 deployed single store against FP8. Both run on two GQA models, Llama-3.1-8B and Qwen3-30B-A3B. This note covers how
 both extend to every architecture with a softmax KV cache:
@@ -73,7 +77,7 @@ For each model at its run length, from calibration prompts:
    - At 1,600 tokens it found three families (`MODEL_FAMILY.md` §4):
      - mostly concentrated models do well at 6/4, except their first one to three layers (flat) and their noisy-score
        layers (8-bit keys; e.g. Qwen3-30B-A3B's L0, L1, L3, L8, L16);
-     - flat, balanced or value-leaning models need 6-bit values: Gemma-3-12B, Gemma-4-31B, Granite-4.2,
+     - flat, balanced or value-leaning models need 6-bit values: Gemma-4-31B, Granite-4.2,
        MiniMax-M2, Qwen3.5/3.8's attention layers;
      - GPT-OSS-20B, flat with noisy scores, needs 8-bit keys (8/4 in 10 of its 12 full layers).
    - In the single store, the base stays at 4 bits for the vote; the residual and value bits vary per layer. The grid
@@ -119,6 +123,33 @@ Item 3 needs GPU arms at the run's length.
 | **G3** (MLA) | the latent-cache module; the coupled probe; R7a and R7b on DeepSeek-V2-Lite or Moonlight-16B-A3B at 32K | `14j_r8_*` or its own folder | G1; §4's MLA items; G0c; R8's outcome (go or no-go) | 2–3 weeks; 15–25 GPU-h |
 | **G4** (hybrids) | Granite-4.0-H or Qwen3.5: softmax layers only | as G2 | G1; G0's map of the model; R8's outcome | about 10 GPU-h |
 | **G5** (theory) | the rest of §4 | `14h_theory` | the slack law across architectures needs G0's captures; the rest needs nothing | open |
+
+**Correction (2026-10-12):** every Gemma-3-12B result before that date came from a randomly initialized model (a loader bug; `MODEL_FAMILY.md`'s correction note). Gemma 3 is not flat at 1,600 tokens: L5 leaves 7.6% of the second moment unread, not 66%. G2's Gemma 3 predictions above came from that model; G0a re-derives them (`findings/findings_g0.md`).
+
+**G0's state (2026-10-12, afternoon; `findings/findings_g0.md`):**
+- **Built and tested:** `g0map_s1h5.py`, `g0mla_s1h5.py`, `g0sum_s1h5.py`, their tests, `submit_g0_cpu.slurm`.
+  - The 32K capture swaps an exact attention function into every layer. transformers' SDPA drops GPT-OSS's sinks, so
+    the capture cannot use it.
+  - On real weights, the exact attention equals eager on all 18 GQA/MHA architectures (134 checks), and the loaded
+    weights are compared with the checkpoint's.
+  - Theorem M's grid in the store's form runs at 32K without [head-steps, rows, d] tensors.
+- **MLA's theory items are done** (theory.md §13b): Lemma N for a latent and the coupled Theorem M at per-coordinate
+  steps. Its grid runs on DeepSeek-V2-Lite at 32K and Moonlight at 8K (Moonlight's limit). Part 8 still has no
+  coupled form (G5).
+- **Done** (jobs 2544292–2544295, 2544317, 2544333; read in `findings/findings_g0.md`, 2026-10-22). The per-layer aggregate field was backfilled for five models (job 2632678, 2026-10-22), and the aggregate readings are in `findings/findings_g0.md` §5 reading 7 and §8. G0's views are in `../14_logs/14h_theory/g0views/` (moved 2026-10-22).
+- **Results:**
+  - validity holds on every architecture at 32K;
+  - per-layer widths cost 0.346–0.460 (`findings/g0/widths_<model>.json`, G1's input);
+  - certification widths come from σ_w by the slack law;
+  - MLA's latent store costs 0.41–0.43.
+- **For G2** (`findings/findings_g0.md` §8): at 32K the restated predictions hold in aggregate error, which R8's KL
+  test follows.
+  - Gemma 3 fails at 4+2/4 and passes at 4+2/6.
+  - GPT-OSS fails at 4+2/6 and passes at 4+4/4 in 11 of 12 layers (L19 at 1.16×).
+  - Per head, every "passes" prediction fails.
+  - Gemma 3 is key-heavy, not flat.
+  Options for the user: the restated uniform predictions, the per-layer allocations (Gemma 3 0.453, GPT-OSS
+  0.449), or both.
 
 The order and dependencies across every next step (R6, R7a, R7b, G0–G5, the paper) are in `RESEARCH_PLAN.md` §7.
 

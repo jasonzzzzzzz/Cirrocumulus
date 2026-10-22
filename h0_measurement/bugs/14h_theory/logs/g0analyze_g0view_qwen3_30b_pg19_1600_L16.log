@@ -1,0 +1,1 @@
+g0view_qwen3_30b_pg19_1600_L16.pt: unread 2nd-moment share 0.0036; tail / FP8 (median) store 4+2/4 0.28, 4+2/6 0.26, 4+4/4 0.10; part 8 at 4+2 73.8x; (22.6 + 61.0 s)

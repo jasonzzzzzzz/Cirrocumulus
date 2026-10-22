@@ -1,4 +1,11 @@
-# Theory section: skeleton for the design paper (draft, 2026-10-10)
+# Theory section: skeleton for the design paper (draft, 2026-10-10; R7a's GPU numbers filled in 2026-10-22)
+
+> **Correction (2026-10-12): every Gemma-3-12B number in this file before that date came from a randomly initialized model.**
+> `adapters_s1h5._load` built `Gemma3ForCausalLM` from the multimodal checkpoint. transformers 5.16 does not map that checkpoint's `language_model.*` keys onto it, so every text weight was freshly initialized, and that branch skipped the missing-weight check. Random weights give flat attention.
+> - Gemma 3's "flat, value-leaning" class (family E), its 6/6 choice, L5 as the flat-attention example (66% of the second moment unread) and R8's Gemma 3 predictions all describe the random model.
+> - With the checkpoint's weights, L5 at 1,600 tokens has 7.6% of the second moment unread (between, not flat; unread mass 0.20, against 0.77) and a key share of 0.86 at 6/6 (key-leaning, against 0.37). Uniform 6/4 meets FP8's error at the median head-step (0.37×), not at p90 (1.36×).
+> - The theorems' checks on those views (coverage, Theorem M's accuracy) remain valid statements about those inputs, but they are not evidence about Gemma 3.
+> - Fixed: the loader uses the multimodal class and refuses any missing weight; `g0map_s1h5.provenance` compares loaded weights with the checkpoint's. No other model was affected: the 18 GQA/MHA models and the two MLA models load with no missing weight. G0 (`findings/findings_g0.md`) recomputes Gemma 3 at 1,600 tokens and at 32K.
 
 Step 2 of `STATUS.md`, with `CLAIMS_LEDGER.md`. It gives the section's structure, statements in paper form, the proof
 route for each (full proofs: `theory.md`, which becomes the appendix), and an evidence slot per statement:
@@ -117,14 +124,14 @@ free-running.]
 
 | | value now | source | to come |
 |---|---|---|---|
-| validity | 0 misses in 31,080,448 head-step checks (Llama-3.1-8B 128K, Qwen3-30B-A3B 32K; 6- and 8-bit keys; v1); no failure in brute force on adversarial data at every δ | `findings/R5_4.md` §1; `test_theory*.py` | R6's probe (v1, v2; 6-bit; 7 blocks) [1] |
-| tightness, the design's width (6-bit keys), the vote's rows | bound / error 37–38 (Llama), 41–58 (Qwen) with v1 | R5.4 | part 8 at 128K [3] |
-| share of head-steps certified within FP8's per-head error | 0.44–0.52 (Llama), 0.38–0.41 (Qwen), v1, 6-bit; 0.98–0.99 (Llama) with C/32 more exact rows | R5.4 | part 8 at 128K [3] |
+| validity | 0 misses in 31,080,448 head-step checks (Llama-3.1-8B 128K, Qwen3-30B-A3B 32K; 6- and 8-bit keys; v1); no failure in brute force on adversarial data at every δ. **R7a:** 0 misses in 37.8 M checks each for part 8 and v2 (4/6/8-bit keys; Llama-3.1-8B 128K, Qwen3-30B-A3B 32K and 128K) | `findings/R5_4.md` §1; `test_theory*.py`; `../14i_r7_theory_at_scale/findings/R7a.md` §3 | — |
+| tightness, the design's width (6-bit keys), the vote's rows | **part 8 (R7a): 5.6× the error (Llama 128K), 7.2× / 8.0× (Qwen 32K / 128K)**, median; 2.0–2.4× at 8 bits; v2 25.5× / 37× / 43×; v1 (R5.4) 37–38 (Llama), 41–58 (Qwen) | `../14i_r7_theory_at_scale/findings/R7a.md` §3; R5.4 | — |
+| share of head-steps certified within FP8's per-head error | **part 8 (R7a), 6-bit: 0.92 (Llama 128K), 0.72 / 0.68 (Qwen 32K / 128K)**; 8-bit 0.99 / 0.93 / 0.91. v1 (R5.4): 0.44–0.52 (Llama), 0.38–0.41 (Qwen); 0.98–0.99 (Llama) with C/32 more exact rows | `../14i_r7_theory_at_scale/findings/R7a.md` §3; R5.4 | — |
 | CPU, part 8, 6-bit keys | 6.7–7.3× the error, 0.41–0.59 certified within FP8 (Llama-1B L1/L3, 1.6K–8K; v1-era forms 17–19× and 0.13–0.21) | `findings/findings_part8.md` | — |
 | CPU, part 8, 8-bit keys | 2.0–2.6× the error, 0.89–0.95 certified within FP8 (Llama-1B L1/L3) | same | — |
 
-[Table T1 in the paper: coverage, bound/error and certified share per model × key width × read set. It is filled from
-the R7 probe (step 3); CPU numbers go to the appendix.]
+[Table T1 in the paper: coverage, bound/error and certified share per model × key width. It is filled from R7a
+(`../14i_r7_theory_at_scale/findings/R7a.md` §3, at the vote's rows); CPU numbers go to the appendix.]
 
 ### 4.5 Why it works: the error is a second moment of the unread attention
 
@@ -157,23 +164,25 @@ of M. Every quantity is exact: (P2) gives the moments and (P3) the value term.
 | | value now | source | to come |
 |---|---|---|---|
 | exactness | Monte Carlo within 4.5 s.e.; the identity to 10⁻¹³ | `test_theory3_s1h5.py` | — |
-| accuracy on real layers | measured/predicted MSE 0.98–1.00 at 6–8-bit keys on Llama-1B, GPT-OSS, Gemma 3, Qwen3-1.7B and R6's Qwen3-30B-A3B, at 1.6K and 8K; at 4-bit keys 0.91–1.00 where σ ≤ 1.1 | `findings/findings_4bit.md` §5, `findings/findings_qwen.md` | at 128K on the paper's models [3] |
-| per-layer map of R6's design | 6-bit tail at or below FP8's per-head error in 32/32 Llama-3.1-8B layers and 47/48 Qwen3-30B-A3B layers (L1: 1.25×), 1.6K tokens | `findings/layermap_*.json` | at 32K/128K [3]; against R6's per-family KL [7] |
-| mechanism | Llama-1B L1: 2.4% of the mass but 0.18% of the second moment unread; tail/dense MSE predicted 0.0186, measured 0.0187 | same | the unread share against each family's KL in R6 [3] |
-| failure case | Gemma 3 global layer: 66% of the second moment unread; tail/dense MSE 0.66 | same | — |
+| accuracy on real layers | measured/predicted MSE 0.98–1.00 at 6–8-bit keys on Llama-1B, GPT-OSS, Gemma 3, Qwen3-1.7B and R6's Qwen3-30B-A3B, at 1.6K and 8K; at 4-bit keys 0.91–1.00 where σ ≤ 1.1. **At the paper's scale (R7a, the exact identity):** 1.000 ± 0.001 at 6–8-bit keys on 3.78 M head-steps of Llama-3.1-8B 128K and Qwen3-30B-A3B 32K/128K; at 4 bits 1.000 (Llama), 0.990–0.994 (Qwen; heavy-tailed, 2 draws) | `findings/findings_4bit.md` §5, `findings/findings_qwen.md`; `../14i_r7_theory_at_scale/findings/R7a.md` §5.6 | — |
+| per-layer map of R6's design | 6-bit tail at or below FP8's per-head error in 32/32 Llama-3.1-8B layers and 47/48 Qwen3-30B-A3B layers (L1: 1.25×), 1.6K tokens. At 32K/128K (R7a): the median tail is 0.024 / 0.029 / 0.039 of FP8's error, and no layer's median is above FP8's at 6 bits (at 4 bits: Qwen 32K's L1 and L3) | `findings/layermap_*.json`; `../14i_r7_theory_at_scale/findings/R7a.md` §3 | — |
+| mechanism | Llama-1B L1: 2.4% of the mass but 0.18% of the second moment unread; tail/dense MSE predicted 0.0186, measured 0.0187. **Against R6's KL per family (R7a):** the unread share ranks Llama 128K's seven families as R6's KL does (Spearman 0.857, permutation p = 0.012; retrieval lowest, re-ranking highest); also on Qwen (0.8 at 32K, 1.0 at 128K) | same; `../14i_r7_theory_at_scale/findings/R7a.md` §5.7 | — |
+| failure case | Granite-4.2-30B L1 (attention multiplier 1/128): 80% of the second moment unread; tail/dense MSE 0.79; the tail is 1.77× FP8's error at every key width (4-bit values). (Gemma 3's global layer stood here; it was a random-weight model.) | `findings/g0/evaluate_granite42_L1_1600.json` | at 32K: G0 |
 | link to the reported metric | — | — | E[KL] ≈ ½ Σ_h c_h·MSE_h against R6's KL per family [7] |
 
 [Figure F-L: per layer, the tail's predicted error over FP8's for R6's two models at 4/6/8-bit keys (the layer maps).
 It shows Llama's uniform layers against Qwen's few noisy, flat ones.]
 
 [Figure F-M: the unread second-moment share per family (x) against KL per token (y), for the tail and dense arms.
-It shows the theory predicting which tasks are hard. Needs step 3's columns on R6's units.]
+It shows the theory predicting which tasks are hard. Data: R7a's per-family shares (`../14i_r7_theory_at_scale/findings/R7a.md` §3) against R6's KL per
+family (R6's reader).]
 
 ### 4.6 A certified adaptive read (optional; decision 2 in `CLAIMS_LEDGER.md`)
 
 **Corollary.** Take a nested sequence of read sets S_0 ⊂ … ⊂ S_m, each chosen without the dither. Read them in order and
-stop at the first whose Theorem R bound, at confidence δ/m, meets a target τ. With probability ≥ 1 − δ the returned
-output is within τ, whatever the stopping rule.
+stop at the first whose Theorem R bound, at confidence δ/m, meets a target τ at every query head. Then at each query
+head, with probability ≥ 1 − δ, the returned output is within τ, whatever the stopping rule (for all r heads of a group
+at once, ≥ 1 − rδ; `theory.md` §6e).
 
 *Proof idea:* a union bound over the m sets; the coins choose how many sets are read, never which.
 
@@ -182,6 +191,12 @@ output is within τ, whatever the stopping rule.
 - at 6-bit keys it is met at 0.480 (L1) and 0.499 (L3) with a 16-set schedule, and 0.433 on L1 at 8K, against
   FP8's 0.50;
 - the first layer (flat attention) needs 0.73 at 6 bits.
+
+*Evidence at the paper's scale* (R7a, GPU; FP8's per-head error as the target, the 16-set schedule; `../14i_r7_theory_at_scale/findings/R7a.md` §3):
+- 6-bit keys: 0.126 of rows on Llama-3.1-8B at 128K (traffic 0.399, the oracle stop's 0.399), 0.235 on Qwen3-30B-A3B
+  at 32K (0.474) and 0.161 at 128K (0.423); Qwen's extra rows are its flat early layers;
+- 8-bit keys: within 0.005 of the oracle's rows everywhere;
+- no query head missed its target in 774,656 checks per width.
 
 **A run-time target** (theory.md §14). FP8's per-head error is an oracle. Proposition KL (§4.8) gives a computable
 target instead: split a KL budget B over the (layer, head) components, τ_l² = 2B/(L·H·c_l).
@@ -196,7 +211,8 @@ target instead: split a KL budget B over the (layer, head) components, τ_l² = 
   grows like e^{14σ_w}, the union's deviation paid twice (theory.md §12).
   - 8-bit keys in those layers restore it at small cost.
   - At 32K, Qwen3-30B-A3B has 14 such layers (+0.016 traffic at the vote) and Llama-3.1-8B none.
-- [Evidence: `findings/findings_klbridge.md` §4, §6. GPU: R7a/R7b's E1.]
+- [Evidence: `findings/findings_klbridge.md` §4, §6. GPU with the oracle target: R7a (above); with this run-time
+  target: R7b's E1.]
 
 ### 4.8 From per-head error to KL per token
 
@@ -224,11 +240,13 @@ E KL per token = ½·Σ_l (c_l^K M_l^K + c_l^V M_l^V), where:
 - **4-bit keys.** Theorem R holds but is not tight enough to certify FP8-level error. The information exists (the
   oracle certifies 62% of head-steps on Llama-1B), but every bound of this family pays a union over rows inside a
   lognormal-like weight error (`theory.md` §12). Theorem M still explains the 4-bit design's accuracy.
-- **Deployment requirements.** The read set must not see the dither, and the seed is drawn per request. A vote over the
+- **Deployment requirements.** The read set must not see the dither, and the seed is drawn per request. (R6 used one
+  fixed seed; R7a's seed panel found no seed effect common to the units, so R6's verdict does not depend on it:
+  `../14i_r7_theory_at_scale/findings/R7a.md` §4.) A vote over the
   dithered tier itself breaks the first; a vote on exact keys at the question's prefill or a separate sketch meets it,
   and its cost belongs in the memory accounting (`CLAIMS_LEDGER.md` S2, step 5).
-- **The design point is per model.** On 21 models the theorems hold everywhere. But where attention is flat (Gemma 3
-  and 4, Granite-4.2, MiniMax-M2's first layers, Qwen3.5/3.8's global layers), 4-bit values keep the tail above FP8's
+- **The design point is per model.** On 21 models the theorems hold everywhere. But where attention is flat (Gemma 4,
+  Granite-4.2, MiniMax-M2's first layers, Qwen3.5/3.8's global layers), 4-bit values keep the tail above FP8's
   per-head error. Theorem M's per-layer map, from one FP pass, picks 6-bit values there, at 8/4's traffic
   (`findings/findings_architectures.md`). Layers with noisy scores (all of GPT-OSS's full layers) need 8-bit keys
   instead, so the bits are chosen per layer (`MODEL_FAMILY.md`).
@@ -242,6 +260,6 @@ E KL per token = ½·Σ_l (c_l^K M_l^K + c_l^V M_l^V), where:
 | appendix | content | from |
 |---|---|---|
 | A. Proofs | Lemma 1; the randomized tier's facts; Theorem R (v1, then v3, the sure sums, the split); Lemma C and Theorem DD; Theorem M; the certified read | `theory.md` §2, §6, §10, §11 |
-| B. Validity | brute force on random, spiky, outlier and adversarial data at every δ; GPU coverage | `test_theory*.py`; R5.4; R6; R7 |
+| B. Validity | brute force on random, spiky, outlier and adversarial data at every δ; GPU coverage | `test_theory*.py`; R5.4; R6; R7a |
 | C. Tightness | bound / error and the oracle width on CPU; the 4-bit study (where the slack comes from, what does not close it) | `findings/findings_4bit.md`, `findings_part7.md` |
 | D. Architectures | the adapters (GQA, sinks, local/global, MLA, hybrids) and their certificates | `findings/R5_adapters.md`, `R5_theory_mla.json` |

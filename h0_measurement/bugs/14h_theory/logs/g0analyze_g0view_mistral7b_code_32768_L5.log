@@ -1,0 +1,2 @@
+(waited 23 s for 4 x 8 GB of memory)
+g0view_mistral7b_code_32768_L5.pt: unread 2nd-moment share 0.0000; tail / FP8 (median) store 4+2/4 0.02, 4+2/6 0.01, 4+4/4 0.02; part 8 at 4+2 5.7x; (414.0 + 133.0 s)

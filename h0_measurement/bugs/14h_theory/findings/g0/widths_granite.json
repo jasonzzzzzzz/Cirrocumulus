@@ -1,0 +1,22 @@
+{
+ "5": {
+  "calibrated": "store:1/6/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "15": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "25": {
+  "calibrated": "store:3/5/8",
+  "traffic": 0.453125,
+  "loose_4p2": true
+ },
+ "35": {
+  "calibrated": "store:3/4/8",
+  "traffic": 0.42578125,
+  "loose_4p2": true
+ }
+}

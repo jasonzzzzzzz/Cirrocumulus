@@ -1,0 +1,25 @@
+Loading weights:   0%|          | 0/111 [00:00<?, ?it/s]Loading weights:   1%|          | 1/111 [00:00<01:07,  1.62it/s]Loading weights:  14%|█▎        | 15/111 [00:00<00:04, 20.20it/s]Loading weights:  21%|██        | 23/111 [00:01<00:02, 29.79it/s]Loading weights:  26%|██▌       | 29/111 [00:01<00:02, 27.45it/s]Loading weights:  37%|███▋      | 41/111 [00:01<00:02, 32.92it/s]Loading weights:  46%|████▌     | 51/111 [00:01<00:01, 36.75it/s]Loading weights:  57%|█████▋    | 63/111 [00:02<00:01, 41.32it/s]Loading weights:  62%|██████▏   | 69/111 [00:02<00:01, 40.15it/s]Loading weights:  67%|██████▋   | 74/111 [00:02<00:00, 39.82it/s]Loading weights:  73%|███████▎  | 81/111 [00:02<00:00, 36.31it/s]Loading weights:  78%|███████▊  | 87/111 [00:02<00:00, 27.04it/s]Loading weights:  85%|████████▍ | 94/111 [00:03<00:00, 32.81it/s]Loading weights:  89%|████████▉ | 99/111 [00:03<00:00, 29.06it/s]Loading weights:  94%|█████████▎| 104/111 [00:03<00:00, 32.06it/s]Loading weights: 100%|██████████| 111/111 [00:03<00:00, 32.93it/s]
+[transformers] [1mLlamaForCausalLM LOAD REPORT[0m from: meta-llama/Llama-3.3-70B-Instruct
+Key                                                    | Status     |  | 
+-------------------------------------------------------+------------+--+-
+model.layers.{12...79}.self_attn.v_proj.weight         | UNEXPECTED |  | 
+model.layers.{12...79}.self_attn.o_proj.weight         | UNEXPECTED |  | 
+model.layers.{12...79}.post_attention_layernorm.weight | UNEXPECTED |  | 
+model.layers.{12...79}.mlp.gate_proj.weight            | UNEXPECTED |  | 
+model.layers.{12...79}.mlp.up_proj.weight              | UNEXPECTED |  | 
+model.layers.{12...79}.self_attn.q_proj.weight         | UNEXPECTED |  | 
+model.layers.{12...79}.mlp.down_proj.weight            | UNEXPECTED |  | 
+model.layers.{12...79}.self_attn.k_proj.weight         | UNEXPECTED |  | 
+model.layers.{12...79}.input_layernorm.weight          | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+llama70b pg19_32768: forward 96 s, 12 views
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (138678 > 131072). Running this sequence through the model will result in indexing errors
+llama70b code_32768: forward 92 s, 12 views
+llama70b table_32768: forward 95 s, 12 views
+llama70b agent_32768: forward 93 s, 12 views
+llama70b news_32768: forward 96 s, 12 views
+llama70b pg19_1600: forward 9 s, 12 views
+llama70b pg19raw_1600: forward 8 s, 12 views
+llama70b: load 4 s, total 499 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/llama70b

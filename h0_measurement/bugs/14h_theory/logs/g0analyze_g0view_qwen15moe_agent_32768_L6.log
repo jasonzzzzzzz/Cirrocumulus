@@ -1,0 +1,2 @@
+(waited 11 s for 4 x 8 GB of memory)
+g0view_qwen15moe_agent_32768_L6.pt: unread 2nd-moment share 0.0000; tail / FP8 (median) store 4+2/4 0.01, 4+2/6 0.00, 4+4/4 0.00; part 8 at 4+2 7.1x; (268.5 + 84.0 s)

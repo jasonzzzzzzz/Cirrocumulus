@@ -1,0 +1,2 @@
+(waited 408 s for 6 x 8 GB of memory)
+g0view_gptoss_agent_32768_L19.pt: unread 2nd-moment share 0.0255; tail / FP8 (median) store 4+2/4 0.33, 4+2/6 0.30, 4+4/4 0.13; part 8 at 4+2 116.9x; (196.2 + 105.3 s)

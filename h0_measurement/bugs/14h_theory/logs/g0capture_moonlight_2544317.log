@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/g0mla_s1h5.py", line 530, in <module>
+    main()
+  File "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/g0mla_s1h5.py", line 516, in main
+    capture(opts["--model"], int(opts["--L"]) if "--L" in opts else None,
+  File "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/g0mla_s1h5.py", line 98, in capture
+    enc = G.encoder(key)
+          ^^^^^^^^^^^^^^
+  File "/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/g0map_s1h5.py", line 104, in encoder
+    raise NotImplementedError(f"{key}: a tiktoken tokenizer (Moonshot); its chat template's first token is not "
+NotImplementedError: moonlight: a tiktoken tokenizer (Moonshot); its chat template's first token is not derived here (G0c)

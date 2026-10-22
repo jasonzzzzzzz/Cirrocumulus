@@ -1,0 +1,242 @@
+{
+ "0": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "1": {
+  "calibrated": "store:3/4/8",
+  "traffic": 0.42578125,
+  "loose_4p2": true
+ },
+ "2": {
+  "calibrated": "store:2/5/8",
+  "traffic": 0.42578125,
+  "loose_4p2": false
+ },
+ "3": {
+  "calibrated": "store:3/3/8",
+  "traffic": 0.3984375,
+  "loose_4p2": true
+ },
+ "4": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "5": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "6": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "7": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": true
+ },
+ "8": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": true
+ },
+ "9": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "10": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "11": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "12": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "13": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "14": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "15": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "16": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "17": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "18": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "19": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "20": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "21": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "22": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "23": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "24": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "25": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "26": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "27": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "28": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "29": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "30": {
+  "calibrated": "store:2/4/8",
+  "traffic": 0.3984375,
+  "loose_4p2": false
+ },
+ "31": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": true
+ },
+ "32": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": true
+ },
+ "33": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": true
+ },
+ "34": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "35": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "36": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "37": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "38": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "39": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ },
+ "40": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": true
+ },
+ "41": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "42": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "43": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "44": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "45": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "46": {
+  "calibrated": "store:1/3/8",
+  "traffic": 0.34375,
+  "loose_4p2": false
+ },
+ "47": {
+  "calibrated": "store:2/3/8",
+  "traffic": 0.37109375,
+  "loose_4p2": false
+ }
+}

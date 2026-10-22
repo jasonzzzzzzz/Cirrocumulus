@@ -1,5 +1,7 @@
 # The nested coin-free store (CPU, 2026-10-11)
 
+> **Correction (2026-10-12):** every Gemma-3-12B result before that date came from a randomly initialized model (a loader bug; `MODEL_FAMILY.md`'s correction note). Gemma 3 is not flat at 1,600 tokens: L5 leaves 7.6% of the second moment unread, not 66%. This file's Gemma-3-12B L5 row describes that model.
+
 RESEARCH_PLAN.md §3 N; theory.md §13. Code: `../nested_s1h5.py`, tests `../test_nested_s1h5.py`, end to end
 `../e2e_s1h5.py`. Data: `findings_nested.json`, and the end-to-end runs in `klbridge_runs/`.
 

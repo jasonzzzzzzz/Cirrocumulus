@@ -1,0 +1,1 @@
+g0view_qwen3_30b_table_32768_L32.pt: unread 2nd-moment share 0.0003; tail / FP8 (median) store 4+2/4 0.02, 4+2/6 0.02, 4+4/4 0.01; part 8 at 4+2 55.7x; (470.3 + 134.5 s)

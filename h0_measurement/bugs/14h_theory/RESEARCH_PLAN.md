@@ -55,6 +55,9 @@ each part lives (§5), the decisions only the user can make (§6), and the order
   - On Llama-3.1-8B, part 8 / v2 is 0.19–0.22 at 6 bits.
   - Part 8 at 128K should therefore be about 5–6× on Llama. R7a's prediction P2 is 4–7× on Llama and 6–13× on Qwen
     32K. Qwen's noisy early layers will be much looser (11–900× on the CPU).
+  - **Measured (R7a, 2026-10-22):** part 8 at 6 bits is 5.6× the error on Llama 128K and 7.2× / 8.0× on Qwen 32K /
+    128K (median), 0.21–0.22 of v2; v2 is 25.5× at 128K on Llama. Qwen's early layers are the loose ones (p90 33–36×;
+    L3 certifies on almost no head-step). `../14i_r7_theory_at_scale/findings/R7a.md`.
 
   So R7 confirms and reports; it is not expected to close a gap. That makes it a low-risk, high-value run.
 - **"Port Theorem M's per-head prediction into the run-time code."** Theorem M needs the exact weights and values of the
@@ -134,7 +137,7 @@ The order is by importance to the design paper. Where a dependency forces a diff
 | rank | item | kind | folder | what it decides for the paper | cost | needs |
 |---|---|---|---|---|---|---|
 | 0 | **Close R6 formally**: the frozen reader over the final block set, archived | record | `14h_methodology_improve` | the final R6 numbers the paper cites | one reader run | the last blocks |
-| 1 | **R7a: the theory at the paper's scale.** Part 8's bound, the certified read and Theorem M per head-step, in the probe, at 4/6/8-bit keys; a seed panel (§4) | GPU verification | new `14i_r7_theory_at_scale` | the theory section's numbers on its own models (T3, T4, T6); C1's seed gap | port and tests 3–5 days; 12–20 GPU-h | nothing |
+| 1 | **R7a: the theory at the paper's scale.** Part 8's bound, the certified read and Theorem M per head-step, in the probe, at 4/6/8-bit keys; a seed panel (§4) | GPU verification | new `14i_r7_theory_at_scale` | the theory section's numbers on its own models (T3, T4, T6); C1's seed gap | port and tests 3–5 days; 12–20 GPU-h | nothing. **Done 2026-10-22:** all eight predictions MET, about 16–17 GPU-h (`../14i_r7_theory_at_scale/findings/R7a.md`) |
 | 2 | **N: the nested coin-free store**, with its lemma and Theorems R and M at per-coordinate steps (§3) | theory + CPU | `14h_theory` | a memory claim (0.31 at rest, about 0.44 during a question, against 0.50); R1 holds in the deployed system; the threshold read rule becomes provable | 2–4 days on CPU | nothing |
 | 3 | **KL: bridge per-head error to KL per token**, with **τ** and the **water-filling allocation** (§3) | theory + CPU | `14h_theory` | explains R6's pattern (re-ranking, 4-bit keys); gives the allocation objective and a deployable τ | 1–2 weeks on CPU | nothing |
 | 4 | **Draft the design paper**: the method, R6's table, and the theory section from `paper_theory_section.md`, with slots for R7 and R8 | writing | a new design-paper LaTeX folder | shows early which claims still lack evidence | ongoing | R6 |
@@ -313,6 +316,18 @@ The ones the design paper needs are **N, KL, τ and WF**. The rest build toward 
   - Theorem M's measured / predicted 0.98–1.02 at 6–8 bits;
   - the unread second-moment share orders the families by the design's KL, re-ranking highest.
 - **Gate first, as R6 did.** About 12–20 GPU-h.
+- **Outcome (2026-10-22; `../14i_r7_theory_at_scale/findings/R7a.md`).** Every expectation held, and all eight frozen
+  predictions (P1–P8) are MET:
+  - coverage: no miss in 37.8 M checks per bound;
+  - part 8 at 6 bits: 5.6× on Llama 128K, 7.2× on Qwen 32K, and 8.0× on Qwen 128K (in the probe after D5);
+  - certified within FP8: 0.92 / 0.72 / 0.68, against v2's 0.63 / 0.48 / 0.38;
+  - Theorem M: 1.000 ± 0.001 at 6–8 bits;
+  - the unread share orders Llama's seven families by KL with re-ranking highest (Spearman 0.857);
+  - the certified read: at the oracle stop on Llama (traffic 0.399);
+  - the seed panel: no common seed effect (C1).
+
+  It ran on Rorqual (23020651–66) and cost about 16–17 GPU-h. P8 was closed on R6's partial read of 2026-10-18,
+  whose Llama rows are final.
 
 ### R7b: the deployed design, confirmatory (spec for the R7b session; decided 2026-10-12)
 This section is written so that a session can build R7b from it directly. §8 lists the build.
@@ -453,6 +468,7 @@ GPU-h, is to be measured by R7b's pilots.
   - Restated predictions: Gemma 3 passes at 4+2/6 and fails at 4+2/4; GPT-OSS passes at 4+4/4 and fails at 4+2/6.
   - This is an amendment for the user.
   - `ARCHITECTURES_PLAN.md` is the plan for extending R7a and R7b to every architecture.
+- **Correction (2026-10-12):** every Gemma-3-12B result before that date came from a randomly initialized model (a loader bug; `MODEL_FAMILY.md`'s correction note). Gemma 3 is not flat at 1,600 tokens: L5 leaves 7.6% of the second moment unread, not 66%. Both Gemma 3 predictions above (and "flat global layers" as R8's reason to test Gemma 3) came from that model; G0a re-derives them from the checkpoint's weights before R8's amendment goes to the user.
 
 ## 5. Where each part lives
 

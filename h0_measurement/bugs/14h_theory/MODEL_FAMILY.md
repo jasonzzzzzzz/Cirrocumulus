@@ -2,6 +2,14 @@
 
 *14h_theory, 2026-10-11. A CPU study of 21 open-weight models. Data and code are listed in §9.*
 
+> **Correction (2026-10-12): every Gemma-3-12B number in this file before that date came from a randomly initialized model.**
+> `adapters_s1h5._load` built `Gemma3ForCausalLM` from the multimodal checkpoint. transformers 5.16 does not map that checkpoint's `language_model.*` keys onto it, so every text weight was freshly initialized, and that branch skipped the missing-weight check. Random weights give flat attention.
+> - Gemma 3's "flat, value-leaning" class (family E), its 6/6 choice, L5 as the flat-attention example (66% of the second moment unread) and R8's Gemma 3 predictions all describe the random model.
+> - With the checkpoint's weights, L5 at 1,600 tokens has 7.6% of the second moment unread (between, not flat; unread mass 0.20, against 0.77) and a key share of 0.86 at 6/6 (key-leaning, against 0.37). Uniform 6/4 meets FP8's error at the median head-step (0.37×), not at p90 (1.36×).
+> - The theorems' checks on those views (coverage, Theorem M's accuracy) remain valid statements about those inputs, but they are not evidence about Gemma 3.
+> - **Corrected in this file (2026-10-12):** every count and table here now uses Gemma 3's real 1,600-token grid (`findings/g0/gemma3_pg19raw_1600_layermap.json`; recomputed counts in `findings/g0/model_family_1600_corrected.json`, whose rule reproduces `findings_bits_alloc.json` on the other 17 models). Gemma 3 is a between, key-heavy model at 1,600 tokens: 6/6 misses 2 of its 8 global layers, and its allocation costs 0.419.
+> - Fixed: the loader uses the multimodal class and refuses any missing weight; `g0map_s1h5.provenance` compares loaded weights with the checkpoint's. No other model was affected: the 18 GQA/MHA models and the two MLA models load with no missing weight. G0 (`findings/findings_g0.md`) recomputes Gemma 3 at 1,600 tokens and at 32K.
+
 This note answers two questions about the two-tier KV-cache design studied in this folder:
 1. **Which key and value bit widths does each kind of model need?** In particular, is it right that 6-bit keys with
    4-bit values (6/4) suit concentrated-attention models, and that 6/6 suits every model?
@@ -17,9 +25,9 @@ produced.
   attention over a per-layer cache of rows. That covers MHA, MQA, GQA, MLA, local:global layers, sinks, biases and gates,
   and the softmax layers of hybrids. The certificate was checked on all 21 models and the formula on 19.
 - **The bit widths do depend on the model: no single configuration reaches FP8's per-head error everywhere.**
-  - **6/4**, the design point of the confirmatory run R6, suits concentrated layers: 211 of 218 meet the target. But a
+  - **6/4**, the design point of the confirmatory run R6, suits concentrated layers: 212 of 219 meet the target. But a
     per-layer choice is cheaper there: traffic 0.35–0.39 against 0.398.
-  - **6/6** fixes most flat layers, but fails 29 of 313 layers. Three kinds fail:
+  - **6/6** fixes most flat layers, but fails 31 of 313 layers. Three kinds fail:
     - noisy scores: all 12 GPT-OSS full-attention layers among them, which need 8-bit keys;
     - near-constant scores, which need 8-bit values;
     - flat layers where both errors are large.
@@ -135,7 +143,7 @@ with E‖o − õ‖² ≈ E‖N‖²/Z² to first order.
 - **Allocation.** Per layer, the cheapest configuration that meets the target. A layer that no configuration meets is
   "unmet" and counted at 8/8 with a 1/4 read (0.625).
 - **Checks (Monte Carlo, 200 dither draws).** Measured over predicted MSE is 0.98–1.005 at 5/5, 6/6, 8/6 and 6/8. The
-  seven layers checked are of different kinds: Llama-3.2-1B L1, Gemma 3 L5, GPT-OSS L1, Granite-4.2 L1, Qwen3-1.7B L1,
+  seven layers checked are of different kinds: Llama-3.2-1B L1, Gemma 3 L5 (the random model's view), GPT-OSS L1, Granite-4.2 L1, Qwen3-1.7B L1,
   MiniMax-M2 L1 and Qwen3-30B L1.
   - At 4-bit keys on the two noisiest of them (GPT-OSS L1, Qwen3-1.7B L1) the ratio is 0.92: the formula overpredicts,
     which is the safe direction.
@@ -176,20 +184,19 @@ A natural summary of the first architecture study (`findings/findings_architectu
 The first half holds, roughly. The second does not.
 
 **What holds.**
-- 6/4 keeps concentrated layers at or below FP8's per-head error. Across the 18 models, 211 of the 218 concentrated
+- 6/4 keeps concentrated layers at or below FP8's per-head error. Across the 18 models, 212 of the 219 concentrated
   layers (≤ 1% of the second moment unread) meet the p90 target at 6/4. Five of the seven exceptions are
   Qwen3-30B-A3B layers with noisy scores (σ = 0.13–0.54 at 6 bits).
-- With 4-bit values, flat layers stay above FP8's error at any key width: 6/4 meets 4 of the 69 flat layers, and 8/4
-  meets 13.
-- 6-bit values fix most of them: 6/6 meets 46 of the 69, and every mapped global layer of Gemma 3, Gemma 4 and
-  Qwen3.5.
+- With 4-bit values, flat layers stay above FP8's error at any key width: 6/4 meets 4 of the 63 flat layers, and 8/4
+  meets 14.
+- 6-bit values fix most of them: 6/6 meets 39 of the 63, and every mapped global layer of Gemma 4 and Qwen3.5.
 
 **What does not hold.**
-1. **6/6 is not universal.** It misses the p90 target on 29 of 313 layers, of three kinds:
+1. **6/6 is not universal.** It misses the p90 target on 31 of 313 layers, of three kinds:
 
    | kind | layers | why 6/6 fails | what Theorem M picks instead |
    |---|---|---|---|
-   | noisy scores (σ = 0.14–0.73 at 6 bits) | all 12 GPT-OSS full layers; Qwen3-30B-A3B L0, L1, L3, L8, L16; Qwen3-1.7B L0–L2; Qwen1.5-0.5B L0 (21) | the key term is ≥ 95% of the error at 6/6, and value bits do not touch it | 8-bit keys: 8/4 (14), 8/5 (6, one with a 1/4 read); Qwen3-1.7B L0 is unmet even at 8/8 with a 1/4 read |
+   | noisy scores (σ = 0.13–0.73 at 6 bits) | all 12 GPT-OSS full layers; Qwen3-30B-A3B L0, L1, L3, L8, L16; Qwen3-1.7B L0–L2; Qwen1.5-0.5B L0; Gemma-3-12B L29, L47 (23) | the key term is ≥ 95% of the error at 6/6, and value bits do not touch it | 8-bit keys: 8/4 (15), 8/5 (7, one with a 1/4 read); Qwen3-1.7B L0 is unmet even at 8/8 with a 1/4 read |
    | near-constant scores, very flat (59–85% of the second moment unread) | Granite-4.2 L2, L3, L8; Granite-4.0-H L5 (4) | the value term is ≈ 100% of the error, and 6-bit values are not enough | 8-bit values: 4/8 (4) |
    | flat, with both terms large (30–52% unread) | MiniMax-M2 L1, L2, L4; Qwen3.8 L7 (4) | the key term is 63–77% of the error at 6/6, and the level is high | one tier to 8 bits: 8/6, 6/8, 8/5, 6/8 |
 
@@ -211,11 +218,11 @@ The first half holds, roughly. The second does not.
 | family | flatness | split k* − v* | σ at 6-bit keys | layers | Theorem M's choice (layers) | mean traffic | meet 6/4 | meet 6/6 |
 |---|---|---|---|---|---|---|---|---|
 | **A.** concentrated, key-leaning | ≤ 1% | 0.5 to 1.5 | 0.04–0.08 | 125 | 4/4 (81), 5/4 (33), 5/5 (7) | 0.356 | 124 | 125 |
-| **B.** concentrated, key-heavy | ≤ 1% | ≥ 1.5 | 0.07–0.54 | 93 | 5/4 (40), 4/4 (32), 5/5 and 6/4 (6 each), 8/4 (3) | 0.370 | 87 | 90 |
-| **C.** flat, key-heavy (noisy scores) | ≥ 10% | ≥ 1.5 | 0.09–0.73 | 17 | 8/4 (8), 8/5 (6), unmet (1) | 0.469 | 2 | 2 |
-| **D.** flat, key-leaning or balanced | ≥ 10% | −0.5 to 1.5 | 0.02–0.07 | 32 | 6/6 (19), 6/5 (4), 5/6 (3), one tier at 8 bits (4) | 0.450 | 2 | 28 |
-| **E.** flat, value-leaning | ≥ 10% | ≤ −0.5 | 0–0.03 | 20 | 4/6 (7), 6/6 (7), 4/8 (4) | 0.430 | 0 | 16 |
-| between | 1–10% | mixed | 0.04–0.22 | 26 | 5/4 (8), 5/5 (4), 6/5 (4), 8/4 (3) | 0.405 | 14 | 23 |
+| **B.** concentrated, key-heavy | ≤ 1% | ≥ 1.5 | 0.07–0.54 | 94 | 5/4 (41), 4/4 (32), 5/5 and 6/4 (6 each), 8/4 (3) | 0.370 | 88 | 91 |
+| **C.** flat, key-heavy (noisy scores) | ≥ 10% | ≥ 1.5 | 0.09–0.73 | 19 | 8/4 (8), 8/5 (7), unmet (1) | 0.468 | 2 | 3 |
+| **D.** flat, key-leaning or balanced | ≥ 10% | −0.5 to 1.5 | 0.02–0.07 | 31 | 6/6 (18), 6/5 (4), 5/6 (3), one tier at 8 bits (4) | 0.450 | 2 | 27 |
+| **E.** flat, value-leaning | ≥ 10% | ≤ −0.5 | 0–0.02 | 13 | 4/6 (7), 4/8 (4), 5/6 and 5/5 (1 each) | 0.417 | 0 | 9 |
+| between | 1–10% | mixed | 0.04–0.22 | 31 | 5/4 (8), 5/5 (6), 6/5 (5), 8/4 (4) | 0.406 | 17 | 27 |
 
 No concentrated layer is balanced or value-leaning. Sharp attention comes with large scores, and the score noise per
 key bit grows with the scores' scale (σ ∝ scaling·‖q‖·‖k‖_∞), so the key term weighs more there.
@@ -225,15 +232,15 @@ Where each family occurs:
   (14 of 20) and Qwen1.5-MoE (16 of 24). Also the quieter layers of Qwen3 and GLM-4.5-Air, and the last global layers of
   Qwen3.5/3.8.
 - **B:** most layers of Llama-3.2-1B (15 of 16), Qwen1.5-0.5B (16 of 24), Qwen3-1.7B (16 of 28) and Qwen3-30B-A3B
-  (29 of 48).
-- **C:** 9 of GPT-OSS's 12 full layers, and the first two or three layers of Qwen1.5-0.5B, Qwen3-1.7B and Qwen3-30B-A3B.
+  (29 of 48); Gemma-3-12B's L41.
+- **C:** 9 of GPT-OSS's 12 full layers, the first two or three layers of Qwen1.5-0.5B, Qwen3-1.7B and Qwen3-30B-A3B,
+  and Gemma-3-12B's L23 and L47.
 - **D:**
   - all six mapped MiniMax-M2 layers;
   - the early global layers of Gemma 4 and of Qwen3.5/3.8 (4 each);
-  - Granite-4.2 L10–L15 and Gemma 3's L5;
+  - Granite-4.2 L10–L15;
   - the first layer of Llama-3.2-1B, Llama-3.1-8B and Mistral-7B, and the first two of Qwen1.5-MoE and GLM-4.5-Air.
 - **E:**
-  - Gemma 3's other seven global layers;
   - Granite-4.2 L0–L9 and Granite-4.0-H L5;
   - the first layer of Llama-3.3-70B and of Mistral-Small-3.2.
 
@@ -258,7 +265,8 @@ A model is best described by its majority family and its exceptions (counts in �
 | concentrated, key-heavy (mostly B) | Llama-3.2-1B, Qwen1.5-0.5B, Qwen3-1.7B, Qwen3-30B-A3B (R6) | 0.11–0.33% | 0.368–0.388 | 1–8 layers | 0–5 layers |
 | flat, noisy scores (C) | GPT-OSS-20B | 15% | 0.458 (8/4 in 10 of 12) | 12 of 12 | 12 of 12 |
 | flat, balanced or key-leaning (D) | Gemma-4-31B, Qwen3.5-27B, Qwen3.8-27B, MiniMax-M2 | 12–49% | 0.429–0.471 | 6 layers each | 0–3 layers |
-| flat, value-leaning (E) | Gemma-3-12B, Granite-4.2-30B | 62–64% | 0.429–0.453 | every layer | 0–3 layers |
+| between, key-heavy (QK-norm; corrected 2026-10-12) | Gemma-3-12B | 7.5% | 0.419 | 4 of 8 | 2 of 8 |
+| flat, value-leaning (E) | Granite-4.2-30B | 62% | 0.429 | every layer | 3 layers |
 | hybrid with few attention layers | Granite-4.0-H-Tiny (one layer each of A, E and two between) | 2.6% | 0.398 | 1 of 4 | 1 of 4 |
 
 R6's two models fall in different families: Llama-3.1-8B is concentrated and key-leaning, and Qwen3-30B-A3B is
@@ -286,7 +294,7 @@ traffic under the median and the p90 target. The middle columns count the layers
 | Qwen3.5-27B | 8 | 0.381 / 0.429 | 8 | 6 | 8 | 0 | 6 | 0 | 0 | 6/6 ×5, 5/4 ×2 |
 | Qwen3.8-27B | 8 | 0.381 / 0.436 | 8 | 6 | 8 | 1 | 6 | 0 | 0 | 6/6 ×4, 5/4 ×2 |
 | MiniMax-M2 | 6 | 0.417 / 0.471 | 6 | 6 | 6 | 3 | 6 | 0 | 0 | 6/6 ×2 |
-| Gemma-3-12B | 8 | 0.453 / 0.453 | 8 | 8 | 8 | 0 | 8 | 0 | 0 | 6/6 ×8 |
+| Gemma-3-12B (corrected) | 8 | 0.357 / 0.419 | 8 | 4 | 8 | 2 | 2 | 0 | 0 | 6/5 ×2, 5/5 ×2 |
 | Granite-4.2-30B | 16 | 0.400 / 0.429 | 16 | 16 | 10 | 3 | 16 | 3 | 0 | 4/6 ×6, 6/6 ×5, 4/8 ×3 |
 
 **Statistics.** Flatness is the median over layers, with the range in brackets. The split column gives the median with
@@ -310,7 +318,7 @@ the 10th–90th percentile. The family column gives each model's layer counts.
 | Qwen3.5-27B | 14% (0.20–30%) | 0.04–0.06 | +0.76 (+0.27, +1.03) | A 3, D 4, between 1 |
 | Qwen3.8-27B | 15% (0.30–30%) | 0.04–0.06 | +0.82 (+0.34, +1.13) | A 2, D 4, between 2 |
 | MiniMax-M2 | 49% (40–60%) | 0.03–0.05 | +0.55 (−0.32, +0.88) | D 6 |
-| Gemma-3-12B | 64% (62–67%) | 0.03 | −0.59 (−0.66, −0.43) | D 1 (L5), E 7 |
+| Gemma-3-12B (corrected) | 7.5% (0.84–16%) | 0.08–0.13 | +1.83 (+1.57, +2.12) | B 1 (L41), C 2 (L23, L47), between 5 |
 | Granite-4.2-30B | 62% (12–85%) | 0–0.06 | −2.32 (below −5, +0.81) | D 6 (L10–L15), E 10 (L0–L9) |
 
 A split below −5 means the key term is ≈ 0 (near-constant scores).
@@ -334,8 +342,9 @@ A split below −5 means the key term is ≈ 0 (near-constant scores).
 | Llama-3.1-8B (R6) | 16 | 0.364 / 0.381 / 0.347 / 0.373 | 0.386 | 9 / 0 / 9 |
 | Qwen3-30B-A3B (R6) | 12 | 0.410 / 0.412 / 0.389 / 0.380 | 0.421 | 3 / 2 / 0 |
 | GPT-OSS-20B | 12 | 0.458 / 0.480 / 0.453 / 0.453 | 0.480 | 10 / 0 / 1 |
-| Gemma-3-12B | 8 | 0.453 / 0.453 / 0.429 / 0.453 | 0.453 | 0 / 0 / 0 |
 | Granite-4.2-30B | 16 | 0.429 / 0.431 / 0.381 / 0.386 | 0.434 | 2 / 0 / 0 |
+
+Gemma-3-12B's row is removed: it was the random model's (the correction note at the top). G0 maps every model on five inputs at 32K (`findings/findings_g0.md`).
 
 These rows cover the layers mapped on all four inputs (Mistral-7B and Llama-3.1-8B: layers 0–15; Qwen3-30B-A3B: 0–11;
 the others: every mapped layer), so their traffic differs from §4.3's.
@@ -357,7 +366,7 @@ as exact fixed rows.
 |---|---|---|---|
 | full softmax attention over per-token keys and values: MHA, MQA, GQA, with RoPE, partial RoPE or none, QK-norm, QKV bias, attention multipliers, output gates, learned sinks | Llama 3.x, Mistral 7B and Small 3.2, Qwen1.5/2/2.5/3, GLM-4.5, MiniMax-M2, GPT-OSS, Granite-4.2 | **verified** on 12 such models and GPT-OSS's full layers (on CPU; Llama-3.1-8B's certificate on GPU at 128K, in R5.4) | the cache is rows; the scores are bilinear in the stored key |
 | latent cache (MLA) | DeepSeek-V2/V3/R1, Kimi K2, Moonlight, the MLA layers of Kimi-Linear | **verified** on 3 (Theorem R; Theorem M in its coupled form, coupling term ≤ 0.1% of the error) | one dithered latent feeds both the scores and the values; the coupled form accounts for it |
-| local : global (sliding or chunked windows plus full layers) | Gemma 2/3/4, GPT-OSS, Llama 4, Command A | **verified** on the global layers of Gemma 3, Gemma 4 and GPT-OSS | the windows (128 to a few thousand rows) do not grow with the context and stay exact; the global layers are ordinary softmax caches |
+| local : global (sliding or chunked windows plus full layers) | Gemma 2/3/4, GPT-OSS, Llama 4, Command A | **verified** on the global layers of Gemma 4 and GPT-OSS, and of Gemma 3 by G0 on real weights (the 1.6K check here had a random model) | the windows (128 to a few thousand rows) do not grow with the context and stay exact; the global layers are ordinary softmax caches |
 | hybrids: recurrent or linear layers plus some softmax layers | tested: Granite-4.0-H, Qwen3.5, Qwen3.8, Kimi-Linear. Untested: Qwen3-Next, Nemotron-H, Jamba, MiniMax-M1 | softmax layers **verified** on the 4 tested | the recurrent state has a fixed size and is not a cache of rows: out of scope, and there is nothing to compress |
 | sparse attention with a learned selector | DeepSeek-V3.2 (DSA), NSA, MoBA | **covered if** the selector reads a store other than the dithered tier; untested (no weights here) | R1: the rows read must not depend on the dither. A selector that scores the dithered keys breaks it; one with its own index keys, kept exact or separately quantized, does not |
 | cross-layer KV sharing | Gemma 3n, YOCO, CLA | **needs an extension** | R2: a later layer reads the same dithered rows with a query that depends on their dither, through the earlier layers' outputs |
@@ -397,7 +406,8 @@ differential attention, and recurrent states (§6).
 - **CPU only, 1,600-token inputs.** R6 runs at 32K and 128K. Flatness and σ can change with length; the long-context
   check is `STATUS.md` step 3.
 - **Partial depth for seven models** (§2's table). Their families are those of the mapped layers.
-- **Inputs:** one for 12 models, and four for 6.
+- **Inputs:** one for 13 models, and four for 5. (Gemma 3's three other inputs were runs of the random model and are
+  removed.)
 - **The layer is the unit studied.** A per-head allocation would be cheaper and is not evaluated here.
 - **MLA:** the theorems were checked on MLA layers, but the bit grid was not run on them (`layermap_s1h5.py` takes GQA
   views).

@@ -1,5 +1,12 @@
 # Part 8: the tilted tail and a Hsu–Kakade–Zhang key sum (CPU, 2026-10-10)
 
+> **Correction (2026-10-12): every Gemma-3-12B number in this file before that date came from a randomly initialized model.**
+> `adapters_s1h5._load` built `Gemma3ForCausalLM` from the multimodal checkpoint. transformers 5.16 does not map that checkpoint's `language_model.*` keys onto it, so every text weight was freshly initialized, and that branch skipped the missing-weight check. Random weights give flat attention.
+> - Gemma 3's "flat, value-leaning" class (family E), its 6/6 choice, L5 as the flat-attention example (66% of the second moment unread) and R8's Gemma 3 predictions all describe the random model.
+> - With the checkpoint's weights, L5 at 1,600 tokens has 7.6% of the second moment unread (between, not flat; unread mass 0.20, against 0.77) and a key share of 0.86 at 6/6 (key-leaning, against 0.37). Uniform 6/4 meets FP8's error at the median head-step (0.37×), not at p90 (1.36×).
+> - The theorems' checks on those views (coverage, Theorem M's accuracy) remain valid statements about those inputs, but they are not evidence about Gemma 3.
+> - Fixed: the loader uses the multimodal class and refuses any missing weight; `g0map_s1h5.provenance` compares loaded weights with the checkpoint's. No other model was affected: the 18 GQA/MHA models and the two MLA models load with no missing weight. G0 (`findings/findings_g0.md`) recomputes Gemma 3 at 1,600 tokens and at 32K.
+
 `STATUS.md` step 4: tighten Theorem R at the R6 design's width, 6-bit keys.
 - Code: `../theory5_s1h5.py` (`tail_bound_rand_split_hkz`, `key_proxy`, `exact_key_proxy`, `prep`, `certified_read`;
   harnesses `compare` and `certread`).
@@ -9,7 +16,7 @@
 
 Setup: part 7's (oracle_s1h5's configuration on cached real layers). The vote reads 1/8 of the context exactly (a
 Lloyd-Max 4-bit sketch, 32 voter queries); 16 later queries per head are measured; 4-bit dithered values; δ = 10⁻³ per
-head-step; 3 draws (2 for the certified read). Views are in `../.views/`; `exp4bit_s1h5.py capture` regenerates them.
+head-step; 3 draws (2 for the certified read). Views are in `../.views/` (moved to `../../14_logs/14h_theory/views/` on 2026-10-22); `exp4bit_s1h5.py capture` regenerates them.
 
 ## What changed
 

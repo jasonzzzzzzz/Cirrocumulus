@@ -33,7 +33,8 @@ forms=("bennett",) and tilt=False this is exactly theory4_s1h5.tail_bound_rand_s
 
     TH_CACHE=<views dir> python theory5_s1h5.py compare view_llama1b_L1_1600.pt --draws 3 --out x.json
     TH_CACHE=<views dir> python theory5_s1h5.py certread view_llama1b_L1_1600.pt --bits 6,8 --draws 2 [--fine] --out y.json
-(TH_CACHE defaults to .views/ here; exp4bit_s1h5.py capture regenerates the views.)
+(TH_CACHE defaults to ../14_logs/14h_theory/views/, exp4bit_s1h5.CACHE; moved from .views/ here on 2026-10-22;
+exp4bit_s1h5.py capture regenerates the views.)
 """
 from __future__ import annotations
 

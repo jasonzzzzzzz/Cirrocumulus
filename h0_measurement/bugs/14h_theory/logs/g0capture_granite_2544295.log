@@ -1,0 +1,9 @@
+Loading weights:   0%|          | 0/586 [00:00<?, ?it/s]Loading weights:   0%|          | 1/586 [00:00<02:47,  3.49it/s]Loading weights:   8%|▊         | 47/586 [00:00<00:05, 99.12it/s]Loading weights:  15%|█▌        | 89/586 [00:00<00:02, 167.10it/s]Loading weights:  19%|█▉        | 111/586 [00:00<00:03, 129.34it/s]Loading weights:  23%|██▎       | 133/586 [00:01<00:04, 107.39it/s]Loading weights:  28%|██▊       | 163/586 [00:01<00:03, 113.08it/s]Loading weights:  33%|███▎      | 193/586 [00:01<00:02, 132.05it/s]Loading weights:  36%|███▌      | 209/586 [00:01<00:02, 126.74it/s]Loading weights:  40%|███▉      | 234/586 [00:01<00:02, 128.46it/s]Loading weights:  45%|████▌     | 264/586 [00:02<00:02, 120.08it/s]Loading weights:  48%|████▊     | 279/586 [00:02<00:02, 122.90it/s]Loading weights:  53%|█████▎    | 310/586 [00:02<00:01, 141.84it/s]Loading weights:  60%|██████    | 354/586 [00:02<00:01, 181.46it/s]Loading weights:  67%|██████▋   | 395/586 [00:02<00:01, 162.41it/s]Loading weights:  75%|███████▌  | 441/586 [00:03<00:00, 173.22it/s]Loading weights:  87%|████████▋ | 511/586 [00:03<00:00, 190.77it/s]Loading weights:  91%|█████████ | 531/586 [00:03<00:00, 186.25it/s]Loading weights:  95%|█████████▍| 556/586 [00:03<00:00, 159.00it/s]Loading weights: 100%|██████████| 586/586 [00:03<00:00, 148.80it/s]
+granite pg19_32768: forward 185 s, 4 views
+granite code_32768: forward 187 s, 4 views
+granite table_32768: forward 188 s, 4 views
+granite agent_32768: forward 184 s, 4 views
+granite news_32768: forward 187 s, 4 views
+granite pg19_1600: forward 12 s, 4 views
+granite pg19raw_1600: forward 11 s, 4 views
+granite: load 5 s, total 966 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/granite

@@ -1,0 +1,32 @@
+Loading weights:   0%|          | 0/143 [00:00<?, ?it/s]Loading weights:   1%|          | 1/143 [00:00<00:15,  8.89it/s]Loading weights:   7%|▋         | 10/143 [00:00<00:03, 43.27it/s]Loading weights:  11%|█         | 16/143 [00:03<00:37,  3.40it/s]Loading weights:  13%|█▎        | 19/143 [00:04<00:29,  4.18it/s]Loading weights:  22%|██▏       | 32/143 [00:07<00:25,  4.32it/s]Loading weights:  24%|██▍       | 34/143 [00:07<00:24,  4.44it/s]Loading weights:  34%|███▎      | 48/143 [00:10<00:20,  4.58it/s]Loading weights:  34%|███▍      | 49/143 [00:10<00:20,  4.51it/s]Loading weights:  45%|████▍     | 64/143 [00:13<00:16,  4.70it/s]Loading weights:  45%|████▌     | 65/143 [00:14<00:17,  4.58it/s]Loading weights:  56%|█████▌    | 80/143 [00:16<00:12,  4.87it/s]Loading weights:  57%|█████▋    | 81/143 [00:17<00:13,  4.72it/s]Loading weights:  67%|██████▋   | 96/143 [00:20<00:09,  5.01it/s]Loading weights:  68%|██████▊   | 97/143 [00:20<00:09,  4.89it/s]Loading weights:  78%|███████▊  | 112/143 [00:23<00:05,  5.18it/s]Loading weights:  79%|███████▉  | 113/143 [00:23<00:06,  4.92it/s]Loading weights:  90%|████████▉ | 128/143 [00:25<00:02,  5.45it/s]Loading weights:  90%|█████████ | 129/143 [00:26<00:02,  5.29it/s]Loading weights: 100%|██████████| 143/143 [00:26<00:00,  5.44it/s]
+[transformers] [1mGlm4MoeForCausalLM LOAD REPORT[0m from: zai-org/GLM-4.5-Air
+Key                                                       | Status     |  | 
+----------------------------------------------------------+------------+--+-
+model.layers.{9...45}.mlp.gate.weight                     | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.v_proj.weight             | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.shared_experts.down_proj.weight | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.shared_experts.up_proj.weight   | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.experts.down_proj               | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.shared_experts.gate_proj.weight | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.k_proj.weight             | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.gate.e_score_correction_bias    | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.v_proj.bias               | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.k_proj.bias               | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.q_proj.weight             | UNEXPECTED |  | 
+model.layers.{9...45}.post_attention_layernorm.weight     | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.o_proj.weight             | UNEXPECTED |  | 
+model.layers.{9...45}.input_layernorm.weight              | UNEXPECTED |  | 
+model.layers.{9...45}.self_attn.q_proj.bias               | UNEXPECTED |  | 
+model.layers.{9...45}.mlp.experts.gate_up_proj            | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+glm45air pg19_32768: forward 71 s, 9 views
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (149163 > 128000). Running this sequence through the model will result in indexing errors
+glm45air code_32768: forward 65 s, 9 views
+glm45air table_32768: forward 66 s, 9 views
+glm45air agent_32768: forward 65 s, 9 views
+glm45air news_32768: forward 66 s, 9 views
+glm45air pg19_1600: forward 3 s, 9 views
+glm45air pg19raw_1600: forward 4 s, 9 views
+glm45air: load 27 s, total 376 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/glm45air

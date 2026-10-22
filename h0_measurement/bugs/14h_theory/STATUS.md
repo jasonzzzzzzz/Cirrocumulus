@@ -1,6 +1,6 @@
 # 14h_theory status (rewritten, not appended)
 
-**Updated 2026-10-12.** `theory.md` covers parts 1–8 and §13–§14. The four CPU checks that R7b's freeze depended on
+**Updated 2026-10-12.** **Correction (2026-10-12):** every Gemma-3-12B result before that date came from a randomly initialized model (a loader bug; `MODEL_FAMILY.md`'s correction note). Gemma 3 is not flat at 1,600 tokens: L5 leaves 7.6% of the second moment unread, not 66%. **G0 is done** (2026-10-22, `findings/findings_g0.md`): every layer of 20 models at 32K on five prompts, in the single store's form, MLA included. Part 8 covers every cell, and Theorem M holds at 32K (median measured / predicted 0.91–1.00). A per-layer store allocation meets FP8's per-head error on every prompt in all 401 GQA/MHA layers at 0.346–0.460 traffic. R7b's uniform 4+2/4 is model-dependent. The slack law is architecture-independent for σ_w ≤ 0.3. R8's "passes" predictions fail at 32K per head. **The aggregate column is in** (backfill job 2632678, 2026-10-22; `findings/findings_g0.md` §5 reading 7, §8): in aggregate the restated predictions hold (Gemma 3 cleanly; GPT-OSS's "passes at 4+4/4" misses by 16% in one layer), per head only the "fails" ones do. Slurm marks 2632678 FAILED (exit 1 after its backfill loop), but every G0 result now carries the `agg` field and its logs show no error. The restatement is the user's decision (`findings_g0.md` §8). **R7a is complete** (2026-10-22, `../14i_r7_theory_at_scale/findings/R7a.md`): all eight predictions MET at the paper's scale. Its numbers and the per-query-head correction are now in `theory.md` (§6e, §7, §10, the summary), `CLAIMS_LEDGER.md` (T3, T4 and T6 AT-SCALE; C1's seed gap closed) and `paper_theory_section.md`. `theory.md` covers parts 1–8 and §13–§14. The four CPU checks that R7b's freeze depended on
 are done (`RESEARCH_PLAN.md` §8):
 - the single store's vote is neutral;
 - the deployed combination works, with 8-bit keys in noisy layers;
@@ -8,7 +8,7 @@ are done (`RESEARCH_PLAN.md` §8):
 - the FP8 quantile is the fallback.
 
 The folder is isolated from `../14h_methodology_improve/` (`ISOLATION_PLAN.md`, executed). Every test here passes: the
-six `--fast` suites. Cached views for the CPU harnesses are in `.views/`. Long CPU runs can go to a Trillium CPU node
+six `--fast` suites. Cached views for the CPU harnesses are in `../14_logs/14h_theory/views/`, and G0's 32K views in `../14_logs/14h_theory/g0views/` (both moved out of this folder on 2026-10-22; the code's defaults point there; `../14_logs/README.md`). The random-weight Gemma 3 view `view_gemma3_L5_1600.pt` was deleted then. Long CPU runs can go to a Trillium CPU node
 (the user's OK, 2026-10-12): this time, 68 harness runs took 15 minutes on one node.
 
 ## What holds
@@ -51,7 +51,7 @@ six `--fast` suites. Cached views for the CPU harnesses are in `.views/`. Long C
 
     Next design step: a residual-plane store, so that the certified read can escalate precision instead of only
     reading rows exactly.
-  - **The design point is model-dependent.** Flat-attention models (Gemma 3/4, Granite-4.2, MiniMax-M2, Qwen3.5/3.8
+  - **The design point is model-dependent.** Flat-attention models (Gemma 4, Granite-4.2, MiniMax-M2, Qwen3.5/3.8
     globals) need 6-bit values: with 4-bit values their tail is above FP8's error at any key width. 6/6 costs 8/4's
     traffic (0.453).
 - **Theorem DD** carries the guarantee through free-running decode up to the first token that differs from the exact
@@ -87,10 +87,11 @@ six `--fast` suites. Cached views for the CPU harnesses are in `.views/`. Long C
 
 ## Next steps, ranked by importance to the design paper
 
-**R7b's run side is built (2026-10-12)**, as a DRAFT with nothing submitted, in `../14i_r7_theory_at_scale/r7b/`
-(`plan_r7b.md`; `RESEARCH_PLAN.md` §8 lists the files). It runs the single store, confirmatory under R6's rules (D7),
-with gates and exploratory arms. Its CPU driver smokes pass. R7a is frozen and its gate passed (08:52). Its blocks were
-then cancelled from the user's account at 09:23, before starting, and are not queued (sacct on trig).
+**R7b's run side is built (2026-10-12)** in `../14i_r7_theory_at_scale/r7b/` (`plan_r7b.md`; `RESEARCH_PLAN.md` §8
+lists the files). It runs the single store, confirmatory under R6's rules (D7), with gates and exploratory arms. It has
+since been frozen and run; its state is in `../14i_r7_theory_at_scale/r7b/STATUS.md`. **R7a is complete**
+(2026-10-22): its Trillium blocks were cancelled before starting and it ran on Rorqual instead. All eight predictions
+are MET (`../14i_r7_theory_at_scale/findings/R7a.md`).
 - The four CPU inputs to R7b's freeze are done (`RESEARCH_PLAN.md` §8).
 - Open for the user at the freeze: `../14i_r7_theory_at_scale/r7b/plan_r7b.md` §8. It covers:
   - sizes and re-ranking;

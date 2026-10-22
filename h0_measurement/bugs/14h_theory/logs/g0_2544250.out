@@ -1,0 +1,45 @@
+host=tri0491 job=2544250 models=gemma3,gptoss stages=realtest,capture,analyze,summary L=32768 par=24 threads=8 draws=2
+ALL PASS (17 s)
+realtest: FAILURES (logs/g0realtest_2544250.log)
+realtest: 161 s; 115 ok, 1 failed
+[FAIL] gemma4: every attention layer called once 
+[2026-10-12T13:51:22.237] error: *** JOB 2544250 ON tri0491 CANCELLED AT 2026-10-12T13:51:22 DUE to SIGNAL Terminated ***
+
+scontrol show job 2544250
+JobId=2544250 JobName=g0map
+   UserId=jczhao20(3152881) GroupId=jczhao20(3152881) MCS_label=N/A
+   Priority=2142129 Nice=0 Account=def-enright QOS=normal
+   JobState=COMPLETING Reason=None Dependency=(null)
+   Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:15
+   RunTime=00:06:34 TimeLimit=12:00:00 TimeMin=N/A
+   SubmitTime=2026-10-12T13:44:33 EligibleTime=2026-10-12T13:44:33
+   AccrueTime=2026-10-12T13:44:33
+   StartTime=2026-10-12T13:44:48 EndTime=2026-10-12T13:51:22 Deadline=N/A
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2026-10-12T13:44:48 Scheduler=Backfill
+   Partition=compute AllocNode:Sid=tri-login06:2945837
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=tri0491
+   BatchHost=tri0491
+   NumNodes=1 NumCPUs=192 NumTasks=1 CPUs/Task=192 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=192,mem=767000M,node=1,billing=192
+   AllocTRES=cpu=192,mem=767000M,node=1,billing=192
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=192 MinMemoryNode=767000M MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=NO Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
+   Command=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm
+   SubmitLine=SBATCH --comment /opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=gemma3,gptoss G0_STAGES=realtest,capture,analyze,summary --export=NONE --get-user-env h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=gemma3,gptoss G0_STAGES=realtest,capture,analyze,summary
+   WorkDir=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
+   Comment=/opt/slurm/bin/sbatch --export=NONE --get-user-env h0_measurement/bugs/14h_theory/submit_g0_cpu.slurm G0_MODELS=gemma3,gptoss G0_STAGES=realtest,capture,analyze,summary
+   StdErr=
+   StdIn=/dev/null
+   StdOut=/scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/logs/g0_2544250.out
+   TresPerTask=cpu=192
+
+sacct -j 2544250
+JobID           JobName    Account    Elapsed  MaxVMSize     MaxRSS  SystemCPU    UserCPU ExitCode 
+------------ ---------- ---------- ---------- ---------- ---------- ---------- ---------- -------- 
+2544250           g0map def-enrig+   00:06:34                        31:08.190   05:36:48      0:0 
+2544250.bat+      batch def-enrig+   00:06:35          0 157367072K  31:08.190   05:36:48     0:15 
+2544250.ext+     extern def-enrig+   00:06:35                         00:00:00   00:00:00      0:0 
+

@@ -1,103 +1,111 @@
 # 14i_r7_theory_at_scale status (rewritten, not appended)
 
-**Updated 2026-10-12.**
-- R7a was reviewed end to end on 2026-10-12 (the user asked): every file, the theory claims and the protocol.
-- Extended to Qwen 128K, R6's third claim group, at the user's request.
-- Frozen and submitted to Trillium on 2026-10-12 (the user asked), from trig-login01 (`plan.md` §10):
-  - pilots 1080289 (probe) and 1080290 (seed panel);
-  - gate 1080291;
-  - probe blocks 1080292–1080298;
-  - Qwen 128K node job 1080299 (blocks `_0`, `_1`);
-  - seed-panel blocks 1080300–1080304;
-  - reader 1080309.
+**Updated 2026-10-22. R7a is complete: run and read.** All 14 blocks finished on Rorqual and were copied back. The frozen
+reader passes every block, the code manifests are identical, the 119-file code pin still verifies, and **all eight
+predictions are MET**. The write-up is `findings/R7a.md`; the final read is `findings/R7a_reader.{md,json}` (identical
+to `findings/R7a_reader_1022.*`). R7a's files are unfrozen, except `cert_r7.py` and `tier_r7.py`, which stay frozen for
+R7b (`CLAUDE.md`, "Frozen and unfrozen").
 
-## Review (2026-10-12)
-No bug in the bounds' mathematics. The copies match bit for bit, and the port matches the reference to 5·10⁻¹⁴. The
-review changed six things:
-1. **The certified read's guarantee is per query head** (`theory_r7.md` §2.6): P(miss) ≤ δ for each head, ≤ rδ for all r
-   heads of a group.
-   - The probe now records the met count per group (`met_heads`).
-   - The reader tests misses against δ·heads; it had compared all-heads-met groups against 1 − 2δ.
-   - `../14h_theory/theory.md` §6e says "at every query head" where it should say "at each query head" (to carry back).
-2. **The gate's coverage check** now uses the reader's COVER_OK rule. It had required coverage exactly 1, which one
-   legitimate miss (the theorem allows rate δ) would have failed.
-3. **"Identical stops"** is stated precisely (`theory_r7.md` §2.3). P-exact's batching depends on which groups are
-   open; the measured effect on the proxy is 0 to the last bit.
-4. **`tail_err` is now checked directly**: the error to 4.5·10⁻¹³ and Z̃/Z to 4.5·10⁻¹⁶ (`test_cert_r7.test_tail_err`).
-5. **The worker re-verifies the 119-file code pin at every job start**, so a change to R6's library while R7a is queued
-   stops the job instead of silently changing the code.
-6. **The scope of the coverage numbers is stated** (`theory_r7.md` §1, §7): FP's queries (the oblivious pass); the design's
-   own queries are covered by Lemma C, not measured.
+## The verdicts (`findings/R7a.md` §2)
 
-Checked and found right:
-- the probe's step indexing (one teacher-forced call; every measured step once);
-- the GQA head grouping, the seeds and rotations (R6's), the debias, v2's arguments (R6's probe);
-- the vote and the sketch (coin-free);
-- Theorem M's identity and moments, re-derived;
-- Lemmas S, B and P, re-derived;
-- the HKZ validity when the P-exact rows are chosen with coin-dependent scores (the proxies themselves are coin-free);
-- the panel (b) model, the reader's bootstraps, R6's reader JSON format (P8).
+| | prediction (stated before the run) | measured: Llama 128K / Qwen 32K / Qwen 128K | verdict |
+|---|---|---|---|
+| P1 | coverage OK for part 8 and v2 | 0 misses in 37.8 M checks per bound | MET |
+| P2 | part 8 / error at 6 bits in [4, 7] / [6, 13] / [6, 13] | 5.59 / 7.22 / 8.02 | MET |
+| P3 | certified within FP8 at 6 bits ≥ 0.80 / 0.65 / 0.65 | 0.919 / 0.724 / 0.679 | MET |
+| P4 | Theorem M consistent with 1 (exact), first order within ±5% at 6–8 bits | 1.000 at 6 and 8 bits everywhere; at 4 bits 1.000 / 0.994 / 0.990 | MET |
+| P5 | certified read traffic at 6 bits ≤ 0.45 / 0.50 / 0.50, misses per query head OK | 0.399 / 0.474 / 0.423; 0 misses in 774,656 head checks | MET |
+| P6 | part 8 / v2 ≤ 0.30 | 0.217 / 0.212 / 0.211 | MET |
+| P7 | SEED_ROBUST in every family | 5 of 5; common seed effect ≤ 0.2% of the variance | MET |
+| P8 | unread share orders Llama's families by the design's KL | Spearman 0.857 over 7 families (permutation p = 0.012) | MET |
 
-## Done
-- **The port** (`cert_r7.py`, `tier_r7.py`). These are the bounds R7a measures:
-  - part 8's certificate;
-  - the certified adaptive read with the FINE schedule;
-  - Theorem M per head-step;
-  - v2 (R6's column).
+## The findings in brief (details and tables in `findings/R7a.md` §5)
+- The guarantees hold at scale: no miss for part 8, v2 or the certified read.
+- Part 8 is 5.6× the error on Llama and 7.2–8.0× on Qwen at 6 bits, 0.21–0.22 of v2. v2 does not change with length
+  (25.5× at 128K on Llama, 27× at 1.6K on the CPU).
+- The key term dominates part 8 at 4–6 bits, the value term at 8 bits.
+- The weakest layers are the ones predicted from R6's probe: Llama L30, L8, L1; Qwen L3, L1, L0, L2, L16.
+- The certified read is at the oracle on Llama (0.126 of rows against 0.125, no fallback). On Qwen the extra rows come
+  from the early flat layers.
+- Theorem M is exact (1.000 ± 0.001 at 6–8 bits). On Qwen at 4 bits the ratio is heavy-tailed, so 2 draws fall short by
+  ≤ 1%.
+- The unread second moment orders the families by KL on all three groups. Rerank is the top family on both measures.
+- Qwen 128K certifies less than Qwen 32K because R7a probed it on HELMET, which is harder on Llama too (0.82–0.88 against
+  0.91–0.98 on RULER). Within Qwen, length and task are confounded.
+- The dither seed has no common effect; R6's verdict does not depend on it.
+- At seed 0 the panel reproduces R6's RULER units exactly. On rerank, 2 of 10 items differ because FP's own answer
+  changed between runs.
 
-  They import nothing outside torch. The pieces of `cert_s1h5`/`rquant_s1h5` they build on are copies, checked bit for
-  bit (`test_cert_r7.test_copies`). Part 8, the certified read and Theorem M equal `../14h_theory`'s reference to
-  5·10⁻¹⁴ on frozen inputs (`fixtures/`).
-- **The GPU forms** (`theory_r7.md` §2), each keeping the guarantee:
+## How it ran
+- 2026-10-12, Trillium: pilots 1080289 and 1080290, then gate 1080291, which PASSED (`findings/R7a_gate.json`). The
+  blocks 1080292–1080304 and the reader 1080309 were cancelled while pending (09:17–09:23, from the user's account).
+- Resubmitted on Rorqual (the reason for the move is not recorded):
+  - pilots 23020651 and 23020652;
+  - probe blocks 23020654–60 and Qwen 128K 23020661 (`_0`, `_1`);
+  - seed-panel blocks 23020662–66;
+  - reader 23020667, which did not run.
+
+  l-hm (23020657) was the last block; its results arrived 2026-10-22.
+- Block run times were 0.08–1.72 h, about 16–17 GPU-h in all (the plan estimated 21–34). Peak memory per GPU was
+  56–59 GiB (Llama), 66.7 GiB (Qwen 32K) and 49.8 GiB (Qwen 128K, on 2 GPUs).
+- The reads: an interim read of 13 blocks on 2026-10-17 (`findings/R7a_reader_partial_1017.*`), then the complete read
+  on 2026-10-22 (`findings/R7a_reader_1022.*`, rerun as the final `findings/R7a_reader.*`, byte-identical). All were
+  run here with R6's partial reader JSON for P8: 10-11 for the first, 10-18 for the others, with identical Llama rows. The diagnostics behind `findings/R7a.md` §5 are in
+  `findings/R7a_diag_partial_1017.py.txt` and `findings/R7a_diag_1022.py.txt`.
+
+## Closed (2026-10-22, the user's decisions)
+1. **The reader.** Rorqual's reader job 23020667 did not run, so the frozen reader was run here:
+   `findings/R7a_reader.{md,json}`.
+   - If 23020667 is still in Rorqual's queue, it can be cancelled.
+2. **P8** is closed on R6's partial read of 2026-10-18, not on R6's final read.
+   - P8 uses only R6's Llama 128K rows. Those are final, and identical in the 10-11 and 10-18 reads.
+   - R6's final read waits only on a Qwen 128K block.
+3. **The code snapshot:** `findings/R7a_code_snapshot_1022.tar.gz`.
+   - It holds the 119 pinned files plus the pin, verified after extraction; its sha256 is in the `.sha256` file beside it.
+4. **The freeze is lifted for R7a's own files.**
+   - `cert_r7.py` and `tier_r7.py` stay frozen until R7b's final read: R7b imports and pins them.
+   - R6's files stay frozen for R6 and R7b.
+5. **Carried back** (the user asked). R7a's at-scale numbers and corrections went into:
+   - `../14h_theory/theory.md`, `CLAIMS_LEDGER.md`, `RESEARCH_PLAN.md`, `paper_theory_section.md`, `STATUS.md`;
+   - a pointer in `ARCHITECTURES_PLAN.md` and a note in `findings/findings_klbridge.md`;
+   - the paper's slides (`latex_paper/icml27_understanding/slides/findings_slides.html`).
+
+## Open
+- Nothing for R7a itself.
+- `cert_r7.py` and `tier_r7.py` can be unfrozen once R7b's final read exists (R7b's Qwen 128K half runs on Rorqual).
+
+## Corrections carried back to `../14h_theory/` (2026-10-22)
+- `../14h_theory/theory.md` §6e: the certified read holds "at each query head" (P ≥ 1 − δ), not "at every query head";
+  the joint statement needs δ/(m·r) per bound. R7a tested and confirmed the per-head form.
+- `../14h_theory/RESEARCH_PLAN.md` §1.1 compares v2 on Llama-3.2-1B (39–42×, CPU) with Llama-3.1-8B (25×, GPU): a model
+  difference. On Llama-3.1-8B, v2 is 27× at 1.6K, 24.6× at 16K and 25.5× at 128K.
+- Part 8 at 128K is 5.6× the error on Llama at 6 bits, not the plan's 4–5×.
+- The fine schedule is 16 sets at δ/16, not "15 at δ/15". (No such text remained there; nothing to change.)
+- `RESEARCH_PLAN.md` §1.1's v2 comparison had already been corrected on 2026-10-12; the measured 5.6× is added.
+
+## The review before the freeze (2026-10-12)
+No bug was found in the bounds' mathematics: the copies match bit for bit, and the port matches `../14h_theory`'s
+reference to 5·10⁻¹⁴. The review changed six things:
+1. The certified read's guarantee is per query head. The probe records `met_heads`, and the reader tests misses
+   against δ·heads.
+2. The gate's coverage check uses the reader's COVER_OK rule instead of requiring coverage exactly 1.
+3. "Identical stops" is stated precisely (`theory_r7.md` §2.3).
+4. `tail_err` is tested directly.
+5. The worker re-verifies the code pin at every job start.
+6. The scope of coverage is stated: FP's queries; the design's own queries rely on Lemma C.
+
+## What was built (unchanged since the freeze)
+- **The port:** `cert_r7.py` and `tier_r7.py` (part 8, the certified read with the FINE schedule, Theorem M, v2), with
+  parity against frozen fixtures (`fixtures/`).
+- **The GPU forms:**
   - the batched, centred HKZ matrix;
-  - Lemma S, the matrix from its heavy rows (available, off: its inflation grows with context);
-  - Lemma B, the certified read decided by brackets before forming the matrix (same stop; skips 50–90% of matrices);
-  - Lemma P, Theorem M's exact moments as a separable series (2.7·10⁻¹³).
-- **Tests.**
-  - `test_cert_r7.py --fast` (3 min): brute force (1,280 head cases, 0 failures), quadrature, Monte Carlo, the
-    certified read's stop against a naive rule, parity.
-  - `--quick` (24 s): the worker's preflight.
-  - `test_run_r7.py --fast`: presets, layout, fresh prompts, the probe against direct computations (exact).
-  - Driver smokes on Llama-3.2-1B at 4K: the probe's pass is FP's, coverage 1, part 8 6.0× the error at 6 bits; the seed
-    panel's five seeds give five KLs; the reader reads both. All pass.
-- **The run side.**
-  - `r7_lib.py`: presets, seed-suffixed design arms, `R7_LAYOUT` (13 blocks; Qwen 128K as a 4-GPU node job with two
-    2-GPU blocks).
-  - `probe_r7.py`.
-  - `run_r7.py`: `run_s1h5.main` with R7a's library and probe swapped in at run time; no R6 file edited.
-  - `read_r7a.py`: rules, the gate, predictions P1–P8.
-  - `submit_r7.slurm` (node split, pin re-check), `script_r7a.sh`: the dry run assembles 2 pilots, the gate, 13 block
-    jobs (14 blocks) and the reader.
-  - `findings/R7a_code.sha256` pins 119 files.
-- **The exploration** (`findings/explore_r7.md`; Llama-3.1-8B L1/L3, Qwen3-30B-A3B L1/L12; 1.6K–16K; CPU):
-  - part 8's tightness is flat in context (Llama 4.2–5.5×, Qwen 11–15× at 6 bits);
-  - certification within FP8 and the certified read improve steadily with context, because the vote leaves a smaller
-    share of Σ w²‖v − o‖² unread;
-  - Llama L3 at 16K is certified on 0.97 of head-steps and its certified read is at the oracle (traffic 0.400 vs 0.398);
-  - Qwen's flat L1 is the exception;
-  - Theorem M is within 2% at 6–8 bits;
-  - coverage is 1.000 in all 22 cells.
-- **Predictions from R6's GPU probe** (`findings/predictions_from_r6.json`):
-  - part 8 certified within FP8 at 6 bits: 0.88–0.91 on Llama 128K (v2: 0.625), 0.71–0.76 on Qwen 32K (v2: 0.487);
-  - the certified read at 6 bits: about 0.127 of rows (traffic 0.40) on Llama, 0.25 (0.49) on Qwen.
+  - Lemma S (the HKZ matrix from heavy rows; available but off);
+  - Lemma B (bracketed decisions in the certified read; same stop);
+  - Lemma P (Theorem M's moments as a separable series).
+- **The run side:** `probe_r7.py`, `r7_lib.py`, `run_r7.py`, `read_r7a.py`, `submit_r7.slurm`, `script_r7a.sh`.
+- **Tests:** `test_cert_r7.py`, `test_run_r7.py`.
+- **The CPU exploration** behind the predictions: `findings/explore_r7.md`, `findings/predictions_from_r6.json`.
 
-## A correction to carry back (not edited there: isolation)
-`../14h_theory/RESEARCH_PLAN.md` §1.1 reads "v2 is 39–42× the error on the CPU (Llama-1B …) and 25× on the GPU at 128K.
-Scale did not hurt." That compares two models. On Llama-3.1-8B itself, v2 is 27× at 1.6K, 24.6× at 16K and 25.4× at
-128K. Scale does not hurt, but nothing improved with length either. Part 8 / v2 is 0.19–0.22 on Llama-3.1-8B at 6 bits,
-so part 8 at 128K should be about 5–6×, not the plan's 4–5×.
-
-The docs also call part 8's fine schedule "15 sets at δ/15". The code (theory5 and here) has 16 sets at δ/16. Valid
-either way; R7a uses 16.
-
-**A parallel session works in `../14h_theory`** (the nested store N, the KL bridge). On 2026-10-11 at 21:09,
-`theory5_s1h5.exact_rows` gained per-coordinate steps ([G, C, d], for the nested store). Its scalar-step path, the one R7a
-uses, is unchanged: the fixtures were generated from that version (sha 28a6ae9d) and parity holds to 5·10⁻¹⁴. R7b's
-nested-store arm will need the per-coordinate form ported.
-
-## Next
-1. Watch the chain: pilots → gate → blocks → reader (`plan.md` §10).
-2. After the run: `read_r7a.py --r7a $(script_r7a.sh --list-r7a) --r6-json <R6's final reader JSON>`. Then
-   `findings/R7a.md`; the theory section's numbers (T3, T4, T6) and C1's seed statement come from it.
-3. If the gate projects a block over its wall, set `probe_r7.CR_GRAM_ROWS = 4096` (Lemma S) or trim the 4-bit draws,
-   before any block runs.
+## R7b: in `r7b/`, not here
+R7b (the single store) has its own theory, run and status in `r7b/` (read `r7b/STATUS.md`). It adds no file to this
+folder's top level, so R7a's code manifest is unaffected.

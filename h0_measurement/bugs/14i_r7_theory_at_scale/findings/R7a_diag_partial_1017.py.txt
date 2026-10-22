@@ -1,0 +1,57 @@
+import glob, json, os, sys
+import numpy as np, pandas as pd
+R = "h0_measurement/results"
+blocks = sys.argv[1:]
+grp_of = lambda t: "llama128" if "llama128" in t else "qwen128" if "qwen128" in t else "qwen32"
+H, G, M = {}, {}, {}
+for p in blocks:
+    tag, job = p.split(":"); d = f"{R}/r14r7a_{tag}_{job}"
+    h = glob.glob(d + "/r7a_heads_*.parquet"); g = glob.glob(d + "/r7a_groups_*.parquet")
+    m = glob.glob(d + "/s1h_evaluate_*.parquet")
+    u = lambda x: p + ":" + x.prompt_idx.astype(str) + ":" + x.task.astype(str)
+    if h: H.setdefault(grp_of(tag), []).append((x := pd.read_parquet(h[0])).assign(unit=u(x)))
+    if g: G.setdefault(grp_of(tag), []).append((x := pd.read_parquet(g[0])).assign(unit=u(x)))
+    if tag.startswith("r7k"): M.setdefault(grp_of(tag), []).append(pd.read_parquet(m[0]).assign(block=p))
+H = {k: pd.concat(v, ignore_index=True) for k, v in H.items()}
+G = {k: pd.concat(v, ignore_index=True) for k, v in G.items()}
+print("columns heads:", list(next(iter(H.values())).columns)[:80])
+print("\n(a) part 8 certified within FP8 at 6 bits, weakest 6 layers (share) and layers below 0.5")
+for k, h in H.items():
+    lay = h.groupby("layer").f8_p8_k6.mean().sort_values()
+    print(f"  {k}: " + ", ".join(f"L{i} {v:.3f}" for i, v in lay.head(6).items()), "| below 0.5:", list(lay[lay < 0.5].index))
+print("\n(e) certified read at 6 bits: mean rows by layer, top 6")
+for k, g in G.items():
+    g6 = g[g.bits == 6]; lay = g6.groupby("layer").rows.mean().sort_values(ascending=False)
+    print(f"  {k}: groups {len(g6)}, fallback {g6.fallback.mean():.4f}, stop at vote's set {np.mean(np.isclose(g6.rows, g6.rows.min())):.3f}; " + ", ".join(f"L{i} {v:.3f}" for i, v in lay.head(6).items()))
+print("\n(b) Theorem M exact at 4 bits: nn/m_pred distribution")
+for k, h in H.items():
+    ok = h.m_pred_k4 > 0; rn = (h.nn_k4[ok] / h.m_pred_k4[ok]).values
+    s = np.sort(rn); top = s[-max(1, len(s)//1000):].sum() / s.sum()
+    lay = (h[ok].assign(rn=rn).groupby("layer").rn.mean())
+    print(f"  {k}: n {len(rn):,}, mean {rn.mean():.4f}, median {np.median(rn):.3f}, p99 {np.quantile(rn,.99):.2f}, max {rn.max():.1f}, top 0.1% carries {top:.3f} of the sum; layers mean min/max {lay.min():.3f}/{lay.max():.3f} (L{lay.idxmin()}, L{lay.idxmax()})")
+    for kb in (6, 8):
+        ok = h[f"m_pred_k{kb}"] > 0; r = (h[f"nn_k{kb}"][ok] / h[f"m_pred_k{kb}"][ok]).values
+        print(f"     {kb} bits: mean {r.mean():.4f}, p99 {np.quantile(r,.99):.2f}, max {r.max():.1f}")
+json.dump({}, open(os.devnull, "w"))
+# (c) panel B seed 0 vs R6 on the same units
+print("\n(c) panel B: R7a seed 0 vs R6 on the same (task, prompt) units, mean KL per token")
+r6dirs = {"llama128": glob.glob(f"{R}/r14s1h_h6llama128_*"), "qwen32": glob.glob(f"{R}/r14s1h_h6qwen32_*")}
+for k, ms in M.items():
+    m = pd.concat(ms, ignore_index=True)
+    r6 = []
+    for d in r6dirs[k]:
+        for f in glob.glob(d + "/s1h_evaluate_*.parquet"):
+            x = pd.read_parquet(f); r6.append(x.assign(block=os.path.basename(d)))
+    r6 = pd.concat(r6, ignore_index=True)
+    for task in sorted(m.task.unique()):
+        units = m[m.task == task].prompt_idx.unique()
+        row = []
+        for arm in ("dtail6ux_v4", "fp8kv"):
+            a = m[(m.task == task) & (m.arm == arm)].set_index("prompt_idx").kl_span_tok
+            b = r6[(r6.task == task) & (r6.arm == arm) & (r6.prompt_idx.isin(units))]
+            b = b[np.isclose(b.B.astype(float), 0.125)] if arm == "dtail6ux_v4" else b
+            b = b.groupby("prompt_idx").kl_span_tok.mean()
+            idx = a.index.intersection(b.index)
+            if len(idx): row.append(f"{arm}: R7a {a.loc[idx].mean():.2e} vs R6 {b.loc[idx].mean():.2e} (n {len(idx)}, corr {np.corrcoef(a.loc[idx], b.loc[idx])[0,1]:.2f})")
+            else: row.append(f"{arm}: no R6 match")
+        print(f"  {k} {task}: " + "; ".join(row))

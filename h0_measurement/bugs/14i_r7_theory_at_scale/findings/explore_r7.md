@@ -6,7 +6,8 @@
 - `predictions_from_r6.json`.
 
 Views are in `../.views/` (re-captured here, not copied). The 1.6K Llama-3.1-8B L1 capture equals
-`../../14h_theory/.views/view_llama8b_L1_1600.pt` to fp32 rounding (2.4·10⁻⁷).
+`../../14h_theory/.views/view_llama8b_L1_1600.pt` to fp32 rounding (2.4·10⁻⁷). (That view moved to
+`../../14_logs/14h_theory/views/` on 2026-10-22. R7a's own `../.views/` is no longer on disk.)
 
 ## Setup
 

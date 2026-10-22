@@ -1,0 +1,51 @@
+{
+ "verdict": "PASS",
+ "problems": [],
+ "pilots": [
+  "r7llama128_pilot:1080289",
+  "r7kllama128_pilot:1080290"
+ ],
+ "seconds_per_unit": {
+  "probe": 503.48568511009216,
+  "kl": 134.18993425369263
+ },
+ "projected_block_h": {
+  "l-r1": 3.05,
+  "l-r3a": 3.05,
+  "l-agg": 1.65,
+  "l-hm": 3.75,
+  "w-hm": 3.65,
+  "lk-rr": 0.62,
+  "lk-mv": 0.62,
+  "lk-ret": 0.62
+ },
+ "peak_gib": 55.88349914550781,
+ "coverage_min": {
+  "r7llama128_pilot": {
+   "cov_v2_k4": [
+    0,
+    65536
+   ],
+   "cov_p8_k4": [
+    0,
+    65536
+   ],
+   "cov_v2_k6": [
+    0,
+    163840
+   ],
+   "cov_p8_k6": [
+    0,
+    163840
+   ],
+   "cov_v2_k8": [
+    0,
+    98304
+   ],
+   "cov_p8_k8": [
+    0,
+    98304
+   ]
+  }
+ }
+}

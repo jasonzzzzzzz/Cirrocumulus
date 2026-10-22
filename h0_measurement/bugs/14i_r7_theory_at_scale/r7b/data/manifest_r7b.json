@@ -1,0 +1,4919 @@
+{
+ "base_manifest": {
+  "first_items_equal": 41,
+  "path": "h0_measurement/bugs/14h_methodology_improve/data/r6/manifest_r6.json",
+  "sha256": "48f4f9b1e11c464b41a71d9337e0c6b40fd37cc890758406c2647310ab1f3a7e"
+ },
+ "cells": {
+  "helmet/llama31-8b/131072": {
+   "icl_banking77": [
+    [
+     "076bb01d208c35e6",
+     107675,
+     0
+    ],
+    [
+     "0c2e9f6deb522653",
+     108690,
+     0
+    ],
+    [
+     "c57b1f7fccc041be",
+     107840,
+     0
+    ],
+    [
+     "cf4bd4c31bcd42eb",
+     108461,
+     0
+    ],
+    [
+     "0a97ae334ba43aef",
+     108140,
+     0
+    ],
+    [
+     "16bc1487ef767b7c",
+     108180,
+     0
+    ],
+    [
+     "f3b7b46e7249c36b",
+     107804,
+     0
+    ],
+    [
+     "855cc79bc8459616",
+     108163,
+     0
+    ],
+    [
+     "3be489f1c63e04ba",
+     108324,
+     0
+    ],
+    [
+     "ba65c747ddf858d5",
+     107936,
+     0
+    ],
+    [
+     "cc5adb20381ced4d",
+     108530,
+     0
+    ],
+    [
+     "ef6c2d2941cb62a2",
+     107941,
+     0
+    ],
+    [
+     "e91a251afc1d3acf",
+     108130,
+     0
+    ],
+    [
+     "09a2092b3f826681",
+     108168,
+     0
+    ],
+    [
+     "e3ca73aa8458cf51",
+     107207,
+     0
+    ],
+    [
+     "ad93b42c29ac13b0",
+     107826,
+     0
+    ],
+    [
+     "eea10d68d46c2ce7",
+     108155,
+     0
+    ],
+    [
+     "c6ac28e1628c0219",
+     108169,
+     0
+    ],
+    [
+     "a44419f4a4f1cad3",
+     107393,
+     0
+    ],
+    [
+     "35d8a5d7705e25cd",
+     108221,
+     0
+    ],
+    [
+     "614b085ded08f211",
+     107246,
+     0
+    ],
+    [
+     "3bfdce6ddfea2926",
+     108170,
+     0
+    ],
+    [
+     "208b80dbc2147d00",
+     108473,
+     0
+    ],
+    [
+     "753420620b96d973",
+     108123,
+     0
+    ],
+    [
+     "b8dc6cc56a7e24af",
+     108911,
+     0
+    ],
+    [
+     "d56e339be8ae444c",
+     108429,
+     0
+    ],
+    [
+     "5d4d17c84c874b92",
+     107655,
+     0
+    ],
+    [
+     "4b80ae301c1a870f",
+     107747,
+     0
+    ],
+    [
+     "f2b3cf539f90e41c",
+     108299,
+     0
+    ],
+    [
+     "cacef4b8c4be4fc7",
+     107481,
+     0
+    ],
+    [
+     "7712f8e44c45c1b5",
+     107942,
+     0
+    ],
+    [
+     "d16df1cf5d30c451",
+     107613,
+     0
+    ],
+    [
+     "55978e69f61ef230",
+     108646,
+     0
+    ],
+    [
+     "c76100e94b3e2634",
+     108774,
+     0
+    ],
+    [
+     "4eb73f08cbc4de12",
+     108547,
+     0
+    ],
+    [
+     "5765b816759eaa27",
+     108673,
+     0
+    ],
+    [
+     "abe11b0188431fad",
+     108948,
+     0
+    ],
+    [
+     "8cba5b00579e08fa",
+     108066,
+     0
+    ],
+    [
+     "6d00a42e2232ce55",
+     107451,
+     0
+    ],
+    [
+     "54b4a54a166ccf24",
+     107450,
+     0
+    ],
+    [
+     "43118cb2d6c56029",
+     108062,
+     0
+    ],
+    [
+     "94ffbc4cb095925c",
+     107928,
+     0
+    ],
+    [
+     "42b6b915571a8847",
+     108264,
+     0
+    ],
+    [
+     "8b5d7bb523dbc5aa",
+     107778,
+     0
+    ],
+    [
+     "ca3298dc07b20cf2",
+     108557,
+     0
+    ],
+    [
+     "7094cff8efadfbba",
+     108005,
+     0
+    ],
+    [
+     "f26e534a47b8da6b",
+     107697,
+     0
+    ],
+    [
+     "db6ea203485d6ec8",
+     108577,
+     0
+    ],
+    [
+     "cf3546427578229b",
+     107849,
+     0
+    ],
+    [
+     "b718ea80aafdb2ee",
+     107921,
+     0
+    ],
+    [
+     "c2d624c45420c8bb",
+     107481,
+     0
+    ],
+    [
+     "346fbee906af004e",
+     108028,
+     0
+    ],
+    [
+     "614a049dd2e8151b",
+     108474,
+     0
+    ],
+    [
+     "2d4b4b247bf6e99e",
+     108079,
+     0
+    ],
+    [
+     "848da931b4897493",
+     107240,
+     0
+    ],
+    [
+     "a69cfe95f1badd04",
+     107937,
+     0
+    ],
+    [
+     "8405af70adb4fbea",
+     107869,
+     0
+    ],
+    [
+     "392aef7534491299",
+     108325,
+     0
+    ],
+    [
+     "766f3a0ebe7c8b70",
+     108601,
+     0
+    ],
+    [
+     "629eee1f87b298ab",
+     108171,
+     0
+    ],
+    [
+     "cb91c7d20c620d53",
+     108238,
+     0
+    ],
+    [
+     "6d98d74c11782b60",
+     108415,
+     0
+    ],
+    [
+     "1b5a80d09a890ffd",
+     107753,
+     0
+    ],
+    [
+     "0042319bc14805c4",
+     107877,
+     0
+    ],
+    [
+     "a187dfb742060930",
+     108068,
+     0
+    ],
+    [
+     "37b1d5bb6881c8ab",
+     107560,
+     0
+    ],
+    [
+     "10afe1ce59894ae6",
+     107551,
+     0
+    ],
+    [
+     "84ca848c32df1221",
+     108378,
+     0
+    ],
+    [
+     "58f745c4bcf38266",
+     107598,
+     0
+    ],
+    [
+     "5b68d1e1b0c698bd",
+     107463,
+     0
+    ],
+    [
+     "786b11950de67e31",
+     107782,
+     0
+    ],
+    [
+     "9fc3ac866e4d1072",
+     108544,
+     0
+    ],
+    [
+     "f60f4551c149dd59",
+     108207,
+     0
+    ],
+    [
+     "358ec8975e9689e7",
+     108876,
+     0
+    ],
+    [
+     "2e1036e6994d5507",
+     107373,
+     0
+    ],
+    [
+     "ba522caeb1ff230b",
+     107842,
+     0
+    ],
+    [
+     "3acfda492a5cc981",
+     107788,
+     0
+    ],
+    [
+     "64d485d6856f65c1",
+     107324,
+     0
+    ],
+    [
+     "a0f5899593577808",
+     108381,
+     0
+    ],
+    [
+     "f9c30997b7bc4e17",
+     108766,
+     0
+    ],
+    [
+     "2ed5c02f56b422b3",
+     107908,
+     0
+    ],
+    [
+     "2cd154a054ad790f",
+     108508,
+     0
+    ],
+    [
+     "7a475d6445b9338f",
+     108641,
+     0
+    ],
+    [
+     "5b55cfddcfc2042e",
+     108544,
+     0
+    ],
+    [
+     "ce0c940399b21f35",
+     107825,
+     0
+    ],
+    [
+     "7656a70332b53c76",
+     108551,
+     0
+    ],
+    [
+     "df0c17d00b174705",
+     107532,
+     0
+    ],
+    [
+     "7171078011704dbb",
+     108726,
+     0
+    ],
+    [
+     "7af4b5dc2600c8cc",
+     108517,
+     0
+    ],
+    [
+     "e4d4fffacc5c7c41",
+     107784,
+     0
+    ],
+    [
+     "cef2ac1c6c1810f6",
+     108597,
+     0
+    ],
+    [
+     "b06f4f71acc7cc67",
+     108614,
+     0
+    ],
+    [
+     "14f23ef89e3c6d24",
+     108027,
+     0
+    ],
+    [
+     "b030a54027d462e3",
+     108484,
+     0
+    ],
+    [
+     "4149b00a0600574c",
+     107702,
+     0
+    ],
+    [
+     "8311df06473e5913",
+     107575,
+     0
+    ],
+    [
+     "f82178d3c3e58199",
+     108693,
+     0
+    ],
+    [
+     "c3c2dd774ae31715",
+     107967,
+     0
+    ],
+    [
+     "fc8a5f5bd8c53490",
+     108012,
+     0
+    ],
+    [
+     "c60c77c16c866745",
+     107701,
+     0
+    ],
+    [
+     "b3f75d9819ec0cc9",
+     108813,
+     0
+    ],
+    [
+     "e82b98c222788fc7",
+     108222,
+     0
+    ],
+    [
+     "e2877f57e1dff8a8",
+     108428,
+     0
+    ],
+    [
+     "20e0db7271dcb549",
+     108496,
+     0
+    ],
+    [
+     "99a058583608de80",
+     107730,
+     0
+    ],
+    [
+     "66d15f371cb38c34",
+     108355,
+     0
+    ],
+    [
+     "6afa331f43ceeb69",
+     108083,
+     0
+    ],
+    [
+     "84a4f7785e708bd5",
+     109069,
+     0
+    ],
+    [
+     "a4e57e293417a451",
+     108041,
+     0
+    ],
+    [
+     "30ddb9240aa5641f",
+     108818,
+     0
+    ],
+    [
+     "5a351b7c1ff89c20",
+     107928,
+     0
+    ]
+   ],
+   "icl_trec_coarse": [
+    [
+     "e40035b9beb5d276",
+     106144,
+     0
+    ],
+    [
+     "60af75e02b0c8903",
+     106247,
+     0
+    ],
+    [
+     "4d89eb3dedc0a3f6",
+     106256,
+     0
+    ],
+    [
+     "ba596ff6c54b2c49",
+     106159,
+     0
+    ],
+    [
+     "5902fbfe31c9915d",
+     106136,
+     0
+    ],
+    [
+     "21f0b2df5a63bb49",
+     106092,
+     0
+    ],
+    [
+     "390b4d16b3b9d9dd",
+     106183,
+     0
+    ],
+    [
+     "dafe4c3ebf85739b",
+     105920,
+     0
+    ],
+    [
+     "8612975439a932bf",
+     106145,
+     0
+    ],
+    [
+     "9d8c189fa6359aae",
+     106228,
+     0
+    ],
+    [
+     "9a4e1a2c0ac0e72a",
+     106009,
+     0
+    ],
+    [
+     "186beb5f1f0ebe3e",
+     106149,
+     0
+    ],
+    [
+     "4c31bbb86d8a91df",
+     106295,
+     0
+    ],
+    [
+     "4c8c08b6931d902a",
+     106334,
+     0
+    ],
+    [
+     "9f18097cad0d17e4",
+     106300,
+     0
+    ],
+    [
+     "9a1f6ec0b9a555b1",
+     106036,
+     0
+    ],
+    [
+     "d79a5170c1176e99",
+     106217,
+     0
+    ],
+    [
+     "22706a087664ad66",
+     105921,
+     0
+    ],
+    [
+     "fb77b8141c2e91c9",
+     105949,
+     0
+    ],
+    [
+     "3455adde38c0bf46",
+     106180,
+     0
+    ],
+    [
+     "dfd4a55c29315fbb",
+     106067,
+     0
+    ],
+    [
+     "d2df0cf076f1a1a4",
+     105943,
+     0
+    ],
+    [
+     "549012f95a9fdf5f",
+     106155,
+     0
+    ],
+    [
+     "bb66ff496b2f82fa",
+     105809,
+     0
+    ],
+    [
+     "105b4e2a40951f49",
+     105931,
+     0
+    ],
+    [
+     "8fa4b27b1c34345d",
+     105951,
+     0
+    ],
+    [
+     "d1fd6f40e0e258ed",
+     106082,
+     0
+    ],
+    [
+     "85a42fd0c5afa8db",
+     106100,
+     0
+    ],
+    [
+     "22959e02eed000b2",
+     106278,
+     0
+    ],
+    [
+     "af61f238997c535a",
+     106110,
+     0
+    ],
+    [
+     "b3132afa20965261",
+     106263,
+     0
+    ],
+    [
+     "16da083cc0f0619b",
+     106255,
+     0
+    ],
+    [
+     "e35eb8ea33d7b223",
+     106194,
+     0
+    ],
+    [
+     "cf455e6da5393fbf",
+     106038,
+     0
+    ],
+    [
+     "bf67fbf4c7fcc760",
+     106238,
+     0
+    ],
+    [
+     "4b3963b9429a45b0",
+     106116,
+     0
+    ],
+    [
+     "dcdc6b7b06b3a3cc",
+     106138,
+     0
+    ],
+    [
+     "a0945041908aa02e",
+     106195,
+     0
+    ],
+    [
+     "dc31d04795f65ae7",
+     106079,
+     0
+    ],
+    [
+     "89ab599d985ed0df",
+     106153,
+     0
+    ],
+    [
+     "c6f6558b8b4be629",
+     106164,
+     0
+    ],
+    [
+     "2272024ae392083f",
+     106241,
+     0
+    ],
+    [
+     "548402970628af6f",
+     106260,
+     0
+    ],
+    [
+     "bb7cf704b921e0bc",
+     105986,
+     0
+    ],
+    [
+     "c9b1d33c376e51c6",
+     106385,
+     0
+    ],
+    [
+     "132fa684e7401bd8",
+     106056,
+     0
+    ],
+    [
+     "7a8b67fb897f8c1f",
+     106222,
+     0
+    ],
+    [
+     "4d04ad21f062b068",
+     105928,
+     0
+    ],
+    [
+     "8758e1d213fb0330",
+     106073,
+     0
+    ],
+    [
+     "bd4ae883dfba4d49",
+     106002,
+     0
+    ],
+    [
+     "5d4933b10078b123",
+     106165,
+     0
+    ],
+    [
+     "e3c3786021dc1f52",
+     106140,
+     0
+    ],
+    [
+     "e1cad0623a507c90",
+     106194,
+     0
+    ],
+    [
+     "d8193f8054fef064",
+     106146,
+     0
+    ],
+    [
+     "d0caa6aef285fda7",
+     106154,
+     0
+    ],
+    [
+     "66c0234e55621673",
+     106126,
+     0
+    ],
+    [
+     "36284e94e5952ebe",
+     106003,
+     0
+    ],
+    [
+     "98686b2cb4f56faf",
+     106141,
+     0
+    ],
+    [
+     "429efa043861af74",
+     106107,
+     0
+    ],
+    [
+     "168a2e829f240d52",
+     106135,
+     0
+    ],
+    [
+     "53ec344bb9b1461f",
+     106144,
+     0
+    ],
+    [
+     "0e377f6c5e055eac",
+     106025,
+     0
+    ],
+    [
+     "243bd84c5c93d086",
+     106212,
+     0
+    ],
+    [
+     "7508900c032c7a5b",
+     106124,
+     0
+    ],
+    [
+     "cccbddb18f8598c1",
+     106211,
+     0
+    ],
+    [
+     "df0028ac4593a391",
+     106197,
+     0
+    ],
+    [
+     "3663c854f26482ca",
+     106225,
+     0
+    ],
+    [
+     "910e7c250c433569",
+     106026,
+     0
+    ],
+    [
+     "db60dfa178e5b545",
+     106059,
+     0
+    ],
+    [
+     "6ac59b3016af13bc",
+     105857,
+     0
+    ],
+    [
+     "339f6b8113c6a49f",
+     106132,
+     0
+    ],
+    [
+     "a79104cc88bf5849",
+     106089,
+     0
+    ],
+    [
+     "e1c94c551f975a01",
+     105945,
+     0
+    ],
+    [
+     "0a36d46529fe926c",
+     106231,
+     0
+    ],
+    [
+     "bbab3760dbd96d58",
+     105871,
+     0
+    ],
+    [
+     "7bc329e414bae8b9",
+     106207,
+     0
+    ],
+    [
+     "920657cf6986708e",
+     106050,
+     0
+    ],
+    [
+     "f3c89cbd7b99f8ae",
+     106158,
+     0
+    ],
+    [
+     "22b5fabfe42f341f",
+     106026,
+     0
+    ],
+    [
+     "b25ecdd5d132f33a",
+     106057,
+     0
+    ],
+    [
+     "fd31b1d8811d525b",
+     106259,
+     0
+    ],
+    [
+     "7679b57c000a34e9",
+     106362,
+     0
+    ],
+    [
+     "284966f5eefb63c5",
+     106139,
+     0
+    ],
+    [
+     "54297cbf30b21646",
+     105982,
+     0
+    ],
+    [
+     "1348198e458ed38d",
+     105967,
+     0
+    ],
+    [
+     "3070a1e6006da4fb",
+     106235,
+     0
+    ],
+    [
+     "d54e0cbe2e50c00a",
+     106067,
+     0
+    ],
+    [
+     "9a12a1b13b2d32e3",
+     106056,
+     0
+    ],
+    [
+     "f7a10abea481758f",
+     106001,
+     0
+    ],
+    [
+     "2cfb43edc6e30e7f",
+     106054,
+     0
+    ],
+    [
+     "6c9c83a01b6892a1",
+     106122,
+     0
+    ],
+    [
+     "be1bf45711693db2",
+     106124,
+     0
+    ],
+    [
+     "e18dbd94f3cbbfe6",
+     106096,
+     0
+    ],
+    [
+     "ef422ddf01fbfefe",
+     106176,
+     0
+    ],
+    [
+     "dff2b7dd36af6ea6",
+     106123,
+     0
+    ],
+    [
+     "be377f75709509cd",
+     106179,
+     0
+    ],
+    [
+     "65c273b996b1869b",
+     106121,
+     0
+    ],
+    [
+     "e1cd9cd28247035b",
+     106071,
+     0
+    ],
+    [
+     "d02c193ac9b1e33e",
+     106020,
+     0
+    ],
+    [
+     "972fe3593eee9f53",
+     105993,
+     0
+    ],
+    [
+     "c0837a21350c3f5f",
+     106055,
+     0
+    ],
+    [
+     "e0e4093ea498af37",
+     106076,
+     0
+    ],
+    [
+     "8d29ed3b2cf32026",
+     106190,
+     0
+    ],
+    [
+     "ddf72bcc12393e67",
+     106026,
+     0
+    ],
+    [
+     "2499778fc1c8d5de",
+     106035,
+     0
+    ],
+    [
+     "21ff78b0212fdfda",
+     106256,
+     0
+    ],
+    [
+     "7d2c0464f50814e2",
+     106309,
+     0
+    ],
+    [
+     "019f4d3cc5930f58",
+     106235,
+     0
+    ],
+    [
+     "b9a880ee35ab19ff",
+     106230,
+     0
+    ],
+    [
+     "ea30d7c9f26d6643",
+     106250,
+     0
+    ],
+    [
+     "4097bc825c77fc80",
+     106112,
+     0
+    ]
+   ],
+   "kilt_hotpotqa": [
+    [
+     "C. Bernard Jackson founded the center that started the career of which actor, who played the part of Marty Castillo in \"Miami Vice\"?",
+     120873,
+     0
+    ],
+    [
+     "What association did the woman whose museum is located in the Bolling\u2013Gatewood House help found?",
+     121591,
+     0
+    ],
+    [
+     "Is The Devils of Loudun and Maskarade both operas?",
+     129899,
+     0
+    ],
+    [
+     "A Hand Is on the Gate marked the Broadway directorial debut of what American actor who resisted playing stereotypically black roles?",
+     124133,
+     0
+    ],
+    [
+     "What country of origin does The Late Late Show and Craig Kilborn have in common?",
+     118982,
+     0
+    ],
+    [
+     "Which is located in Cornwall, Southwell Minster or Truro Cathedral?",
+     123426,
+     0
+    ],
+    [
+     "Peter Marc Jacobson is best known as the co-creator of the popular sitcom \"The Nanny\", which he created and wrote with his then wife an actress born in which year ?",
+     119638,
+     0
+    ],
+    [
+     "Which pizza shop opened first, Toppers Pizza or America's Incredible Pizza Company?",
+     117808,
+     0
+    ],
+    [
+     "Alfie Allen played Theon Greyjoy on which show?",
+     124795,
+     0
+    ],
+    [
+     "Ross Pople worked with this French dominant figure of the post-war classical music world.",
+     131052,
+     976
+    ],
+    [
+     "What is the nationality of the poet who wrote Une Tempete and first performed it in Tunisia?",
+     131052,
+     1608
+    ],
+    [
+     "Who was the founder of the network on which the Pakistani drama serial \"Meri Beti\" aired?",
+     131052,
+     3777
+    ],
+    [
+     "Both The Badgeman and +44 were bands concieved in which country?",
+     118756,
+     0
+    ],
+    [
+     "The singer known as the \"Ballad Prince\" was on a romantic comedy that aired on what state-run channel from August 11 to September 30, 2010?",
+     126156,
+     0
+    ],
+    [
+     "Do the bands 3OH!3 and Moonbabies have the same number of members?",
+     117890,
+     0
+    ],
+    [
+     "Where was the private university that Alan Hurwitz served as the 10th President located?",
+     122430,
+     0
+    ],
+    [
+     "When was the British author who wrote the novel on which \"Here We Go Round the Mulberry Bush\" was based born? ",
+     120705,
+     0
+    ],
+    [
+     "Where is the magazine headquartered that Robert W. McElroy writes for?",
+     111644,
+     0
+    ],
+    [
+     "A Troll in Central Park and All Dogs Go to Heaven were both directed by which person?",
+     119013,
+     0
+    ],
+    [
+     "What NHL team drafted Kaspars Astasenko in 1999 and won the Stanley Cup in 2003-04?",
+     129802,
+     0
+    ],
+    [
+     "In what city is the mortgage lending company, founded by Dan Gilbert, headquartered?",
+     118745,
+     0
+    ],
+    [
+     "what year did the band that sang Gives You Hell form?",
+     115253,
+     0
+    ],
+    [
+     "Camp Modin moved to the Belgrade Lakes region of Maine from its previous location in what Maine county?",
+     120903,
+     0
+    ],
+    [
+     "Who is affiliated with more countries as a director, Robert Florey and R. G. Springsteen?",
+     109263,
+     0
+    ],
+    [
+     "what is the principal activity of the company  which holds that which  Robert Melville previously worked with",
+     120760,
+     0
+    ],
+    [
+     "Which singer is younger, Terri Nunn or Sonya Scarlet? ",
+     117500,
+     0
+    ],
+    [
+     "Which genus has more species, Monstera or Cercis?",
+     117136,
+     0
+    ],
+    [
+     "Which Record Company reissued an Avenged Sevenfold Album that only sold 300 copies?",
+     119622,
+     0
+    ],
+    [
+     "The Porsche 968 was the last in a line of front-engined sports cars following the 944 and which earlier model?",
+     127468,
+     0
+    ],
+    [
+     "Arthur Noss was a gunner for the commader during which two European theatre battles in WWII?",
+     129129,
+     0
+    ],
+    [
+     "Who was a member of \"Cheney\", who won 'Song of the Year' in 2009, Chris Cheney or Mikael \u00c5kerfeldt?",
+     121323,
+     0
+    ],
+    [
+     "In the CBS television sitcome Double Rush, Johnny Verona, manager of a bicycle delivery service in New York City was played by an actor of what nationality?",
+     122863,
+     0
+    ],
+    [
+     "In what century did this Native warrior and chief, whose brother Tenskwatawa led the Tippecanoe order of battle, become the primary leader of a large, multi tribal confederacy?",
+     130485,
+     0
+    ],
+    [
+     "When did Senator Ted Kennedy helped dedicate a new room at the location to his maternal grandfather, John F. Fitzgerald.",
+     120844,
+     0
+    ],
+    [
+     "What album was released by 1948-born French composer in 1998?",
+     131052,
+     2414
+    ],
+    [
+     "Who was born first, Little Feat's Lowell George, or Ian Hunter from Mott the Hoople?",
+     122230,
+     0
+    ],
+    [
+     "Who starred alongside South Korean actor and singer Kim Ki-bum in the 2012 romantic comedy series I Love Lee Tae-ri?",
+     120207,
+     0
+    ],
+    [
+     "The song \"Only a Pawn in Their Game\" was based on a crime whose perpetrator was convicted in this year.",
+     113455,
+     0
+    ],
+    [
+     "Were Enrique Carreras and Lionel Ngakane both filmakers during the 20th century? ",
+     116193,
+     0
+    ],
+    [
+     "An actor who appeared in all eight \"American Pie Films\" stared alongside which actor in Armed and Dangerous? ",
+     119810,
+     0
+    ],
+    [
+     "Sony/Philips Digital Interface Format can transmit over what Toshiba optical fiber connector system?",
+     119443,
+     0
+    ],
+    [
+     "Who is the lead vocalist for Maroon 5's sixth studio album?",
+     121030,
+     0
+    ],
+    [
+     "Are Jerome Storm and Andr\u00e9s Wood from the same country?",
+     107705,
+     0
+    ],
+    [
+     "What author wrote a three book series of memoirs that are studied in school systems around the world?",
+     118543,
+     0
+    ],
+    [
+     "How many novels are there in series of novels which were adapted for a 2015 BBC TV  series in which Ruby Bentall plays a character called Verity ?",
+     121959,
+     0
+    ],
+    [
+     "Which of these is further south in China, the Pulandian District or Kaiyuan, Liaoning?",
+     120635,
+     0
+    ],
+    [
+     "Which North American tribe inhabited the banks of the Winnipesaukee River and were also known as the Pawtucket people?",
+     131051,
+     1849
+    ],
+    [
+     "San Francisco National Cemetery is located at a park that is part of what National Recreation Area?",
+     115188,
+     0
+    ],
+    [
+     "In what year was the 1965 World Series MVP elected to the Baseball Hall of Fame?",
+     125708,
+     0
+    ],
+    [
+     "Who was born first out of  Thomas Carr and Joyce Wieland?",
+     105187,
+     0
+    ],
+    [
+     "How many members were in the South Korean boy group whose first official sub-unit is Bastarz?",
+     123076,
+     0
+    ],
+    [
+     "The movie \"100 Million BC\" continues the urban myth of an experiment allegedly carried out at waht shipyard?",
+     120654,
+     0
+    ],
+    [
+     "Which Muslim scholar was born first, Kam\u0101l al-D\u012bn al-F\u0101ris\u012b or M. A. Muqtedar Khan?",
+     129060,
+     0
+    ],
+    [
+     "Mount Austin Barracks is located near the Peak Tram terminus at what mountain that is also known as Mount Austin?",
+     122554,
+     0
+    ],
+    [
+     "What team does the new manager who made considerable changes to the Celtic team for the 2010-11 season head coach for?",
+     129175,
+     0
+    ],
+    [
+     "Blackfin is a family of processors developed by the company that is headquartered in what city?",
+     123897,
+     0
+    ],
+    [
+     "Which Lithuanian-Canadian anthropologist, primatologist, conservationist, ethologist, and author was chosen by  Louis Leakey, along with Jane Goodall, Dian Fossey to study hominids in their natural environments?",
+     130856,
+     0
+    ],
+    [
+     " How many acres did this plantation consist of, in which the Honourable The Irish Society was set up to colonise County Londonberry? ",
+     131052,
+     2720
+    ],
+    [
+     "Sachem Central School District encompasses the CDPs that include the hamlet in which New York county?",
+     122598,
+     0
+    ],
+    [
+     "From where was the award which has Matt James as a winner in 2012 has its name derived? ",
+     109917,
+     0
+    ],
+    [
+     "Who was born earlier, Johnny Lujack or Jim Kelly?",
+     108270,
+     0
+    ],
+    [
+     "Pawnography, featuring Richard Corey Harrison, is filmed in what shop and town?",
+     115869,
+     0
+    ],
+    [
+     "New Hampshire Route 118 runs through a region whose norther boundary begins at which town?",
+     124357,
+     0
+    ],
+    [
+     "Stockely Webster has paintings hanging in what home (that serves as the residence for the Mayor of New York)?",
+     120341,
+     0
+    ],
+    [
+     "What forim is Nicholas Dante most famous for writing in, musical, such as \"A Chorus Line\", or epic verse like \"Inferno\"?",
+     124138,
+     0
+    ],
+    [
+     "Which movie was released first, Fantastic Mr. Fox or Khan Kluay?",
+     116771,
+     0
+    ],
+    [
+     "What famous pawn shop do Richard Kevin Harrison and Core Harrison own?",
+     115068,
+     0
+    ],
+    [
+     "Who starred as a divorced mother in an American sitcom produced by Danny Bonaduce's father?",
+     120396,
+     0
+    ],
+    [
+     "Victor Koman's Ph.D.  in Information Technology was conferred by a university located in which city ?",
+     121606,
+     0
+    ],
+    [
+     "Michael Pollock was was a senior officer in the United Kingdom's naval warfare force, also known as the what?",
+     122129,
+     0
+    ],
+    [
+     "The Lang Labor Party was the group that aligned with the policies of the government that followed what system?",
+     120970,
+     0
+    ],
+    [
+     "Who wrote the 1996 American historical drama film in which William Preston appeared?",
+     118364,
+     0
+    ],
+    [
+     "What profession does Stephen Jay Gould and Ann Beattie have in common?",
+     117878,
+     0
+    ],
+    [
+     "What is the name of the range of characteristics pertaining to, and differentiating between, masculinity and femininity which Mary Karooro Okurut was appointed to in 2012 as Minister of?",
+     123439,
+     0
+    ],
+    [
+     "North American Aviation was the company that created what single-engined training aircraft?",
+     129952,
+     0
+    ],
+    [
+     "Marine Air Control Group 48 is stationed at Naval Station Great Lakes which located where?",
+     129989,
+     0
+    ],
+    [
+     "What team was led to victory in 1939 by a two-time All-American basketball player nicknamed \"Scat\"?",
+     124976,
+     0
+    ],
+    [
+     "Vincas Kudirka is the author of both the music and lyrics of a national anthem which has how many words?",
+     131052,
+     4872
+    ],
+    [
+     "Valais is known for the resort municipality in which district in Switzerland?",
+     125909,
+     0
+    ],
+    [
+     "What characteristics do Rosario Castellanos and Arthur Hailey  share?",
+     114683,
+     0
+    ],
+    [
+     " The Canadian Hot 100 is a music industry record chart in Canada for for a song that is released separately from what?",
+     107905,
+     0
+    ],
+    [
+     "What stadium in Pyongyang, North Korea hosted the Collision in Korea and is also known as the May Day Stadium?",
+     120809,
+     0
+    ],
+    [
+     "What was the name of the hill that was the seat of an estate uphill Aldbury?",
+     125128,
+     0
+    ],
+    [
+     "Who has more singles titles, Brian Gottfried or Peter Fleming?",
+     114292,
+     0
+    ],
+    [
+     "In the Morpeth Arms pub in London, there's a Spying Room with a view overlooking the headquarters of which organisation?",
+     120349,
+     0
+    ],
+    [
+     "In which county was the English rock band formed that released the box set of four studio albums \"Genesis 1983\u20131998\"?",
+     121511,
+     0
+    ],
+    [
+     "When was the earliest film of High School and The Thorn in the Heart shot?",
+     113023,
+     0
+    ],
+    [
+     "Which publication is older, the Stanford Chaparral or Dime Magazine? ",
+     116233,
+     0
+    ],
+    [
+     "Which racecar driver who performed in the 1971 Canadian Grand Prix was born in 1937?",
+     127128,
+     0
+    ],
+    [
+     "Where was the sports complex at which Will Brodie made his debut in the thirty-five point loss against Melbourne located?",
+     124616,
+     0
+    ],
+    [
+     "What is the name of the statue whose replica have been created in many landmarks world-wide such as near Pont de Grenelle in Paris?",
+     127869,
+     0
+    ],
+    [
+     "Bordan Tkachuk was the CEO of a company that provides what sort of products?",
+     124218,
+     0
+    ],
+    [
+     "Who directed more films, Leslie Goodwins or Kenneth Webb?",
+     110120,
+     0
+    ],
+    [
+     "Which son of Rick Barry was born first, Brent Robert Barry or Drew William Barry?",
+     95394,
+     0
+    ],
+    [
+     "Works by Hanna Leena Kristiina Varis are part of a collection in a museum that houses approximately 65,000 what?",
+     131051,
+     7065
+    ],
+    [
+     "Ra\u00fal Arellano played for Mexico in which football tournament in 1954?",
+     127865,
+     0
+    ],
+    [
+     "who has written more than 100 books, Ya\u015far Kemal or Avram Noam Chomsky?",
+     124086,
+     0
+    ],
+    [
+     "Kurt Cobain: Montage of Heck documents the life of Cobain until his suicide in what state?",
+     119847,
+     0
+    ],
+    [
+     "Who was born more recently, Billy Corgan or Jeff Martin?",
+     121207,
+     0
+    ],
+    [
+     "What type of film was the Benn F. Reyes's Dr. Strangelove?",
+     120691,
+     0
+    ],
+    [
+     "In what city does a Christian minister who won the singles title with Jan Kodes in the 1970 French Open currently reside?",
+     129828,
+     0
+    ],
+    [
+     "What Cason, CA soccer team features the son of Roy Lassiter?",
+     124371,
+     0
+    ],
+    [
+     "Are York Minster and Brentwood Cathedral in the same country?",
+     122271,
+     0
+    ],
+    [
+     "Which profession do David Breashears and Richard Bass have in common?",
+     118323,
+     0
+    ],
+    [
+     "Prominent Danish Tibetologist Per Kjeld S\u00f8rensen is a professor of Central Asian Studies at Leipzig University that was founded by who?",
+     131051,
+     1676
+    ],
+    [
+     "What 1958 born American television writer and actress contributed to the writing on I Am Not Homer?",
+     119874,
+     0
+    ],
+    [
+     "What other two divisions of Argentine forces were involved in the war with Britain that incurred losses in aircraft?",
+     128112,
+     0
+    ],
+    [
+     "Are Des Moines International Airport and Grand Canyon National Park Airport both major airline hubs?",
+     113078,
+     0
+    ],
+    [
+     "Who was the head promotor of the singer of \"For The Good Times\"?",
+     121462,
+     0
+    ],
+    [
+     "What stagecoach robber did Frederick John Fulton prosecute?",
+     121844,
+     0
+    ],
+    [
+     "What year was the Leeds football club, which Arthur Hydes played, formed? ",
+     115907,
+     0
+    ]
+   ],
+   "kilt_nq": [
+    [
+     "what was the tower of london originally used for",
+     118757,
+     0
+    ],
+    [
+     "epidemiologists attempt to explain the link between health and variables such as",
+     113980,
+     0
+    ],
+    [
+     "another name for a hairpin bend crossword clue",
+     109243,
+     0
+    ],
+    [
+     "who is the owner of the mandalay bay in vegas",
+     123150,
+     0
+    ],
+    [
+     "where does the story the great gatsby take place",
+     120668,
+     0
+    ],
+    [
+     "who does claire from mcleods daughters end up with",
+     118501,
+     0
+    ],
+    [
+     "dogs name in the grinch who stole christmas",
+     122399,
+     0
+    ],
+    [
+     "what areas of africa were involved in colonization",
+     120940,
+     0
+    ],
+    [
+     "where does porter fly out of in toronto",
+     120517,
+     0
+    ],
+    [
+     "where was the diary of a wimpy kid filmed",
+     119520,
+     0
+    ],
+    [
+     "who sings oh what a night late december back in 63",
+     122760,
+     0
+    ],
+    [
+     "when did the uk and us become allies",
+     117890,
+     0
+    ],
+    [
+     "who played alex cross in along came a spider",
+     119515,
+     0
+    ],
+    [
+     "how many counties does the state of georgia have",
+     123505,
+     0
+    ],
+    [
+     "where was the original flight of the phoenix filmed",
+     120143,
+     0
+    ],
+    [
+     "where did the ancestors of the domestic goat originate",
+     125286,
+     0
+    ],
+    [
+     "who plays manny in diary of a wimpy kid",
+     119078,
+     0
+    ],
+    [
+     "whos jack the ripper in gotham by gaslight",
+     122866,
+     0
+    ],
+    [
+     "when was the last time the los angeles lakers won a championship",
+     125033,
+     0
+    ],
+    [
+     "what is the scientific name for the calf muscle",
+     125870,
+     0
+    ],
+    [
+     "which material is the heaviest in term of density",
+     118971,
+     0
+    ],
+    [
+     "which philosopher advocated the idea of return to nature",
+     121692,
+     0
+    ],
+    [
+     "where does stevia in the raw come from",
+     121063,
+     0
+    ],
+    [
+     "who is the longest railway station in india",
+     125728,
+     0
+    ],
+    [
+     "where did the term hot rod come from",
+     116338,
+     0
+    ],
+    [
+     "which is produced in plants of narora kakrapar tarapur",
+     131052,
+     2704
+    ],
+    [
+     "what football player is called the honey badger",
+     121561,
+     0
+    ],
+    [
+     "who won game 4 of the 2000 nba finals",
+     124456,
+     0
+    ],
+    [
+     "who has the most green jackets from the masters",
+     130505,
+     0
+    ],
+    [
+     "days of our lives cast doug and julie",
+     117986,
+     0
+    ],
+    [
+     "what is the name of the under butler in downton abbey",
+     123560,
+     0
+    ],
+    [
+     "in which country were the two battles of el alamein fought",
+     128256,
+     0
+    ],
+    [
+     "where is the tv show the curse of oak island filmed",
+     116884,
+     0
+    ],
+    [
+     "what do you call initials that stand for something",
+     117132,
+     0
+    ],
+    [
+     "what's the dog's name on tom and jerry",
+     116866,
+     0
+    ],
+    [
+     "when is season 4 of flash coming out",
+     121759,
+     0
+    ],
+    [
+     "actor who plays dr avery on grey's anatomy",
+     121326,
+     0
+    ],
+    [
+     "star cast of ab tumhare hawale watan sathiyon",
+     131052,
+     9652
+    ],
+    [
+     "when did the movie peter pan come out",
+     118335,
+     0
+    ],
+    [
+     "which president supported the creation of the environmental protection agency (epa)",
+     120062,
+     0
+    ],
+    [
+     "how many characters are present in icd-10 codes",
+     117681,
+     0
+    ],
+    [
+     "where does hydrogen peroxide come from in the body",
+     131051,
+     700
+    ],
+    [
+     "when did gaurdians of the galaxy 2 come out",
+     116923,
+     0
+    ],
+    [
+     "who plays lindsay denton in line of duty",
+     118157,
+     0
+    ],
+    [
+     "who had the most governmental power under the articles of confederation",
+     117998,
+     0
+    ],
+    [
+     "computer based models of real life situation are called",
+     110735,
+     0
+    ],
+    [
+     "the fellowship of the ring director's cut length",
+     121064,
+     0
+    ],
+    [
+     "who got the first nobel prize in physics",
+     126339,
+     0
+    ],
+    [
+     "who sings the wire season 5 theme song",
+     115221,
+     0
+    ],
+    [
+     "who has made the most premier league appearances",
+     129309,
+     0
+    ],
+    [
+     "when did jelly beans became associated with easter",
+     117156,
+     0
+    ],
+    [
+     "what word is used to describe knowledge about the universe and method of obtaining that knowledge",
+     115495,
+     0
+    ],
+    [
+     "who did michael showers play on vampire diaries",
+     119896,
+     0
+    ],
+    [
+     "the era of the great mughals began with the accession of",
+     131052,
+     2092
+    ],
+    [
+     "south african tree with thorns on the trunk",
+     131051,
+     1784
+    ],
+    [
+     "who is the quarterback for the green bay packers",
+     121009,
+     0
+    ],
+    [
+     "what do you call a person who officiates a wedding",
+     114868,
+     0
+    ],
+    [
+     "who is the actor that plays sneaky pete",
+     120575,
+     0
+    ],
+    [
+     "what is the full form of cfc's",
+     129594,
+     0
+    ],
+    [
+     "who is the no. 1 ranked tennis player in the world",
+     130989,
+     0
+    ],
+    [
+     "role of malonyl coa in fatty acid synthesis",
+     131052,
+     4706
+    ],
+    [
+     "who sang the them song for as told by ginger",
+     120541,
+     0
+    ],
+    [
+     "what happened to western rome after it fell",
+     123900,
+     0
+    ],
+    [
+     "how many countries in the world have scouts",
+     123983,
+     0
+    ],
+    [
+     "who has the most super bowls in nfl history",
+     122475,
+     0
+    ],
+    [
+     "when was i don't like mondays released",
+     112965,
+     0
+    ],
+    [
+     "who sings the wizards of waverly place theme song",
+     118165,
+     0
+    ],
+    [
+     "where are mucosal associated lymphoid tissues present in the human body and why",
+     127314,
+     0
+    ],
+    [
+     "how many episodes are there in dragon ball z",
+     124023,
+     0
+    ],
+    [
+     "how tall is the actor who plays hagrid in harry potter",
+     122209,
+     0
+    ],
+    [
+     "what year did the golden state warriors win their first nba championship",
+     123820,
+     0
+    ],
+    [
+     "what is the population of fayetteville north carolina",
+     128487,
+     0
+    ],
+    [
+     "who played stonewall jackson in gods and generals",
+     124427,
+     0
+    ],
+    [
+     "most passing yards in nfl history in a game",
+     128025,
+     0
+    ],
+    [
+     "who is credited with creating the gothic art movement",
+     123220,
+     0
+    ],
+    [
+     "where does the coral sea meet the pacific ocean",
+     122215,
+     0
+    ],
+    [
+     "what was the emperor name in star wars",
+     121799,
+     0
+    ],
+    [
+     "when did the song the joker come out",
+     117908,
+     0
+    ],
+    [
+     "where is arachidonic acid found in the body",
+     131052,
+     24006
+    ],
+    [
+     "who sang original i want a hippopotamus for christmas",
+     126070,
+     0
+    ],
+    [
+     "what year did the us hockey team won the olympics",
+     122998,
+     0
+    ],
+    [
+     "who wrote catch 22 (both names)",
+     123516,
+     0
+    ],
+    [
+     "to whom do the powers not given to the federal government by the constitution go",
+     115067,
+     0
+    ],
+    [
+     "what is the official symbol of the carnival of quebec",
+     121475,
+     0
+    ],
+    [
+     "who is the winner of bigg boss kannada season",
+     131051,
+     3741
+    ],
+    [
+     "who sings i don't want to be lonely",
+     117404,
+     0
+    ],
+    [
+     "who does betty end up with on riverdale",
+     117112,
+     0
+    ],
+    [
+     "what does aa on a license plate mean",
+     112787,
+     0
+    ],
+    [
+     "when did the crucifix become the symbol of christianity",
+     120000,
+     0
+    ],
+    [
+     "who won the oscar for best picture in 1976",
+     119076,
+     0
+    ],
+    [
+     "who is nebula on guardians of the galaxy",
+     122573,
+     0
+    ],
+    [
+     "who was the first baseball player to be featured on a postage stamp",
+     127428,
+     0
+    ],
+    [
+     "when did the cubs won a world series",
+     123376,
+     0
+    ],
+    [
+     "when does panic at the disco album come out",
+     119423,
+     0
+    ],
+    [
+     "what is the snow on mars made of",
+     118573,
+     0
+    ],
+    [
+     "who built pedestrian bridge at florida international university",
+     119383,
+     0
+    ],
+    [
+     "name of black man in to kill a mockingbird",
+     118981,
+     0
+    ],
+    [
+     "when do you celebrate birthday if born on feb 29",
+     124453,
+     0
+    ],
+    [
+     "when did the movie napoleon dynamite come out",
+     115257,
+     0
+    ],
+    [
+     "how long do former presidents get secret service protection",
+     118121,
+     0
+    ],
+    [
+     "who sang the song should have been a cowboy",
+     119594,
+     0
+    ],
+    [
+     "who is rose in the fall season 2",
+     117368,
+     0
+    ],
+    [
+     "where will be the next olympics be held",
+     125884,
+     0
+    ],
+    [
+     "who was the captain of the mayflower which brought the pilgrims to plymouth",
+     124791,
+     0
+    ],
+    [
+     "when is last time the astros won the world series",
+     123135,
+     0
+    ],
+    [
+     "i want to be with you everywhere song",
+     107711,
+     0
+    ],
+    [
+     "how long has tom brady been the patriots quarterback",
+     124255,
+     0
+    ],
+    [
+     "who does dwyane wade play for right now",
+     125194,
+     0
+    ],
+    [
+     "how oxygenated blood returns to the heart from the lungs",
+     123686,
+     0
+    ],
+    [
+     "who invented the first computer game in 1962 and what was the name of the game",
+     120850,
+     0
+    ],
+    [
+     "who played in the stanley cup finals last year",
+     123332,
+     0
+    ]
+   ],
+   "msmarco_rerank_psg": [
+    [
+     "168216",
+     94965,
+     0
+    ],
+    [
+     "1124210",
+     87539,
+     0
+    ],
+    [
+     "87181",
+     85328,
+     0
+    ],
+    [
+     "1133167",
+     82645,
+     0
+    ],
+    [
+     "47923",
+     94980,
+     0
+    ],
+    [
+     "182539",
+     84436,
+     0
+    ],
+    [
+     "104861",
+     96880,
+     0
+    ],
+    [
+     "1106007",
+     93809,
+     0
+    ],
+    [
+     "489204",
+     84617,
+     0
+    ],
+    [
+     "451602",
+     75103,
+     0
+    ],
+    [
+     "1063750",
+     91519,
+     0
+    ],
+    [
+     "1037798",
+     85736,
+     0
+    ],
+    [
+     "146187",
+     84111,
+     0
+    ],
+    [
+     "148538",
+     94570,
+     0
+    ],
+    [
+     "183378",
+     84021,
+     0
+    ],
+    [
+     "1121402",
+     83163,
+     0
+    ],
+    [
+     "264014",
+     86315,
+     0
+    ],
+    [
+     "490595",
+     79599,
+     0
+    ],
+    [
+     "359349",
+     93888,
+     0
+    ],
+    [
+     "207786",
+     88961,
+     0
+    ],
+    [
+     "1114819",
+     76181,
+     0
+    ],
+    [
+     "19335",
+     72725,
+     0
+    ],
+    [
+     "443396",
+     77168,
+     0
+    ],
+    [
+     "1110199",
+     88034,
+     0
+    ],
+    [
+     "405717",
+     87287,
+     0
+    ],
+    [
+     "87452",
+     82654,
+     0
+    ],
+    [
+     "962179",
+     81247,
+     0
+    ],
+    [
+     "1115776",
+     75172,
+     0
+    ],
+    [
+     "1114646",
+     81294,
+     0
+    ],
+    [
+     "833860",
+     81647,
+     0
+    ],
+    [
+     "1129237",
+     83485,
+     0
+    ],
+    [
+     "1112341",
+     84453,
+     0
+    ],
+    [
+     "1117099",
+     86825,
+     0
+    ],
+    [
+     "573724",
+     75502,
+     0
+    ],
+    [
+     "130510",
+     80345,
+     0
+    ],
+    [
+     "1113437",
+     84544,
+     0
+    ],
+    [
+     "156493",
+     89443,
+     0
+    ],
+    [
+     "527433",
+     86202,
+     0
+    ],
+    [
+     "915593",
+     87668,
+     0
+    ],
+    [
+     "131843",
+     70435,
+     0
+    ],
+    [
+     "1103812",
+     80821,
+     0
+    ]
+   ]
+  },
+  "helmet/qwen3-30b-a3b-2507/131072": {
+   "icl_banking77": [
+    [
+     "076bb01d208c35e6",
+     112893,
+     0
+    ],
+    [
+     "0c2e9f6deb522653",
+     113915,
+     0
+    ],
+    [
+     "c57b1f7fccc041be",
+     113056,
+     0
+    ],
+    [
+     "cf4bd4c31bcd42eb",
+     113677,
+     0
+    ],
+    [
+     "0a97ae334ba43aef",
+     113361,
+     0
+    ],
+    [
+     "16bc1487ef767b7c",
+     113389,
+     0
+    ],
+    [
+     "f3b7b46e7249c36b",
+     113024,
+     0
+    ],
+    [
+     "855cc79bc8459616",
+     113381,
+     0
+    ],
+    [
+     "3be489f1c63e04ba",
+     113556,
+     0
+    ],
+    [
+     "ba65c747ddf858d5",
+     113154,
+     0
+    ],
+    [
+     "cc5adb20381ced4d",
+     113751,
+     0
+    ],
+    [
+     "ef6c2d2941cb62a2",
+     113153,
+     0
+    ],
+    [
+     "e91a251afc1d3acf",
+     113363,
+     0
+    ],
+    [
+     "09a2092b3f826681",
+     113387,
+     0
+    ],
+    [
+     "e3ca73aa8458cf51",
+     112421,
+     0
+    ],
+    [
+     "ad93b42c29ac13b0",
+     113031,
+     0
+    ],
+    [
+     "eea10d68d46c2ce7",
+     113378,
+     0
+    ],
+    [
+     "c6ac28e1628c0219",
+     113386,
+     0
+    ],
+    [
+     "a44419f4a4f1cad3",
+     112619,
+     0
+    ],
+    [
+     "35d8a5d7705e25cd",
+     113440,
+     0
+    ],
+    [
+     "614b085ded08f211",
+     112451,
+     0
+    ],
+    [
+     "3bfdce6ddfea2926",
+     113389,
+     0
+    ],
+    [
+     "208b80dbc2147d00",
+     113700,
+     0
+    ],
+    [
+     "753420620b96d973",
+     113336,
+     0
+    ],
+    [
+     "b8dc6cc56a7e24af",
+     114124,
+     0
+    ],
+    [
+     "d56e339be8ae444c",
+     113654,
+     0
+    ],
+    [
+     "5d4d17c84c874b92",
+     112888,
+     0
+    ],
+    [
+     "4b80ae301c1a870f",
+     112957,
+     0
+    ],
+    [
+     "f2b3cf539f90e41c",
+     113526,
+     0
+    ],
+    [
+     "cacef4b8c4be4fc7",
+     112700,
+     0
+    ],
+    [
+     "7712f8e44c45c1b5",
+     113157,
+     0
+    ],
+    [
+     "d16df1cf5d30c451",
+     112853,
+     0
+    ],
+    [
+     "55978e69f61ef230",
+     113846,
+     0
+    ],
+    [
+     "c76100e94b3e2634",
+     113994,
+     0
+    ],
+    [
+     "4eb73f08cbc4de12",
+     113768,
+     0
+    ],
+    [
+     "5765b816759eaa27",
+     113899,
+     0
+    ],
+    [
+     "abe11b0188431fad",
+     114190,
+     0
+    ],
+    [
+     "8cba5b00579e08fa",
+     113275,
+     0
+    ],
+    [
+     "6d00a42e2232ce55",
+     112670,
+     0
+    ],
+    [
+     "54b4a54a166ccf24",
+     112665,
+     0
+    ],
+    [
+     "43118cb2d6c56029",
+     113288,
+     0
+    ],
+    [
+     "94ffbc4cb095925c",
+     113156,
+     0
+    ],
+    [
+     "42b6b915571a8847",
+     113482,
+     0
+    ],
+    [
+     "8b5d7bb523dbc5aa",
+     113023,
+     0
+    ],
+    [
+     "ca3298dc07b20cf2",
+     113764,
+     0
+    ],
+    [
+     "7094cff8efadfbba",
+     113227,
+     0
+    ],
+    [
+     "f26e534a47b8da6b",
+     112910,
+     0
+    ],
+    [
+     "db6ea203485d6ec8",
+     113803,
+     0
+    ],
+    [
+     "cf3546427578229b",
+     113075,
+     0
+    ],
+    [
+     "b718ea80aafdb2ee",
+     113144,
+     0
+    ],
+    [
+     "c2d624c45420c8bb",
+     112699,
+     0
+    ],
+    [
+     "346fbee906af004e",
+     113243,
+     0
+    ],
+    [
+     "614a049dd2e8151b",
+     113696,
+     0
+    ],
+    [
+     "2d4b4b247bf6e99e",
+     113308,
+     0
+    ],
+    [
+     "848da931b4897493",
+     112460,
+     0
+    ],
+    [
+     "a69cfe95f1badd04",
+     113158,
+     0
+    ],
+    [
+     "8405af70adb4fbea",
+     113096,
+     0
+    ],
+    [
+     "392aef7534491299",
+     113548,
+     0
+    ],
+    [
+     "766f3a0ebe7c8b70",
+     113817,
+     0
+    ],
+    [
+     "629eee1f87b298ab",
+     113375,
+     0
+    ],
+    [
+     "cb91c7d20c620d53",
+     113456,
+     0
+    ],
+    [
+     "6d98d74c11782b60",
+     113618,
+     0
+    ],
+    [
+     "1b5a80d09a890ffd",
+     112968,
+     0
+    ],
+    [
+     "0042319bc14805c4",
+     113093,
+     0
+    ],
+    [
+     "a187dfb742060930",
+     113291,
+     0
+    ],
+    [
+     "37b1d5bb6881c8ab",
+     112779,
+     0
+    ],
+    [
+     "10afe1ce59894ae6",
+     112785,
+     0
+    ],
+    [
+     "84ca848c32df1221",
+     113615,
+     0
+    ],
+    [
+     "58f745c4bcf38266",
+     112815,
+     0
+    ],
+    [
+     "5b68d1e1b0c698bd",
+     112703,
+     0
+    ],
+    [
+     "786b11950de67e31",
+     113004,
+     0
+    ],
+    [
+     "9fc3ac866e4d1072",
+     113771,
+     0
+    ],
+    [
+     "f60f4551c149dd59",
+     113438,
+     0
+    ],
+    [
+     "358ec8975e9689e7",
+     114101,
+     0
+    ],
+    [
+     "2e1036e6994d5507",
+     112589,
+     0
+    ],
+    [
+     "ba522caeb1ff230b",
+     113058,
+     0
+    ],
+    [
+     "3acfda492a5cc981",
+     113024,
+     0
+    ],
+    [
+     "64d485d6856f65c1",
+     112549,
+     0
+    ],
+    [
+     "a0f5899593577808",
+     113611,
+     0
+    ],
+    [
+     "f9c30997b7bc4e17",
+     113987,
+     0
+    ],
+    [
+     "2ed5c02f56b422b3",
+     113130,
+     0
+    ],
+    [
+     "2cd154a054ad790f",
+     113724,
+     0
+    ],
+    [
+     "7a475d6445b9338f",
+     113857,
+     0
+    ],
+    [
+     "5b55cfddcfc2042e",
+     113762,
+     0
+    ],
+    [
+     "ce0c940399b21f35",
+     113052,
+     0
+    ],
+    [
+     "7656a70332b53c76",
+     113787,
+     0
+    ],
+    [
+     "df0c17d00b174705",
+     112755,
+     0
+    ],
+    [
+     "7171078011704dbb",
+     113938,
+     0
+    ],
+    [
+     "7af4b5dc2600c8cc",
+     113741,
+     0
+    ],
+    [
+     "e4d4fffacc5c7c41",
+     113016,
+     0
+    ],
+    [
+     "cef2ac1c6c1810f6",
+     113836,
+     0
+    ],
+    [
+     "b06f4f71acc7cc67",
+     113818,
+     0
+    ],
+    [
+     "14f23ef89e3c6d24",
+     113261,
+     0
+    ],
+    [
+     "b030a54027d462e3",
+     113697,
+     0
+    ],
+    [
+     "4149b00a0600574c",
+     112923,
+     0
+    ],
+    [
+     "8311df06473e5913",
+     112786,
+     0
+    ],
+    [
+     "f82178d3c3e58199",
+     113921,
+     0
+    ],
+    [
+     "c3c2dd774ae31715",
+     113183,
+     0
+    ],
+    [
+     "fc8a5f5bd8c53490",
+     113235,
+     0
+    ],
+    [
+     "c60c77c16c866745",
+     112925,
+     0
+    ],
+    [
+     "b3f75d9819ec0cc9",
+     114021,
+     0
+    ],
+    [
+     "e82b98c222788fc7",
+     113452,
+     0
+    ],
+    [
+     "e2877f57e1dff8a8",
+     113646,
+     0
+    ],
+    [
+     "20e0db7271dcb549",
+     113727,
+     0
+    ],
+    [
+     "99a058583608de80",
+     112956,
+     0
+    ],
+    [
+     "66d15f371cb38c34",
+     113575,
+     0
+    ],
+    [
+     "6afa331f43ceeb69",
+     113299,
+     0
+    ],
+    [
+     "84a4f7785e708bd5",
+     114288,
+     0
+    ],
+    [
+     "a4e57e293417a451",
+     113261,
+     0
+    ],
+    [
+     "30ddb9240aa5641f",
+     114038,
+     0
+    ],
+    [
+     "5a351b7c1ff89c20",
+     113153,
+     0
+    ]
+   ],
+   "icl_trec_coarse": [
+    [
+     "e40035b9beb5d276",
+     107047,
+     0
+    ],
+    [
+     "60af75e02b0c8903",
+     107169,
+     0
+    ],
+    [
+     "4d89eb3dedc0a3f6",
+     107193,
+     0
+    ],
+    [
+     "ba596ff6c54b2c49",
+     107076,
+     0
+    ],
+    [
+     "5902fbfe31c9915d",
+     107016,
+     0
+    ],
+    [
+     "21f0b2df5a63bb49",
+     106998,
+     0
+    ],
+    [
+     "390b4d16b3b9d9dd",
+     107074,
+     0
+    ],
+    [
+     "dafe4c3ebf85739b",
+     106807,
+     0
+    ],
+    [
+     "8612975439a932bf",
+     107041,
+     0
+    ],
+    [
+     "9d8c189fa6359aae",
+     107147,
+     0
+    ],
+    [
+     "9a4e1a2c0ac0e72a",
+     106923,
+     0
+    ],
+    [
+     "186beb5f1f0ebe3e",
+     107078,
+     0
+    ],
+    [
+     "4c31bbb86d8a91df",
+     107210,
+     0
+    ],
+    [
+     "4c8c08b6931d902a",
+     107234,
+     0
+    ],
+    [
+     "9f18097cad0d17e4",
+     107227,
+     0
+    ],
+    [
+     "9a1f6ec0b9a555b1",
+     106956,
+     0
+    ],
+    [
+     "d79a5170c1176e99",
+     107137,
+     0
+    ],
+    [
+     "22706a087664ad66",
+     106819,
+     0
+    ],
+    [
+     "fb77b8141c2e91c9",
+     106834,
+     0
+    ],
+    [
+     "3455adde38c0bf46",
+     107088,
+     0
+    ],
+    [
+     "dfd4a55c29315fbb",
+     106972,
+     0
+    ],
+    [
+     "d2df0cf076f1a1a4",
+     106853,
+     0
+    ],
+    [
+     "549012f95a9fdf5f",
+     107083,
+     0
+    ],
+    [
+     "bb66ff496b2f82fa",
+     106747,
+     0
+    ],
+    [
+     "105b4e2a40951f49",
+     106807,
+     0
+    ],
+    [
+     "8fa4b27b1c34345d",
+     106837,
+     0
+    ],
+    [
+     "d1fd6f40e0e258ed",
+     106992,
+     0
+    ],
+    [
+     "85a42fd0c5afa8db",
+     107014,
+     0
+    ],
+    [
+     "22959e02eed000b2",
+     107201,
+     0
+    ],
+    [
+     "af61f238997c535a",
+     107001,
+     0
+    ],
+    [
+     "b3132afa20965261",
+     107177,
+     0
+    ],
+    [
+     "16da083cc0f0619b",
+     107159,
+     0
+    ],
+    [
+     "e35eb8ea33d7b223",
+     107101,
+     0
+    ],
+    [
+     "cf455e6da5393fbf",
+     106944,
+     0
+    ],
+    [
+     "bf67fbf4c7fcc760",
+     107160,
+     0
+    ],
+    [
+     "4b3963b9429a45b0",
+     107026,
+     0
+    ],
+    [
+     "dcdc6b7b06b3a3cc",
+     107061,
+     0
+    ],
+    [
+     "a0945041908aa02e",
+     107091,
+     0
+    ],
+    [
+     "dc31d04795f65ae7",
+     106980,
+     0
+    ],
+    [
+     "89ab599d985ed0df",
+     107059,
+     0
+    ],
+    [
+     "c6f6558b8b4be629",
+     107049,
+     0
+    ],
+    [
+     "2272024ae392083f",
+     107172,
+     0
+    ],
+    [
+     "548402970628af6f",
+     107177,
+     0
+    ],
+    [
+     "bb7cf704b921e0bc",
+     106895,
+     0
+    ],
+    [
+     "c9b1d33c376e51c6",
+     107299,
+     0
+    ],
+    [
+     "132fa684e7401bd8",
+     106977,
+     0
+    ],
+    [
+     "7a8b67fb897f8c1f",
+     107113,
+     0
+    ],
+    [
+     "4d04ad21f062b068",
+     106811,
+     0
+    ],
+    [
+     "8758e1d213fb0330",
+     106982,
+     0
+    ],
+    [
+     "bd4ae883dfba4d49",
+     106895,
+     0
+    ],
+    [
+     "5d4933b10078b123",
+     107079,
+     0
+    ],
+    [
+     "e3c3786021dc1f52",
+     107018,
+     0
+    ],
+    [
+     "e1cad0623a507c90",
+     107085,
+     0
+    ],
+    [
+     "d8193f8054fef064",
+     107079,
+     0
+    ],
+    [
+     "d0caa6aef285fda7",
+     107083,
+     0
+    ],
+    [
+     "66c0234e55621673",
+     107016,
+     0
+    ],
+    [
+     "36284e94e5952ebe",
+     106883,
+     0
+    ],
+    [
+     "98686b2cb4f56faf",
+     107055,
+     0
+    ],
+    [
+     "429efa043861af74",
+     107038,
+     0
+    ],
+    [
+     "168a2e829f240d52",
+     107042,
+     0
+    ],
+    [
+     "53ec344bb9b1461f",
+     107082,
+     0
+    ],
+    [
+     "0e377f6c5e055eac",
+     106912,
+     0
+    ],
+    [
+     "243bd84c5c93d086",
+     107141,
+     0
+    ],
+    [
+     "7508900c032c7a5b",
+     107014,
+     0
+    ],
+    [
+     "cccbddb18f8598c1",
+     107127,
+     0
+    ],
+    [
+     "df0028ac4593a391",
+     107097,
+     0
+    ],
+    [
+     "3663c854f26482ca",
+     107145,
+     0
+    ],
+    [
+     "910e7c250c433569",
+     106936,
+     0
+    ],
+    [
+     "db60dfa178e5b545",
+     106960,
+     0
+    ],
+    [
+     "6ac59b3016af13bc",
+     106759,
+     0
+    ],
+    [
+     "339f6b8113c6a49f",
+     107054,
+     0
+    ],
+    [
+     "a79104cc88bf5849",
+     106958,
+     0
+    ],
+    [
+     "e1c94c551f975a01",
+     106847,
+     0
+    ],
+    [
+     "0a36d46529fe926c",
+     107117,
+     0
+    ],
+    [
+     "bbab3760dbd96d58",
+     106764,
+     0
+    ],
+    [
+     "7bc329e414bae8b9",
+     107114,
+     0
+    ],
+    [
+     "920657cf6986708e",
+     106958,
+     0
+    ],
+    [
+     "f3c89cbd7b99f8ae",
+     107054,
+     0
+    ],
+    [
+     "22b5fabfe42f341f",
+     106912,
+     0
+    ],
+    [
+     "b25ecdd5d132f33a",
+     106952,
+     0
+    ],
+    [
+     "fd31b1d8811d525b",
+     107151,
+     0
+    ],
+    [
+     "7679b57c000a34e9",
+     107302,
+     0
+    ],
+    [
+     "284966f5eefb63c5",
+     107025,
+     0
+    ],
+    [
+     "54297cbf30b21646",
+     106913,
+     0
+    ],
+    [
+     "1348198e458ed38d",
+     106853,
+     0
+    ],
+    [
+     "3070a1e6006da4fb",
+     107177,
+     0
+    ],
+    [
+     "d54e0cbe2e50c00a",
+     106963,
+     0
+    ],
+    [
+     "9a12a1b13b2d32e3",
+     106951,
+     0
+    ],
+    [
+     "f7a10abea481758f",
+     106918,
+     0
+    ],
+    [
+     "2cfb43edc6e30e7f",
+     106969,
+     0
+    ],
+    [
+     "6c9c83a01b6892a1",
+     107035,
+     0
+    ],
+    [
+     "be1bf45711693db2",
+     107036,
+     0
+    ],
+    [
+     "e18dbd94f3cbbfe6",
+     107023,
+     0
+    ],
+    [
+     "ef422ddf01fbfefe",
+     107092,
+     0
+    ],
+    [
+     "dff2b7dd36af6ea6",
+     107040,
+     0
+    ],
+    [
+     "be377f75709509cd",
+     107092,
+     0
+    ],
+    [
+     "65c273b996b1869b",
+     107035,
+     0
+    ],
+    [
+     "e1cd9cd28247035b",
+     106948,
+     0
+    ],
+    [
+     "d02c193ac9b1e33e",
+     106904,
+     0
+    ],
+    [
+     "972fe3593eee9f53",
+     106904,
+     0
+    ],
+    [
+     "c0837a21350c3f5f",
+     106969,
+     0
+    ],
+    [
+     "e0e4093ea498af37",
+     106956,
+     0
+    ],
+    [
+     "8d29ed3b2cf32026",
+     107111,
+     0
+    ],
+    [
+     "ddf72bcc12393e67",
+     106921,
+     0
+    ],
+    [
+     "2499778fc1c8d5de",
+     106889,
+     0
+    ],
+    [
+     "21ff78b0212fdfda",
+     107139,
+     0
+    ],
+    [
+     "7d2c0464f50814e2",
+     107248,
+     0
+    ],
+    [
+     "019f4d3cc5930f58",
+     107159,
+     0
+    ],
+    [
+     "b9a880ee35ab19ff",
+     107131,
+     0
+    ],
+    [
+     "ea30d7c9f26d6643",
+     107174,
+     0
+    ],
+    [
+     "4097bc825c77fc80",
+     107013,
+     0
+    ]
+   ],
+   "kilt_hotpotqa": [
+    [
+     "C. Bernard Jackson founded the center that started the career of which actor, who played the part of Marty Castillo in \"Miami Vice\"?",
+     125710,
+     0
+    ],
+    [
+     "What association did the woman whose museum is located in the Bolling\u2013Gatewood House help found?",
+     126890,
+     0
+    ],
+    [
+     "Is The Devils of Loudun and Maskarade both operas?",
+     131052,
+     4101
+    ],
+    [
+     "A Hand Is on the Gate marked the Broadway directorial debut of what American actor who resisted playing stereotypically black roles?",
+     129904,
+     0
+    ],
+    [
+     "What country of origin does The Late Late Show and Craig Kilborn have in common?",
+     123933,
+     0
+    ],
+    [
+     "Which is located in Cornwall, Southwell Minster or Truro Cathedral?",
+     129247,
+     0
+    ],
+    [
+     "Peter Marc Jacobson is best known as the co-creator of the popular sitcom \"The Nanny\", which he created and wrote with his then wife an actress born in which year ?",
+     124853,
+     0
+    ],
+    [
+     "Which pizza shop opened first, Toppers Pizza or America's Incredible Pizza Company?",
+     122692,
+     0
+    ],
+    [
+     "Alfie Allen played Theon Greyjoy on which show?",
+     127338,
+     0
+    ],
+    [
+     "Ross Pople worked with this French dominant figure of the post-war classical music world.",
+     131052,
+     7859
+    ],
+    [
+     "What is the nationality of the poet who wrote Une Tempete and first performed it in Tunisia?",
+     131052,
+     8448
+    ],
+    [
+     "Who was the founder of the network on which the Pakistani drama serial \"Meri Beti\" aired?",
+     131052,
+     8206
+    ],
+    [
+     "Both The Badgeman and +44 were bands concieved in which country?",
+     124108,
+     0
+    ],
+    [
+     "The singer known as the \"Ballad Prince\" was on a romantic comedy that aired on what state-run channel from August 11 to September 30, 2010?",
+     131051,
+     1983
+    ],
+    [
+     "Do the bands 3OH!3 and Moonbabies have the same number of members?",
+     122898,
+     0
+    ],
+    [
+     "Where was the private university that Alan Hurwitz served as the 10th President located?",
+     129354,
+     0
+    ],
+    [
+     "When was the British author who wrote the novel on which \"Here We Go Round the Mulberry Bush\" was based born? ",
+     128691,
+     0
+    ],
+    [
+     "Where is the magazine headquartered that Robert W. McElroy writes for?",
+     116334,
+     0
+    ],
+    [
+     "A Troll in Central Park and All Dogs Go to Heaven were both directed by which person?",
+     124088,
+     0
+    ],
+    [
+     "What NHL team drafted Kaspars Astasenko in 1999 and won the Stanley Cup in 2003-04?",
+     131052,
+     8591
+    ],
+    [
+     "In what city is the mortgage lending company, founded by Dan Gilbert, headquartered?",
+     124690,
+     0
+    ],
+    [
+     "what year did the band that sang Gives You Hell form?",
+     119758,
+     0
+    ],
+    [
+     "Camp Modin moved to the Belgrade Lakes region of Maine from its previous location in what Maine county?",
+     125726,
+     0
+    ],
+    [
+     "Who is affiliated with more countries as a director, Robert Florey and R. G. Springsteen?",
+     115539,
+     0
+    ],
+    [
+     "what is the principal activity of the company  which holds that which  Robert Melville previously worked with",
+     126973,
+     0
+    ],
+    [
+     "Which singer is younger, Terri Nunn or Sonya Scarlet? ",
+     122908,
+     0
+    ],
+    [
+     "Which genus has more species, Monstera or Cercis?",
+     119803,
+     0
+    ],
+    [
+     "Which Record Company reissued an Avenged Sevenfold Album that only sold 300 copies?",
+     126633,
+     0
+    ],
+    [
+     "The Porsche 968 was the last in a line of front-engined sports cars following the 944 and which earlier model?",
+     131052,
+     9968
+    ],
+    [
+     "Arthur Noss was a gunner for the commader during which two European theatre battles in WWII?",
+     131052,
+     4258
+    ],
+    [
+     "Who was a member of \"Cheney\", who won 'Song of the Year' in 2009, Chris Cheney or Mikael \u00c5kerfeldt?",
+     126533,
+     0
+    ],
+    [
+     "In the CBS television sitcome Double Rush, Johnny Verona, manager of a bicycle delivery service in New York City was played by an actor of what nationality?",
+     126777,
+     0
+    ],
+    [
+     "In what century did this Native warrior and chief, whose brother Tenskwatawa led the Tippecanoe order of battle, become the primary leader of a large, multi tribal confederacy?",
+     131052,
+     3781
+    ],
+    [
+     "When did Senator Ted Kennedy helped dedicate a new room at the location to his maternal grandfather, John F. Fitzgerald.",
+     125910,
+     0
+    ],
+    [
+     "What album was released by 1948-born French composer in 1998?",
+     131052,
+     11748
+    ],
+    [
+     "Who was born first, Little Feat's Lowell George, or Ian Hunter from Mott the Hoople?",
+     126946,
+     0
+    ],
+    [
+     "Who starred alongside South Korean actor and singer Kim Ki-bum in the 2012 romantic comedy series I Love Lee Tae-ri?",
+     126586,
+     0
+    ],
+    [
+     "The song \"Only a Pawn in Their Game\" was based on a crime whose perpetrator was convicted in this year.",
+     118983,
+     0
+    ],
+    [
+     "Were Enrique Carreras and Lionel Ngakane both filmakers during the 20th century? ",
+     123810,
+     0
+    ],
+    [
+     "An actor who appeared in all eight \"American Pie Films\" stared alongside which actor in Armed and Dangerous? ",
+     124742,
+     0
+    ],
+    [
+     "Sony/Philips Digital Interface Format can transmit over what Toshiba optical fiber connector system?",
+     124964,
+     0
+    ],
+    [
+     "Who is the lead vocalist for Maroon 5's sixth studio album?",
+     126340,
+     0
+    ],
+    [
+     "Are Jerome Storm and Andr\u00e9s Wood from the same country?",
+     113626,
+     0
+    ],
+    [
+     "What author wrote a three book series of memoirs that are studied in school systems around the world?",
+     123598,
+     0
+    ],
+    [
+     "How many novels are there in series of novels which were adapted for a 2015 BBC TV  series in which Ruby Bentall plays a character called Verity ?",
+     127023,
+     0
+    ],
+    [
+     "Which of these is further south in China, the Pulandian District or Kaiyuan, Liaoning?",
+     124675,
+     0
+    ],
+    [
+     "Which North American tribe inhabited the banks of the Winnipesaukee River and were also known as the Pawtucket people?",
+     131052,
+     5096
+    ],
+    [
+     "San Francisco National Cemetery is located at a park that is part of what National Recreation Area?",
+     120496,
+     0
+    ],
+    [
+     "In what year was the 1965 World Series MVP elected to the Baseball Hall of Fame?",
+     131052,
+     2885
+    ],
+    [
+     "Who was born first out of  Thomas Carr and Joyce Wieland?",
+     112167,
+     0
+    ],
+    [
+     "How many members were in the South Korean boy group whose first official sub-unit is Bastarz?",
+     128614,
+     0
+    ],
+    [
+     "The movie \"100 Million BC\" continues the urban myth of an experiment allegedly carried out at waht shipyard?",
+     125540,
+     0
+    ],
+    [
+     "Which Muslim scholar was born first, Kam\u0101l al-D\u012bn al-F\u0101ris\u012b or M. A. Muqtedar Khan?",
+     131052,
+     2939
+    ],
+    [
+     "Mount Austin Barracks is located near the Peak Tram terminus at what mountain that is also known as Mount Austin?",
+     128283,
+     0
+    ],
+    [
+     "What team does the new manager who made considerable changes to the Celtic team for the 2010-11 season head coach for?",
+     131052,
+     6246
+    ],
+    [
+     "Blackfin is a family of processors developed by the company that is headquartered in what city?",
+     130996,
+     0
+    ],
+    [
+     "Which Lithuanian-Canadian anthropologist, primatologist, conservationist, ethologist, and author was chosen by  Louis Leakey, along with Jane Goodall, Dian Fossey to study hominids in their natural environments?",
+     131051,
+     4799
+    ],
+    [
+     " How many acres did this plantation consist of, in which the Honourable The Irish Society was set up to colonise County Londonberry? ",
+     131052,
+     9437
+    ],
+    [
+     "Sachem Central School District encompasses the CDPs that include the hamlet in which New York county?",
+     127203,
+     0
+    ],
+    [
+     "From where was the award which has Matt James as a winner in 2012 has its name derived? ",
+     116658,
+     0
+    ],
+    [
+     "Who was born earlier, Johnny Lujack or Jim Kelly?",
+     114895,
+     0
+    ],
+    [
+     "Pawnography, featuring Richard Corey Harrison, is filmed in what shop and town?",
+     120087,
+     0
+    ],
+    [
+     "New Hampshire Route 118 runs through a region whose norther boundary begins at which town?",
+     131052,
+     222
+    ],
+    [
+     "Stockely Webster has paintings hanging in what home (that serves as the residence for the Mayor of New York)?",
+     125389,
+     0
+    ],
+    [
+     "What forim is Nicholas Dante most famous for writing in, musical, such as \"A Chorus Line\", or epic verse like \"Inferno\"?",
+     128297,
+     0
+    ],
+    [
+     "Which movie was released first, Fantastic Mr. Fox or Khan Kluay?",
+     123216,
+     0
+    ],
+    [
+     "What famous pawn shop do Richard Kevin Harrison and Core Harrison own?",
+     119902,
+     0
+    ],
+    [
+     "Who starred as a divorced mother in an American sitcom produced by Danny Bonaduce's father?",
+     124677,
+     0
+    ],
+    [
+     "Victor Koman's Ph.D.  in Information Technology was conferred by a university located in which city ?",
+     127829,
+     0
+    ],
+    [
+     "Michael Pollock was was a senior officer in the United Kingdom's naval warfare force, also known as the what?",
+     131051,
+     128
+    ],
+    [
+     "The Lang Labor Party was the group that aligned with the policies of the government that followed what system?",
+     126099,
+     0
+    ],
+    [
+     "Who wrote the 1996 American historical drama film in which William Preston appeared?",
+     124893,
+     0
+    ],
+    [
+     "What profession does Stephen Jay Gould and Ann Beattie have in common?",
+     122575,
+     0
+    ],
+    [
+     "What is the name of the range of characteristics pertaining to, and differentiating between, masculinity and femininity which Mary Karooro Okurut was appointed to in 2012 as Minister of?",
+     128848,
+     0
+    ],
+    [
+     "North American Aviation was the company that created what single-engined training aircraft?",
+     131052,
+     7568
+    ],
+    [
+     "Marine Air Control Group 48 is stationed at Naval Station Great Lakes which located where?",
+     131051,
+     8198
+    ],
+    [
+     "What team was led to victory in 1939 by a two-time All-American basketball player nicknamed \"Scat\"?",
+     131052,
+     3982
+    ],
+    [
+     "Vincas Kudirka is the author of both the music and lyrics of a national anthem which has how many words?",
+     131052,
+     11978
+    ],
+    [
+     "Valais is known for the resort municipality in which district in Switzerland?",
+     129760,
+     0
+    ],
+    [
+     "What characteristics do Rosario Castellanos and Arthur Hailey  share?",
+     120976,
+     0
+    ],
+    [
+     " The Canadian Hot 100 is a music industry record chart in Canada for for a song that is released separately from what?",
+     117284,
+     0
+    ],
+    [
+     "What stadium in Pyongyang, North Korea hosted the Collision in Korea and is also known as the May Day Stadium?",
+     127503,
+     0
+    ],
+    [
+     "What was the name of the hill that was the seat of an estate uphill Aldbury?",
+     129824,
+     0
+    ],
+    [
+     "Who has more singles titles, Brian Gottfried or Peter Fleming?",
+     120561,
+     0
+    ],
+    [
+     "In the Morpeth Arms pub in London, there's a Spying Room with a view overlooking the headquarters of which organisation?",
+     124432,
+     0
+    ],
+    [
+     "In which county was the English rock band formed that released the box set of four studio albums \"Genesis 1983\u20131998\"?",
+     129463,
+     0
+    ],
+    [
+     "When was the earliest film of High School and The Thorn in the Heart shot?",
+     118063,
+     0
+    ],
+    [
+     "Which publication is older, the Stanford Chaparral or Dime Magazine? ",
+     121043,
+     0
+    ],
+    [
+     "Which racecar driver who performed in the 1971 Canadian Grand Prix was born in 1937?",
+     131052,
+     3748
+    ],
+    [
+     "Where was the sports complex at which Will Brodie made his debut in the thirty-five point loss against Melbourne located?",
+     131052,
+     1409
+    ],
+    [
+     "What is the name of the statue whose replica have been created in many landmarks world-wide such as near Pont de Grenelle in Paris?",
+     131052,
+     1762
+    ],
+    [
+     "Bordan Tkachuk was the CEO of a company that provides what sort of products?",
+     131052,
+     512
+    ],
+    [
+     "Who directed more films, Leslie Goodwins or Kenneth Webb?",
+     118095,
+     0
+    ],
+    [
+     "Which son of Rick Barry was born first, Brent Robert Barry or Drew William Barry?",
+     100768,
+     0
+    ],
+    [
+     "Works by Hanna Leena Kristiina Varis are part of a collection in a museum that houses approximately 65,000 what?",
+     131051,
+     15716
+    ],
+    [
+     "Ra\u00fal Arellano played for Mexico in which football tournament in 1954?",
+     131051,
+     5932
+    ],
+    [
+     "who has written more than 100 books, Ya\u015far Kemal or Avram Noam Chomsky?",
+     131052,
+     576
+    ],
+    [
+     "Kurt Cobain: Montage of Heck documents the life of Cobain until his suicide in what state?",
+     124408,
+     0
+    ],
+    [
+     "Who was born more recently, Billy Corgan or Jeff Martin?",
+     125824,
+     0
+    ],
+    [
+     "What type of film was the Benn F. Reyes's Dr. Strangelove?",
+     127368,
+     0
+    ],
+    [
+     "In what city does a Christian minister who won the singles title with Jan Kodes in the 1970 French Open currently reside?",
+     131052,
+     6365
+    ],
+    [
+     "What Cason, CA soccer team features the son of Roy Lassiter?",
+     131051,
+     633
+    ],
+    [
+     "Are York Minster and Brentwood Cathedral in the same country?",
+     128096,
+     0
+    ],
+    [
+     "Which profession do David Breashears and Richard Bass have in common?",
+     123706,
+     0
+    ],
+    [
+     "Prominent Danish Tibetologist Per Kjeld S\u00f8rensen is a professor of Central Asian Studies at Leipzig University that was founded by who?",
+     131052,
+     11851
+    ],
+    [
+     "What 1958 born American television writer and actress contributed to the writing on I Am Not Homer?",
+     122968,
+     0
+    ],
+    [
+     "What other two divisions of Argentine forces were involved in the war with Britain that incurred losses in aircraft?",
+     131052,
+     2612
+    ],
+    [
+     "Are Des Moines International Airport and Grand Canyon National Park Airport both major airline hubs?",
+     119711,
+     0
+    ],
+    [
+     "Who was the head promotor of the singer of \"For The Good Times\"?",
+     125567,
+     0
+    ],
+    [
+     "What stagecoach robber did Frederick John Fulton prosecute?",
+     126774,
+     0
+    ],
+    [
+     "What year was the Leeds football club, which Arthur Hydes played, formed? ",
+     124462,
+     0
+    ]
+   ],
+   "kilt_nq": [
+    [
+     "what was the tower of london originally used for",
+     122790,
+     0
+    ],
+    [
+     "epidemiologists attempt to explain the link between health and variables such as",
+     115269,
+     0
+    ],
+    [
+     "another name for a hairpin bend crossword clue",
+     110924,
+     0
+    ],
+    [
+     "who is the owner of the mandalay bay in vegas",
+     129731,
+     0
+    ],
+    [
+     "where does the story the great gatsby take place",
+     124614,
+     0
+    ],
+    [
+     "who does claire from mcleods daughters end up with",
+     120350,
+     0
+    ],
+    [
+     "dogs name in the grinch who stole christmas",
+     125342,
+     0
+    ],
+    [
+     "what areas of africa were involved in colonization",
+     125279,
+     0
+    ],
+    [
+     "where does porter fly out of in toronto",
+     126461,
+     0
+    ],
+    [
+     "where was the diary of a wimpy kid filmed",
+     123019,
+     0
+    ],
+    [
+     "who sings oh what a night late december back in 63",
+     129647,
+     0
+    ],
+    [
+     "when did the uk and us become allies",
+     123711,
+     0
+    ],
+    [
+     "who played alex cross in along came a spider",
+     124798,
+     0
+    ],
+    [
+     "how many counties does the state of georgia have",
+     131052,
+     1907
+    ],
+    [
+     "where was the original flight of the phoenix filmed",
+     125641,
+     0
+    ],
+    [
+     "where did the ancestors of the domestic goat originate",
+     128304,
+     0
+    ],
+    [
+     "who plays manny in diary of a wimpy kid",
+     122657,
+     0
+    ],
+    [
+     "whos jack the ripper in gotham by gaslight",
+     124789,
+     0
+    ],
+    [
+     "when was the last time the los angeles lakers won a championship",
+     131051,
+     4292
+    ],
+    [
+     "what is the scientific name for the calf muscle",
+     129543,
+     0
+    ],
+    [
+     "which material is the heaviest in term of density",
+     122217,
+     0
+    ],
+    [
+     "which philosopher advocated the idea of return to nature",
+     123469,
+     0
+    ],
+    [
+     "where does stevia in the raw come from",
+     124253,
+     0
+    ],
+    [
+     "who is the longest railway station in india",
+     129436,
+     0
+    ],
+    [
+     "where did the term hot rod come from",
+     120758,
+     0
+    ],
+    [
+     "which is produced in plants of narora kakrapar tarapur",
+     131052,
+     9004
+    ],
+    [
+     "what football player is called the honey badger",
+     128295,
+     0
+    ],
+    [
+     "who won game 4 of the 2000 nba finals",
+     131052,
+     2064
+    ],
+    [
+     "who has the most green jackets from the masters",
+     131052,
+     11560
+    ],
+    [
+     "days of our lives cast doug and julie",
+     122922,
+     0
+    ],
+    [
+     "what is the name of the under butler in downton abbey",
+     126714,
+     0
+    ],
+    [
+     "in which country were the two battles of el alamein fought",
+     131052,
+     2740
+    ],
+    [
+     "where is the tv show the curse of oak island filmed",
+     120756,
+     0
+    ],
+    [
+     "what do you call initials that stand for something",
+     118227,
+     0
+    ],
+    [
+     "what's the dog's name on tom and jerry",
+     119645,
+     0
+    ],
+    [
+     "when is season 4 of flash coming out",
+     126783,
+     0
+    ],
+    [
+     "actor who plays dr avery on grey's anatomy",
+     124031,
+     0
+    ],
+    [
+     "star cast of ab tumhare hawale watan sathiyon",
+     131052,
+     12532
+    ],
+    [
+     "when did the movie peter pan come out",
+     124119,
+     0
+    ],
+    [
+     "which president supported the creation of the environmental protection agency (epa)",
+     125094,
+     0
+    ],
+    [
+     "how many characters are present in icd-10 codes",
+     121596,
+     0
+    ],
+    [
+     "where does hydrogen peroxide come from in the body",
+     131052,
+     1902
+    ],
+    [
+     "when did gaurdians of the galaxy 2 come out",
+     121412,
+     0
+    ],
+    [
+     "who plays lindsay denton in line of duty",
+     121262,
+     0
+    ],
+    [
+     "who had the most governmental power under the articles of confederation",
+     122329,
+     0
+    ],
+    [
+     "computer based models of real life situation are called",
+     112032,
+     0
+    ],
+    [
+     "the fellowship of the ring director's cut length",
+     124218,
+     0
+    ],
+    [
+     "who got the first nobel prize in physics",
+     131052,
+     3612
+    ],
+    [
+     "who sings the wire season 5 theme song",
+     118568,
+     0
+    ],
+    [
+     "who has made the most premier league appearances",
+     131052,
+     10339
+    ],
+    [
+     "when did jelly beans became associated with easter",
+     120288,
+     0
+    ],
+    [
+     "what word is used to describe knowledge about the universe and method of obtaining that knowledge",
+     117017,
+     0
+    ],
+    [
+     "who did michael showers play on vampire diaries",
+     122647,
+     0
+    ],
+    [
+     "the era of the great mughals began with the accession of",
+     131052,
+     7386
+    ],
+    [
+     "south african tree with thorns on the trunk",
+     131052,
+     3828
+    ],
+    [
+     "who is the quarterback for the green bay packers",
+     128561,
+     0
+    ],
+    [
+     "what do you call a person who officiates a wedding",
+     115851,
+     0
+    ],
+    [
+     "who is the actor that plays sneaky pete",
+     123818,
+     0
+    ],
+    [
+     "what is the full form of cfc's",
+     131052,
+     2114
+    ],
+    [
+     "who is the no. 1 ranked tennis player in the world",
+     131052,
+     7150
+    ],
+    [
+     "role of malonyl coa in fatty acid synthesis",
+     131052,
+     5468
+    ],
+    [
+     "who sang the them song for as told by ginger",
+     125371,
+     0
+    ],
+    [
+     "what happened to western rome after it fell",
+     127886,
+     0
+    ],
+    [
+     "how many countries in the world have scouts",
+     130442,
+     0
+    ],
+    [
+     "who has the most super bowls in nfl history",
+     131051,
+     139
+    ],
+    [
+     "when was i don't like mondays released",
+     119530,
+     0
+    ],
+    [
+     "who sings the wizards of waverly place theme song",
+     121298,
+     0
+    ],
+    [
+     "where are mucosal associated lymphoid tissues present in the human body and why",
+     128878,
+     0
+    ],
+    [
+     "how many episodes are there in dragon ball z",
+     128952,
+     0
+    ],
+    [
+     "how tall is the actor who plays hagrid in harry potter",
+     125595,
+     0
+    ],
+    [
+     "what year did the golden state warriors win their first nba championship",
+     131052,
+     3135
+    ],
+    [
+     "what is the population of fayetteville north carolina",
+     131051,
+     11257
+    ],
+    [
+     "who played stonewall jackson in gods and generals",
+     128906,
+     0
+    ],
+    [
+     "most passing yards in nfl history in a game",
+     131052,
+     12470
+    ],
+    [
+     "who is credited with creating the gothic art movement",
+     126835,
+     0
+    ],
+    [
+     "where does the coral sea meet the pacific ocean",
+     126258,
+     0
+    ],
+    [
+     "what was the emperor name in star wars",
+     123242,
+     0
+    ],
+    [
+     "when did the song the joker come out",
+     123709,
+     0
+    ],
+    [
+     "where is arachidonic acid found in the body",
+     131052,
+     28205
+    ],
+    [
+     "who sang original i want a hippopotamus for christmas",
+     131052,
+     538
+    ],
+    [
+     "what year did the us hockey team won the olympics",
+     131052,
+     838
+    ],
+    [
+     "who wrote catch 22 (both names)",
+     129766,
+     0
+    ],
+    [
+     "to whom do the powers not given to the federal government by the constitution go",
+     116434,
+     0
+    ],
+    [
+     "what is the official symbol of the carnival of quebec",
+     125545,
+     0
+    ],
+    [
+     "who is the winner of bigg boss kannada season",
+     131052,
+     8358
+    ],
+    [
+     "who sings i don't want to be lonely",
+     122401,
+     0
+    ],
+    [
+     "who does betty end up with on riverdale",
+     118730,
+     0
+    ],
+    [
+     "what does aa on a license plate mean",
+     118105,
+     0
+    ],
+    [
+     "when did the crucifix become the symbol of christianity",
+     122195,
+     0
+    ],
+    [
+     "who won the oscar for best picture in 1976",
+     124511,
+     0
+    ],
+    [
+     "who is nebula on guardians of the galaxy",
+     124606,
+     0
+    ],
+    [
+     "who was the first baseball player to be featured on a postage stamp",
+     131052,
+     6229
+    ],
+    [
+     "when did the cubs won a world series",
+     131052,
+     2043
+    ],
+    [
+     "when does panic at the disco album come out",
+     126969,
+     0
+    ],
+    [
+     "what is the snow on mars made of",
+     120518,
+     0
+    ],
+    [
+     "who built pedestrian bridge at florida international university",
+     125137,
+     0
+    ],
+    [
+     "name of black man in to kill a mockingbird",
+     123057,
+     0
+    ],
+    [
+     "when do you celebrate birthday if born on feb 29",
+     131052,
+     2317
+    ],
+    [
+     "when did the movie napoleon dynamite come out",
+     121788,
+     0
+    ],
+    [
+     "how long do former presidents get secret service protection",
+     122953,
+     0
+    ],
+    [
+     "who sang the song should have been a cowboy",
+     124686,
+     0
+    ],
+    [
+     "who is rose in the fall season 2",
+     119123,
+     0
+    ],
+    [
+     "where will be the next olympics be held",
+     131052,
+     6702
+    ],
+    [
+     "who was the captain of the mayflower which brought the pilgrims to plymouth",
+     130320,
+     0
+    ],
+    [
+     "when is last time the astros won the world series",
+     131052,
+     1388
+    ],
+    [
+     "i want to be with you everywhere song",
+     112112,
+     0
+    ],
+    [
+     "how long has tom brady been the patriots quarterback",
+     131052,
+     1561
+    ],
+    [
+     "who does dwyane wade play for right now",
+     131052,
+     3384
+    ],
+    [
+     "how oxygenated blood returns to the heart from the lungs",
+     124492,
+     0
+    ],
+    [
+     "who invented the first computer game in 1962 and what was the name of the game",
+     125921,
+     0
+    ],
+    [
+     "who played in the stanley cup finals last year",
+     131052,
+     402
+    ]
+   ],
+   "msmarco_rerank_psg": [
+    [
+     "168216",
+     100757,
+     0
+    ],
+    [
+     "1124210",
+     92836,
+     0
+    ],
+    [
+     "87181",
+     89993,
+     0
+    ],
+    [
+     "1133167",
+     89485,
+     0
+    ],
+    [
+     "47923",
+     99525,
+     0
+    ],
+    [
+     "182539",
+     88791,
+     0
+    ],
+    [
+     "104861",
+     103971,
+     0
+    ],
+    [
+     "1106007",
+     98172,
+     0
+    ],
+    [
+     "489204",
+     89049,
+     0
+    ],
+    [
+     "451602",
+     80009,
+     0
+    ],
+    [
+     "1063750",
+     97802,
+     0
+    ],
+    [
+     "1037798",
+     91713,
+     0
+    ],
+    [
+     "146187",
+     90298,
+     0
+    ],
+    [
+     "148538",
+     100473,
+     0
+    ],
+    [
+     "183378",
+     88808,
+     0
+    ],
+    [
+     "1121402",
+     88471,
+     0
+    ],
+    [
+     "264014",
+     91517,
+     0
+    ],
+    [
+     "490595",
+     85141,
+     0
+    ],
+    [
+     "359349",
+     98627,
+     0
+    ],
+    [
+     "207786",
+     93791,
+     0
+    ],
+    [
+     "1114819",
+     81633,
+     0
+    ],
+    [
+     "19335",
+     77271,
+     0
+    ],
+    [
+     "443396",
+     82211,
+     0
+    ],
+    [
+     "1110199",
+     93242,
+     0
+    ],
+    [
+     "405717",
+     93670,
+     0
+    ],
+    [
+     "87452",
+     89386,
+     0
+    ],
+    [
+     "962179",
+     87466,
+     0
+    ],
+    [
+     "1115776",
+     81569,
+     0
+    ],
+    [
+     "1114646",
+     86211,
+     0
+    ],
+    [
+     "833860",
+     87324,
+     0
+    ],
+    [
+     "1129237",
+     88851,
+     0
+    ],
+    [
+     "1112341",
+     89769,
+     0
+    ],
+    [
+     "1117099",
+     93078,
+     0
+    ],
+    [
+     "573724",
+     80625,
+     0
+    ],
+    [
+     "130510",
+     85441,
+     0
+    ],
+    [
+     "1113437",
+     89877,
+     0
+    ],
+    [
+     "156493",
+     94945,
+     0
+    ],
+    [
+     "527433",
+     90910,
+     0
+    ],
+    [
+     "915593",
+     93738,
+     0
+    ],
+    [
+     "131843",
+     74983,
+     0
+    ],
+    [
+     "1103812",
+     87571,
+     0
+    ]
+   ]
+  }
+ },
+ "data_sha256": {
+  "helmet_icl/banking77_labels.json": "b5ffecc77b559dbe88a88086401988bdcaf379fc798f1f27c1e0344de8417b35",
+  "helmet_icl/banking77_test.csv": "d12d6e3bc4c3103966ae786dc435913c0c563dfa328f5a3646d0e62cfeeb474d",
+  "helmet_icl/banking77_train.csv": "b06e26ac675513959a63135f11b94ea7786ed02da65db93a5650d8838cbc664b",
+  "helmet_icl/trec_test.parquet": "6aa889b0289e02760644caa22ac9aa833e79e34fb1f1ced69f745a078550c56e",
+  "helmet_icl/trec_train.parquet": "5ffb07b1cbd45e47b4dd1dd113dadd19e44eb260721114c6147e0ce6c1e47590"
+ },
+ "fresh_items": [
+  41,
+  111
+ ],
+ "helmet_sources": {
+  "banking77": "PolyAI-LDN/task-specific-datasets@57ec275d8078af65b7731c2a98be812d844a6d6b (CSV) + HF PolyAI/banking77@90d4e2ee (label names)",
+  "code": "princeton-nlp/HELMET@aeadacc6593e9a222a84b0660b186a4e23d2efda",
+  "data": "HF princeton-nlp/HELMET data.tar.gz@dddb209d03e38f1f0faf76d6d05ef4ccf96240ee",
+  "trec": "HF CogComp/trec refs/convert/parquet@65752bf53af25bc935a0dce92fb5b6c930728450"
+ },
+ "helmet_test_sha256": {
+  "data/kilt/hotpotqa-dev-multikilt_1000_k1000_dep3.jsonl": "10cfc8abf743a1b9683b6244db7978fbe0af307d88ee0e5f0a8cec2efad92a7d",
+  "data/kilt/nq-dev-multikilt_1000_k1000_dep6.jsonl": "d39073c4915041e4319d313aa558d9a6cee1571dabdf84a53155abb9fedd342a",
+  "data/msmarco/test_reranking_data_k1000_dep3.jsonl": "2697bac97ad4bdfad5b837824eafaf5df5c92d99341ddb41d766bbb31c26b025"
+ },
+ "model_ids": {
+  "llama31-8b": "meta-llama/Llama-3.1-8B-Instruct",
+  "qwen3-30b-a3b-2507": "Qwen/Qwen3-30B-A3B-Instruct-2507"
+ },
+ "n_items": {
+  "icl_banking77": 111,
+  "icl_trec_coarse": 111,
+  "kilt_hotpotqa": 111,
+  "kilt_nq": 111,
+  "msmarco_rerank_psg": 41
+ },
+ "rules": "tasks_s1h4.py docstring (R4's), with N_ITEMS per task: tasks_r7b.py",
+ "salt": "s1h_r4_helmet_order_v1\u0000",
+ "version": "s1h_r7b_v1"
+}

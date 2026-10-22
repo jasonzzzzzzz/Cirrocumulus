@@ -1,0 +1,39 @@
+import glob, itertools, json, sys
+import numpy as np, pandas as pd
+sys.path.insert(0, "h0_measurement/bugs/14i_r7_theory_at_scale"); sys.path.append("h0_measurement/bugs/14h_methodology_improve")
+import read_r7a as RD
+fam = RD.family_of(); R = "h0_measurement/results"
+def load(tag, job):
+    d = f"{R}/r14r7a_{tag}_{job}"
+    h = pd.read_parquet(glob.glob(d + "/r7a_heads_*.parquet")[0]); g = pd.read_parquet(glob.glob(d + "/r7a_groups_*.parquet")[0])
+    return h.assign(family=h.task.map(fam), blk=job), g.assign(family=g.task.map(fam))
+L = [load(*p.split(":")) for p in "r7llama128_r1:23020654 r7llama128_r3a:23020655 r7llama128_r3b:23020656 r7llama128_hm:23020657".split()]
+Q = [load(*p.split(":")) for p in "r7qwen128_hm:23020661_0 r7qwen128_hm:23020661_1".split()]
+hl = pd.concat([x[0] for x in L]); gl = pd.concat([x[1] for x in L]); hq = pd.concat([x[0] for x in Q]); gq = pd.concat([x[1] for x in Q])
+print("(1) the same HELMET families on both models at 128K (6-bit keys); Qwen 32K RULER families for reference")
+def fam_table(h, g, name):
+    for f, v in h.groupby("family"):
+        gg = g[(g.family == f) & (g.bits == 6)]
+        print(f"  {name:9s} {f:12s} head-steps {len(v):>8,}  certified {v.f8_p8_k6.mean():.3f}  part8/err {v.rat_p8_k6.median():5.2f}  "
+              f"share2 {v.share2.mean():.4f}  tail/FP8 {np.median(np.sqrt(v.m_pred_k6)/v.err_fp8.clip(lower=1e-300)):.3f}  certread rows {gg.rows.mean():.3f}")
+fam_table(hl[hl.family.isin(["icl", "rag", "rerank"])], gl, "Llama128")
+fam_table(hq, gq, "Qwen128")
+# same items only (16-20) on both
+both = sorted(set(hq.prompt_idx) & set(hl[hl.family.isin(["icl","rag","rerank"])].prompt_idx))
+print("  same items", both, ": Llama certified", round(hl[hl.prompt_idx.isin(both) & hl.family.isin(["icl","rag","rerank"])].f8_p8_k6.mean(), 3),
+      "Qwen128 certified", round(hq[hq.prompt_idx.isin(both)].f8_p8_k6.mean(), 3))
+print("  Llama RULER families certified:", {f: round(v.f8_p8_k6.mean(), 3) for f, v in hl[~hl.family.isin(["icl","rag","rerank"])].groupby("family")})
+print("\n(2) Llama 128K weakest layers at 6 bits (all 75 units):", ", ".join(f"L{i} {v:.3f}" for i, v in hl.groupby("layer").f8_p8_k6.mean().sort_values().head(5).items()))
+print("    HELMET block alone:", ", ".join(f"L{i} {v:.3f}" for i, v in hl[hl.blk == "23020657"].groupby("layer").f8_p8_k6.mean().sort_values().head(5).items()))
+print("    Qwen 128K:", ", ".join(f"L{i} {v:.3f}" for i, v in hq.groupby("layer").f8_p8_k6.mean().sort_values().head(5).items()))
+o = json.load(open(sys.argv[1])); r6 = json.load(open(sys.argv[2]))
+kl = RD.r6_design_kl(r6, "llama128"); fa = o["panel_a"]["llama128"]["families"]; fs = sorted(set(kl) & set(fa))
+s2 = np.array([fa[f]["share2_mean"] for f in fs]); k = np.array([kl[f] for f in fs])
+rho = RD._spearman(s2, k)
+perm = [RD._spearman(s2, k[list(p)]) for p in itertools.permutations(range(len(fs)))]
+print(f"\n(3) P8: Spearman {rho:.3f} over {len(fs)} families; exact permutation p (one-sided) = {np.mean(np.array(perm) >= rho - 1e-12):.4f}")
+for f in sorted(fs, key=lambda f: fa[f]["share2_mean"]): print(f"     {f:12s} share2 {fa[f]['share2_mean']:.4f}  R6 design KL/token {kl[f]:.2e}")
+gl6 = gl[gl.bits == 6]
+print("\n(4) Llama certified read at 6 bits by block: ", {b: round(v.rows.mean(), 4) for b, v in gl6.assign(b=gl6.task.map(fam)).groupby("b")}, "fallback", round(gl6.fallback.mean(), 4))
+ok = hl.m_pred_k4 > 0; rn = hl.nn_k4[ok] / hl.m_pred_k4[ok]
+print("(5) Theorem M at 4 bits, Llama all 75 units: mean", round(rn.mean(), 4), "max", round(rn.max(), 1))

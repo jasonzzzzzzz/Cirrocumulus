@@ -5,8 +5,22 @@ Read `STATUS.md` first, then `theory_r7.md` (what R7a measures, the lemmas behin
 
 R7a is rank 1 of `../14h_theory/RESEARCH_PLAN.md` (§1.1, §4): part 8's certificate, the certified adaptive read and
 Theorem M, measured per head-step on R6's models and lengths (Llama-3.1-8B at 128K, Qwen3-30B-A3B at 32K and 128K), at
-4/6/8-bit keys, with a dither-seed panel. Frozen and submitted 2026-10-12 (`plan.md` §10): R7a's files may not change
-while any R7a job has output, and every job re-checks the code pin.
+4/6/8-bit keys, with a dither-seed panel. **R7a is complete (2026-10-22):** all 14 blocks ran (on Rorqual) and were read,
+and all eight predictions are MET (`findings/R7a.md`; the final read is `findings/R7a_reader.{md,json}`).
+
+## Frozen and unfrozen (2026-10-22, the user's decision)
+- **Still frozen: `cert_r7.py` and `tier_r7.py`.** R7b (`r7b/`) imports them and pins them in
+  `r7b/findings/R7b_code.sha256`, and R7b's Qwen 128K half is not finished. They may change only after R7b's final read.
+- **Unfrozen: R7a's other files** (`probe_r7.py`, `r7_lib.py`, `run_r7.py`, `read_r7a.py`, `submit_r7.slurm`,
+  `script_r7a.sh`, `test_run_r7.py`, `test_cert_r7.py`, `explore_r7.py`, the docs). R7a will not run again, so nothing
+  checks them against the pin any more.
+- **The record of the code that produced R7a's numbers** is `findings/R7a_code_snapshot_1022.tar.gz`: the 119 pinned
+  files plus `findings/R7a_code.sha256`, which it verifies against. Its own sha256 is in the `.sha256` file beside it.
+  Don't re-pin `R7a_code.sha256`: it is the record.
+- **R6's files stay frozen anyway** (R6's final read is pending, and R7b pins them). Unfreezing R7a changes nothing for
+  them.
+- **Prefer copying to editing.** R8 and `../14h_theory/ARCHITECTURES_PLAN.md` plan to reuse R7a's port. New work copies
+  it into new, uniquely named modules, as R7b did, rather than editing it in place.
 
 ## Isolation (user, 2026-10-11): development and exploration stay in this folder
 - **Nothing outside this folder is edited.** Not `../14h_theory/`, not `../14h_methodology_improve/` (R6's files are
@@ -21,13 +35,16 @@ while any R7a job has output, and every job re-checks the code pin.
 - **Nothing outside this folder may import a module from here.**
 - **Module names end in `_r7` (or `_r7a`) and are unique** across every folder on `sys.path`.
 - Exploration outputs (captured views, JSON) go in `findings/` or `.views/` here; temporary files in the scratchpad.
+- The one exception (2026-10-22, the user asked): R7a's results and corrections were carried back to `../14h_theory/`
+  (`theory.md`, `CLAIMS_LEDGER.md`, `RESEARCH_PLAN.md`, `paper_theory_section.md`, `STATUS.md`, `ARCHITECTURES_PLAN.md`,
+  `findings/findings_klbridge.md`) and to the paper's slides.
 
 ## Files
 | file | role |
 |---|---|
 | `theory_r7.md` | the theory of R7a: which measurement tests which statement; the GPU forms and their lemmas (S: the HKZ matrix from heavy rows; B: the certified read decided by brackets; P: Theorem M's moments as a series); scaling with context on R6's models; the predictions P1–P8 and their derivations; the seed panel's model |
-| `plan.md` | the run (DRAFT until the user approves; nothing submitted): panel (a) probe blocks, panel (b) seed panel, pilots and gate, reader, cost, what is frozen, decisions |
-| `STATUS.md` | where things stand, and a correction to carry back to `../14h_theory/RESEARCH_PLAN.md` |
+| `plan.md` | the run (frozen 2026-10-12): panel (a) probe blocks, panel (b) seed panel, pilots and gate, reader, cost, what is frozen, decisions; §10 the Trillium submission, §11 the outcome (the move to Rorqual, the job IDs) |
+| `STATUS.md` | where things stand: the verdicts, how the run went, what is open |
 | `tier_r7.py` | the randomized tier 1: a copy of `rquant_s1h5` (+ `dither_step`) |
 | `cert_r7.py` | the bounds: copies of `cert_s1h5`'s pieces and Theorem R v2; part 8 (`bound_p8`, `p8_terms`/`p8_combine`); the certified read (`schedule`, `certified_read`); Theorem M (`theorem_m`); the GPU forms |
 | `probe_r7.py` | panel (a)'s measurement hook (R6's probe interface; R7a's columns) |
@@ -39,8 +56,9 @@ while any R7a job has output, and every job re-checks the code pin.
 | `test_run_r7.py` | the run side: presets, layout, fresh prompts, the probe against direct computations; without `--fast`, driver smokes and the reader (`R7_SMOKES=r7smoke` runs one) |
 | `explore_r7.py` | CPU exploration on R6's own models (`capture`, `analyze`, `summary`, `predict` from R6's GPU probe, read-only) |
 | `fixtures/` | frozen reference outputs of `../14h_theory`'s part 8 / Theorem M, with provenance (`fixtures/README.md`) |
-| `findings/` | `explore_r7.md` (+ `explore/`, `explore_r7_table.md`, `explore_r7.json`), `predictions_from_r6.json`, `R7a_code.sha256`; after the run `R7a_reader.*`, `R7a_gate.json` |
+| `findings/` | **`R7a.md` (the write-up)**; `R7a_reader.{md,json}` (the final read, 2026-10-22; identical to `R7a_reader_1022.*`), `R7a_reader_partial_1017.*` (13 blocks), `R7a_diag_1022.py.txt` and `R7a_diag_partial_1017.py.txt` (the read-only diagnostics behind `R7a.md` §5); `R7a_gate.json`; `R7a_code.sha256` (the pin) and `R7a_code_snapshot_1022.tar.gz` (+ `.sha256`); before the run `explore_r7.md` (+ `explore/`, `explore_r7_table.md`, `explore_r7.json`), `predictions_from_r6.json` |
 | `.views/` | captured q/K/V views (exploration only) |
+| `r7b/` | **R7b** (the single store, `../14h_theory/RESEARCH_PLAN.md` §4, §8): its theory, port, tests and CPU exploration, in a subfolder with its own `CLAUDE.md`. Not part of R7a: `run_r7.code_manifest` hashes this folder's top-level `*.py`, so R7b adds no file here |
 
 ## Commands
 ```bash

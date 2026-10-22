@@ -1,0 +1,31 @@
+{
+ "verdict": "PASS",
+ "problems": [],
+ "group": "llama128",
+ "pilot": "r7bllama128_pilot:1083794",
+ "gate_job": "1083794",
+ "host": "trig0024",
+ "code_pin_sha256": "63e6b951108b54727b124479c18fff20f6fca77027903c9674970e9e89a5bf4d",
+ "seconds_per_unit": 148.12112617492676,
+ "projected_block_h": {
+  "l-r1a": 0.88,
+  "l-r1b": 0.88,
+  "l-r1c": 0.88,
+  "l-r3aa": 0.88,
+  "l-r3ab": 0.88,
+  "l-r3ac": 0.88,
+  "l-agga": 0.66,
+  "l-aggb": 0.66,
+  "l-aggc": 0.66,
+  "l-hma": 0.57,
+  "l-hmb": 0.57,
+  "l-hmc": 0.57,
+  "l-hmd": 0.57,
+  "l-hme": 0.57,
+  "l-hmf": 0.57,
+  "l-rra": 0.86,
+  "l-rrb": 0.86,
+  "l-rrc": 0.86
+ },
+ "peak_gib": 55.228496074676514
+}

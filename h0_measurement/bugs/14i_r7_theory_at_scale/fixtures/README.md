@@ -9,7 +9,7 @@
 
 Cases: four synthetic kinds (random, spiky, 30× outlier, adversarial; 2 KV heads × 4 query heads × 2 steps, 256 rows, d = 64) at
 4/6/8-bit keys, and a slice of Llama-3.1-8B layer 1 at 1,600 tokens (2 KV heads, 4 steps, 1,552 context rows; from
-`../14h_theory/.views/view_llama8b_L1_1600.pt`) at 4/6/8-bit keys.
+`../14h_theory/.views/view_llama8b_L1_1600.pt`, since 2026-10-22 at `../14_logs/14h_theory/views/`) at 4/6/8-bit keys.
 
 It was generated once, on 2026-10-11, by a script kept OUTSIDE this folder (this folder never imports `../14h_theory`). The
 script's source is below and in the file's `meta['generator_source']`; `meta['sources']` has the sha256 of every reference

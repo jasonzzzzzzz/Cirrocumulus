@@ -1,0 +1,46 @@
+
+[r7b] parity with ../../14h_theory's nested store, per-coordinate part 8, Theorem M and the certified read's stop on frozen inputs (fixtures/ref_nested.pt)
+  [32mPASS[0m  the store (keys, base sketch, per-coordinate steps, norms, row maxima; indices exactly) matches nested_s1h5 (max relative gap 0.0e+00)
+  [32mPASS[0m  the per-coordinate coin moments, sigma, a.s. bound and exact moments match nested_s1h5's (max relative gap 0.0e+00)
+  [32mPASS[0m  part 8 with per-coordinate steps (5 configurations x 2 deltas) matches theory5_s1h5.tail_bound_rand_split_hkz (max relative gap 1.2e-15 over 2560 values)
+  [32mPASS[0m  Theorem M at per-coordinate steps (Lemma P') matches theory3_s1h5.second_moment with exact_coin_moments_pc (max relative gap 6.8e-13; the reference forms E Z^2 - (E Z)^2, Lemma P' expm1)
+  [32mPASS[0m  the certified read's stop J on the single store matches theory5_s1h5.certified_read (24 of 24 groups)
+
+[r7b] one step per row given as [G, C, d]: the per-coordinate forms are R7a's scalar forms; with [G, C] steps the re-bound functions are cert_r7's
+  [32mPASS[0m  with [G, C] steps, cert_r7b.bound_p8 and certified_read are cert_r7's bit for bit 
+  [32mPASS[0m  coin moments, sigma, the a.s. bound and the exact moments at per-coordinate steps reduce to R7a's to 1e-12 (moments 1.0e-15, sigma 7.2e-16, bound 9.4e-16, exact 0.0e+00)
+  [32mPASS[0m  exact_rows, part 8 and Theorem M (Lemma P') at per-coordinate steps reduce to R7a's to 1e-12 (exact rows 0.0e+00, part 8 0.0e+00, Theorem M 5.4e-16)
+
+[r7b] Lemma N by simulation: the residual error is uniform on +-D/2, independent of the data; the base is quant.quantize_keys
+  [32mPASS[0m  moments of a uniform, never beyond D/2, uncorrelated with y; base = quantize_keys; base_sketch = the base (4+2: mean +1.8e-04, var x12 1.0001, m4 x80 1.0002, max 0.5000, corr +9.1e-05, largest mean 4.4 s.e., base vs quantize_keys 5e-06; 4+3: mean -3.8e-04, var x12 0.9998, m4 x80 0.9999, max 0.5000, corr -6.7e-05, largest mean 4.3 s.e., base vs quantize_keys 5e-06)
+
+[r7b] read-time forms: the steps, the keys and the debias from the stored codes
+  [32mPASS[0m  cell_steps from (base index, M, gamma) equals the quantizer's steps bit for bit 
+  [32mPASS[0m  reconstruct from (index, code, M, gamma, seed) equals the quantizer's keys (0.0e+00)
+  [32mPASS[0m  debias_from_codes (streamed over rows) equals the full per-coordinate debias (0.0e+00)
+
+[r7b] Lemma P': the separable series for sum_j log sinhc(k alpha_j D_ij), against the closed form and 40-digit arithmetic
+  [32mPASS[0m  the series is exact: within 2e-15 of 40-digit arithmetic (the closed form on far pairs within 3e-13) (series 7.1e-16, closed form 2.8e-15)
+  [32mPASS[0m  L1 and Delta agree with the closed form within its own precision (3e-13: log1p's cancellation just above |x| = 0.1), from near-zero arguments to past the series' range (L1 6.1e-14, Delta 1.1e-13; 996 (query, row) pairs on the closed form)
+
+[r7b] E Z, E Z^2 and Theorem M's E|N|^2 at per-coordinate steps, against Monte Carlo
+  [32mPASS[0m  E Z and E Z^2 (exact, per coordinate) and E|N|^2 / Z^2 (Theorem M, Lemma P') within 4.5 s.e. of Monte Carlo (max |MC - exact| / s.e.: moments 3.59, E|N|^2 2.30)
+
+[r7b] every bound form R7b uses, on the single store, by brute force (random, spiky, 30x outlier, adversarial; bases 2-4 bits, residuals 1-3 bits)
+  [32mPASS[0m  no form fails more than delta x cases at any delta, none at DELTA_T (1152 head cases per form and delta; failures 0; median bound / error at 6-7 bits {'v2': 17.36, 'split': 7.01, 'hkz': 2.45, 'hkz+exact': 2.43, 'p8': 2.42, 'two': 2.45})
+
+[r7b] the certified read on the single store: its stop equals the naive rule (brackets on and off); the guarantee per query head
+  [32mPASS[0m  the stop J equals the naive rule's, with and without Lemma B's brackets (18 groups)
+  [32mPASS[0m  every query head's error meets its target at the stop (guarantee: each head misses w.p. <= delta) (72 of 72)
+
+[r7b] run-time targets and water-filling
+  [32mPASS[0m  tau_l^2 = 2B / (L H c_l) spends the budget exactly: 1/2 sum_l c_l H tau_l^2 = B (1.000e-04 vs 1e-04)
+  [32mPASS[0m  tau_fp8_quantile is the per-layer quantile 
+  [32mPASS[0m  the per-layer Lagrangian choice is the brute-force optimum of traffic + lam KL 
+  [32mPASS[0m  the frontier's KL falls as traffic rises; the equal-weight surface ignores each input's scale 
+  [32mPASS[0m  Proposition S's factor: 1 at beta = 0, 1 + sqrt(beta)(L - 1) 
+
+[r7b] memory and traffic accounting
+  [32mPASS[0m  single store 0.3125 at rest (+3 scalars), 0.4375 during a question, traffic 0.3984; R6's design 0.5625 / 0.6875; FP8 0.5 (single at rest 0.3242, during 0.4492; R6 at rest 0.5781, during 0.7031)
+
+ALL R7B TESTS PASSED

@@ -208,3 +208,31 @@ does the same. No block was affected.
 - **If the gate fails,** the blocks never start (`afterok`) and the reader waits on them: cancel 1080292–1080304 and
   1080309, read `findings/R7a_gate.json`, and fix before any block runs.
 - **After the run:** rerun the reader with `--r6-json <R6's final reader JSON>` once R6's final read exists (P8).
+
+## 11. Outcome (added 2026-10-22; §1–§10 are the frozen record)
+- **Trillium.** The pilots and the gate ran as planned: 1080291 PASSED at 08:52 on 2026-10-12. The blocks 1080292–1080304
+  and the reader 1080309 were then cancelled while still pending (09:17–09:23, from the user's account).
+- **Rorqual.** The run was resubmitted there; the reason for the move is not recorded.
+
+  | job | what |
+  |---|---|
+  | 23020651, 23020652 | pilots (probe, seed panel) |
+  | 23020654–23020660 | probe blocks l-r1, l-r3a, l-agg, l-hm (23020657), q-r1, q-r3a, q-agg |
+  | 23020661 | Qwen 128K node job w-hm (`_0`, `_1`) |
+  | 23020662–23020666 | seed-panel blocks lk-rr, lk-mv, lk-ret, qk-mv, qk-ret |
+  | 23020667 | reader: **did not run** |
+
+  Every block finished. l-hm, the last one, was copied back on 2026-10-22. The blocks took about 16–17 GPU-h in all,
+  against §4's 21–34.
+- **The read.** Job 23020667 did not run, so the reader was run here instead, with the same frozen `read_r7a.py`:
+  `findings/R7a_reader.{md,json}`, from all 14 blocks.
+  - All blocks are valid and their code manifests are identical.
+  - **All eight predictions are MET.** The write-up is `findings/R7a.md`.
+- **P8 is closed on R6's partial read of 2026-10-18** (`../14h_methodology_improve/findings/R6_reader_partial_1018.json`),
+  by the user's decision of 2026-10-22, not on R6's final read as above.
+  - P8 uses only R6's Llama 128K rows. All of R6's Llama blocks had run by then, and those rows are identical in R6's
+    2026-10-11 and 2026-10-18 reads.
+  - R6's final read waits only on a Qwen 128K block.
+- **Freeze.** After the read, R7a's files other than `cert_r7.py` and `tier_r7.py` were unfrozen. Those two stay frozen
+  for R7b. The code that produced the numbers is kept in `findings/R7a_code_snapshot_1022.tar.gz`, which verifies
+  against `findings/R7a_code.sha256`.

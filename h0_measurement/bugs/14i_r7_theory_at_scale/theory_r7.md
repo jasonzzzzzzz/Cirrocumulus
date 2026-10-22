@@ -243,3 +243,32 @@ units is what R7a measures.
   thresholds, justified by §3's flat tightness and improving certification.
 - **FP's queries.** The coverage is measured on the oblivious pass (§1). The design's own queries are covered by Lemma C,
   not measured here.
+
+## 8. Outcome (added 2026-10-22; §1–§7 are as stated before the run)
+
+All eight predictions are MET, on all 14 blocks. The full read is in `findings/R7a.md`, and the reader's output in
+`findings/R7a_reader.{md,json}`.
+
+| id | predicted (§4) | measured: Llama 128K / Qwen 32K / Qwen 128K |
+|---|---|---|
+| P1 | 0 misses expected | 0 misses in 37.8 M checks per bound |
+| P2 | [4, 7] (Llama), [6, 13] (Qwen); point estimates 5.1–5.6 and ≈ 9.1 | 5.59 / 7.22 / 8.02 |
+| P3 | ≥ 0.80 / 0.65 / 0.65; from R6, Llama 0.88–0.91 and Qwen 32K 0.71–0.76 | 0.919 / 0.724 / 0.679 |
+| P4 | R_exact consistent with 1; R_first within ±5% at 6–8 bits | 1.000 at 6 and 8 bits everywhere; at 4 bits 1.000 / 0.994 / 0.990 |
+| P5 | traffic ≤ 0.45 / 0.50 / 0.50; from R6, Llama 0.127 rows (0.400) and Qwen 0.233–0.263 rows (0.473–0.494) | rows 0.126 / 0.235 / 0.161; traffic 0.399 / 0.474 / 0.423; 0 misses in 774,656 query-head checks |
+| P6 | ≤ 0.30; CPU 0.19–0.24 | 0.217 / 0.212 / 0.211 |
+| P7 | SEED_ROBUST everywhere | 5 of 5 families; common seed effect ≤ 0.2% of the variance |
+| P8 | Spearman > 0 | 0.857 over Llama's 7 families (permutation p = 0.012). Closed on R6's partial read of 2026-10-18, which holds R6's final Llama rows (`plan.md` §11) |
+
+How §3's CPU scaling transferred:
+- **§3.1–§3.2 (tightness).** Part 8 and v2 are flat in context: v2 is 25.5× the error at 128K on Llama, against 27× at
+  1.6K and 24.6× at 16K on the CPU.
+- **§3.4 (the certified read).** It reaches the oracle stop on Llama: 0.126 of rows against 0.125.
+- **§3.5 (flat layers).** These stay the exception: Qwen's L0–L3 hold most of its uncertified head-steps and its
+  extra reads.
+- **§3.6 (Theorem M).** Exact at 6–8 bits. At 4 bits on Qwen, 2 draws of a heavy-tailed ratio fall short by ≤ 1%
+  (`findings/R7a.md` §5.6).
+
+§5's open row, "Qwen 128K differs from Qwen 32K", is resolved by the task mix, as that row anticipated. HELMET
+certifies lower than RULER on Llama too: 0.82–0.88 against 0.91–0.98. On the same items, Llama certifies 0.846 and
+Qwen 128K 0.684. Within Qwen, R7a cannot separate length from task (`findings/R7a.md` §5.8).

@@ -1465,3 +1465,22 @@ once over every block: `read_stage1h_r6.py --r6 $(bash script_stage1h_r6.sh --li
   worker `submit_s1h5.slurm` therefore carries none, and `script_stage1h_r6.sh` passes `--mem` on the sbatch command
   line off Trillium (`R6_MEM`, default 96G), which overrides `#SBATCH` lines. On Trillium the script refuses `R6_MEM`.
   Editing the `.slurm` file on Rorqual instead fails the code check by design: restore the pinned file.
+
+**2026-10-18: R6, resubmitting a lost block.** Written after the provisional reads of 30 and 31 blocks
+(`findings/R6_reader_partial_1011.md`, `_1018.md`). No rule of R6 changes.
+- **Lost block:** w-hmc.1 (Qwen 128K, prompt offset 36, 25 units) is not in `results/`. Rorqual ran the pilot
+  22943960 (gate PASS) and blocks 22943962–66; the cause of the loss is to be filled in from Rorqual's log. Every other
+  block is in `results/` and valid, including Trillium 1072665.
+- **Why the plain resubmission fails:** the preflight and the worker both run `test_r14_stage1h_r6.py --fast`. Its
+  fresh-prompt check fails any `results/` folder outside R6 that holds an R6 unit. R7a and R7b (frozen 2026-10-12)
+  rerun R6's units by design (`r14r7a_*`, `r14r7b_*`, written from 2026-10-13). The check was true at R6's submission.
+  The test and the worker stay unchanged: R6 pins both, and R7a and R7b pin the test.
+- **Resubmission:** from a shadow project root (`r6_shadow.sh build|collect`).
+  - It links every file of the project, and every `results/` folder except the later runs'. So the pinned code runs
+    unchanged, and its check sees the runs that came before R6.
+  - The new block is moved into the real `results/` afterwards.
+- **`script_stage1h_r6.sh` (not pinned):** on Trillium, a node pair with one block finished submits only the missing
+  block, on 2 GPUs of a 4-GPU node. A rerun of a finished block would replace data already read, because the reader
+  keeps a duplicated unit from the block that sorts first.
+- **Final read:** it runs once over every block, as planned. If the block cannot be run, R6 is read on 31 blocks and
+  the loss is reported: Qwen 128K would have 125 of 150 planned units.

@@ -1,6 +1,25 @@
 # Stage 1h status (rewritten, not appended)
 
-**Phase (2026-10-10, night):** R6's Trillium half SUBMITTED (26 one-GPU jobs 1072639–1072667: Llama 128K + Qwen 32K; plan.md "R6 execution on two clusters"). Rorqual's half (Qwen 128K: pilot, gate, 6 two-GPU blocks) not yet submitted: sync the code (verified by findings/R6_code.sha256) and `.h0_corpus/helmet/r6_items/`, then `R6_ONLY=h6qwen128_pilot,h6qwen128_hm bash script_stage1h_r6.sh --run-r6`. The reader runs once after both halves. R6 FROZEN, not submitted (plan.md "R6 frozen"): design `dtail6ux_v4`@1/8 (user's decision; `dtail4ux_v4` reported), margin 1.5 × FP8 + 5e-4 with the fp_noise calibration, 640 fresh units (Llama 128K 300, Qwen 32K 190, Qwen 128K 150), ≈ 38 GPU-h; submit with `bash script_stage1h_r6.sh --run-r6` on trig-login01 when the user asks (dry run passes). Theorem R v2 now in `cert_s1h5`. R4 and R5.4 read (`findings/R4.md`, `findings/R5_4.md`). Earlier: R4 (all four cells) and R5.4 are read (`findings/R4.md`, `findings/R5_4.md`). R6 is a draft: margin decided (1.5 × FP8 + 5e-4, fp_noise calibration); its arm awaits the user's decision (frozen rule keeps `tail4x_v4`; recommended `dtail6ux_v4`, plan.md "R5.4 and R4 read"); Qwen 128K HELMET joins R6. Earlier phase notes: R1 and R2 queued on Trillium. R3a's first ladder is void (amendment R3a2); R3a2 and R3b
+**Phase (2026-10-11): R6 almost done; provisional read, final read pending.**
+- 30 of 32 blocks are in `results/`, every one valid, code checksum OK.
+- Missing:
+  - Trillium 1072665 (q-agga, Qwen 32K aggregation probe block): pending, expected start 2026-10-11 22:12;
+  - Rorqual's Qwen 128K block w-hmc.1 (prompt offset 36): not in `results/`; check it on Rorqual and copy it.
+  - Qwen 128K came from Rorqual as pilot 22943960 (gate PASS, `findings/R6_gate_qwen128.json`) and blocks 22943962–66.
+- Provisional read (the frozen reader on the 30 blocks): `findings/R6_reader_partial_1011.md`. It is not the R6 read.
+  - All three groups NONINFERIOR. Llama 7/7 families pass, Qwen 128K 3/3, Qwen 32K 3/4 (aggregation is
+    NOT_TESTABLE: fp_noise's KL is 0.0087).
+  - Accuracy at δ = 0.02:
+    - Llama: ACC_PASS.
+    - Qwen 32K: ACC_UNDERPOWERED at n = 149, one unit short of 150. 0 units lost. Final, because the pending block
+      is aggregation, which accuracy excludes.
+    - Qwen 128K: ACC_UNDERPOWERED, as planned.
+  - Theorem R: 0 misses.
+  - Llama aggregation drops 11 cwe units: FP lists stopwords, so no arm has an answer span.
+- Next: once both blocks are here, run `read_stage1h_r6.py --r6 $(bash script_stage1h_r6.sh --list-r6)` once
+  (default stem `findings/R6_reader`), write `findings/R6.md`, then unfreeze.
+
+**Earlier phase (2026-10-10, night):** R6's Trillium half SUBMITTED (26 one-GPU jobs 1072639–1072667: Llama 128K + Qwen 32K; plan.md "R6 execution on two clusters"). Rorqual's half (Qwen 128K: pilot, gate, 6 two-GPU blocks) not yet submitted: sync the code (verified by findings/R6_code.sha256) and `.h0_corpus/helmet/r6_items/`, then `R6_ONLY=h6qwen128_pilot,h6qwen128_hm bash script_stage1h_r6.sh --run-r6`. The reader runs once after both halves. R6 FROZEN, not submitted (plan.md "R6 frozen"): design `dtail6ux_v4`@1/8 (user's decision; `dtail4ux_v4` reported), margin 1.5 × FP8 + 5e-4 with the fp_noise calibration, 640 fresh units (Llama 128K 300, Qwen 32K 190, Qwen 128K 150), ≈ 38 GPU-h; submit with `bash script_stage1h_r6.sh --run-r6` on trig-login01 when the user asks (dry run passes). Theorem R v2 now in `cert_s1h5`. R4 and R5.4 read (`findings/R4.md`, `findings/R5_4.md`). Earlier: R4 (all four cells) and R5.4 are read (`findings/R4.md`, `findings/R5_4.md`). R6 is a draft: margin decided (1.5 × FP8 + 5e-4, fp_noise calibration); its arm awaits the user's decision (frozen rule keeps `tail4x_v4`; recommended `dtail6ux_v4`, plan.md "R5.4 and R4 read"); Qwen 128K HELMET joins R6. Earlier phase notes: R1 and R2 queued on Trillium. R3a's first ladder is void (amendment R3a2); R3a2 and R3b
 are coded and tested, not submitted. R4b: lb2llama and hmllama done (Trillium); the Qwen cells and the reader were cancelled; `script_stage1h_temp.sh` submits only what is missing. Updated 2026-10-08: findings for R1, R2 (re-read on block 1032366 + seeds; sequential PASS at 10 prompts), R3a and R3b are all in findings/ (R3a/R3b copied from Rorqual; the current readers reproduce all 25 labels of each). Open: R3b's Qwen ladder ran with stop rule eos_only (accept with a note, or re-run); R4's Qwen blocks and reader.
 
 ## M0 checklist (before R1 is submitted)

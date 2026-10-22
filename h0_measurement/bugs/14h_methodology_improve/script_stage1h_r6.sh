@@ -185,13 +185,25 @@ print('DITHER|' + L.DITHER_PROBE_R6)" 2>/dev/null)
           S1H_PROMPT_OFFSET=$off S1H_SEED=0 S1H_STAGE=$R6_STAGE </dev/null)
       PAIRS+=("$tag:$x"); NEWJOBS+=("$x"); echo "  $name: $x" >&2
     else
-      local have=() all=1 h
+      local have=() all=1 any=0 h
       for ((k = 0; k < split; k++)); do      # reused only if every block of the node job finished
-        h=$(done_job "$tag" "$preset" "$n" $((off + k * n))); [[ -n "$h" ]] || all=0; have+=("$h")
+        h=$(done_job "$tag" "$preset" "$n" $((off + k * n))); [[ -n "$h" ]] && any=1 || all=0; have+=("$h")
       done
       if (( all )); then
         for x in "${have[@]}"; do PAIRS+=("$tag:$x"); done
         echo "  $name: finished as ${have[*]}, not resubmitted" >&2; continue
+      fi
+      if (( any )); then      # part of the pair finished: run only the missing blocks, each on 2 GPUs of its own node
+        for ((k = 0; k < split; k++)); do
+          if [[ -n "${have[$k]}" ]]; then
+            echo "  $name.$k: finished as ${have[$k]}, not resubmitted" >&2; PAIRS+=("$tag:${have[$k]}"); continue
+          fi
+          x=$(sub "${GDEP[@]}" --job-name=r14s1h6-$name$k --time=$(walltime $wall) --gpus-per-node=4 $W5 S1H_TAG=$tag \
+              S1H_PRESET=$preset S1H_CTX=$ctx S1H_SUITE=$suite "${cfg[@]}" "${dith[@]}" S1H_TASKS=$tasks S1H_N_PROMPTS=$n \
+              S1H_PROMPT_OFFSET=$((off + k * n)) S1H_GPUS=2 S1H_SEED=0 S1H_STAGE=$R6_STAGE </dev/null)
+          PAIRS+=("$tag:$x"); NEWJOBS+=("$x"); echo "  $name.$k: $x (2 GPUs of a 4-GPU node)" >&2
+        done
+        continue
       fi
       x=$(sub "${GDEP[@]}" --job-name=r14s1h6-$name --time=$(walltime $wall) --gpus-per-node=4 $W5 S1H_TAG=$tag \
           S1H_PRESET=$preset S1H_CTX=$ctx S1H_SUITE=$suite "${cfg[@]}" "${dith[@]}" S1H_TASKS=$tasks S1H_N_PROMPTS=$n \

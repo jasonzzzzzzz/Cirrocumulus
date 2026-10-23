@@ -1,27 +1,0 @@
-Loading weights:   0%|          | 0/75 [00:00<?, ?it/s]Loading weights:   5%|▌         | 4/75 [00:09<02:44,  2.32s/it]Loading weights:   7%|▋         | 5/75 [00:11<02:32,  2.18s/it]Loading weights:  21%|██▏       | 16/75 [00:16<00:47,  1.24it/s]Loading weights:  23%|██▎       | 17/75 [00:17<00:50,  1.15it/s]Loading weights:  37%|███▋      | 28/75 [00:22<00:29,  1.60it/s]Loading weights:  39%|███▊      | 29/75 [00:24<00:32,  1.42it/s]Loading weights:  53%|█████▎    | 40/75 [00:30<00:21,  1.66it/s]Loading weights:  55%|█████▍    | 41/75 [00:31<00:22,  1.48it/s]Loading weights:  69%|██████▉   | 52/75 [00:37<00:13,  1.70it/s]Loading weights:  71%|███████   | 53/75 [00:39<00:14,  1.52it/s]Loading weights:  85%|████████▌ | 64/75 [00:44<00:06,  1.71it/s]Loading weights:  87%|████████▋ | 65/75 [00:46<00:06,  1.55it/s]Loading weights: 100%|██████████| 75/75 [00:46<00:00,  1.62it/s]
-[transformers] [1mMiniMaxM2ForCausalLM LOAD REPORT[0m from: MiniMaxAI/MiniMax-M2
-Key                                                   | Status     |  | 
-------------------------------------------------------+------------+--+-
-model.layers.{6...61}.self_attn.o_proj.weight         | UNEXPECTED |  | 
-model.layers.{6...61}.self_attn.v_proj.weight         | UNEXPECTED |  | 
-model.layers.{6...61}.post_attention_layernorm.weight | UNEXPECTED |  | 
-model.layers.{6...61}.self_attn.q_proj.weight         | UNEXPECTED |  | 
-model.layers.{6...61}.self_attn.k_norm.weight         | UNEXPECTED |  | 
-model.layers.{6...61}.input_layernorm.weight          | UNEXPECTED |  | 
-model.layers.{6...61}.mlp.experts.down_proj           | UNEXPECTED |  | 
-model.layers.{6...61}.mlp.gate.weight                 | UNEXPECTED |  | 
-model.layers.{6...61}.mlp.experts.gate_up_proj        | UNEXPECTED |  | 
-model.layers.{6...61}.mlp.e_score_correction_bias     | UNEXPECTED |  | 
-model.layers.{6...61}.self_attn.q_norm.weight         | UNEXPECTED |  | 
-model.layers.{6...61}.self_attn.k_proj.weight         | UNEXPECTED |  | 
-
-Notes:
-- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-minimaxm2 pg19_32768: forward 34 s, 6 views
-minimaxm2 code_32768: forward 36 s, 6 views
-minimaxm2 table_32768: forward 36 s, 6 views
-minimaxm2 agent_32768: forward 38 s, 6 views
-minimaxm2 news_32768: forward 25 s, 6 views
-minimaxm2 pg19_1600: forward 3 s, 6 views
-minimaxm2 pg19raw_1600: forward 3 s, 6 views
-minimaxm2: load 50 s, total 232 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/minimaxm2

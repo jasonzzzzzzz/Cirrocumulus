@@ -1,1 +1,0 @@
-g0view_llama1b_agent_32768_L6.pt: unread 2nd-moment share 0.0002; tail / FP8 (median) store 4+2/4 0.05, 4+2/6 0.04, 4+4/4 0.03; part 8 at 4+2 12.5x; (231.6 + 129.7 s)

@@ -1,0 +1,27 @@
+{
+ "model": "llama8b",
+ "task": "msmarco_rerank_psg",
+ "name": "rerank",
+ "item": 27,
+ "item_key": "1115776",
+ "L": 32768,
+ "C": 32554,
+ "nq": 13,
+ "na": 50,
+ "n_layers": 32,
+ "span_end": 49,
+ "answer": " 7518237 > 7518239 > 7518237 > 7518239 > 7518237 > 7518239 > 7518237 > 7518239 > 7518237 > 7518239\n\n",
+ "named": [
+  "7518237",
+  "7518239"
+ ],
+ "n_named": 2,
+ "n_passages": 444,
+ "truncated_tokens": 42605,
+ "score": 0.0,
+ "named_relevant": 0,
+ "t_load": 1.3,
+ "t_prefill": 338.1,
+ "t_decode": 155.6,
+ "threads": 32
+}

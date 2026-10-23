@@ -1,1 +1,0 @@
-g0view_qwen15_agent_32768_L2.pt: unread 2nd-moment share 0.0165; tail / FP8 (median) store 4+2/4 0.06, 4+2/6 0.04, 4+4/4 0.04; part 8 at 4+2 13.1x; (130.2 + 64.5 s)

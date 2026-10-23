@@ -1,1 +1,0 @@
-g0view_dsv2lite_agent_32768_L17.pt: unread 2nd-moment share 0.0001; tail / FP8 (median) store 4+2 0.01, 4+4 0.00; coupling share 7.2e-04; coupled Theorem R at 4+2: cover 1.000, 76.4x; recon 1.5e-05 (2429.0 + 1031.2 s)

@@ -1,0 +1,29 @@
+{
+ "model": "llama8b",
+ "task": "msmarco_rerank_psg",
+ "name": "rerank",
+ "item": 12,
+ "item_key": "146187",
+ "L": 32768,
+ "C": 32551,
+ "nq": 16,
+ "na": 50,
+ "n_layers": 32,
+ "span_end": 49,
+ "answer": " 4433018 > 8434625 > 8434621 > 8434626 > 8434625 > 8434621 > 8434626 > 8434625 > 8434621 > 8434626\n\n",
+ "named": [
+  "4433018",
+  "8434625",
+  "8434621",
+  "8434626"
+ ],
+ "n_named": 4,
+ "n_passages": 383,
+ "truncated_tokens": 51544,
+ "score": 0.23837762887869138,
+ "named_relevant": 2,
+ "t_load": 5.9,
+ "t_prefill": 378.3,
+ "t_decode": 105.5,
+ "threads": 32
+}

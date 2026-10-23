@@ -1,10 +1,0 @@
-Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:00<01:26,  3.57it/s]Loading weights:  32%|███▏      | 100/311 [00:00<00:00, 322.95it/s]Loading weights:  49%|████▉     | 152/311 [00:00<00:00, 321.55it/s]Loading weights:  63%|██████▎   | 195/311 [00:00<00:00, 341.55it/s]Loading weights:  76%|███████▌  | 237/311 [00:01<00:00, 220.52it/s]Loading weights: 100%|██████████| 311/311 [00:01<00:00, 288.80it/s]
-qwen3_1p7b pg19_32768: forward 42 s, 28 views
-[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (168781 > 131072). Running this sequence through the model will result in indexing errors
-qwen3_1p7b code_32768: forward 42 s, 28 views
-qwen3_1p7b table_32768: forward 41 s, 28 views
-qwen3_1p7b agent_32768: forward 50 s, 28 views
-qwen3_1p7b news_32768: forward 41 s, 28 views
-qwen3_1p7b pg19_1600: forward 3 s, 28 views
-qwen3_1p7b pg19raw_1600: forward 3 s, 28 views
-qwen3_1p7b: load 2 s, total 230 s -> /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant/h0_measurement/bugs/14h_theory/.g0views/qwen3_1p7b

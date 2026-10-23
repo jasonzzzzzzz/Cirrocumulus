@@ -46,11 +46,12 @@ How the two folders connect:
 | `g0map_s1h5.py`, `g0mla_s1h5.py`, `g0sum_s1h5.py` | G0 (`ARCHITECTURES_PLAN.md` §5), the 32K map in the single store's form: `capture` (exact attention swapped into every layer, sinks and windows included, unknown kwargs refused; loaded weights checked against the checkpoint), `analyze` (Theorem M's store and uniform grids, part 8 at 6/8-bit keys; MLA: Lemma N_lat, Theorem M_lat and the coupled certificate, theory.md §13b), `g0sum` (families, widths, certification widths, the slack law: `findings/g0/tables_g0.md`); views in `../14_logs/14h_theory/g0views/` (581 GB; moved from `.g0views/` on 2026-10-22; `G0_VIEWS` overrides; `../14_logs/README.md`) |
 | `test_g0map_s1h5.py`, `test_g0mla_s1h5.py`, `submit_g0_cpu.slurm` | G0's checks (`--fast`: synthetic; without it, every architecture's truncated real model) and its Trillium CPU job (`G0_MODELS=`, `G0_STAGES=`; resumes from disk; analyze reserves memory per view) |
 | `paper_theory_section.md` | the design paper's theory section as a skeleton: statements in paper form, proof routes, evidence slots |
+| `gate76_s1h5.py`, `gate76sum_s1h5.py`, `test_gate76_s1h5.py`, `submit_gate76_cpu.slurm` | why dense 7/6 beats R7b's design on re-ranking, and the answer-time re-vote (`findings/findings_gate76.md`): R7b's HELMET units at 32K on CPU (`RUnit` = e2e_s1h5.Unit with an exact-attention prefill, FP's greedy answer, R6's pooled vote; parts theory / arms / layers / reads), the G0 views as a control, the summary (bridge, heads, read regimes, variants at <= 0.406); outputs `findings/gate76/` |
 
 ## Commands
 ```bash
 cd /scratch/jczhao20/ondemand/Cirrocumulus/contexts/unified-kv-quant-evict-TurboQuant
-for t in test_theory_s1h5 test_theory3_s1h5 test_theory4_s1h5 test_theory5_s1h5 test_adapters_s1h5 test_nested_s1h5 test_g0map_s1h5 test_g0mla_s1h5; do
+for t in test_theory_s1h5 test_theory3_s1h5 test_theory4_s1h5 test_theory5_s1h5 test_adapters_s1h5 test_nested_s1h5 test_g0map_s1h5 test_g0mla_s1h5 test_gate76_s1h5; do
   OMP_NUM_THREADS=8 .venv/bin/python -u h0_measurement/bugs/14h_theory/$t.py --fast; done
 ```
 Without `--fast`, the tests load real models on CPU (Llama-3.2-1B, and the six adapter models): minutes to tens of

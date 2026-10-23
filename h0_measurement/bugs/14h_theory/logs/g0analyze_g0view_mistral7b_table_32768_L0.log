@@ -1,2 +1,0 @@
-(waited 134 s for 4 x 8 GB of memory)
-g0view_mistral7b_table_32768_L0.pt: unread 2nd-moment share 0.0094; tail / FP8 (median) store 4+2/4 0.09, 4+2/6 0.04, 4+4/4 0.09; part 8 at 4+2 3.6x; (363.8 + 115.2 s)

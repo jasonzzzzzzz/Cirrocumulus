@@ -11,6 +11,15 @@ The folder is isolated from `../14h_methodology_improve/` (`ISOLATION_PLAN.md`, 
 six `--fast` suites. Cached views for the CPU harnesses are in `../14_logs/14h_theory/views/`, and G0's 32K views in `../14_logs/14h_theory/g0views/` (both moved out of this folder on 2026-10-22; the code's defaults point there; `../14_logs/README.md`). The random-weight Gemma 3 view `view_gemma3_L5_1600.pt` was deleted then. Long CPU runs can go to a Trillium CPU node
 (the user's OK, 2026-10-12): this time, 68 harness runs took 15 minutes on one node.
 
+**2026-10-22: why dense 7/6 is not beaten** (`findings/findings_gate76.md`; CPU at 32K, Llama-8B and Qwen3-30B, R7b's
+own re-ranking units plus RAG/ICL controls and G0's views). It is not flat heads: the question's vote misses the
+passage-ID rows the answer copies. Vote-miss head-steps carry 107% of the design's predicted excess; flat ones carry
+0%. The three named variants (G0's allocation, 6-bit values, a 1/4 read) do not beat dense 7/6 at <= 0.406, predicted
+or measured. Re-casting the vote at every answer step does: R6's own row-buffer vote (the last 32 rows of question and
+answer, base keys, `s1d_lib.RowBuffer` at k = 1), traffic 0.398, is below dense 7/6 on all 16 Llama re-ranking units
+(0.29x, held-out ones included), on 6 of 8 RAG/ICL units and on Qwen. An answer-only window of 8 is stronger on
+re-ranking (0.08-0.13x) but weaker on ICL. A GPU test needs the user (R7c or an amendment; findings_gate76 §4).
+
 ## What holds
 - **Theorem R** (v1, v2, v3, the sure sums, the split, part 8): valid for every input. 0 misses in 31 million GPU
   checks (R5.4, v1) and in every brute-force and CPU test.

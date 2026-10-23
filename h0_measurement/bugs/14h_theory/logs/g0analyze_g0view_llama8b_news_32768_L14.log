@@ -1,1 +1,0 @@
-g0view_llama8b_news_32768_L14.pt: unread 2nd-moment share 0.0005; tail / FP8 (median) store 4+2/4 0.04, 4+2/6 0.03, 4+4/4 0.03; part 8 at 4+2 6.6x; (373.5 + 132.5 s)

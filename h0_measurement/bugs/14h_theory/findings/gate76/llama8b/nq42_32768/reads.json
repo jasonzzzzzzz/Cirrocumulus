@@ -1,0 +1,885 @@
+{
+ "model": "llama8b",
+ "task": "kilt_nq",
+ "name": "kilt_nq",
+ "item": 42,
+ "item_key": "when did gaurdians of the galaxy 2 come out",
+ "L": 32768,
+ "C": 32729,
+ "nq": 18,
+ "na": 8,
+ "n_layers": 32,
+ "span_end": 7,
+ "answer": " May 5, 2017\n\n",
+ "named": [],
+ "n_named": 0,
+ "n_passages": 0,
+ "truncated_tokens": 84176,
+ "score": 1.0,
+ "named_relevant": 0,
+ "t_load": 1.5,
+ "t_prefill": 300.1,
+ "t_decode": 16.1,
+ "threads": 32,
+ "layers": {
+  "0": {
+   "rv1": {
+    "churn": 0.16398802248838917,
+    "outside_q": 0.15728886580298215,
+    "union_outside_q": 0.05801048000244431,
+    "union_over_read": 0.4640838400195545
+   },
+   "rv8": {
+    "churn": 0.062030764395711833,
+    "outside_q": 0.1253017294060132,
+    "union_outside_q": 0.03241773350850928,
+    "union_over_read": 0.25934186806807424
+   },
+   "rvb32k1": {
+    "churn": 0.00894821384921605,
+    "outside_q": 0.024363694695673427,
+    "union_outside_q": 0.006389593327018852,
+    "union_over_read": 0.051116746616150815
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "1": {
+   "rv1": {
+    "churn": 0.2200649509375982,
+    "outside_q": 0.2928150207773161,
+    "union_outside_q": 0.10641174493568395,
+    "union_over_read": 0.8512939594854716
+   },
+   "rv8": {
+    "churn": 0.10453259768830533,
+    "outside_q": 0.2537658885358103,
+    "union_outside_q": 0.06615692505117786,
+    "union_over_read": 0.5292554004094229
+   },
+   "rvb32k1": {
+    "churn": 0.018127771763802075,
+    "outside_q": 0.05289049132241506,
+    "union_outside_q": 0.013829478444193221,
+    "union_over_read": 0.11063582755354577
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "2": {
+   "rv1": {
+    "churn": 0.2711919893843629,
+    "outside_q": 0.3335905035443657,
+    "union_outside_q": 0.13753093586727366,
+    "union_over_read": 1.1002474869381893
+   },
+   "rv8": {
+    "churn": 0.11002374550406815,
+    "outside_q": 0.2844773588364703,
+    "union_outside_q": 0.07717925998350086,
+    "union_over_read": 0.6174340798680069
+   },
+   "rvb32k1": {
+    "churn": 0.01655637811223243,
+    "outside_q": 0.04719200684429235,
+    "union_outside_q": 0.013332976870665158,
+    "union_over_read": 0.10666381496532126
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "3": {
+   "rv1": {
+    "churn": 0.2166951845514544,
+    "outside_q": 0.26309276460523096,
+    "union_outside_q": 0.09859375477405359,
+    "union_over_read": 0.7887500381924287
+   },
+   "rv8": {
+    "churn": 0.08605999231763103,
+    "outside_q": 0.21960171718406257,
+    "union_outside_q": 0.054935989489443615,
+    "union_over_read": 0.4394879159155489
+   },
+   "rvb32k1": {
+    "churn": 0.010877536054754338,
+    "outside_q": 0.031933665362991935,
+    "union_outside_q": 0.008180818234593174,
+    "union_over_read": 0.0654465458767454
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "4": {
+   "rv1": {
+    "churn": 0.27230942486992354,
+    "outside_q": 0.31742697384502566,
+    "union_outside_q": 0.12640166213449844,
+    "union_over_read": 1.0112132970759875
+   },
+   "rv8": {
+    "churn": 0.10424887383454973,
+    "outside_q": 0.25745538988022487,
+    "union_outside_q": 0.06824605090286902,
+    "union_over_read": 0.5459684072229521
+   },
+   "rvb32k1": {
+    "churn": 0.015207598561301812,
+    "outside_q": 0.04108103153263261,
+    "union_outside_q": 0.011786183506981577,
+    "union_over_read": 0.09428946805585262
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "5": {
+   "rv1": {
+    "churn": 0.29725093410622616,
+    "outside_q": 0.36152911879736005,
+    "union_outside_q": 0.14199181154327967,
+    "union_over_read": 1.1359344923462373
+   },
+   "rv8": {
+    "churn": 0.13358155533051647,
+    "outside_q": 0.32377093009044244,
+    "union_outside_q": 0.08765162394206973,
+    "union_over_read": 0.7012129915365578
+   },
+   "rvb32k1": {
+    "churn": 0.01488022488389147,
+    "outside_q": 0.042161910290882426,
+    "union_outside_q": 0.011465367105624982,
+    "union_over_read": 0.09172293684499985
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "6": {
+   "rv1": {
+    "churn": 0.3072860285644446,
+    "outside_q": 0.3611662796382303,
+    "union_outside_q": 0.14270219071771212,
+    "union_over_read": 1.141617525741697
+   },
+   "rv8": {
+    "churn": 0.12265600446974194,
+    "outside_q": 0.3178967550721095,
+    "union_outside_q": 0.08112835711448563,
+    "union_over_read": 0.649026856915885
+   },
+   "rvb32k1": {
+    "churn": 0.014587771065404898,
+    "outside_q": 0.04705832925934979,
+    "union_outside_q": 0.011564667420330594,
+    "union_over_read": 0.09251733936264475
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "7": {
+   "rv1": {
+    "churn": 0.29910168662918596,
+    "outside_q": 0.3370011916401858,
+    "union_outside_q": 0.1369274954932934,
+    "union_over_read": 1.095419963946347
+   },
+   "rv8": {
+    "churn": 0.12666305828124452,
+    "outside_q": 0.2855276827181618,
+    "union_outside_q": 0.08099468361392037,
+    "union_over_read": 0.647957468911363
+   },
+   "rvb32k1": {
+    "churn": 0.01436515696476586,
+    "outside_q": 0.0396946040087998,
+    "union_outside_q": 0.010804638088545327,
+    "union_over_read": 0.08643710470836262
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "8": {
+   "rv1": {
+    "churn": 0.3228210008031568,
+    "outside_q": 0.37979711561965285,
+    "union_outside_q": 0.1462770020471142,
+    "union_over_read": 1.1702160163769135
+   },
+   "rv8": {
+    "churn": 0.1435686349827147,
+    "outside_q": 0.3293319176240528,
+    "union_outside_q": 0.09178404473097253,
+    "union_over_read": 0.7342723578477802
+   },
+   "rvb32k1": {
+    "churn": 0.018494430282501664,
+    "outside_q": 0.0515498961134197,
+    "union_outside_q": 0.014188487274282745,
+    "union_over_read": 0.11350789819426196
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "9": {
+   "rv1": {
+    "churn": 0.34613437161713867,
+    "outside_q": 0.3544136519188463,
+    "union_outside_q": 0.14884735250084025,
+    "union_over_read": 1.190778820006722
+   },
+   "rv8": {
+    "churn": 0.14412735272549498,
+    "outside_q": 0.3056442495722317,
+    "union_outside_q": 0.0883581838736289,
+    "union_over_read": 0.7068654709890312
+   },
+   "rvb32k1": {
+    "churn": 0.01904878304291651,
+    "outside_q": 0.04863954412124175,
+    "union_outside_q": 0.013871490115799443,
+    "union_over_read": 0.11097192092639555
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "10": {
+   "rv1": {
+    "churn": 0.35791109403918003,
+    "outside_q": 0.41706642630163776,
+    "union_outside_q": 0.16121024168168904,
+    "union_over_read": 1.2896819334535123
+   },
+   "rv8": {
+    "churn": 0.1576631630408213,
+    "outside_q": 0.3766041310193107,
+    "union_outside_q": 0.10303553423569312,
+    "union_over_read": 0.8242842738855449
+   },
+   "rvb32k1": {
+    "churn": 0.02531253273736774,
+    "outside_q": 0.07259074798337814,
+    "union_outside_q": 0.01924134559564912,
+    "union_over_read": 0.15393076476519296
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "11": {
+   "rv1": {
+    "churn": 0.31906711596885146,
+    "outside_q": 0.3317610303104376,
+    "union_outside_q": 0.13386446270891258,
+    "union_over_read": 1.0709157016713007
+   },
+   "rv8": {
+    "churn": 0.12091437650591892,
+    "outside_q": 0.2999572231728184,
+    "union_outside_q": 0.07609077576461243,
+    "union_over_read": 0.6087262061168994
+   },
+   "rvb32k1": {
+    "churn": 0.01824999127003527,
+    "outside_q": 0.0525467489611342,
+    "union_outside_q": 0.013229857313086254,
+    "union_over_read": 0.10583885850469003
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "12": {
+   "rv1": {
+    "churn": 0.23016988511366415,
+    "outside_q": 0.2484302432168174,
+    "union_outside_q": 0.09229964251886705,
+    "union_over_read": 0.7383971401509364
+   },
+   "rv8": {
+    "churn": 0.08127597164507454,
+    "outside_q": 0.20532877047176729,
+    "union_outside_q": 0.04980674631061138,
+    "union_over_read": 0.39845397048489106
+   },
+   "rvb32k1": {
+    "churn": 0.011907671893005555,
+    "outside_q": 0.036104406013199704,
+    "union_outside_q": 0.009070701824070396,
+    "union_over_read": 0.07256561459256317
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "13": {
+   "rv1": {
+    "churn": 0.29856042881586753,
+    "outside_q": 0.42403293815692983,
+    "union_outside_q": 0.13935653396070763,
+    "union_over_read": 1.114852271685661
+   },
+   "rv8": {
+    "churn": 0.12432342773335196,
+    "outside_q": 0.4065937423612809,
+    "union_outside_q": 0.08762106999908337,
+    "union_over_read": 0.7009685599926669
+   },
+   "rvb32k1": {
+    "churn": 0.0248934944302825,
+    "outside_q": 0.08457207895380103,
+    "union_outside_q": 0.02003574811329402,
+    "union_over_read": 0.16028598490635215
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "14": {
+   "rv1": {
+    "churn": 0.28858207912840034,
+    "outside_q": 0.4129224211684185,
+    "union_outside_q": 0.13536924440098996,
+    "union_over_read": 1.0829539552079197
+   },
+   "rv8": {
+    "churn": 0.12192268743234277,
+    "outside_q": 0.3783190234661452,
+    "union_outside_q": 0.0853791744324605,
+    "union_over_read": 0.683033395459684
+   },
+   "rvb32k1": {
+    "churn": 0.023492335090966234,
+    "outside_q": 0.08238358592031289,
+    "union_outside_q": 0.019038925723364603,
+    "union_over_read": 0.15231140578691682
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "15": {
+   "rv1": {
+    "churn": 0.30914551105213534,
+    "outside_q": 0.4390430212661941,
+    "union_outside_q": 0.1486029209569495,
+    "union_over_read": 1.188823367655596
+   },
+   "rv8": {
+    "churn": 0.12572022209030273,
+    "outside_q": 0.40375977756049863,
+    "union_outside_q": 0.08994698890891868,
+    "union_over_read": 0.7195759112713495
+   },
+   "rvb32k1": {
+    "churn": 0.0199916192338583,
+    "outside_q": 0.06549055854314348,
+    "union_outside_q": 0.016235601454367685,
+    "union_over_read": 0.12988481163494148
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "16": {
+   "rv1": {
+    "churn": 0.28625990850996963,
+    "outside_q": 0.37878116597408945,
+    "union_outside_q": 0.12934247914693392,
+    "union_over_read": 1.0347398331754714
+   },
+   "rv8": {
+    "churn": 0.11269947969410203,
+    "outside_q": 0.361242666829626,
+    "union_outside_q": 0.0769004552537505,
+    "union_over_read": 0.615203642030004
+   },
+   "rvb32k1": {
+    "churn": 0.019646785626986067,
+    "outside_q": 0.06885541432412613,
+    "union_outside_q": 0.015590149408781203,
+    "union_over_read": 0.12472119527024962
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "17": {
+   "rv1": {
+    "churn": 0.33401718057059054,
+    "outside_q": 0.3944252627719384,
+    "union_outside_q": 0.1414380213266522,
+    "union_over_read": 1.1315041706132176
+   },
+   "rv8": {
+    "churn": 0.10977930649160177,
+    "outside_q": 0.3653102847714495,
+    "union_outside_q": 0.07626646093678388,
+    "union_over_read": 0.610131687494271
+   },
+   "rvb32k1": {
+    "churn": 0.01686192687781541,
+    "outside_q": 0.06390170496211195,
+    "union_outside_q": 0.01349720431421675,
+    "union_over_read": 0.107977634513734
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "18": {
+   "rv1": {
+    "churn": 0.36059992317631034,
+    "outside_q": 0.38120645930090435,
+    "union_outside_q": 0.13821076109871977,
+    "union_over_read": 1.1056860887897582
+   },
+   "rv8": {
+    "churn": 0.11968345147885603,
+    "outside_q": 0.35206474578342706,
+    "union_outside_q": 0.07686990131076415,
+    "union_over_read": 0.6149592104861132
+   },
+   "rvb32k1": {
+    "churn": 0.015600446974194224,
+    "outside_q": 0.04837982767049621,
+    "union_outside_q": 0.01230941978062269,
+    "union_over_read": 0.09847535824498152
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "19": {
+   "rv1": {
+    "churn": 0.32868317211998466,
+    "outside_q": 0.4000511794182351,
+    "union_outside_q": 0.13654175196309082,
+    "union_over_read": 1.0923340157047265
+   },
+   "rv8": {
+    "churn": 0.1047202919300206,
+    "outside_q": 0.38061445856758735,
+    "union_outside_q": 0.0744561398148431,
+    "union_over_read": 0.5956491185187448
+   },
+   "rvb32k1": {
+    "churn": 0.013156056849530326,
+    "outside_q": 0.04843711806404302,
+    "union_outside_q": 0.01041125607259617,
+    "union_over_read": 0.08329004858076935
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "20": {
+   "rv1": {
+    "churn": 0.36964416663756683,
+    "outside_q": 0.4168907357614275,
+    "union_outside_q": 0.14825155061260656,
+    "union_over_read": 1.1860124049008525
+   },
+   "rv8": {
+    "churn": 0.11344589167859763,
+    "outside_q": 0.397969628452701,
+    "union_outside_q": 0.07850071801766018,
+    "union_over_read": 0.6280057441412814
+   },
+   "rvb32k1": {
+    "churn": 0.014059608199182876,
+    "outside_q": 0.056350831092642384,
+    "union_outside_q": 0.011289681933453512,
+    "union_over_read": 0.0903174554676281
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "21": {
+   "rv1": {
+    "churn": 0.3353703251038866,
+    "outside_q": 0.40958048154485455,
+    "union_outside_q": 0.14320251153411348,
+    "union_over_read": 1.1456200922729078
+   },
+   "rv8": {
+    "churn": 0.10681984844781225,
+    "outside_q": 0.36526063309704226,
+    "union_outside_q": 0.07494118365975129,
+    "union_over_read": 0.5995294692780103
+   },
+   "rvb32k1": {
+    "churn": 0.013832629116178372,
+    "outside_q": 0.05088914690784649,
+    "union_outside_q": 0.010732072473952763,
+    "union_over_read": 0.0858565797916221
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "22": {
+   "rv1": {
+    "churn": 0.32374637706463666,
+    "outside_q": 0.39002917990711317,
+    "union_outside_q": 0.1372444926517767,
+    "union_over_read": 1.0979559412142137
+   },
+   "rv8": {
+    "churn": 0.09753553095645494,
+    "outside_q": 0.345690234661452,
+    "union_outside_q": 0.0693727275504904,
+    "union_over_read": 0.5549818204039232
+   },
+   "rvb32k1": {
+    "churn": 0.013479065544575201,
+    "outside_q": 0.0485937118064043,
+    "union_outside_q": 0.0106595068593602,
+    "union_over_read": 0.0852760548748816
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "23": {
+   "rv1": {
+    "churn": 0.31334025910535324,
+    "outside_q": 0.38517477389391347,
+    "union_outside_q": 0.13545326774420238,
+    "union_over_read": 1.083626141953619
+   },
+   "rv8": {
+    "churn": 0.09984460662778923,
+    "outside_q": 0.33846400635541435,
+    "union_outside_q": 0.06949112407956247,
+    "union_over_read": 0.5559289926364998
+   },
+   "rvb32k1": {
+    "churn": 0.011152529943779027,
+    "outside_q": 0.040576876069420675,
+    "union_outside_q": 0.00873460845122063,
+    "union_over_read": 0.06987686760976504
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "24": {
+   "rv1": {
+    "churn": 0.31881831197401966,
+    "outside_q": 0.37580206550965534,
+    "union_outside_q": 0.13972700051941703,
+    "union_over_read": 1.1178160041553362
+   },
+   "rv8": {
+    "churn": 0.09415266962321471,
+    "outside_q": 0.3289767171840626,
+    "union_outside_q": 0.06590103577866724,
+    "union_over_read": 0.5272082862293379
+   },
+   "rvb32k1": {
+    "churn": 0.011532283409575026,
+    "outside_q": 0.04268516255194329,
+    "union_outside_q": 0.00906306333832381,
+    "union_over_read": 0.07250450670659048
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "25": {
+   "rv1": {
+    "churn": 0.29121852847714497,
+    "outside_q": 0.3693511671962845,
+    "union_outside_q": 0.13169513275688227,
+    "union_over_read": 1.0535610620550582
+   },
+   "rv8": {
+    "churn": 0.09483360687222823,
+    "outside_q": 0.3133593559032022,
+    "union_outside_q": 0.06589721653579395,
+    "union_over_read": 0.5271777322863516
+   },
+   "rvb32k1": {
+    "churn": 0.011654502915808218,
+    "outside_q": 0.04016438523588364,
+    "union_outside_q": 0.00906306333832381,
+    "union_over_read": 0.07250450670659048
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "26": {
+   "rv1": {
+    "churn": 0.31879648706219227,
+    "outside_q": 0.3765926729406014,
+    "union_outside_q": 0.13505224724250664,
+    "union_over_read": 1.0804179779400531
+   },
+   "rv8": {
+    "churn": 0.1007437929950763,
+    "outside_q": 0.3486960706428746,
+    "union_outside_q": 0.07003727581044333,
+    "union_over_read": 0.5602982064835467
+   },
+   "rvb32k1": {
+    "churn": 0.011785452386772357,
+    "outside_q": 0.0470850647763383,
+    "union_outside_q": 0.009273121696354913,
+    "union_over_read": 0.07418497357083931
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "27": {
+   "rv1": {
+    "churn": 0.3319045291057024,
+    "outside_q": 0.3694619286238084,
+    "union_outside_q": 0.14537947997189038,
+    "union_over_read": 1.163035839775123
+   },
+   "rv8": {
+    "churn": 0.10284771449523344,
+    "outside_q": 0.31562041676851627,
+    "union_outside_q": 0.07081640135659506,
+    "union_over_read": 0.5665312108527605
+   },
+   "rvb32k1": {
+    "churn": 0.012902887872332996,
+    "outside_q": 0.04495004277682718,
+    "union_outside_q": 0.009979681627914083,
+    "union_over_read": 0.07983745302331266
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "28": {
+   "rv1": {
+    "churn": 0.30058578063344626,
+    "outside_q": 0.3575989978000489,
+    "union_outside_q": 0.13413180971004307,
+    "union_over_read": 1.0730544776803446
+   },
+   "rv8": {
+    "churn": 0.10530083458462827,
+    "outside_q": 0.31858805915424104,
+    "union_outside_q": 0.07107229062910568,
+    "union_over_read": 0.5685783250328454
+   },
+   "rvb32k1": {
+    "churn": 0.01481911513077487,
+    "outside_q": 0.05040790760205329,
+    "union_outside_q": 0.011606679091936814,
+    "union_over_read": 0.09285343273549451
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "29": {
+   "rv1": {
+    "churn": 0.287495198519398,
+    "outside_q": 0.31468085431434856,
+    "union_outside_q": 0.12267026184729138,
+    "union_over_read": 0.981362094778331
+   },
+   "rv8": {
+    "churn": 0.10101878688410097,
+    "outside_q": 0.2681304998777805,
+    "union_outside_q": 0.06364768248342449,
+    "union_over_read": 0.5091814598673959
+   },
+   "rvb32k1": {
+    "churn": 0.012064811258162516,
+    "outside_q": 0.036837723050598875,
+    "union_outside_q": 0.009318952610834428,
+    "union_over_read": 0.07455162088667543
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "30": {
+   "rv1": {
+    "churn": 0.37140761951321716,
+    "outside_q": 0.42133647030065996,
+    "union_outside_q": 0.1683331296403801,
+    "union_over_read": 1.3466650371230409
+   },
+   "rv8": {
+    "churn": 0.12939553724202954,
+    "outside_q": 0.3634731728183818,
+    "union_outside_q": 0.08707873751107581,
+    "union_over_read": 0.6966299000886065
+   },
+   "rvb32k1": {
+    "churn": 0.016787722177602403,
+    "outside_q": 0.05522793937912491,
+    "union_outside_q": 0.013313880656298696,
+    "union_over_read": 0.10651104525038957
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  },
+  "31": {
+   "rv1": {
+    "churn": 0.3578412543213325,
+    "outside_q": 0.4148664751894402,
+    "union_outside_q": 0.16499893061199547,
+    "union_over_read": 1.3199914448959638
+   },
+   "rv8": {
+    "churn": 0.12964870621922686,
+    "outside_q": 0.3499831948178929,
+    "union_outside_q": 0.08659369366616762,
+    "union_over_read": 0.692749549329341
+   },
+   "rvb32k1": {
+    "churn": 0.020445577399867305,
+    "outside_q": 0.06353504644341237,
+    "union_outside_q": 0.015727642152219744,
+    "union_over_read": 0.12582113721775795
+   },
+   "rvb32k8": {
+    "churn": 0.0,
+    "outside_q": 0.0,
+    "union_outside_q": 0.0,
+    "union_over_read": 0.0
+   }
+  }
+ },
+ "mean": {
+  "rv1": {
+   "churn": 0.30468777281139786,
+   "outside_q": 0.3621002324080298,
+   "union_outside_q": 0.13456469701946286,
+   "union_over_read": 1.0765175761557029
+  },
+  "rv8": {
+   "churn": 0.11224320263121138,
+   "outside_q": 0.3214618885205329,
+   "union_outside_q": 0.07495550582052615,
+   "union_over_read": 0.5996440465642092
+  },
+  "rvb32k1": {
+   "churn": 0.015772590966232496,
+   "outside_q": 0.05084785008249819,
+   "union_outside_q": 0.012276120756821165,
+   "union_over_read": 0.09820896605456932
+  },
+  "rvb32k8": {
+   "churn": 0.0,
+   "outside_q": 0.0,
+   "union_outside_q": 0.0,
+   "union_over_read": 0.0
+  }
+ },
+ "seconds": 39.0
+}

@@ -1,2 +1,0 @@
-(waited 520 s for 4 x 8 GB of memory)
-g0view_mistral7b_agent_32768_L16.pt: unread 2nd-moment share 0.0020; tail / FP8 (median) store 4+2/4 0.07, 4+2/6 0.04, 4+4/4 0.06; part 8 at 4+2 7.7x; (363.3 + 124.0 s)

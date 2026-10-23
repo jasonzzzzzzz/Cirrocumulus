@@ -1,2 +1,0 @@
-(waited 20 s for 1 x 8 GB of memory)
-g0view_qwen15moe_pg19raw_1600_L19.pt: unread 2nd-moment share 0.0004; tail / FP8 (median) store 4+2/4 0.08, 4+2/6 0.05, 4+4/4 0.06; part 8 at 4+2 5.3x; (15.3 + 23.7 s)

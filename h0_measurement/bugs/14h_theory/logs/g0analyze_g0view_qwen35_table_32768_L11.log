@@ -1,2 +1,0 @@
-(waited 84 s for 3 x 8 GB of memory)
-g0view_qwen35_table_32768_L11.pt: unread 2nd-moment share 0.0049; tail / FP8 (median) store 4+2/4 0.14, 4+2/6 0.06, 4+4/4 0.13; part 8 at 4+2 3.8x; (659.0 + 154.4 s)

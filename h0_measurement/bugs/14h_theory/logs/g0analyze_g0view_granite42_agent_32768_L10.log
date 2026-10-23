@@ -1,2 +1,0 @@
-(waited 466 s for 4 x 8 GB of memory)
-g0view_granite42_agent_32768_L10.pt: unread 2nd-moment share 0.0346; tail / FP8 (median) store 4+2/4 0.19, 4+2/6 0.09, 4+4/4 0.16; part 8 at 4+2 4.3x; (408.1 + 118.2 s)

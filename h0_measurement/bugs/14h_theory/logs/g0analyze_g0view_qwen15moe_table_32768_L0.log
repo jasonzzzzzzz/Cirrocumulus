@@ -1,1 +1,0 @@
-g0view_qwen15moe_table_32768_L0.pt: unread 2nd-moment share 0.0316; tail / FP8 (median) store 4+2/4 0.09, 4+2/6 0.04, 4+4/4 0.08; part 8 at 4+2 5.0x; (221.9 + 85.4 s)
